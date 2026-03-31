@@ -1,0 +1,19 @@
+✅ PASOS
+1. Abre la carpeta dropsystem
+2. En la barra de arriba (donde dice la ruta)
+
+Haz clic y escribe:
+
+cmd
+
+y presiona Enter
+
+3. En la ventana negra escribe:
+python -m http.server 8000
+
+o si no funciona:
+
+py -m http.server 8000
+4. Abre tu navegador y entra a:
+
+👉 http://localhost:8000/
