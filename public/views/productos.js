@@ -14,6 +14,7 @@ export function renderProductos() {
       <input id="material" placeholder="Material / Tipo">
       <input id="landing" placeholder="Link Landing Page">
       <input id="creativos" placeholder="Link Creativos">
+    <H1>PRUEBA</H2>
 
       <button onclick="guardarProducto()">Guardar</button>
     </div>
