@@ -1664,7 +1664,7 @@ window.analizarTendencia = async function() {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        prompt: `
+       prompt: `
 Responde SOLO en JSON válido (sin texto extra).
 
 Analiza la tendencia: "${texto}"
@@ -1673,7 +1673,7 @@ Analiza la tendencia: "${texto}"
   "demanda": "alto/medio/bajo",
   "tendencia": "creciendo/estable/muriendo",
   "competencia": "alta/media/baja",
-  "score": 1,
+  "score": "número entero del 1 al 100",
   "recomendacion": "texto corto claro"
 }
 `
