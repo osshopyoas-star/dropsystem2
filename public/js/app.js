@@ -1062,6 +1062,9 @@ if (route === "tendencias") {
     <p>Aquí irá análisis tipo Google Trends / Exploding Topics</p>
   `;
 }
+if (route === "tendencias") {
+  view.innerHTML = renderTendencias();
+}
 
 if (route === "nichos") {
   view.innerHTML = `
@@ -1638,3 +1641,55 @@ async function llamarIA(texto) {
   const data = await res.json();
   console.log(data);
 }
+
+function renderTendencias() {
+  return `
+    <h1>📊 Tendencias</h1>
+
+    <input id="trendInput" placeholder="Ej: baja energía masculina" />
+
+    <button onclick="analizarTendencia()">Analizar</button>
+
+    <div id="trendResult" style="margin-top:20px;">
+      Esperando análisis...
+    </div>
+  `;
+}
+
+window.analizarTendencia = async function() {
+
+  const texto = document.getElementById("trendInput").value;
+
+  if (!texto) return alert("Escribe algo");
+
+  document.getElementById("trendResult").innerText = "Analizando...";
+
+  try {
+    const res = await fetch("/api/ia", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        prompt: `
+Analiza esta tendencia de mercado: "${texto}"
+
+Dame:
+- Nivel de demanda (alto/medio/bajo)
+- Si está creciendo o muriendo
+- Nivel de competencia
+- Recomendación final
+        `
+      })
+    });
+
+    const data = await res.json();
+
+    document.getElementById("trendResult").innerText = data.reply;
+
+  } catch (err) {
+    console.error(err);
+    document.getElementById("trendResult").innerText = "Error";
+  }
+};
+
