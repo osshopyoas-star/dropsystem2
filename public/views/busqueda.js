@@ -118,15 +118,7 @@ Analiza tiendas, valida demanda y encuentra productos ganadores
         Validar si se vende en LATAM antes de importar
       </p>
 
-    <div class="score-box">
-  <h3>🔥 Score Producto</h3>
-
-  <div id="score-result">
-    Esperando análisis...
-  </div>
-
-  <button onclick="analizarProducto()">🚀 Analizar Automático</button>
-</div>
+    
     </div>
 
 
