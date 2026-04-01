@@ -1683,7 +1683,7 @@ Analiza la tendencia: "${texto}"
 
     const data = await res.json();
 
-   try {
+ try {
   let respuesta = data.reply.trim();
 
   // 🔥 limpiar si viene con texto extra
@@ -1720,9 +1720,7 @@ Analiza la tendencia: "${texto}"
 } catch (e) {
   console.error("ERROR PARSE:", e);
   document.getElementById("trendResult").innerText = data.reply;
-}
-
-catch (err) {
+} catch (err) {
   console.error(err);
   document.getElementById("trendResult").innerText = "Error en API";
 }
