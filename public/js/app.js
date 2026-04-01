@@ -1651,7 +1651,6 @@ function renderTendencias() {
 }
 
 window.analizarTendencia = async function() {
-
   const texto = document.getElementById("trendInput").value;
 
   if (!texto) return alert("Escribe algo");
@@ -1659,13 +1658,13 @@ window.analizarTendencia = async function() {
   document.getElementById("trendResult").innerText = "Analizando...";
 
   try {
-    const res = await fetch("/api/ia", {
+    const res = await fetch("http://127.0.0.1:3000/api/ia", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-       prompt: `
+        prompt: `
 Responde SOLO en JSON válido (sin texto extra).
 
 Analiza la tendencia: "${texto}"
@@ -1674,7 +1673,7 @@ Analiza la tendencia: "${texto}"
   "demanda": "alto/medio/bajo",
   "tendencia": "creciendo/estable/muriendo",
   "competencia": "alta/media/baja",
-  "score": numero del 1 al 100,
+  "score": 1,
   "recomendacion": "texto corto claro"
 }
 `
@@ -1683,45 +1682,40 @@ Analiza la tendencia: "${texto}"
 
     const data = await res.json();
 
- try {
-  let respuesta = data.reply.trim();
+    try {
+      let respuesta = data.reply.trim();
 
-  // 🔥 limpiar si viene con texto extra
-  const inicio = respuesta.indexOf("{");
-  const fin = respuesta.lastIndexOf("}");
+      const inicio = respuesta.indexOf("{");
+      const fin = respuesta.lastIndexOf("}");
 
-  if (inicio !== -1 && fin !== -1) {
-    respuesta = respuesta.substring(inicio, fin + 1);
+      if (inicio !== -1 && fin !== -1) {
+        respuesta = respuesta.substring(inicio, fin + 1);
+      }
+
+      const json = JSON.parse(respuesta);
+
+      document.getElementById("trendResult").innerHTML = `
+        <div style="
+          background:#0f172a;
+          color:white;
+          padding:20px;
+          border-radius:12px;
+        ">
+          <h2>🔥 Score: ${json.score}</h2>
+          <p>📈 Demanda: <strong>${json.demanda}</strong></p>
+          <p>📊 Tendencia: <strong>${json.tendencia}</strong></p>
+          <p>⚔️ Competencia: <strong>${json.competencia}</strong></p>
+          <hr>
+          <p>💡 ${json.recomendacion}</p>
+        </div>
+      `;
+    } catch (e) {
+      console.error("ERROR PARSE:", e);
+      document.getElementById("trendResult").innerText = data.reply || "Respuesta inválida";
+    }
+
+  } catch (err) {
+    console.error("ERROR API:", err);
+    document.getElementById("trendResult").innerText = "Error en API";
   }
-
-  const json = JSON.parse(respuesta);
-
-  document.getElementById("trendResult").innerHTML = `
-    <div style="
-      background:#0f172a;
-      color:white;
-      padding:20px;
-      border-radius:12px;
-    ">
-
-      <h2>🔥 Score: ${json.score}</h2>
-
-      <p>📈 Demanda: <strong>${json.demanda}</strong></p>
-      <p>📊 Tendencia: <strong>${json.tendencia}</strong></p>
-      <p>⚔️ Competencia: <strong>${json.competencia}</strong></p>
-
-      <hr>
-
-      <p>💡 ${json.recomendacion}</p>
-
-    </div>
-  `;
-
-} catch (e) {
-  console.error("ERROR PARSE:", e);
-  document.getElementById("trendResult").innerText = data.reply;
-} catch (err) {
-  console.error(err);
-  document.getElementById("trendResult").innerText = "Error en API";
-}
 };
