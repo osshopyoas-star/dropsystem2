@@ -1665,16 +1665,27 @@ window.analizarTendencia = async function() {
       },
       body: JSON.stringify({
        prompt: `
-Responde SOLO en JSON válido (sin texto extra).
+Responde SOLO en JSON válido, sin explicación extra.
 
-Analiza la tendencia: "${texto}"
+Analiza esta oportunidad de mercado: "${texto}"
+
+Devuelve exactamente esta estructura:
 
 {
-  "demanda": "alto/medio/bajo",
+  "problema_detectado": "",
+  "audiencia": "",
+  "nicho": "",
+  "subnicho": "",
+  "maslow": "",
+  "demanda": "alta/media/baja",
   "tendencia": "creciendo/estable/muriendo",
+  "volatilidad": "alta/media/baja",
   "competencia": "alta/media/baja",
-  "score": "número entero del 1 al 100",
-  "recomendacion": "texto corto claro"
+  "mecanismo_solucion": "",
+  "producto_sugerido": "",
+  "angulo_venta": "",
+  "recomendacion": "",
+  "score": 0
 }
 `
       })
@@ -1694,21 +1705,51 @@ Analiza la tendencia: "${texto}"
 
       const json = JSON.parse(respuesta);
 
-      document.getElementById("trendResult").innerHTML = `
-        <div style="
-          background:#0f172a;
-          color:white;
-          padding:20px;
-          border-radius:12px;
-        ">
-          <h2>🔥 Score: ${json.score}</h2>
-          <p>📈 Demanda: <strong>${json.demanda}</strong></p>
-          <p>📊 Tendencia: <strong>${json.tendencia}</strong></p>
-          <p>⚔️ Competencia: <strong>${json.competencia}</strong></p>
-          <hr>
-          <p>💡 ${json.recomendacion}</p>
-        </div>
-      `;
+     document.getElementById("trendResult").innerHTML = `
+  <div style="
+    background:#0f172a;
+    color:white;
+    padding:22px;
+    border-radius:16px;
+    margin-top:16px;
+  ">
+    <h2 style="margin-top:0;">🧠 Análisis Inteligente</h2>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:18px;">
+      
+      <div style="background:rgba(255,255,255,0.04); padding:16px; border-radius:12px;">
+        <h3>📌 Problema</h3>
+        <p><strong>Problema:</strong> ${json.problema_detectado}</p>
+        <p><strong>Audiencia:</strong> ${json.audiencia}</p>
+        <p><strong>Nicho:</strong> ${json.nicho}</p>
+        <p><strong>Subnicho:</strong> ${json.subnicho}</p>
+        <p><strong>Maslow:</strong> ${json.maslow}</p>
+      </div>
+
+      <div style="background:rgba(255,255,255,0.04); padding:16px; border-radius:12px;">
+        <h3>📊 Mercado</h3>
+        <p><strong>Demanda:</strong> ${json.demanda}</p>
+        <p><strong>Tendencia:</strong> ${json.tendencia}</p>
+        <p><strong>Volatilidad:</strong> ${json.volatilidad}</p>
+        <p><strong>Competencia:</strong> ${json.competencia}</p>
+        <p><strong>Score:</strong> ${json.score}</p>
+      </div>
+
+      <div style="background:rgba(255,255,255,0.04); padding:16px; border-radius:12px;">
+        <h3>⚙️ Solución</h3>
+        <p><strong>Mecanismo:</strong> ${json.mecanismo_solucion}</p>
+        <p><strong>Producto sugerido:</strong> ${json.producto_sugerido}</p>
+        <p><strong>Ángulo de venta:</strong> ${json.angulo_venta}</p>
+      </div>
+
+      <div style="background:rgba(255,255,255,0.04); padding:16px; border-radius:12px;">
+        <h3>🚀 Decisión</h3>
+        <p>${json.recomendacion}</p>
+      </div>
+
+    </div>
+  </div>
+`;
     } catch (e) {
       console.error("ERROR PARSE:", e);
       document.getElementById("trendResult").innerText = data.reply || "Respuesta inválida";
