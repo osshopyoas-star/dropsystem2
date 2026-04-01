@@ -18,7 +18,7 @@ export function renderSidebar() {
 
   <div class="sidebar-item" onclick="toggleBusquedaMenu()">
   <i data-lucide="search"></i>
-  <span>Búsqueda</span>
+  <span>Investigación </span>
 
   <i id="busqueda-arrow" data-lucide="chevron-right" style="margin-left:auto;"></i>
 </div>
@@ -26,7 +26,7 @@ export function renderSidebar() {
 <div id="busqueda-submenu" class="submenu">
 
   <div class="sidebar-item" onclick="setActive(this); goTo('busqueda')">
-    <span>Problemas</span>
+    <span>Busqueda productos</span>
   </div>
 
   <div class="sidebar-item" onclick="setActive(this); goTo('tendencias')">
