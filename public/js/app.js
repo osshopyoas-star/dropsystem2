@@ -1057,12 +1057,6 @@ renderKeywordsCat();
 }
 
 if (route === "tendencias") {
-  view.innerHTML = `
-    <h1>📊 Tendencias</h1>
-    <p>Aquí irá análisis tipo Google Trends / Exploding Topics</p>
-  `;
-}
-if (route === "tendencias") {
   view.innerHTML = renderTendencias();
 }
 
@@ -1671,25 +1665,59 @@ window.analizarTendencia = async function() {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        prompt: `
-Analiza esta tendencia de mercado: "${texto}"
+       prompt: `
+Responde SOLO en JSON válido (sin texto extra).
 
-Dame:
-- Nivel de demanda (alto/medio/bajo)
-- Si está creciendo o muriendo
-- Nivel de competencia
-- Recomendación final
-        `
+Analiza la tendencia: "${texto}"
+
+{
+  "demanda": "alto/medio/bajo",
+  "tendencia": "creciendo/estable/muriendo",
+  "competencia": "alta/media/baja",
+  "score": numero del 1 al 100,
+  "recomendacion": "texto corto claro"
+}
+`
       })
     });
 
     const data = await res.json();
 
-    document.getElementById("trendResult").innerText = data.reply;
+   try {
+  let respuesta = data.reply.trim();
 
-  } catch (err) {
-    console.error(err);
-    document.getElementById("trendResult").innerText = "Error";
+  // 🔥 limpiar si viene con texto extra
+  const inicio = respuesta.indexOf("{");
+  const fin = respuesta.lastIndexOf("}");
+
+  if (inicio !== -1 && fin !== -1) {
+    respuesta = respuesta.substring(inicio, fin + 1);
   }
-};
 
+  const json = JSON.parse(respuesta);
+
+  document.getElementById("trendResult").innerHTML = `
+    <div style="
+      background:#0f172a;
+      color:white;
+      padding:20px;
+      border-radius:12px;
+    ">
+
+      <h2>🔥 Score: ${json.score}</h2>
+
+      <p>📈 Demanda: <strong>${json.demanda}</strong></p>
+      <p>📊 Tendencia: <strong>${json.tendencia}</strong></p>
+      <p>⚔️ Competencia: <strong>${json.competencia}</strong></p>
+
+      <hr>
+
+      <p>💡 ${json.recomendacion}</p>
+
+    </div>
+  `;
+
+} catch (e) {
+  console.error("ERROR PARSE:", e);
+  document.getElementById("trendResult").innerText = data.reply;
+}
