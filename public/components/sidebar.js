@@ -16,10 +16,23 @@ export function renderSidebar() {
 
     <div class="sidebar-container">
 
-      <div class="sidebar-item active" onclick="setActive(this); goTo('busqueda')">
-        <i data-lucide="search"></i>
-        <span>Búsqueda</span>
-      </div>
+     <div class="sidebar-item" onclick="toggleBusquedaMenu()">
+  <i data-lucide="search"></i>
+  <span>Búsqueda</span>
+
+  <i id="busqueda-arrow" data-lucide="chevron-right" style="margin-left:auto;"></i>
+</div>
+
+<div id="busqueda-submenu" class="submenu">
+
+  <div class="sidebar-item" onclick="setActive(this); goTo('busqueda')">
+    <span>Problemas</span>
+  </div>
+
+  <div class="sidebar-item" onclick="setActive(this); goTo('tendencias')">
+    <span>Tendencias</span>
+  </div>
+
     
 
    <div class="sidebar-item" onclick="toggleProductosMenu()">
@@ -28,6 +41,8 @@ export function renderSidebar() {
 
   <i id="productos-arrow" data-lucide="chevron-right" style="margin-left:auto;"></i>
 </div>
+
+    
 
 <div id="productos-submenu" class="submenu">
  <div class="sidebar-item" onclick="setActive(this); setProductoPais('CO')">
