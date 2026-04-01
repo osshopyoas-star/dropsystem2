@@ -1055,6 +1055,21 @@ renderKeywordsCat();
 
   lucide.createIcons();
 }
+
+if (route === "tendencias") {
+  view.innerHTML = `
+    <h1>📊 Tendencias</h1>
+    <p>Aquí irá análisis tipo Google Trends / Exploding Topics</p>
+  `;
+}
+
+if (route === "nichos") {
+  view.innerHTML = `
+    <h1>🧠 Nichos</h1>
+    <p>Aquí clasificaremos problemas, audiencias y oportunidades</p>
+  `;
+}
+
 };
 setTimeout(() => {
   if (window.lucide) {
@@ -1076,6 +1091,22 @@ window.toggleProductosMenu = function() {
 
   lucide.createIcons();
 };
+
+window.toggleBusquedaMenu = function() {
+  const menu = document.getElementById("busqueda-submenu");
+  const arrow = document.getElementById("busqueda-arrow");
+
+  menu.classList.toggle("open");
+
+  if (menu.classList.contains("open")) {
+    arrow.setAttribute("data-lucide", "chevron-down");
+  } else {
+    arrow.setAttribute("data-lucide", "chevron-right");
+  }
+
+  lucide.createIcons();
+};
+
 window.setProductoPais = function(pais) {
   console.log("PAIS CLICK:", pais);
 
