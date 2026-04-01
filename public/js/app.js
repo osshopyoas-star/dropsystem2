@@ -1721,3 +1721,9 @@ Analiza la tendencia: "${texto}"
   console.error("ERROR PARSE:", e);
   document.getElementById("trendResult").innerText = data.reply;
 }
+
+catch (err) {
+  console.error(err);
+  document.getElementById("trendResult").innerText = "Error en API";
+}
+};
