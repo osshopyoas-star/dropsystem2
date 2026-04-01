@@ -20,28 +20,7 @@ export function renderSidebar() {
         <i data-lucide="search"></i>
         <span>Búsqueda</span>
       </div>
-    <div class="sidebar-item" onclick="toggleBusquedaMenu()">
-  <i data-lucide="search"></i>
-  <span>Búsqueda</span>
-
-  <i id="busqueda-arrow" data-lucide="chevron-right" style="margin-left:auto;"></i>
-</div>
-
-<div id="busqueda-submenu" class="submenu">
-
-  <div class="sidebar-item" onclick="setActive(this); goTo('busqueda')">
-    <span>Problemas</span>
-  </div>
-
-  <div class="sidebar-item" onclick="setActive(this); goTo('tendencias')">
-    <span>Tendencias</span>
-  </div>
-
-  <div class="sidebar-item" onclick="setActive(this); goTo('nichos')">
-    <span>Nichos</span>
-  </div>
-
-</div>
+    
 
    <div class="sidebar-item" onclick="toggleProductosMenu()">
   <i data-lucide="package"></i>
