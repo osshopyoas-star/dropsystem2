@@ -1622,7 +1622,7 @@ window.open(`https://www.facebook.com/ads/library/?active_status=all&ad_type=all
 
 
 async function llamarIA(texto) {
-  const res = await fetch("http://127.0.0.1:3000/api/ia", {
+  const res = await fetch("/api/ia", {
       method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -1658,7 +1658,7 @@ window.analizarTendencia = async function() {
   document.getElementById("trendResult").innerText = "Analizando...";
 
   try {
-    const res = await fetch("http://127.0.0.1:3000/api/ia", {
+    const res = await fetch("/api/ia", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
