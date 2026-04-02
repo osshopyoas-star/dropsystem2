@@ -15,7 +15,7 @@ export function renderSidebar() {
     
 
     <div class="sidebar-container">
-    <div class="sidebar-item" onclick="setActive(this); goTo('inicio')">
+   <div class="sidebar-item" data-route="inicio" onclick="goTo('inicio')">
   <i data-lucide="home"></i>
   <span>Inicio</span>
 </div>
@@ -29,15 +29,15 @@ export function renderSidebar() {
 
 <div id="busqueda-submenu" class="submenu">
 
-  <div class="sidebar-item" onclick="setActive(this); goTo('busqueda')">
+<div class="sidebar-item" data-route="busqueda" onclick="goTo('busqueda')">
    <span>Buscar productos</span>
   </div>
 
-  <div class="sidebar-item" onclick="setActive(this); goTo('tendencias')">
+  <div class="sidebar-item" data-route="tendencias" onclick="goTo('tendencias')">
     <span>Tendencias</span>
   </div>
 
-  <div class="sidebar-item" onclick="setActive(this); goTo('nichos')">
+ <div class="sidebar-item" data-route="nichos" onclick="goTo('nichos')">
     <span>Nichos</span>
   </div>
 
@@ -51,12 +51,12 @@ export function renderSidebar() {
 </div>
 
 <div id="productos-submenu" class="submenu">
- <div class="sidebar-item" onclick="setActive(this); setProductoPais('CO')">
+<div class="sidebar-item" data-route="productos-co" onclick="setProductoPais('CO')">
   <i data-lucide="flag"></i>
   <span>Colombia</span>
 </div>
 
-<div class="sidebar-item" onclick="setActive(this); setProductoPais('EC')">
+<div class="sidebar-item" data-route="productos-ec" onclick="setProductoPais('EC')">
   <i data-lucide="map"></i>
   <span>Ecuador</span>
 </div>

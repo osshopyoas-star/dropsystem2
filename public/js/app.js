@@ -15,13 +15,23 @@ window.productoPaisActivo = null;
 
 window.addEventListener("DOMContentLoaded", () => {
   renderSidebar();
-  goTo("busqueda");
+  goTo("inicio");
+  marcarMenuActivo("inicio");
 
-  // 🔥 forzar iconos
   setTimeout(() => {
     if (window.lucide) lucide.createIcons();
   }, 100);
 });
+
+
+window.marcarMenuActivo = function(route) {
+  document.querySelectorAll(".sidebar-item").forEach(i => {
+    i.classList.remove("active");
+  });
+
+  const item = document.querySelector(`[data-route="${route}"]`);
+  if (item) item.classList.add("active");
+};
 
 
 function autoSeleccionarKeywords(texto) {
@@ -1034,6 +1044,34 @@ window.toggleSidebar = function() {
 };
 
 window.goTo = function(route) {
+  if (route === "busqueda") {
+  view.innerHTML = renderBusqueda();
+  marcarMenuActivo("busqueda");
+
+  setTimeout(() => {
+    renderKeywordsImport();
+    renderKeywordsCat();
+    lucide.createIcons();
+  }, 0);
+}
+
+if (route === "tendencias") {
+  view.innerHTML = renderTendencias();
+  marcarMenuActivo("tendencias");
+}
+
+if (route === "nichos") {
+  view.innerHTML = `
+    <h1>🧠 Nichos</h1>
+    <p>Aquí clasificaremos problemas, audiencias y oportunidades</p>
+  `;
+  marcarMenuActivo("nichos");
+}
+
+  setTimeout(() => {
+    if (window.lucide) lucide.createIcons();
+  }, 0);
+}
 
   if (route === "busqueda") {
     view.innerHTML = renderBusqueda();
@@ -1048,6 +1086,14 @@ renderKeywordsCat();
 
  if (route === "productos") {
   view.innerHTML = renderProductos();
+
+  if (window.productoPaisActivo === "CO") {
+  marcarMenuActivo("productos-co");
+}
+
+if (window.productoPaisActivo === "EC") {
+  marcarMenuActivo("productos-ec");
+}
 
   setTimeout(() => {
     renderTablaProductos();
@@ -1074,22 +1120,14 @@ setTimeout(() => {
   }
 }, 500);
 
-window.toggleProductosMenu = function() {
-  const menu = document.getElementById("productos-submenu");
-  const arrow = document.getElementById("productos-arrow");
-
-  menu.classList.toggle("open");
-
-  if (menu.classList.contains("open")) {
-    arrow.setAttribute("data-lucide", "chevron-down");
-  } else {
-    arrow.setAttribute("data-lucide", "chevron-right");
+window.toggleBusquedaMenu = function() {
+  const sidebar = document.querySelector("aside");
+  if (sidebar.classList.contains("collapsed")) {
+    toggleSidebar();
+    setTimeout(() => toggleBusquedaMenu(), 50);
+    return;
   }
 
-  lucide.createIcons();
-};
-
-window.toggleBusquedaMenu = function() {
   const menu = document.getElementById("busqueda-submenu");
   const arrow = document.getElementById("busqueda-arrow");
 
@@ -1104,12 +1142,60 @@ window.toggleBusquedaMenu = function() {
   lucide.createIcons();
 };
 
+window.toggleProductosMenu = function() {
+  const sidebar = document.querySelector("aside");
+  if (sidebar.classList.contains("collapsed")) {
+    toggleSidebar();
+    setTimeout(() => toggleProductosMenu(), 50);
+    return;
+  }
+
+  const menu = document.getElementById("productos-submenu");
+  const arrow = document.getElementById("productos-arrow");
+
+  menu.classList.toggle("open");
+
+  if (menu.classList.contains("open")) {
+    arrow.setAttribute("data-lucide", "chevron-down");
+  } else {
+    arrow.setAttribute("data-lucide", "chevron-right");
+  }
+
+  lucide.createIcons();
+};
+
+window.toggleDesarrolloMenu = function() {
+  const sidebar = document.querySelector("aside");
+  if (sidebar.classList.contains("collapsed")) {
+    toggleSidebar();
+    setTimeout(() => toggleDesarrolloMenu(), 50);
+    return;
+  }
+
+  const menu = document.getElementById("desarrollo-submenu");
+  const arrow = document.getElementById("desarrollo-arrow");
+
+  menu.classList.toggle("open");
+
+  if (menu.classList.contains("open")) {
+    arrow.setAttribute("data-lucide", "chevron-down");
+  } else {
+    arrow.setAttribute("data-lucide", "chevron-right");
+  }
+
+  lucide.createIcons();
+};
 window.setProductoPais = function(pais) {
-  console.log("PAIS CLICK:", pais);
-
   window.productoPaisActivo = pais;
-
   goTo("productos");
+
+  if (pais === "CO") {
+    marcarMenuActivo("productos-co");
+  }
+
+  if (pais === "EC") {
+    marcarMenuActivo("productos-ec");
+  }
 };
 
 window.guardarProducto = function() {
