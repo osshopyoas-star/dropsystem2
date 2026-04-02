@@ -38,13 +38,12 @@ aside {
   overflow: hidden;
   z-index: 100;
 
-  border-right: 1px solid rgba(15, 23, 42, 0.06);
-  box-shadow: 6px 0 18px rgba(0, 0, 0, 0.12), 2px 0 6px rgba(0, 0, 0, 0.06);
+  box-shadow: 6px 0 18px rgba(0, 0, 0, 0.12), 2px 0 6px #020617;
 }
 
 /* CONTENEDOR INTERNO */
+
 .sidebar-container {
-  background: rgba(255,255,255,0.03);
   border-radius: 16px;
   padding: 16px 10px 24px 10px;
   backdrop-filter: blur(12px);
@@ -759,16 +758,7 @@ aside.collapsed .sidebar-item i {
   margin: 0;
 }
 
-.sidebar-container {
-  background: rgba(255,255,255,0.03);
-  border-radius: 16px;
-  padding: 16px 10px 24px 10px;
-  backdrop-filter: blur(12px);
-  overflow-y: auto;
-  overflow-x: hidden;
-  flex: 1;
-  margin-top: 8px;
-}
+
 
 aside.collapsed .logo-full {
   display: none;
@@ -808,7 +798,7 @@ aside.collapsed #desarrollo-arrow {
   flex-shrink: 0;
   position: relative;
   z-index: 30;
-  background: linear-gradient(180deg, #020617, #0f172a);
+
   padding-top: 8px;
   padding-bottom: 8px;
 }
