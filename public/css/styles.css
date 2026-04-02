@@ -815,3 +815,15 @@ body:has(aside.collapsed) main {
 body:has(aside:not(.collapsed)) main {
   margin-left: 272px;
 }
+
+
+aside::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: -14px;
+  width: 14px;
+  height: 100%;
+  pointer-events: none;
+  background: linear-gradient(to right, rgba(0,0,0,0.12), rgba(0,0,0,0));
+}
