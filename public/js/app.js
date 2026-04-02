@@ -1044,76 +1044,97 @@ window.toggleSidebar = function() {
 };
 
 window.goTo = function(route) {
-  if (route === "busqueda") {
-  view.innerHTML = renderBusqueda();
-  marcarMenuActivo("busqueda");
+  if (route === "inicio") {
+    view.innerHTML = `
+      <h1>🏠 Inicio</h1>
+      <p>Bienvenido a CoDropX. Desde aquí puedes entrar a investigación, productos y desarrollo.</p>
 
-  setTimeout(() => {
-    renderKeywordsImport();
-    renderKeywordsCat();
-    lucide.createIcons();
-  }, 0);
-}
+      <div class="grid-3">
+        <div class="panel">
+          <h3>Investigación</h3>
+          <p>Busca productos, tendencias y nichos.</p>
+        </div>
 
-if (route === "tendencias") {
-  view.innerHTML = renderTendencias();
-  marcarMenuActivo("tendencias");
-}
+        <div class="panel">
+          <h3>Base de Productos</h3>
+          <p>Organiza productos para Colombia y Ecuador.</p>
+        </div>
 
-if (route === "nichos") {
-  view.innerHTML = `
-    <h1>🧠 Nichos</h1>
-    <p>Aquí clasificaremos problemas, audiencias y oportunidades</p>
-  `;
-  marcarMenuActivo("nichos");
-}
+        <div class="panel">
+          <h3>Desarrollo</h3>
+          <p>Trabaja avatar, ángulos, prompts, creativos y landing.</p>
+        </div>
+      </div>
+    `;
 
-  setTimeout(() => {
-    if (window.lucide) lucide.createIcons();
-  }, 0);
-}
+    marcarMenuActivo("inicio");
+
+    setTimeout(() => {
+      if (window.lucide) lucide.createIcons();
+    }, 0);
+
+    return;
+  }
 
   if (route === "busqueda") {
     view.innerHTML = renderBusqueda();
+    marcarMenuActivo("busqueda");
 
     setTimeout(() => {
       renderKeywordsImport();
-renderKeywordsCat();
-
-      lucide.createIcons(); // 🔥 SOLO AQUÍ
+      renderKeywordsCat();
+      if (window.lucide) lucide.createIcons();
     }, 0);
+
+    return;
   }
 
- if (route === "productos") {
-  view.innerHTML = renderProductos();
+  if (route === "productos") {
+    view.innerHTML = renderProductos();
 
-  if (window.productoPaisActivo === "CO") {
-  marcarMenuActivo("productos-co");
-}
+    setTimeout(() => {
+      renderTablaProductos();
 
-if (window.productoPaisActivo === "EC") {
-  marcarMenuActivo("productos-ec");
-}
+      if (window.productoPaisActivo === "CO") {
+        marcarMenuActivo("productos-co");
+      }
 
-  setTimeout(() => {
-    renderTablaProductos();
-  }, 0);
+      if (window.productoPaisActivo === "EC") {
+        marcarMenuActivo("productos-ec");
+      }
 
-  lucide.createIcons();
-}
+      if (window.lucide) lucide.createIcons();
+    }, 0);
 
-if (route === "tendencias") {
-  view.innerHTML = renderTendencias();
-}
+    return;
+  }
 
-if (route === "nichos") {
-  view.innerHTML = `
-    <h1>🧠 Nichos</h1>
-    <p>Aquí clasificaremos problemas, audiencias y oportunidades</p>
-  `;
-}
+  if (route === "tendencias") {
+    view.innerHTML = renderTendencias();
+    marcarMenuActivo("tendencias");
 
+    setTimeout(() => {
+      if (window.lucide) lucide.createIcons();
+    }, 0);
+
+    return;
+  }
+
+  if (route === "nichos") {
+    view.innerHTML = `
+      <h1>🧠 Nichos</h1>
+      <p>Aquí clasificaremos problemas, audiencias y oportunidades</p>
+    `;
+    marcarMenuActivo("nichos");
+
+    setTimeout(() => {
+      if (window.lucide) lucide.createIcons();
+    }, 0);
+
+    return;
+  }
 };
+
 setTimeout(() => {
   if (window.lucide) {
     lucide.createIcons();
