@@ -37,6 +37,9 @@ aside {
   transition: width 0.3s ease;
   overflow: hidden;
   z-index: 100;
+
+  border-right: 1px solid rgba(15, 23, 42, 0.06);
+  box-shadow: 6px 0 18px rgba(0, 0, 0, 0.12), 2px 0 6px rgba(0, 0, 0, 0.06);
 }
 
 /* CONTENEDOR INTERNO */
