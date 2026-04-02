@@ -23,7 +23,7 @@ body {
 aside {
   width: 240px;
   background: linear-gradient(180deg, #020617, #0f172a);
-  color: #e5e7eb;
+   color: #e5e7eb;
   height: 100vh;
   position: fixed;
   top: 0;
@@ -35,11 +35,13 @@ aside {
   gap: 16px;
 
   transition: width 0.3s ease;
-  overflow: hidden;
+  overflow-x: visible;
+  overflow-y: hidden;
   z-index: 100;
 
   box-shadow: 6px 0 18px rgba(0, 0, 0, 0.12), 2px 0 6px #020617;
 }
+
 
 /* CONTENEDOR INTERNO */
 
@@ -268,7 +270,7 @@ aside.collapsed {
   position: absolute;
   top: 22px;
   right: -22px;
-  z-index: 50;
+  z-index: 120;
 
   width: 44px;
   height: 44px;
@@ -284,7 +286,6 @@ aside.collapsed {
   box-shadow: 0 8px 20px rgba(0,0,0,0.5);
   cursor: pointer;
   transition: all 0.2s ease;
-  overflow: visible;
 }
 
 .toggle-btn:hover {
