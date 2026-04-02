@@ -26,7 +26,6 @@ aside {
   width: 240px;
   background: linear-gradient(180deg, #020617, #0f172a);
   color: #e5e7eb;
-  min-height: 100vh;
   height: 100vh;
   position: sticky;
   top: 0;
@@ -805,15 +804,9 @@ aside.collapsed #desarrollo-arrow {
 .logo-full,
 .logo-icon {
   flex-shrink: 0;
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 30;
   background: linear-gradient(180deg, #020617, #0f172a);
   padding-top: 8px;
   padding-bottom: 8px;
-}
-aside > .logo-full,
-aside > .logo-icon {
-  position: sticky;
-  top: 0;
 }
