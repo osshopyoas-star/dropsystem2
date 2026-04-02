@@ -15,10 +15,14 @@ export function renderSidebar() {
     
 
     <div class="sidebar-container">
+    <div class="sidebar-item" onclick="setActive(this); goTo('inicio')">
+  <i data-lucide="home"></i>
+  <span>Inicio</span>
+</div>
 
   <div class="sidebar-item" onclick="toggleBusquedaMenu()">
   <i data-lucide="search"></i>
-  <span>Investigación </span>
+  <span>Investigación de Mercado</span>
 
   <i id="busqueda-arrow" data-lucide="chevron-right" style="margin-left:auto;"></i>
 </div>
@@ -26,7 +30,7 @@ export function renderSidebar() {
 <div id="busqueda-submenu" class="submenu">
 
   <div class="sidebar-item" onclick="setActive(this); goTo('busqueda')">
-    <span>Busqueda productos</span>
+   <span>Buscar productos</span>
   </div>
 
   <div class="sidebar-item" onclick="setActive(this); goTo('tendencias')">
@@ -41,7 +45,7 @@ export function renderSidebar() {
 
    <div class="sidebar-item" onclick="toggleProductosMenu()">
   <i data-lucide="package"></i>
-  <span>Productos</span>
+  <span>Base de Productos</span>
 
   <i id="productos-arrow" data-lucide="chevron-right" style="margin-left:auto;"></i>
 </div>
@@ -56,6 +60,43 @@ export function renderSidebar() {
   <i data-lucide="map"></i>
   <span>Ecuador</span>
 </div>
+
+
+<div class="sidebar-item" onclick="toggleDesarrolloMenu()">
+  <i data-lucide="brain"></i>
+  <span>Desarrollo</span>
+
+  <i id="desarrollo-arrow" data-lucide="chevron-right" style="margin-left:auto;"></i>
+</div>
+
+<div id="desarrollo-submenu" class="submenu">
+
+  <div class="sidebar-item" onclick="setActive(this); goTo('avatar')">
+    <span>Avatar</span>
+  </div>
+
+  <div class="sidebar-item" onclick="setActive(this); goTo('angulos')">
+    <span>Ángulos</span>
+  </div>
+
+  <div class="sidebar-item" onclick="setActive(this); goTo('prompts')">
+    <span>Prompts IA</span>
+  </div>
+
+  <div class="sidebar-item" onclick="setActive(this); goTo('creativos')">
+    <span>Creativos</span>
+  </div>
+
+  <div class="sidebar-item" onclick="setActive(this); goTo('landing')">
+    <span>Landing Page</span>
+  </div>
+
+  <div class="sidebar-item" onclick="setActive(this); goTo('banpage')">
+    <span>Ban Page</span>
+  </div>
+
+</div>
+
 </div>
 
     </div>
@@ -64,4 +105,8 @@ export function renderSidebar() {
  if (window.lucide) {
   lucide.createIcons();
 }
+}
+function toggleDesarrolloMenu() {
+  const submenu = document.getElementById("desarrollo-submenu");
+  submenu.classList.toggle("open");
 }
