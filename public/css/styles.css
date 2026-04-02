@@ -13,11 +13,9 @@ body {
 
 /* LAYOUT PRINCIPAL */
 .app {
-  display: flex;
-  align-items: flex-start;
+  display: block;
   min-height: 100vh;
 }
-
 
 /* =========================
    SIDEBAR PRO (BRAINWAVE STYLE)
@@ -27,9 +25,9 @@ aside {
   background: linear-gradient(180deg, #020617, #0f172a);
   color: #e5e7eb;
   height: 100vh;
-  position: sticky;
+  position: fixed;
   top: 0;
-  align-self: flex-start;
+  left: 0;
 
   display: flex;
   flex-direction: column;
@@ -38,6 +36,7 @@ aside {
 
   transition: width 0.3s ease;
   overflow: hidden;
+  z-index: 100;
 }
 
 /* CONTENEDOR INTERNO */
@@ -133,7 +132,7 @@ aside.collapsed .sidebar-logo img {
    CONTENIDO
 ========================= */
 main {
-  flex: 1;
+  margin-left: 272px;
   background: transparent;
   padding: 30px;
   min-width: 0;
@@ -809,4 +808,16 @@ aside.collapsed #desarrollo-arrow {
   background: linear-gradient(180deg, #020617, #0f172a);
   padding-top: 8px;
   padding-bottom: 8px;
+}
+
+aside.collapsed + main {
+  margin-left: 112px;
+}
+
+body:has(aside.collapsed) main {
+  margin-left: 112px;
+}
+
+body:has(aside:not(.collapsed)) main {
+  margin-left: 272px;
 }
