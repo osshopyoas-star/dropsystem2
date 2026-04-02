@@ -699,6 +699,8 @@ aside {
 .logo-full img {
   height: 40px;
   transition: 0.3s;
+  display: block;
+  margin: 0 auto;
 }
 
 /* ICONO oculto */
@@ -709,6 +711,8 @@ aside {
 .logo-icon img {
   width: 32px;
   height: 32px;
+  display: block;
+  margin: 0 auto;
 }
 
 /* =========================
@@ -754,13 +758,15 @@ aside.collapsed .sidebar-item i {
   margin: 0;
 }
 
-aside.collapsed .sidebar-container {
-  width: 64px;
-  padding: 16px 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  overflow: hidden;
+.sidebar-container {
+  background: rgba(255,255,255,0.03);
+  border-radius: 16px;
+  padding: 16px 10px 24px 10px;
+  backdrop-filter: blur(12px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1;
+  margin-top: 8px;
 }
 
 aside.collapsed .logo-full {
@@ -799,6 +805,10 @@ aside.collapsed #desarrollo-arrow {
 .logo-full,
 .logo-icon {
   flex-shrink: 0;
-  position: relative;
-  z-index: 10;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: linear-gradient(180deg, #020617, #0f172a);
+  padding-top: 8px;
+  padding-bottom: 8px;
 }
