@@ -43,7 +43,7 @@ export function renderSidebar() {
 
 </div>
 
-   <div class="sidebar-item" onclick="toggleProductosMenu()">
+     <div class="sidebar-item" onclick="toggleProductosMenu()">
   <i data-lucide="package"></i>
   <span>Base de Productos</span>
 
@@ -61,6 +61,7 @@ export function renderSidebar() {
   <span>Ecuador</span>
 </div>
 
+</div>
 
 <div class="sidebar-item" onclick="toggleDesarrolloMenu()">
   <i data-lucide="brain"></i>
@@ -68,6 +69,7 @@ export function renderSidebar() {
 
   <i id="desarrollo-arrow" data-lucide="chevron-right" style="margin-left:auto;"></i>
 </div>
+
 
 <div id="desarrollo-submenu" class="submenu">
 
@@ -97,7 +99,6 @@ export function renderSidebar() {
 
 </div>
 
-</div>
 
     </div>
   `;
@@ -106,7 +107,17 @@ export function renderSidebar() {
   lucide.createIcons();
 }
 }
-function toggleDesarrolloMenu() {
+window.toggleDesarrolloMenu = function() {
   const submenu = document.getElementById("desarrollo-submenu");
+  const arrow = document.getElementById("desarrollo-arrow");
+
   submenu.classList.toggle("open");
-}
+
+  if (submenu.classList.contains("open")) {
+    arrow.setAttribute("data-lucide", "chevron-down");
+  } else {
+    arrow.setAttribute("data-lucide", "chevron-right");
+  }
+
+  lucide.createIcons();
+};
