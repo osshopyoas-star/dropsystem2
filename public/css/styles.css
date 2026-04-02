@@ -812,3 +812,8 @@ aside.collapsed #desarrollo-arrow {
   padding-top: 8px;
   padding-bottom: 8px;
 }
+aside > .logo-full,
+aside > .logo-icon {
+  position: sticky;
+  top: 0;
+}
