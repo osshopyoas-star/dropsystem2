@@ -27,7 +27,7 @@ aside {
   background: linear-gradient(180deg, #020617, #0f172a);
   color: #e5e7eb;
   min-height: 100vh;
-  height: auto;
+  height: 100vh;
   position: sticky;
   top: 0;
   align-self: flex-start;
@@ -38,7 +38,7 @@ aside {
   gap: 16px;
 
   transition: width 0.3s ease;
-  overflow-x: hidden;
+  overflow: hidden;
 }
 
 /* CONTENEDOR INTERNO */
@@ -47,7 +47,10 @@ aside {
   border-radius: 16px;
   padding: 16px 10px 24px 10px;
   backdrop-filter: blur(12px);
-  overflow: visible;
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1;
+  margin-top: 8px;
 }
 
 /* LOGO */
@@ -256,16 +259,19 @@ aside.collapsed .submenu .sidebar-item {
   justify-content: center;
 }
 aside.collapsed {
+  width: 92px;
+  padding-left: 10px;
+  padding-right: 10px;
   align-items: center;
 }
 .toggle-btn {
   position: absolute;
-  top: 20px;
-  right: -14px;
-  z-index: 20;
+  top: 22px;
+  right: -22px;
+  z-index: 50;
 
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
 
   background: #1f2937;
@@ -278,6 +284,7 @@ aside.collapsed {
   box-shadow: 0 8px 20px rgba(0,0,0,0.5);
   cursor: pointer;
   transition: all 0.2s ease;
+  overflow: visible;
 }
 
 .toggle-btn:hover {
@@ -287,8 +294,8 @@ aside.collapsed {
 
 /* icono */
 .toggle-btn i {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   transition: transform 0.2s ease;
 }
 
@@ -745,4 +752,53 @@ aside.collapsed .sidebar-item i {
   height: 22px;
   min-width: 22px;
   margin: 0;
+}
+
+aside.collapsed .sidebar-container {
+  width: 64px;
+  padding: 16px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
+}
+
+aside.collapsed .logo-full {
+  display: none;
+}
+
+aside.collapsed .logo-icon {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+aside.collapsed .submenu {
+  display: none !important;
+}
+
+aside.collapsed .sidebar-item {
+  width: 48px;
+  min-width: 48px;
+  height: 48px;
+  padding: 0;
+  margin: 10px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+aside.collapsed .sidebar-item span,
+aside.collapsed #busqueda-arrow,
+aside.collapsed #productos-arrow,
+aside.collapsed #desarrollo-arrow {
+  display: none !important;
+}
+
+.logo-full,
+.logo-icon {
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
 }
