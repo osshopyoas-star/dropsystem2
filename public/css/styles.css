@@ -14,9 +14,9 @@ body {
 /* LAYOUT PRINCIPAL */
 .app {
   display: flex;
+  align-items: flex-start;
   min-height: 100vh;
 }
-
 
 
 /* =========================
@@ -26,21 +26,19 @@ aside {
   width: 240px;
   background: linear-gradient(180deg, #020617, #0f172a);
   color: #e5e7eb;
-  height: 100vh;
-  position: relative;
+  min-height: 100vh;
+  height: auto;
+  position: sticky;
   top: 0;
+  align-self: flex-start;
+
   display: flex;
   flex-direction: column;
   padding: 16px;
   gap: 16px;
-  transition: width 0.3s ease;
-  overflow-y: auto;
-  overflow-x: hidden;
-}
 
-/* COLAPSADO */
-aside.collapsed {
-  width: 80px;
+  transition: width 0.3s ease;
+  overflow-x: hidden;
 }
 
 /* CONTENEDOR INTERNO */
@@ -134,14 +132,15 @@ aside.collapsed .sidebar-logo img {
 ========================= */
 main {
   flex: 1;
-   background: transparent;
+  background: transparent;
   padding: 30px;
+  min-width: 0;
 
   display: flex;
   flex-direction: column;
   align-items: stretch;
 
-  overflow-y: auto;
+  overflow: visible;
 }
 
 /* CARDS */
