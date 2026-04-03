@@ -23,7 +23,7 @@ body {
 aside {
   width: 240px;
   background: linear-gradient(180deg, #020617, #0f172a);
-   color: #e5e7eb;
+  color: #e5e7eb;
   height: 100vh;
   position: fixed;
   top: 0;
@@ -35,9 +35,8 @@ aside {
   gap: 16px;
 
   transition: width 0.3s ease;
-  overflow-x: visible;
-  overflow-y: hidden;
-  z-index: 100;
+  overflow: visible; /* <- importante */
+  z-index: 1000;     /* <- por si el main se monta encima */
 
   box-shadow: 6px 0 18px rgba(0, 0, 0, 0.12), 2px 0 6px #020617;
 }
@@ -269,9 +268,9 @@ aside.collapsed {
 .toggle-btn {
   position: absolute;
   top: 22px;
-  right: -22px;
-  z-index: 120;
+  right: 12px; /* antes estaba en -22px */
 
+  z-index: 120;
   width: 44px;
   height: 44px;
   border-radius: 50%;
