@@ -260,7 +260,7 @@ aside.collapsed .submenu .sidebar-item {
   justify-content: center;
 }
 aside.collapsed {
-  width: 92px;
+  width: 57px;
   padding-left: 10px;
   padding-right: 10px;
   align-items: center;
@@ -271,8 +271,8 @@ aside.collapsed {
   right: 12px; /* antes estaba en -22px */
 
   z-index: 120;
-  width: 44px;
-  height: 44px;
+      width: 36px;
+    height: 36px;
   border-radius: 50%;
 
   background: #1f2937;
@@ -284,7 +284,7 @@ aside.collapsed {
 
   box-shadow: 0 8px 20px rgba(0,0,0,0.5);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transform: translateX(0);
 }
 
 .toggle-btn:hover {
