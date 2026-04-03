@@ -260,15 +260,15 @@ aside.collapsed .submenu .sidebar-item {
   justify-content: center;
 }
 aside.collapsed {
-  width: 57px;
+  width: 47px;
   padding-left: 10px;
   padding-right: 10px;
   align-items: center;
 }
 .toggle-btn {
   position: absolute;
-  top: 22px;
-  right: 12px; /* antes estaba en -22px */
+  top: 17px;
+    right: -16px;
 
   z-index: 120;
       width: 36px;
