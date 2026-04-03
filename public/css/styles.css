@@ -268,7 +268,7 @@ aside.collapsed {
 .toggle-btn {
   position: absolute;
   top: 17px;
-    right: -16px;
+    right: -20px;
 
   z-index: 120;
       width: 36px;
