@@ -69,6 +69,17 @@ Valida demanda, revisa competidores y confirma si el producto ya se vende
   </div>
 
       <input id="productoInput" placeholder="Buscar producto">
+    <div style="display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap;">
+  <button class="primary" onclick="analizarProducto()">Analizar idea</button>
+  <button onclick="buscarProducto('aliexpress')">AliExpress</button>
+  <button onclick="buscarProducto('alibaba')">Alibaba</button>
+  <button onclick="buscarProducto('ml')">Mercado Libre</button>
+  <button onclick="guardarIdeaComoProducto()">Guardar idea</button>
+</div>
+
+<div id="score-result" class="score-box">
+  Esperando análisis...
+</div>
 
     <h4><i data-lucide="store" style=" width: 19px; height: 14px;"></i> ANALIZAR TIENDA EN META</h4>
     

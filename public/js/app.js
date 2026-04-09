@@ -1082,17 +1082,31 @@ window.goTo = function(route) {
   }
 
   if (route === "busqueda") {
-    view.innerHTML = renderBusqueda();
-    marcarMenuActivo("busqueda");
+  view.innerHTML = renderBusqueda();
+  marcarMenuActivo("busqueda");
 
-    setTimeout(() => {
-      renderKeywordsImport();
-      renderKeywordsCat();
-      if (window.lucide) lucide.createIcons();
-    }, 0);
+  setTimeout(() => {
+    renderKeywordsImport();
+    renderKeywordsCat();
 
-    return;
-  }
+    const input = document.getElementById("productoInput");
+    if (input && state.validacionDraft?.texto) {
+      input.value = state.validacionDraft.texto;
+    }
+
+    const scoreBox = document.getElementById("score-result");
+    if (scoreBox && state.validacionDraft?.origen) {
+      scoreBox.innerHTML = `
+        <strong>Idea cargada desde:</strong> ${state.validacionDraft.origen}<br>
+        <small>${state.validacionDraft.texto || ""}</small>
+      `;
+    }
+
+    if (window.lucide) lucide.createIcons();
+  }, 0);
+
+  return;
+}
 
   if (route === "productos") {
     view.innerHTML = renderProductos();
@@ -1402,6 +1416,29 @@ window.buscarProducto = function(tipo) {
     window.open(`https://www.alibaba.com/trade/search?SearchText=${encodeURIComponent(q)}`, "_blank");
   }
 };
+
+window.irAValidacion = function(texto = "", origen = "") {
+  state.validacionDraft = {
+    texto,
+    pais: "US",
+    origen
+  };
+
+  goTo("busqueda");
+
+  setTimeout(() => {
+    const input = document.getElementById("productoInput");
+    if (input && texto) {
+      input.value = texto;
+    }
+
+    const scoreBox = document.getElementById("score-result");
+    if (scoreBox && origen) {
+      scoreBox.innerHTML = `<strong>Idea cargada desde:</strong> ${origen}`;
+    }
+  }, 50);
+};
+
 
 // ejecutar final
 window.generarBusqueda = function() {
