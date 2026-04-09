@@ -20,27 +20,32 @@ export function renderSidebar() {
   <span>Inicio</span>
 </div>
 
-  <div class="sidebar-item" onclick="toggleBusquedaMenu()">
-  <i data-lucide="search"></i>
-  <span>Investigación de Mercado</span>
-
-  <i id="busqueda-arrow" data-lucide="chevron-right" style="margin-left:auto;"></i>
+ <div class="sidebar-item" onclick="toggleDescubrimientoMenu()">
+  <i data-lucide="compass"></i>
+  <span>Descubrimiento</span>
+  <i id="descubrimiento-arrow" data-lucide="chevron-right" style="margin-left:auto;"></i>
 </div>
 
-<div id="busqueda-submenu" class="submenu">
-
-<div class="sidebar-item" data-route="busqueda" onclick="goTo('busqueda')">
-   <span>Buscar productos</span>
-  </div>
-
+<div id="descubrimiento-submenu" class="submenu">
   <div class="sidebar-item" data-route="tendencias" onclick="goTo('tendencias')">
     <span>Tendencias</span>
   </div>
 
- <div class="sidebar-item" data-route="nichos" onclick="goTo('nichos')">
+  <div class="sidebar-item" data-route="nichos" onclick="goTo('nichos')">
     <span>Nichos</span>
   </div>
+</div>
 
+<div class="sidebar-item" onclick="toggleValidacionMenu()">
+  <i data-lucide="search-check"></i>
+  <span>Validación</span>
+  <i id="validacion-arrow" data-lucide="chevron-right" style="margin-left:auto;"></i>
+</div>
+
+<div id="validacion-submenu" class="submenu">
+  <div class="sidebar-item" data-route="busqueda" onclick="goTo('busqueda')">
+    <span>Buscar productos</span>
+  </div>
 </div>
 
      <div class="sidebar-item" onclick="toggleProductosMenu()">

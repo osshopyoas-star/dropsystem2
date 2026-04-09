@@ -2,11 +2,11 @@ export function renderBusqueda() {
   return `
 
 <h3 style="margin-bottom:10px;">
-🚀 Motor de Investigación
+🔍 Motor de Validación
 </h3>
 
 <p class="info">
-Analiza tiendas, valida demanda y encuentra productos ganadores
+Valida demanda, revisa competidores y confirma si el producto ya se vende
 </p>
 
     

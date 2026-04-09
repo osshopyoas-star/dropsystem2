@@ -1045,27 +1045,32 @@ window.toggleSidebar = function() {
 
 window.goTo = function(route) {
   if (route === "inicio") {
-    view.innerHTML = `
-      <h1>🏠 Inicio</h1>
-      <p>Bienvenido a CoDropX. Desde aquí puedes entrar a investigación, productos y desarrollo.</p>
+   view.innerHTML = `
+  <h1>🏠 Inicio</h1>
+  <p>Bienvenido a CoDropX. Desde aquí puedes descubrir oportunidades, validarlas, guardar productos y desarrollar ángulos.</p>
 
-      <div class="grid-3">
-        <div class="panel">
-          <h3>Investigación</h3>
-          <p>Busca productos, tendencias y nichos.</p>
-        </div>
+  <div class="grid-3">
+    <div class="panel">
+      <h3>Descubrimiento</h3>
+      <p>Explora tendencias, nichos y oportunidades de mercado.</p>
+    </div>
 
-        <div class="panel">
-          <h3>Base de Productos</h3>
-          <p>Organiza productos para Colombia y Ecuador.</p>
-        </div>
+    <div class="panel">
+      <h3>Validación</h3>
+      <p>Confirma demanda con Ads Library, tiendas, Dropi y proveedores.</p>
+    </div>
 
-        <div class="panel">
-          <h3>Desarrollo</h3>
-          <p>Trabaja avatar, ángulos, prompts, creativos y landing.</p>
-        </div>
-      </div>
-    `;
+    <div class="panel">
+      <h3>Base de Productos</h3>
+      <p>Organiza productos validados para Colombia y Ecuador.</p>
+    </div>
+
+    <div class="panel">
+      <h3>Desarrollo</h3>
+      <p>Trabaja avatar, ángulos, prompts, creativos y landing.</p>
+    </div>
+  </div>
+`;
 
     marcarMenuActivo("inicio");
 
@@ -1866,4 +1871,48 @@ Devuelve exactamente esta estructura:
     console.error("ERROR API:", err);
     document.getElementById("trendResult").innerText = "Error en API";
   }
+};
+
+window.toggleDescubrimientoMenu = function() {
+  const sidebar = document.querySelector("aside");
+  if (sidebar.classList.contains("collapsed")) {
+    toggleSidebar();
+    setTimeout(() => toggleDescubrimientoMenu(), 50);
+    return;
+  }
+
+  const menu = document.getElementById("descubrimiento-submenu");
+  const arrow = document.getElementById("descubrimiento-arrow");
+
+  menu.classList.toggle("open");
+
+  if (menu.classList.contains("open")) {
+    arrow.setAttribute("data-lucide", "chevron-down");
+  } else {
+    arrow.setAttribute("data-lucide", "chevron-right");
+  }
+
+  lucide.createIcons();
+};
+
+window.toggleValidacionMenu = function() {
+  const sidebar = document.querySelector("aside");
+  if (sidebar.classList.contains("collapsed")) {
+    toggleSidebar();
+    setTimeout(() => toggleValidacionMenu(), 50);
+    return;
+  }
+
+  const menu = document.getElementById("validacion-submenu");
+  const arrow = document.getElementById("validacion-arrow");
+
+  menu.classList.toggle("open");
+
+  if (menu.classList.contains("open")) {
+    arrow.setAttribute("data-lucide", "chevron-down");
+  } else {
+    arrow.setAttribute("data-lucide", "chevron-right");
+  }
+
+  lucide.createIcons();
 };
