@@ -1246,62 +1246,75 @@ window.guardarProducto = async function() {
   };
 
   try {
-    const res = await fetch("/api/productos", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(producto)
-    });
+    let res;
+
+    if (window.productoEditandoId) {
+      res = await fetch(`/api/productos/${window.productoEditandoId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(producto)
+      });
+    } else {
+      res = await fetch("/api/productos", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(producto)
+      });
+    }
 
     const data = await res.json();
-    console.log("Mongo respuesta:", data);
 
     if (!res.ok) {
       alert("Error guardando en Mongo");
+      console.error(data);
       return;
     }
 
-   await cargarProductos();
-renderTablaProductos();
+    window.productoEditandoId = null;
+
+    document.getElementById("nombre").value = "";
+    document.getElementById("dropiId").value = "";
+    document.getElementById("material").value = "";
+    document.getElementById("landing").value = "";
+    document.getElementById("creativos").value = "";
+
+    await cargarProductos();
     renderTablaProductos();
-    alert("Producto guardado en Mongo correctamente");
   } catch (err) {
-    console.error(err);
-    alert("No se pudo conectar con el servidor");
+    console.error("Error guardando producto:", err);
+    alert("No se pudo guardar");
   }
 };
 // =============================
 // RENDER TABLA
 function renderTablaProductos() {
-
   const tabla = document.getElementById("tabla-productos");
   if (!tabla) return;
 
-  const filtrados = state.productos.filter(
-    p => p.pais === window.productoPaisActivo
-  );
-
-  tabla.innerHTML = filtrados.map((p, i) => `
+  tabla.innerHTML = state.productos.map((p) => `
     <tr style="border-bottom:1px solid #ddd;">
       <td>${p.nombre}</td>
-      <td>${p.dropiId ? "Dropi" : "Manual"}</td>
+      <td>${p.fuente || (p.dropiId ? "dropi" : "manual")}</td>
       <td>
-  <select onchange="cambiarEstado(${i}, this.value)">
-    <option value="validacion" ${p.estado==="validacion"?"selected":""}>Validación</option>
-    <option value="desarrollo" ${p.estado==="desarrollo"?"selected":""}>Desarrollo</option>
-    <option value="listo" ${p.estado==="listo"?"selected":""}>Listo</option>
-  </select>
-</td>
+        <select onchange="cambiarEstado('${p._id}', this.value)">
+          <option value="validacion" ${p.estado === "validacion" ? "selected" : ""}>Validación</option>
+          <option value="desarrollo" ${p.estado === "desarrollo" ? "selected" : ""}>Desarrollo</option>
+          <option value="listo" ${p.estado === "listo" ? "selected" : ""}>Listo</option>
+        </select>
+      </td>
       <td>
-  <button onclick="abrirLanding('${p.landing}')">🌐</button>
-  <button onclick="abrirCreativos('${p.creativos}')">🎥</button>
-  ${p.dropiId ? `<button onclick="abrirDropi('${p.dropiId}')">📦</button>` : ""}
-  <button onclick="irDesarrollo(${i})">⚙️</button>
-</td>
+        <button onclick="abrirLanding('${p.landing || ""}')">🌐</button>
+        <button onclick="abrirCreativos('${p.creativos || ""}')">🎥</button>
+        ${p.dropiId ? `<button onclick="abrirDropi('${p.dropiId}')">📦</button>` : ""}
+        <button onclick="editarProducto('${p._id}')">✏️</button>
+        <button onclick="eliminarProducto('${p._id}')">🗑️</button>
+      </td>
     </tr>
   `).join("");
-
 }
 
 
@@ -1949,13 +1962,82 @@ window.irDesarrollo = function(index) {
 
 window.cargarProductos = async function() {
   try {
-    const res = await fetch("/api/productos");
+    let url = "/api/productos";
+
+    if (window.productoPaisActivo) {
+      url += `?pais=${window.productoPaisActivo}`;
+    }
+
+    const res = await fetch(url);
     const data = await res.json();
 
-    console.log("Productos desde Mongo:", data);
-
     state.productos = data;
+    console.log("Productos desde Mongo:", data);
   } catch (err) {
     console.error("Error cargando productos:", err);
+  }
+};
+
+window.cambiarEstado = async function(id, nuevoEstado) {
+  try {
+    const res = await fetch(`/api/productos/${id}/estado`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ estado: nuevoEstado })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert("Error actualizando estado");
+      console.error(data);
+      return;
+    }
+
+    await cargarProductos();
+    renderTablaProductos();
+  } catch (err) {
+    console.error("Error cambiando estado:", err);
+    alert("No se pudo actualizar el estado");
+  }
+};
+
+window.editarProducto = function(id) {
+  const producto = state.productos.find(p => p._id === id);
+  if (!producto) return;
+
+  document.getElementById("nombre").value = producto.nombre || "";
+  document.getElementById("dropiId").value = producto.dropiId || "";
+  document.getElementById("material").value = producto.material || "";
+  document.getElementById("landing").value = producto.landing || "";
+  document.getElementById("creativos").value = producto.creativos || "";
+
+  window.productoEditandoId = id;
+};
+
+window.eliminarProducto = async function(id) {
+  const confirmado = confirm("¿Seguro que quieres eliminar este producto?");
+  if (!confirmado) return;
+
+  try {
+    const res = await fetch(`/api/productos/${id}`, {
+      method: "DELETE"
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert("Error eliminando producto");
+      console.error(data);
+      return;
+    }
+
+    await cargarProductos();
+    renderTablaProductos();
+  } catch (err) {
+    console.error("Error eliminando producto:", err);
+    alert("No se pudo eliminar");
   }
 };

@@ -121,7 +121,13 @@ app.post("/api/productos", async (req, res) => {
 
 app.get("/api/productos", async (req, res) => {
   try {
-    const productos = await Producto.find().sort({ fecha: -1 });
+    const filtro = {};
+
+    if (req.query.pais) {
+      filtro.pais = req.query.pais;
+    }
+
+    const productos = await Producto.find(filtro).sort({ fecha: -1 });
     res.json(productos);
   } catch (err) {
     console.error("Error leyendo productos:", err);
@@ -140,3 +146,49 @@ app.listen(PORT, () => {
   console.log(`🔥 Servidor corriendo en puerto ${PORT}`);
 });
 
+app.put("/api/productos/:id/estado", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { estado } = req.body;
+
+    const productoActualizado = await Producto.findByIdAndUpdate(
+      id,
+      { estado },
+      { new: true }
+    );
+
+    res.json({ ok: true, producto: productoActualizado });
+  } catch (err) {
+    console.error("Error actualizando estado:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put("/api/productos/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const productoActualizado = await Producto.findByIdAndUpdate(
+      id,
+      req.body,
+      { new: true }
+    );
+
+    res.json({ ok: true, producto: productoActualizado });
+  } catch (err) {
+    console.error("Error editando producto:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+app.delete("/api/productos/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    await Producto.findByIdAndDelete(id);
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("Error eliminando producto:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
