@@ -1224,24 +1224,7 @@ window.setProductoPais = function(pais) {
   }
 };
 
-window.guardarProducto = function() {
-  const producto = {
-    nombre: document.getElementById("nombre").value,
-    dropiId: document.getElementById("dropiId").value,
-    material: document.getElementById("material").value,
-    landing: document.getElementById("landing").value,
-    creativos: document.getElementById("creativos").value,
-    pais: window.productoPaisActivo
-  };
-
-  state.productos.push(producto);
-
-  renderLista();
-};
-
-// =============================
-// GUARDAR PRODUCTO
-window.guardarProducto = function() {
+window.guardarProducto = async function() {
 
   const producto = {
     nombre: document.getElementById("nombre").value,
@@ -1250,10 +1233,44 @@ window.guardarProducto = function() {
     landing: document.getElementById("landing").value,
     creativos: document.getElementById("creativos").value,
     pais: window.productoPaisActivo,
-    estado: "nuevo"
+
+    estado: "validacion",
+    fuente: document.getElementById("dropiId").value ? "dropi" : "manual",
+
+    desarrollo: {
+      avatar: false,
+      angulos: false,
+      creativos: false,
+      landing: false
+    },
+
+    fecha: new Date()
   };
 
+  // 👉 FRONT (temporal)
+
   state.productos.push(producto);
+
+  await fetch("/api/productos", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify(producto)
+});
+
+  // 👉 BACKEND (Mongo)
+  try {
+    await fetch("/api/productos", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(producto)
+    });
+  } catch (err) {
+    console.error("Error guardando en Mongo:", err);
+  }
 
   renderTablaProductos();
 };
@@ -1273,16 +1290,26 @@ function renderTablaProductos() {
     <tr style="border-bottom:1px solid #ddd;">
       <td>${p.nombre}</td>
       <td>${p.dropiId ? "Dropi" : "Manual"}</td>
-      <td>${p.estado}</td>
       <td>
-        <button onclick="abrirLanding('${p.landing}')">Landing</button>
-        <button onclick="abrirCreativos('${p.creativos}')">Creativos</button>
-        ${p.dropiId ? `<button onclick="abrirDropi('${p.dropiId}')">Dropi</button>` : ""}
-      </td>
+  <select onchange="cambiarEstado(${i}, this.value)">
+    <option value="validacion" ${p.estado==="validacion"?"selected":""}>Validación</option>
+    <option value="desarrollo" ${p.estado==="desarrollo"?"selected":""}>Desarrollo</option>
+    <option value="listo" ${p.estado==="listo"?"selected":""}>Listo</option>
+  </select>
+</td>
+      <td>
+  <button onclick="abrirLanding('${p.landing}')">🌐</button>
+  <button onclick="abrirCreativos('${p.creativos}')">🎥</button>
+  ${p.dropiId ? `<button onclick="abrirDropi('${p.dropiId}')">📦</button>` : ""}
+  <button onclick="irDesarrollo(${i})">⚙️</button>
+</td>
     </tr>
   `).join("");
 
 }
+
+
+
 // =============================
 window.abrirLanding = function(url) {
   window.open(url, "_blank");
@@ -1918,4 +1945,8 @@ window.toggleValidacionMenu = function() {
   }
 
   lucide.createIcons();
+};
+window.irDesarrollo = function(index) {
+  state.productoActivo = state.productos[index];
+  goTo("desarrollo");
 };

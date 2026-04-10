@@ -99,3 +99,16 @@ app.listen(PORT, () => {
 });
 
 
+app.post("/api/productos", async (req, res) => {
+  try {
+    const producto = req.body;
+
+    await db.collection("productos").insertOne(producto);
+
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
