@@ -1094,7 +1094,8 @@ window.goTo = function(route) {
     return;
   }
 
-  if (route === "productos") {
+ if (route === "productos") {
+  cargarProductos().then(() => {
     view.innerHTML = renderProductos();
 
     setTimeout(() => {
@@ -1110,9 +1111,10 @@ window.goTo = function(route) {
 
       if (window.lucide) lucide.createIcons();
     }, 0);
+  });
 
-    return;
-  }
+  return;
+}
 
   if (route === "tendencias") {
     view.innerHTML = renderTendencias();
@@ -1260,7 +1262,8 @@ window.guardarProducto = async function() {
       return;
     }
 
-    state.productos.push(producto);
+   await cargarProductos();
+renderTablaProductos();
     renderTablaProductos();
     alert("Producto guardado en Mongo correctamente");
   } catch (err) {
@@ -1942,4 +1945,17 @@ window.toggleValidacionMenu = function() {
 window.irDesarrollo = function(index) {
   state.productoActivo = state.productos[index];
   goTo("desarrollo");
+};
+
+window.cargarProductos = async function() {
+  try {
+    const res = await fetch("/api/productos");
+    const data = await res.json();
+
+    console.log("Productos desde Mongo:", data);
+
+    state.productos = data;
+  } catch (err) {
+    console.error("Error cargando productos:", err);
+  }
 };
