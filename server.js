@@ -180,15 +180,3 @@ app.put("/api/productos/:id", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-app.delete("/api/productos/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    await Producto.findByIdAndDelete(id);
-
-    res.json({ ok: true });
-  } catch (err) {
-    console.error("Error eliminando producto:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
