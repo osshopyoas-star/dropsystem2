@@ -8,7 +8,12 @@ import mongoose from "mongoose"; // 👈 CORRECTO
 import { fileURLToPath } from "url";
 
 console.log(process.env.MONGO_URI);
+
 mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log("Mongo conectado"))
+  .catch(err => console.error("Error Mongo:", err));
+
+// 👇 MODELO DESPUÉS DE CONECTAR
 const productoSchema = new mongoose.Schema({
   nombre: String,
   dropiId: String,
@@ -26,6 +31,7 @@ const productoSchema = new mongoose.Schema({
   },
   fecha: Date
 });
+
 
 const Producto = mongoose.model("Producto", productoSchema);
   .then(() => console.log("Mongo conectado"))
@@ -118,16 +124,15 @@ app.listen(PORT, () => {
 
 app.post("/api/productos", async (req, res) => {
   try {
-    const producto = req.body;
+    console.log("Recibido:", req.body);
 
-    const nuevoProducto = await Producto.create(producto);
+    const nuevoProducto = await Producto.create(req.body);
+
+    console.log("Guardado en Mongo:", nuevoProducto);
 
     res.json({ ok: true, producto: nuevoProducto });
   } catch (err) {
     console.error("Error guardando producto:", err);
     res.status(500).json({ error: err.message });
   }
-});
-app.use((req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
 });
