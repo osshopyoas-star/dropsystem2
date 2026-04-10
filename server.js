@@ -9,6 +9,25 @@ import { fileURLToPath } from "url";
 
 console.log(process.env.MONGO_URI);
 mongoose.connect(process.env.MONGO_URI)
+const productoSchema = new mongoose.Schema({
+  nombre: String,
+  dropiId: String,
+  material: String,
+  landing: String,
+  creativos: String,
+  pais: String,
+  estado: String,
+  fuente: String,
+  desarrollo: {
+    avatar: Boolean,
+    angulos: Boolean,
+    creativos: Boolean,
+    landing: Boolean
+  },
+  fecha: Date
+});
+
+const Producto = mongoose.model("Producto", productoSchema);
   .then(() => console.log("Mongo conectado"))
   .catch(err => console.error(err));
 const app = express();
@@ -87,9 +106,7 @@ app.post("/api/ia", async (req, res) => {
 });
 
 // 🌍 SPA (para que cualquier ruta cargue index.html)
-app.use((req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
-});
+
 
 // 🚀 PUERTO (Render usa process.env.PORT)
 const PORT = process.env.PORT || 3000;
@@ -103,12 +120,14 @@ app.post("/api/productos", async (req, res) => {
   try {
     const producto = req.body;
 
-    await db.collection("productos").insertOne(producto);
+    const nuevoProducto = await Producto.create(producto);
 
-    res.json({ ok: true });
+    res.json({ ok: true, producto: nuevoProducto });
   } catch (err) {
+    console.error("Error guardando producto:", err);
     res.status(500).json({ error: err.message });
   }
 });
-
-
+app.use((req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});

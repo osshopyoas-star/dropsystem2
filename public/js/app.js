@@ -1225,7 +1225,6 @@ window.setProductoPais = function(pais) {
 };
 
 window.guardarProducto = async function() {
-
   const producto = {
     nombre: document.getElementById("nombre").value,
     dropiId: document.getElementById("dropiId").value,
@@ -1233,48 +1232,42 @@ window.guardarProducto = async function() {
     landing: document.getElementById("landing").value,
     creativos: document.getElementById("creativos").value,
     pais: window.productoPaisActivo,
-
     estado: "validacion",
     fuente: document.getElementById("dropiId").value ? "dropi" : "manual",
-
     desarrollo: {
       avatar: false,
       angulos: false,
       creativos: false,
       landing: false
     },
-
     fecha: new Date()
   };
 
-  // 👉 FRONT (temporal)
-
-  state.productos.push(producto);
-
-  await fetch("/api/productos", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json"
-  },
-  body: JSON.stringify(producto)
-});
-
-  // 👉 BACKEND (Mongo)
   try {
-    await fetch("/api/productos", {
+    const res = await fetch("/api/productos", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
       body: JSON.stringify(producto)
     });
+
+    const data = await res.json();
+    console.log("Mongo respuesta:", data);
+
+    if (!res.ok) {
+      alert("Error guardando en Mongo");
+      return;
+    }
+
+    state.productos.push(producto);
+    renderTablaProductos();
+    alert("Producto guardado en Mongo correctamente");
   } catch (err) {
-    console.error("Error guardando en Mongo:", err);
+    console.error(err);
+    alert("No se pudo conectar con el servidor");
   }
-
-  renderTablaProductos();
 };
-
 // =============================
 // RENDER TABLA
 function renderTablaProductos() {
