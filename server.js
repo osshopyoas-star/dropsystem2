@@ -4,16 +4,17 @@ dotenv.config();
 import express from "express";
 import fetch from "node-fetch";
 import path from "path";
-import mongoose from "mongoose"; // 👈 CORRECTO
+import mongoose from "mongoose";
 import { fileURLToPath } from "url";
 
-console.log(process.env.MONGO_URI);
+// 🔥 CONEXIÓN CORRECTA
+console.log("Conectando a Mongo...");
 
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("Mongo conectado"))
-  .catch(err => console.error("Error Mongo:", err));
+  .then(() => console.log("✅ Mongo conectado"))
+  .catch(err => console.error("❌ Error Mongo:", err));
 
-// 👇 MODELO DESPUÉS DE CONECTAR
+// 🔥 MODELO
 const productoSchema = new mongoose.Schema({
   nombre: String,
   dropiId: String,
@@ -31,7 +32,6 @@ const productoSchema = new mongoose.Schema({
   },
   fecha: Date
 });
-
 
 const Producto = mongoose.model("Producto", productoSchema);
   .then(() => console.log("Mongo conectado"))
