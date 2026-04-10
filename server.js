@@ -34,8 +34,7 @@ const productoSchema = new mongoose.Schema({
 });
 
 const Producto = mongoose.model("Producto", productoSchema);
-  .then(() => console.log("Mongo conectado"))
-  .catch(err => console.error(err));
+
 const app = express();
 const API_KEY = process.env.API_KEY;
 
@@ -43,7 +42,7 @@ const API_KEY = process.env.API_KEY;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// 🌐 CORS (por si accedes desde otro dominio)
+// 🌐 CORS
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Headers", "Content-Type");
@@ -56,18 +55,13 @@ app.use((req, res, next) => {
   next();
 });
 
-// 📦 leer JSON
 app.use(express.json());
-
-// 📁 SERVIR FRONTEND (IMPORTANTE)
 app.use(express.static(path.join(__dirname, "public")));
 
-// 🧪 TEST
 app.get("/api/test", (req, res) => {
   res.json({ status: "ok" });
 });
 
-// 🤖 API IA
 app.post("/api/ia", async (req, res) => {
   const { prompt } = req.body;
 
@@ -95,7 +89,6 @@ app.post("/api/ia", async (req, res) => {
 
     const data = await response.json();
 
-    // 🔍 debug si algo falla
     if (!data.choices) {
       console.log("ERROR IA:", data);
       return res.status(500).json(data);
@@ -111,17 +104,6 @@ app.post("/api/ia", async (req, res) => {
   }
 });
 
-// 🌍 SPA (para que cualquier ruta cargue index.html)
-
-
-// 🚀 PUERTO (Render usa process.env.PORT)
-const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, () => {
-  console.log(`🔥 Servidor corriendo en puerto ${PORT}`);
-});
-
-
 app.post("/api/productos", async (req, res) => {
   try {
     console.log("Recibido:", req.body);
@@ -136,3 +118,25 @@ app.post("/api/productos", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+app.get("/api/productos", async (req, res) => {
+  try {
+    const productos = await Producto.find().sort({ fecha: -1 });
+    res.json(productos);
+  } catch (err) {
+    console.error("Error leyendo productos:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.use((req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+// 🚀 PUERTO
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log(`🔥 Servidor corriendo en puerto ${PORT}`);
+});
+
