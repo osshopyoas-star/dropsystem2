@@ -46,7 +46,7 @@ const __dirname = path.dirname(__filename);
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Headers", "Content-Type");
-res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
 
   if (req.method === "OPTIONS") {
     return res.sendStatus(200);
@@ -135,17 +135,6 @@ app.get("/api/productos", async (req, res) => {
   }
 });
 
-app.use((req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
-});
-
-// 🚀 PUERTO
-const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, () => {
-  console.log(`🔥 Servidor corriendo en puerto ${PORT}`);
-});
-
 app.put("/api/productos/:id/estado", async (req, res) => {
   try {
     const { id } = req.params;
@@ -181,7 +170,6 @@ app.put("/api/productos/:id", async (req, res) => {
   }
 });
 
-
 // ❌ ELIMINAR PRODUCTO
 app.delete("/api/productos/:id", async (req, res) => {
   try {
@@ -194,4 +182,16 @@ app.delete("/api/productos/:id", async (req, res) => {
     console.error("Error eliminando producto:", err);
     res.status(500).json({ error: err.message });
   }
+});
+
+// ⚠️ ESTA RUTA SIEMPRE DEBE IR AL FINAL
+app.use((req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+// 🚀 PUERTO
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log(`🔥 Servidor corriendo en puerto ${PORT}`);
 });
