@@ -46,7 +46,7 @@ const __dirname = path.dirname(__filename);
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Headers", "Content-Type");
-  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
 
   if (req.method === "OPTIONS") {
     return res.sendStatus(200);
@@ -177,6 +177,21 @@ app.put("/api/productos/:id", async (req, res) => {
     res.json({ ok: true, producto: productoActualizado });
   } catch (err) {
     console.error("Error editando producto:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+// ❌ ELIMINAR PRODUCTO
+app.delete("/api/productos/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    await Producto.findByIdAndDelete(id);
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("Error eliminando producto:", err);
     res.status(500).json({ error: err.message });
   }
 });
