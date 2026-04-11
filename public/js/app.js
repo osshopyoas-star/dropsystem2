@@ -1235,7 +1235,9 @@ window.guardarProducto = async function() {
   landing: document.getElementById("landing").value,
   creativos: document.getElementById("creativos").value,
   pais: window.productoPaisActivo,
-  estado: document.getElementById("estado").value,
+estado: window.productoEditandoId
+  ? (state.productos.find(p => p._id === window.productoEditandoId)?.estado || "idea")
+  : "idea",
   desarrollo: {
     avatar: false,
     angulos: false,
@@ -1328,13 +1330,13 @@ tabla.innerHTML = state.productos.map((p, i) => `
 
     <!-- 🔥 PROCESO -->
     <div>
-      <select class="select-pro" onchange="cambiarEstado('${p._id}', this.value)">
-        <option value="idea" ${p.estado === "idea" ? "selected" : ""}>Idea</option>
-        <option value="validando" ${p.estado === "validando" ? "selected" : ""}>Validando</option>
-        <option value="desarrollo" ${p.estado === "desarrollo" ? "selected" : ""}>Desarrollo</option>
-        <option value="lanzado" ${p.estado === "lanzado" ? "selected" : ""}>Lanzado</option>
-      </select>
-    </div>
+  <select class="select-pro estado-${p.estado || "idea"}" onchange="cambiarEstado('${p._id}', this.value)">
+    <option value="idea" ${p.estado === "idea" ? "selected" : ""}>Idea</option>
+    <option value="validando" ${p.estado === "validando" ? "selected" : ""}>Validando</option>
+    <option value="desarrollo" ${p.estado === "desarrollo" ? "selected" : ""}>Desarrollo</option>
+    <option value="lanzado" ${p.estado === "lanzado" ? "selected" : ""}>Lanzado</option>
+  </select>
+</div>
 
     <!-- 🔥 BOTÓN DESARROLLO -->
     <div>
@@ -2053,6 +2055,7 @@ window.editarProducto = function(id) {
   if (!producto) return;
 
   document.getElementById("nombre").value = producto.nombre || "";
+  document.getElementById("origen").value = producto.origen || "dropi";
   document.getElementById("dropiId").value = producto.dropiId || "";
   document.getElementById("material").value = producto.material || "";
   document.getElementById("landing").value = producto.landing || "";
