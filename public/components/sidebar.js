@@ -38,6 +38,12 @@ export function renderSidebar() {
   </div>
 </div>
 
+<div class="sidebar-item" onclick="toggleValidacionMenu()">
+  <i data-lucide="check-circle"></i>
+  <span>Validación</span>
+  <i id="validacion-arrow" data-lucide="chevron-right" style="margin-left:auto;"></i>
+</div>
+
 <div id="validacion-submenu" class="submenu">
   <div class="sidebar-item" data-route="busqueda" onclick="goTo('busqueda')">
    <i data-lucide="check-circle"></i>
@@ -112,6 +118,21 @@ export function renderSidebar() {
 window.toggleDesarrolloMenu = function() {
   const submenu = document.getElementById("desarrollo-submenu");
   const arrow = document.getElementById("desarrollo-arrow");
+
+  submenu.classList.toggle("open");
+
+  if (submenu.classList.contains("open")) {
+    arrow.setAttribute("data-lucide", "chevron-down");
+  } else {
+    arrow.setAttribute("data-lucide", "chevron-right");
+  }
+
+  lucide.createIcons();
+};
+
+window.toggleValidacionMenu = function() {
+  const submenu = document.getElementById("validacion-submenu");
+  const arrow = document.getElementById("validacion-arrow");
 
   submenu.classList.toggle("open");
 
