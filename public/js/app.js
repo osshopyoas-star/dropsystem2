@@ -1300,21 +1300,21 @@ function renderTablaProductos() {
 tabla.innerHTML = state.productos.map((p, i) => `
   <div class="fila-producto">
 
-    <div>${p.nombre}</div>
+   <div class="texto-celda">${p.nombre}</div>
 
-    <div>
-      ${
-        p.origen === "dropi"
-          ? `Dropi`
-          : p.origen === "importacion"
-          ? "Importación"
-          : p.origen === "laboratorio"
-          ? "Laboratorio"
-          : "-"
-      }
-    </div>
+ <div class="texto-celda">
+  ${
+    p.origen === "dropi"
+      ? "Dropi"
+      : p.origen === "importacion"
+      ? "Importación"
+      : p.origen === "laboratorio"
+      ? "Laboratorio"
+      : "-"
+  }
+</div>
 
-    <div>${p.material || "-"}</div>
+    <div class="texto-celda">${p.material || "-"}</div>
 
     <div>
       <button class="icon-btn" onclick="abrirCreativos('${p.creativos || ""}')">
@@ -1330,7 +1330,10 @@ tabla.innerHTML = state.productos.map((p, i) => `
 
     <!-- 🔥 PROCESO -->
     <div>
-  <select class="select-pro estado-${p.estado || "idea"}" onchange="cambiarEstado('${p._id}', this.value)">
+   <select
+    class="select-pro estado-${(p.estado || "idea").replace(" ", "-")}"
+    onchange="cambiarEstado('${p._id}', this.value)"
+  >
     <option value="idea" ${p.estado === "idea" ? "selected" : ""}>Idea</option>
     <option value="validando" ${p.estado === "validando" ? "selected" : ""}>Validando</option>
     <option value="desarrollo" ${p.estado === "desarrollo" ? "selected" : ""}>Desarrollo</option>
