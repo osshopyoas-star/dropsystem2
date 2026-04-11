@@ -1100,6 +1100,7 @@ window.goTo = function(route) {
 
     setTimeout(() => {
       renderTablaProductos();
+      toggleCampoDropi();
 
       if (window.productoPaisActivo === "CO") {
         marcarMenuActivo("productos-co");
@@ -1226,11 +1227,29 @@ window.setProductoPais = function(pais) {
   }
 };
 
+window.toggleCampoDropi = function() {
+  const origen = document.getElementById("origen");
+  const wrap = document.getElementById("dropiIdWrap");
+  const input = document.getElementById("dropiId");
+
+  if (!origen || !wrap || !input) return;
+
+  if (origen.value === "dropi") {
+    wrap.style.display = "block";
+    input.placeholder = "ID Dropi";
+  } else {
+    wrap.style.display = "none";
+    input.value = "";
+  }
+};
+
 window.guardarProducto = async function() {
  const producto = {
   nombre: document.getElementById("nombre").value,
   origen: document.getElementById("origen").value,
-  dropiId: document.getElementById("dropiId").value,
+dropiId: document.getElementById("origen").value === "dropi"
+  ? document.getElementById("dropiId").value
+  : "",
   material: document.getElementById("material").value,
   landing: document.getElementById("landing").value,
   creativos: document.getElementById("creativos").value,
@@ -1302,10 +1321,10 @@ tabla.innerHTML = state.productos.map((p, i) => `
 
    <div class="texto-celda">${p.nombre}</div>
 
- <div class="texto-celda">
+<div class="texto-celda">
   ${
     p.origen === "dropi"
-      ? "Dropi"
+      ? `Dropi: ${p.dropiId || "sin id"}`
       : p.origen === "importacion"
       ? "Importación"
       : p.origen === "laboratorio"
@@ -2065,6 +2084,7 @@ window.editarProducto = function(id) {
   document.getElementById("creativos").value = producto.creativos || "";
 
   window.productoEditandoId = id;
+  toggleCampoDropi();
 };
 
 window.eliminarProducto = async function(id) {

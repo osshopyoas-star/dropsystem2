@@ -1074,3 +1074,7 @@ top-bar input,.
 .top-bar {
   gap: 18px; /* 🔥 más separación real */
 }
+
+.campo-dropi {
+  display: block;
+}

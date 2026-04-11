@@ -21,13 +21,15 @@ export function renderProductos() {
         <div class="top-bar">
           <input id="nombre" placeholder="Nombre del producto">
 
-          <select id="origen">
+          <select id="origen" onchange="toggleCampoDropi()">
             <option value="dropi">Dropi</option>
             <option value="importacion">Importación</option>
             <option value="laboratorio">Laboratorio</option>
           </select>
 
-          <input id="dropiId" placeholder="ID / Importación">
+          <div id="dropiIdWrap" class="campo-dropi">
+  <input id="dropiId" placeholder="ID Dropi">
+</div>
           <input id="material" placeholder="Material / Tipo">
           <input id="creativos" placeholder="Link Creativos">
           <input id="landing" placeholder="Landing Page">
