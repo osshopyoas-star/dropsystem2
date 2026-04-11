@@ -1099,19 +1099,19 @@ window.goTo = function(route) {
     view.innerHTML = renderProductos();
 
     setTimeout(() => {
-      renderTablaProductos();
-      toggleCampoDropi();
+  renderTablaProductos();
+  toggleCampoDropi();
 
-      if (window.productoPaisActivo === "CO") {
-        marcarMenuActivo("productos-co");
-      }
+  if (window.productoPaisActivo === "CO") {
+    marcarMenuActivo("productos-co");
+  }
 
-      if (window.productoPaisActivo === "EC") {
-        marcarMenuActivo("productos-ec");
-      }
+  if (window.productoPaisActivo === "EC") {
+    marcarMenuActivo("productos-ec");
+  }
 
-      if (window.lucide) lucide.createIcons();
-    }, 0);
+  if (window.lucide) lucide.createIcons();
+}, 0);
   });
 
   return;
@@ -1234,11 +1234,13 @@ window.toggleCampoDropi = function() {
 
   if (!origen || !wrap || !input) return;
 
-  if (origen.value === "dropi") {
-    wrap.hidden = false;
+  const esDropi = origen.value === "dropi";
+
+  wrap.hidden = !esDropi;
+
+  if (esDropi) {
     input.placeholder = "ID Dropi";
   } else {
-    wrap.hidden = true;
     input.value = "";
   }
 };

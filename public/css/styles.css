@@ -892,11 +892,11 @@ aside::after {
 
 
 .top-bar {
-  display: grid;
-  grid-template-columns: minmax(160px, 1.2fr) minmax(120px, 0.8fr) minmax(150px, 1fr) minmax(150px, 1fr) minmax(150px, 1fr) minmax(150px, 1fr) auto;
-  gap: 14px;
+  display: flex;
   align-items: center;
+  gap: 14px;
   margin-top: 10px;
+  flex-wrap: wrap;
 }
 
 .top-bar input,
@@ -913,6 +913,17 @@ aside::after {
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
   box-sizing: border-box;
 }
+
+
+.top-bar > input {
+  flex: 1 1 180px;
+  min-width: 160px;
+}
+
+.top-bar > select {
+  flex: 0 0 130px;
+}
+
 
 top-bar input,.
 .top-bar select {
@@ -932,19 +943,15 @@ top-bar input,.
 }
 
 .top-bar .btn-primary {
+  flex: 0 0 auto;
   height: 46px;
-  padding: 0 20px;
-  margin-left: 0;
+  padding: 0 22px;
   border-radius: 16px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   white-space: nowrap;
-  font-size: 14px;
-  font-weight: 800;
-  background: linear-gradient(135deg, #4ea9f3, #4f46e5);
-  box-shadow: 0 10px 24px rgba(79, 70, 229, 0.16);
 }
 .top-bar .btn-primary:hover {
   transform: translateY(-1px);
@@ -1083,10 +1090,13 @@ top-bar input,.
 }
 
 #dropiIdWrap {
-  width: 100%;
-  min-width: 0;
+  flex: 1 1 150px;
+  min-width: 150px;
 }
 
+#dropiIdWrap[hidden] {
+  display: none !important;
+}
 #dropiIdWrap input {
   width: 100%;
   min-width: 0;

@@ -27,7 +27,7 @@ export function renderProductos() {
             <option value="laboratorio">Laboratorio</option>
           </select>
 
-          <div id="dropiIdWrap" class="campo-dropi">
+         <div id="dropiIdWrap" hidden>
   <input id="dropiId" placeholder="ID Dropi">
 </div>
           <input id="material" placeholder="Material / Tipo">
