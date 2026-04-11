@@ -1295,7 +1295,7 @@ function renderTablaProductos() {
   const tabla = document.getElementById("tabla-productos");
   if (!tabla) return;
 
- tabla.innerHTML = state.productos.map((p, i) => `
+tabla.innerHTML = state.productos.map((p, i) => `
   <div class="fila-producto">
 
     <div>${p.nombre}</div>
@@ -1359,6 +1359,8 @@ function renderTablaProductos() {
 
 // 🔥 IMPORTANTE
 lucide.createIcons();
+}
+
 
 
 // =============================
