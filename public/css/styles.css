@@ -1092,3 +1092,8 @@ aside::after {
   min-width: 0;
   box-sizing: border-box;
 }
+
+.top-bar.con-dropi > input:first-child,
+.top-bar.sin-dropi > input:first-child {
+  min-width: 180px;
+}
