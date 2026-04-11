@@ -898,11 +898,11 @@ aside::after {
 }
 
 .top-bar.con-dropi {
-  grid-template-columns: minmax(150px, 1.1fr) 120px minmax(130px, 0.9fr) minmax(150px, 1fr) minmax(150px, 1fr) minmax(150px, 1fr) 160px;
-}
+  grid-template-columns: minmax(140px, 1fr) 110px minmax(120px, 0.85fr) minmax(140px, 1fr) minmax(140px, 1fr) minmax(140px, 1fr) 150px;
+} 
 
 .top-bar.sin-dropi {
-   grid-template-columns: minmax(180px, 1.2fr) 120px minmax(160px, 1fr) minmax(160px, 1fr) minmax(160px, 1fr) 170px;
+  grid-template-columns: minmax(170px, 1.1fr) 110px minmax(150px, 1fr) minmax(150px, 1fr) minmax(150px, 1fr) 150px;
 }
 
 .top-bar input,
