@@ -892,8 +892,8 @@ aside::after {
 
 .top-bar {
   display: grid;
-  grid-template-columns: minmax(160px, 1.2fr) minmax(120px, 0.8fr) repeat(4, minmax(140px, 1fr)) auto;
-  gap: 14px;
+  grid-template-columns: minmax(118px, 1.2fr) minmax(83px, 0.8fr) repeat(4, minmax(111px, 1fr)) auto;
+
   align-items: center;
   margin-top: 10px;
 }
@@ -904,7 +904,7 @@ aside::after {
   height: 46px;
   padding: 0 16px;
   margin: 0;
-  font-size: 14px;
+  font-size: 12px;
   border-radius: 16px;
   border: 1px solid #dbe5f0;
   background: #ffffff;
