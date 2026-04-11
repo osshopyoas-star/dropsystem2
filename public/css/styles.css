@@ -931,10 +931,6 @@ aside::after {
 }
 
 
-.top-bar select {
-  min-width: 140px;
-}
-
 #dropiIdWrap {
   min-width: 0;
 }
