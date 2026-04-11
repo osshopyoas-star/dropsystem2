@@ -878,7 +878,7 @@ aside::after {
 
 .productos-title {
   margin: 0;
-  font-size: 26px;
+  font-size: 19px;
   line-height: 1.1;
   font-weight: 800;
   color: #0f172a;
@@ -1089,10 +1089,6 @@ aside::after {
   box-sizing: border-box;
 }
 
-.top-bar.con-dropi > input:first-child,
-.top-bar.sin-dropi > input:first-child {
-  min-width: 180px;
-}
 
 .top-bar > * {
   min-width: 0;
