@@ -1228,20 +1228,24 @@ window.setProductoPais = function(pais) {
 };
 
 window.toggleCampoDropi = function() {
-  const origen = document.getElementById("origen");
+  const origenEl = document.getElementById("origen");
   const wrap = document.getElementById("dropiIdWrap");
   const input = document.getElementById("dropiId");
+  const topBar = document.querySelector(".top-bar");
 
-  if (!origen || !wrap || !input) return;
+  if (!origenEl || !wrap || !input || !topBar) return;
 
-  const esDropi = origen.value === "dropi";
+  const origen = (origenEl.value || "").trim().toLowerCase();
+  const mostrar = origen === "dropi";
 
-  wrap.hidden = !esDropi;
+  wrap.hidden = !mostrar;
+  topBar.classList.toggle("con-dropi", mostrar);
+  topBar.classList.toggle("sin-dropi", !mostrar);
 
-  if (esDropi) {
-    input.placeholder = "ID Dropi";
-  } else {
+  if (!mostrar) {
     input.value = "";
+  } else {
+    input.placeholder = "ID Dropi";
   }
 };
 
