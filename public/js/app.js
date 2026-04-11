@@ -1365,7 +1365,11 @@ tabla.innerHTML = state.productos.map((p, i) => `
   }
 </div>
 
-    <div class="texto-celda">${p.material || "-"}</div>
+  <div>
+  <button class="icon-btn" onclick="abrirMaterial('${p.material || ""}')">
+    <i data-lucide="file-text"></i>
+  </button>
+</div>
 
     <div>
       <button class="icon-btn" onclick="abrirCreativos('${p.creativos || ""}')">
@@ -1425,6 +1429,11 @@ window.abrirLanding = function(url) {
 };
 
 window.abrirCreativos = function(url) {
+  window.open(url, "_blank");
+};
+
+window.abrirMaterial = function(url) {
+  if (!url) return;
   window.open(url, "_blank");
 };
 
