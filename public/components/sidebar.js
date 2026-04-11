@@ -28,22 +28,19 @@ export function renderSidebar() {
 
 <div id="descubrimiento-submenu" class="submenu">
   <div class="sidebar-item" data-route="tendencias" onclick="goTo('tendencias')">
+    <i data-lucide="trending-up"></i>
     <span>Tendencias</span>
   </div>
 
   <div class="sidebar-item" data-route="nichos" onclick="goTo('nichos')">
+    <i data-lucide="layers-3"></i>
     <span>Nichos</span>
   </div>
 </div>
 
-<div class="sidebar-item" onclick="toggleValidacionMenu()">
-  <i data-lucide="search-check"></i>
-  <span>Validación</span>
-  <i id="validacion-arrow" data-lucide="chevron-right" style="margin-left:auto;"></i>
-</div>
-
 <div id="validacion-submenu" class="submenu">
   <div class="sidebar-item" data-route="busqueda" onclick="goTo('busqueda')">
+    <i data-lucide="search"></i>
     <span>Buscar productos</span>
   </div>
 </div>

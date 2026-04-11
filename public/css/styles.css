@@ -733,11 +733,8 @@ aside.collapsed #productos-arrow {
   display: none;
 }
 
-aside.collapsed .submenu {
-  display: none !important;
-}
-
-aside.collapsed #busqueda-arrow,
+aside.collapsed #descubrimiento-arrow,
+aside.collapsed #validacion-arrow,
 aside.collapsed #productos-arrow,
 aside.collapsed #desarrollo-arrow {
   display: none !important;
@@ -771,9 +768,6 @@ aside.collapsed .logo-icon {
   margin-bottom: 8px;
 }
 
-aside.collapsed .submenu {
-  display: none !important;
-}
 
 aside.collapsed .sidebar-item {
   width: 48px;
@@ -1175,3 +1169,15 @@ aside::after {
   }
 }
 
+aside.collapsed .submenu .sidebar-item i {
+  display: flex !important;
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  margin: 0;
+}
+
+aside.collapsed .submenu .sidebar-item {
+  justify-content: center;
+  align-items: center;
+}
