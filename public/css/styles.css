@@ -890,6 +890,16 @@ aside::after {
   color: #64748b;
 }
 
+
+.top-bar.con-dropi {
+  grid-template-columns: minmax(140px, 1fr) 110px 140px minmax(140px, 1fr) minmax(140px, 1fr) minmax(140px, 1fr) 150px;
+}
+
+.top-bar.sin-dropi {
+  grid-template-columns: minmax(160px, 1.1fr) 110px minmax(150px, 1fr) minmax(150px, 1fr) minmax(150px, 1fr) 150px;
+}
+
+
 .top-bar {
   display: grid;
   align-items: center;
@@ -897,29 +907,22 @@ aside::after {
   margin-top: 10px;
 }
 
-.top-bar.con-dropi {
-  grid-template-columns: minmax(140px, 1fr) 110px minmax(120px, 0.85fr) minmax(140px, 1fr) minmax(140px, 1fr) minmax(140px, 1fr) 150px;
-} 
-
-.top-bar.sin-dropi {
-  grid-template-columns: minmax(170px, 1.1fr) 110px minmax(150px, 1fr) minmax(150px, 1fr) minmax(150px, 1fr) 150px;
-}
-
 .top-bar input,
 .top-bar select,
 #dropiIdWrap input {
   width: 100%;
   min-width: 0;
-  height: 46px;
+  height: 44px;
   padding: 0 16px;
-  margin: 0;
-  font-size: 14px;
+  margin: 0 14px;
+  font-size: 13px;
   border-radius: 16px;
   border: 1px solid #dbe5f0;
   background: #ffffff;
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
   box-sizing: border-box;
 }
+
 
 
 .top-bar select {
@@ -947,8 +950,8 @@ aside::after {
 
 .top-bar .btn-primary {
   width: 100%;
-  min-width: 0;
-  height: 46px;
+ min-width: 150px;
+   height: 44px;
   padding: 0 18px;
   border-radius: 16px;
   display: inline-flex;
