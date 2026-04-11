@@ -2,10 +2,14 @@ import { state } from "../js/state.js";
 
 export function renderProductos() {
   return `
-     <h1>📊 Base de Productos (${window.productoPaisActivo || ""})</h1>
+    <h2 style="display:flex; align-items:center; gap:10px;">
+      <i data-lucide="package"></i>
+      Guardar producto para testeo (${window.productoPaisActivo || ""})
+    </h2>
 
-    <!-- 🔥 BARRA SUPERIOR -->
+    <!-- 🔥 BARRA PRO -->
     <div class="top-bar">
+
       <input id="nombre" placeholder="Nombre del producto">
 
       <select id="origen">
@@ -19,18 +23,17 @@ export function renderProductos() {
       <input id="creativos" placeholder="Link Creativos">
       <input id="landing" placeholder="Landing Page">
 
-      <select id="estado">
-        <option value="idea">Idea</option>
-        <option value="validando">Validando</option>
-        <option value="desarrollo">Desarrollo</option>
-        <option value="lanzado">Lanzado</option>
-      </select>
+      <!-- ❌ quitamos estado de aquí -->
 
-      <button onclick="guardarProducto()">Guardar</button>
+      <button class="btn-primary" onclick="guardarProducto()">
+        <i data-lucide="save"></i> Guardar
+      </button>
+
     </div>
 
-    <!-- 🔥 TABLA NUEVA -->
+    <!-- 🔥 TABLA -->
     <div class="tabla-pro">
+
       <div class="tabla-header">
         <div>Nombre</div>
         <div>Fuente</div>
@@ -38,10 +41,12 @@ export function renderProductos() {
         <div>Creativos</div>
         <div>Landing</div>
         <div>Proceso</div>
+        <div>Desarrollo</div>
         <div>Acciones</div>
       </div>
 
       <div id="tabla-productos"></div>
+
     </div>
   `;
 }

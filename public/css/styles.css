@@ -856,3 +856,38 @@ aside::after {
 .fila-producto:hover {
   background: #f1f5f9;
 }
+
+.btn-primary {
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.icon-btn {
+  background: #60a5fa;
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.icon-btn i {
+  width: 18px;
+  height: 18px;
+}
+
+.select-pro {
+  padding: 8px;
+  border-radius: 8px;
+}
+
+.btn-dev {
+  background: #e2e8f0;
+  color: #0f172a;
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
+.acciones {
+  display: flex;
+  gap: 8px;
+}

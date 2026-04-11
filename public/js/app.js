@@ -1295,7 +1295,7 @@ function renderTablaProductos() {
   const tabla = document.getElementById("tabla-productos");
   if (!tabla) return;
 
-  tabla.innerHTML = state.productos.map((p) => `
+ tabla.innerHTML = state.productos.map((p, i) => `
   <div class="fila-producto">
 
     <div>${p.nombre}</div>
@@ -1303,7 +1303,7 @@ function renderTablaProductos() {
     <div>
       ${
         p.origen === "dropi"
-          ? `Dropi: ${p.dropiId || "sin id"}`
+          ? `Dropi`
           : p.origen === "importacion"
           ? "Importación"
           : p.origen === "laboratorio"
@@ -1315,15 +1315,20 @@ function renderTablaProductos() {
     <div>${p.material || "-"}</div>
 
     <div>
-      <button onclick="abrirCreativos('${p.creativos || ""}')">🎥</button>
+      <button class="icon-btn" onclick="abrirCreativos('${p.creativos || ""}')">
+        <i data-lucide="video"></i>
+      </button>
     </div>
 
     <div>
-      <button onclick="abrirLanding('${p.landing || ""}')">🌐</button>
+      <button class="icon-btn" onclick="abrirLanding('${p.landing || ""}')">
+        <i data-lucide="globe"></i>
+      </button>
     </div>
 
+    <!-- 🔥 PROCESO -->
     <div>
-      <select onchange="cambiarEstado('${p._id}', this.value)">
+      <select class="select-pro" onchange="cambiarEstado('${p._id}', this.value)">
         <option value="idea" ${p.estado === "idea" ? "selected" : ""}>Idea</option>
         <option value="validando" ${p.estado === "validando" ? "selected" : ""}>Validando</option>
         <option value="desarrollo" ${p.estado === "desarrollo" ? "selected" : ""}>Desarrollo</option>
@@ -1331,15 +1336,29 @@ function renderTablaProductos() {
       </select>
     </div>
 
+    <!-- 🔥 BOTÓN DESARROLLO -->
     <div>
-      <button onclick="editarProducto('${p._id}')">✏️</button>
-      <button onclick="eliminarProducto('${p._id}')">🗑️</button>
+      <button class="btn-dev" onclick="irDesarrollo(${i})">
+        Ir
+      </button>
+    </div>
+
+    <!-- 🔥 ACCIONES -->
+    <div class="acciones">
+      <button class="icon-btn" onclick="editarProducto('${p._id}')">
+        <i data-lucide="pencil"></i>
+      </button>
+
+      <button class="icon-btn" onclick="eliminarProducto('${p._id}')">
+        <i data-lucide="trash"></i>
+      </button>
     </div>
 
   </div>
 `).join("");
-}
 
+// 🔥 IMPORTANTE
+lucide.createIcons();
 
 
 // =============================
