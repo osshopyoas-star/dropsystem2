@@ -630,7 +630,7 @@ button.primary:hover {
   box-shadow: 0 12px 30px rgba(59,130,246,0.6);
 }
 input, select {
-  width: 100%;
+
   padding: 12px;
   border-radius: 10px;
   border: 1px solid #e2e8f0;
@@ -892,7 +892,7 @@ aside::after {
 
 .top-bar {
   display: grid;
-  grid-template-columns: 1.35fr 0.82fr 1fr 1fr 1fr 1fr auto;
+ grid-template-columns: 180px 120px 160px 160px 160px 160px auto;
   gap: 16px;
   align-items: center;
   margin-top: 10px;
@@ -1061,4 +1061,14 @@ aside::after {
 
 .fila-producto .acciones {
   justify-content: flex-start;
+}
+
+.top-bar input,
+.top-bar select {
+  width: auto; /* 🔥 esto arregla el pegado */
+  min-width: 0;
+}
+
+.top-bar {
+  gap: 18px; /* 🔥 más separación real */
 }
