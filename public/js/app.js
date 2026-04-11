@@ -18,6 +18,32 @@ window.addEventListener("DOMContentLoaded", () => {
   goTo("inicio");
   marcarMenuActivo("inicio");
 
+  const btnCancelar = document.getElementById("btnCancelar");
+  const btnAceptar = document.getElementById("btnAceptar");
+  const modal = document.getElementById("modalConfirm");
+
+  if (btnCancelar) {
+    btnCancelar.onclick = () => {
+      productoAEliminar = null;
+      modal?.classList.add("hidden");
+    };
+  }
+
+  if (btnAceptar) {
+    btnAceptar.onclick = () => {
+      confirmarEliminacion();
+    };
+  }
+
+  if (modal) {
+    modal.onclick = (e) => {
+      if (e.target === modal) {
+        productoAEliminar = null;
+        modal.classList.add("hidden");
+      }
+    };
+  }
+
   setTimeout(() => {
     if (window.lucide) lucide.createIcons();
   }, 100);
@@ -2093,12 +2119,25 @@ window.editarProducto = function(id) {
   toggleCampoDropi();
 };
 
-window.eliminarProducto = async function(id) {
-  const confirmado = confirm("¿Seguro que quieres eliminar este producto?");
-  if (!confirmado) return;
+let productoAEliminar = null;
+
+window.eliminarProducto = function(id) {
+  productoAEliminar = id;
+
+  const modal = document.getElementById("modalConfirm");
+  if (!modal) {
+    console.error("No existe #modalConfirm en el HTML");
+    return;
+  }
+
+  modal.classList.remove("hidden");
+};
+
+async function confirmarEliminacion() {
+  if (!productoAEliminar) return;
 
   try {
-    const res = await fetch(`/api/productos/${id}`, {
+    const res = await fetch(`/api/productos/${productoAEliminar}`, {
       method: "DELETE"
     });
 
@@ -2115,5 +2154,39 @@ window.eliminarProducto = async function(id) {
   } catch (err) {
     console.error("Error eliminando producto:", err);
     alert("No se pudo eliminar");
+  } finally {
+    productoAEliminar = null;
+    const modal = document.getElementById("modalConfirm");
+    if (modal) {
+      modal.classList.add("hidden");
+    }
   }
-};
+}
+
+window.addEventListener("DOMContentLoaded", () => {
+  const btnCancelar = document.getElementById("btnCancelar");
+  const btnAceptar = document.getElementById("btnAceptar");
+  const modal = document.getElementById("modalConfirm");
+
+  if (btnCancelar) {
+    btnCancelar.onclick = () => {
+      productoAEliminar = null;
+      modal?.classList.add("hidden");
+    };
+  }
+
+  if (btnAceptar) {
+    btnAceptar.onclick = () => {
+      confirmarEliminacion();
+    };
+  }
+
+  if (modal) {
+    modal.onclick = (e) => {
+      if (e.target === modal) {
+        productoAEliminar = null;
+        modal.classList.add("hidden");
+      }
+    };
+  }
+});
