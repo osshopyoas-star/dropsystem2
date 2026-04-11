@@ -925,13 +925,6 @@ aside::after {
 }
 
 
-top-bar input,.
-.top-bar select {
-  width: auto; /* 🔥 esto arregla el pegado */
-  min-width: 0;
-}
-
-
 .top-bar input::placeholder {
   color: #94a3b8;
 }
