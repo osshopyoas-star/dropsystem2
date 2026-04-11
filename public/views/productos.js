@@ -30,7 +30,7 @@ export function renderProductos() {
          <div id="dropiIdWrap" hidden>
   <input id="dropiId" placeholder="ID Dropi">
 </div>
-          <input id="material" placeholder="Material / Tipo">
+          <input id="material" placeholder="Material/Producto">
           <input id="creativos" placeholder="Link Creativos">
           <input id="landing" placeholder="Link Landing Page">
 
