@@ -2,50 +2,57 @@ import { state } from "../js/state.js";
 
 export function renderProductos() {
   return `
-    <h2 style="display:flex; align-items:center; gap:10px;">
-      <i data-lucide="package"></i>
-      Guardar producto para testeo (${window.productoPaisActivo || ""})
-    </h2>
+    <div class="productos-page">
 
-    <!-- 🔥 BARRA PRO -->
-    <div class="top-bar">
+      <div class="productos-hero">
+        <div class="productos-hero-head">
+          <div class="productos-title-wrap">
+            <div class="productos-title-icon">
+              <i data-lucide="package-2"></i>
+            </div>
 
-      <input id="nombre" placeholder="Nombre del producto">
+            <div>
+              <h1 class="productos-title">Guardar producto para testeo (${window.productoPaisActivo || ""})</h1>
+              <p class="productos-subtitle">Organiza, valida y mueve productos a desarrollo.</p>
+            </div>
+          </div>
+        </div>
 
-      <select id="origen">
-        <option value="dropi">Dropi</option>
-        <option value="importacion">Importación</option>
-        <option value="laboratorio">Laboratorio</option>
-      </select>
+        <div class="top-bar">
+          <input id="nombre" placeholder="Nombre del producto">
 
-      <input id="dropiId" placeholder="ID / Importación">
-      <input id="material" placeholder="Material / Tipo">
-      <input id="creativos" placeholder="Link Creativos">
-      <input id="landing" placeholder="Landing Page">
+          <select id="origen">
+            <option value="dropi">Dropi</option>
+            <option value="importacion">Importación</option>
+            <option value="laboratorio">Laboratorio</option>
+          </select>
 
-      <!-- ❌ quitamos estado de aquí -->
+          <input id="dropiId" placeholder="ID / Importación">
+          <input id="material" placeholder="Material / Tipo">
+          <input id="creativos" placeholder="Link Creativos">
+          <input id="landing" placeholder="Landing Page">
 
-      <button class="btn-primary" onclick="guardarProducto()">
-        <i data-lucide="save"></i> Guardar
-      </button>
-
-    </div>
-
-    <!-- 🔥 TABLA -->
-    <div class="tabla-pro">
-
-      <div class="tabla-header">
-        <div>Nombre</div>
-        <div>Fuente</div>
-        <div>Material</div>
-        <div>Creativos</div>
-        <div>Landing</div>
-        <div>Proceso</div>
-        <div>Desarrollo</div>
-        <div>Acciones</div>
+          <button class="btn-primary" onclick="guardarProducto()">
+            <i data-lucide="save"></i>
+            Guardar
+          </button>
+        </div>
       </div>
 
-      <div id="tabla-productos"></div>
+      <div class="tabla-pro">
+        <div class="tabla-header">
+          <div>Nombre</div>
+          <div>Fuente</div>
+          <div>Material</div>
+          <div>Creativos</div>
+          <div>Landing</div>
+          <div>Proceso</div>
+          <div>Desarrollo</div>
+          <div>Acciones</div>
+        </div>
+
+        <div id="tabla-productos"></div>
+      </div>
 
     </div>
   `;

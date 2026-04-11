@@ -1005,3 +1005,129 @@ aside::after {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+.productos-page {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.productos-hero {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  border: 1px solid #e5edf8;
+  border-radius: 24px;
+  padding: 22px 22px 18px 22px;
+  box-shadow: 0 14px 38px rgba(15, 23, 42, 0.06);
+}
+
+.productos-hero-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.productos-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.productos-title-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #eef2ff, #dbeafe);
+  border: 1px solid #d9e5fb;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
+}
+
+.productos-title-icon i {
+  width: 28px;
+  height: 28px;
+  color: #1d4ed8;
+}
+
+.productos-title {
+  margin: 0;
+  font-size: 26px;
+  line-height: 1.1;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.productos-subtitle {
+  margin: 6px 0 0 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.top-bar {
+  display: grid;
+  grid-template-columns: 1.35fr 0.8fr 1fr 1fr 1fr 1fr 0.9fr;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 0;
+  padding-top: 6px;
+}
+
+.top-bar input,
+.top-bar select {
+  height: 42px;
+  padding: 0 14px;
+  margin: 0;
+  font-size: 14px;
+  border-radius: 14px;
+  border: 1px solid #dbe5f0;
+  background: #ffffff;
+  box-shadow: inset 0 1px 1px rgba(15, 23, 42, 0.02);
+}
+
+.top-bar input::placeholder {
+  color: #94a3b8;
+}
+
+.top-bar input:focus,
+.top-bar select:focus {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
+}
+
+.top-bar .btn-primary {
+  height: 42px;
+  padding: 0 18px;
+  border-radius: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #4ea9f3, #4f46e5);
+  box-shadow: 0 10px 24px rgba(79, 70, 229, 0.16);
+}
+
+.top-bar .btn-primary:hover {
+  transform: translateY(-1px);
+}
+
+.top-bar .btn-primary i {
+  width: 18px;
+  height: 18px;
+}
+
+.tabla-pro {
+  background: white;
+  border-radius: 24px;
+  overflow: hidden;
+  border: 1px solid #e6edf7;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.04);
+}
+
+.tabla-header {
+  background: #dfe5f7;
+}
