@@ -40,7 +40,7 @@ export function renderSidebar() {
 
 <div id="validacion-submenu" class="submenu">
   <div class="sidebar-item" data-route="busqueda" onclick="goTo('busqueda')">
-    <i data-lucide="search"></i>
+   <i data-lucide="check-circle"></i>
     <span>Buscar productos</span>
   </div>
 </div>
