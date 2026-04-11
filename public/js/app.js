@@ -1227,23 +1227,23 @@ window.setProductoPais = function(pais) {
 };
 
 window.guardarProducto = async function() {
-  const producto = {
-    nombre: document.getElementById("nombre").value,
-    dropiId: document.getElementById("dropiId").value,
-    material: document.getElementById("material").value,
-    landing: document.getElementById("landing").value,
-    creativos: document.getElementById("creativos").value,
-    pais: window.productoPaisActivo,
-    estado: "validacion",
-    fuente: document.getElementById("dropiId").value ? "dropi" : "manual",
-    desarrollo: {
-      avatar: false,
-      angulos: false,
-      creativos: false,
-      landing: false
-    },
-    fecha: new Date()
-  };
+ const producto = {
+  nombre: document.getElementById("nombre").value,
+  origen: document.getElementById("origen").value,
+  dropiId: document.getElementById("dropiId").value,
+  material: document.getElementById("material").value,
+  landing: document.getElementById("landing").value,
+  creativos: document.getElementById("creativos").value,
+  pais: window.productoPaisActivo,
+  estado: document.getElementById("estado").value,
+  desarrollo: {
+    avatar: false,
+    angulos: false,
+    creativos: false,
+    landing: false
+  },
+  fecha: new Date()
+};
 
   try {
     let res;
@@ -1298,13 +1298,28 @@ function renderTablaProductos() {
   tabla.innerHTML = state.productos.map((p) => `
     <tr style="border-bottom:1px solid #ddd;">
       <td>${p.nombre}</td>
-      <td>${p.fuente || (p.dropiId ? "dropi" : "manual")}</td>
+     <td>
+  ${
+    p.origen === "dropi"
+      ? `Dropi: ${p.dropiId || "sin id"}`
+      : p.origen === "importacion"
+      ? "Importación"
+      : p.origen === "laboratorio"
+      ? "Laboratorio"
+      : "-"
+  }
+</td>
       <td>
         <select onchange="cambiarEstado('${p._id}', this.value)">
-          <option value="validacion" ${p.estado === "validacion" ? "selected" : ""}>Validación</option>
-          <option value="desarrollo" ${p.estado === "desarrollo" ? "selected" : ""}>Desarrollo</option>
-          <option value="listo" ${p.estado === "listo" ? "selected" : ""}>Listo</option>
-        </select>
+  <option value="idea" ${p.estado === "idea" ? "selected" : ""}>Idea</option>
+  <option value="validando" ${p.estado === "validando" ? "selected" : ""}>Validando</option>
+  <option value="desarrollo" ${p.estado === "desarrollo" ? "selected" : ""}>Desarrollo</option>
+  <option value="creativos" ${p.estado === "creativos" ? "selected" : ""}>Creativos</option>
+  <option value="lanzado" ${p.estado === "lanzado" ? "selected" : ""}>Lanzado</option>
+  <option value="vendiendo" ${p.estado === "vendiendo" ? "selected" : ""}>Vendiendo</option>
+  <option value="escalar" ${p.estado === "escalar" ? "selected" : ""}>Escalar</option>
+  <option value="no-vendio" ${p.estado === "no-vendio" ? "selected" : ""}>No vendió</option>
+</select>
       </td>
       <td>
         <button onclick="abrirLanding('${p.landing || ""}')">🌐</button>

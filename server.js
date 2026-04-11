@@ -22,8 +22,8 @@ const productoSchema = new mongoose.Schema({
   landing: String,
   creativos: String,
   pais: String,
-  estado: String,
-  fuente: String,
+  origen: String,
+estado: String,
   desarrollo: {
     avatar: Boolean,
     angulos: Boolean,

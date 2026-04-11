@@ -9,10 +9,15 @@ export function renderProductos() {
 
       <input id="nombre" placeholder="Nombre del producto">
       <input id="dropiId" placeholder="ID Dropi / Importación">
+    <select id="origen">
+  <option value="dropi">Dropi</option>
+  <option value="importacion">Importación</option>
+  <option value="laboratorio">Laboratorio</option>
+</select>
       <input id="material" placeholder="Material / Tipo">
       <input id="landing" placeholder="Link Landing Page">
       <input id="creativos" placeholder="Link Creativos">
-
+      
       <button onclick="guardarProducto()">Guardar</button>
     </div>
 
@@ -24,7 +29,16 @@ export function renderProductos() {
           <tr style="background:#f1f5f9;">
             <th>Producto</th>
             <th>Fuente</th>
-            <th>Estado</th>
+           <select id="estado">
+  <option value="idea">Idea</option>
+  <option value="validando">Validando</option>
+  <option value="desarrollo">Desarrollo</option>
+  <option value="creativos">Creativos</option>
+  <option value="lanzado">Lanzado</option>
+  <option value="vendiendo">Vendiendo</option>
+  <option value="escalar">Escalar</option>
+  <option value="no-vendio">No vendió</option>
+</select>
             <th>Acciones</th>
           </tr>
         </thead>
