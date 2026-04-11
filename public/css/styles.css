@@ -1089,10 +1089,6 @@ aside::after {
   display: block;
 }
 
-#dropiIdWrap {
-  flex: 1 1 150px;
-  min-width: 150px;
-}
 
 #dropiIdWrap[hidden] {
   display: none !important;
