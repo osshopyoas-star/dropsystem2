@@ -893,16 +893,16 @@ aside::after {
 .top-bar {
   display: grid;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   margin-top: 10px;
 }
 
 .top-bar.con-dropi {
-  grid-template-columns: minmax(180px, 1.2fr) 140px minmax(150px, 0.9fr) minmax(170px, 1fr) minmax(170px, 1fr) minmax(170px, 1fr) 170px;
+  grid-template-columns: minmax(150px, 1.1fr) 120px minmax(130px, 0.9fr) minmax(150px, 1fr) minmax(150px, 1fr) minmax(150px, 1fr) 160px;
 }
 
 .top-bar.sin-dropi {
-  grid-template-columns: minmax(220px, 1.3fr) 140px minmax(180px, 1fr) minmax(180px, 1fr) minmax(180px, 1fr) 190px;
+   grid-template-columns: minmax(180px, 1.2fr) 120px minmax(160px, 1fr) minmax(160px, 1fr) minmax(160px, 1fr) 170px;
 }
 
 .top-bar input,
@@ -947,9 +947,9 @@ aside::after {
 
 .top-bar .btn-primary {
   width: 100%;
-  min-width: 170px;
+  min-width: 0;
   height: 46px;
-  padding: 0 22px;
+  padding: 0 18px;
   border-radius: 16px;
   display: inline-flex;
   align-items: center;
@@ -958,16 +958,7 @@ aside::after {
   white-space: nowrap;
 }
 
-@media (max-width: 1400px) {
-  .top-bar.con-dropi,
-  .top-bar.sin-dropi {
-    grid-template-columns: repeat(3, minmax(180px, 1fr));
-  }
 
-  .top-bar .btn-primary {
-    min-width: 0;
-  }
-}
 .tabla-pro {
   background: white;
   border-radius: 24px;
