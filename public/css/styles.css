@@ -826,3 +826,33 @@ aside::after {
   pointer-events: none;
   background: linear-gradient(to right, rgba(0,0,0,0.12), rgba(0,0,0,0));
 }
+
+.top-bar {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.tabla-header,
+.fila-producto {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 10px;
+  padding: 12px;
+  border-bottom: 1px solid #ddd;
+  align-items: center;
+}
+
+.tabla-header {
+  font-weight: bold;
+  background: #e0e7ff;
+}
+
+.fila-producto {
+  background: white;
+}
+
+.fila-producto:hover {
+  background: #f1f5f9;
+}

@@ -1296,40 +1296,48 @@ function renderTablaProductos() {
   if (!tabla) return;
 
   tabla.innerHTML = state.productos.map((p) => `
-    <tr style="border-bottom:1px solid #ddd;">
-      <td>${p.nombre}</td>
-     <td>
-  ${
-    p.origen === "dropi"
-      ? `Dropi: ${p.dropiId || "sin id"}`
-      : p.origen === "importacion"
-      ? "Importación"
-      : p.origen === "laboratorio"
-      ? "Laboratorio"
-      : "-"
-  }
-</td>
-      <td>
-        <select onchange="cambiarEstado('${p._id}', this.value)">
-  <option value="idea" ${p.estado === "idea" ? "selected" : ""}>Idea</option>
-  <option value="validando" ${p.estado === "validando" ? "selected" : ""}>Validando</option>
-  <option value="desarrollo" ${p.estado === "desarrollo" ? "selected" : ""}>Desarrollo</option>
-  <option value="creativos" ${p.estado === "creativos" ? "selected" : ""}>Creativos</option>
-  <option value="lanzado" ${p.estado === "lanzado" ? "selected" : ""}>Lanzado</option>
-  <option value="vendiendo" ${p.estado === "vendiendo" ? "selected" : ""}>Vendiendo</option>
-  <option value="escalar" ${p.estado === "escalar" ? "selected" : ""}>Escalar</option>
-  <option value="no-vendio" ${p.estado === "no-vendio" ? "selected" : ""}>No vendió</option>
-</select>
-      </td>
-      <td>
-        <button onclick="abrirLanding('${p.landing || ""}')">🌐</button>
-        <button onclick="abrirCreativos('${p.creativos || ""}')">🎥</button>
-        ${p.dropiId ? `<button onclick="abrirDropi('${p.dropiId}')">📦</button>` : ""}
-        <button onclick="editarProducto('${p._id}')">✏️</button>
-        <button onclick="eliminarProducto('${p._id}')">🗑️</button>
-      </td>
-    </tr>
-  `).join("");
+  <div class="fila-producto">
+
+    <div>${p.nombre}</div>
+
+    <div>
+      ${
+        p.origen === "dropi"
+          ? `Dropi: ${p.dropiId || "sin id"}`
+          : p.origen === "importacion"
+          ? "Importación"
+          : p.origen === "laboratorio"
+          ? "Laboratorio"
+          : "-"
+      }
+    </div>
+
+    <div>${p.material || "-"}</div>
+
+    <div>
+      <button onclick="abrirCreativos('${p.creativos || ""}')">🎥</button>
+    </div>
+
+    <div>
+      <button onclick="abrirLanding('${p.landing || ""}')">🌐</button>
+    </div>
+
+    <div>
+      <select onchange="cambiarEstado('${p._id}', this.value)">
+        <option value="idea" ${p.estado === "idea" ? "selected" : ""}>Idea</option>
+        <option value="validando" ${p.estado === "validando" ? "selected" : ""}>Validando</option>
+        <option value="desarrollo" ${p.estado === "desarrollo" ? "selected" : ""}>Desarrollo</option>
+        <option value="lanzado" ${p.estado === "lanzado" ? "selected" : ""}>Lanzado</option>
+      </select>
+    </div>
+
+    <div>
+      <button onclick="editarProducto('${p._id}')">✏️</button>
+      <button onclick="eliminarProducto('${p._id}')">🗑️</button>
+    </div>
+
+  </div>
+`).join("");
 }
 
 
