@@ -890,25 +890,28 @@ aside::after {
   color: #64748b;
 }
 
+
 .top-bar {
   display: grid;
-  grid-template-columns: minmax(118px, 1.2fr) minmax(83px, 0.8fr) repeat(4, minmax(111px, 1fr)) auto;
-
+  grid-template-columns: minmax(160px, 1.2fr) minmax(120px, 0.8fr) minmax(150px, 1fr) minmax(150px, 1fr) minmax(150px, 1fr) minmax(150px, 1fr) auto;
+  gap: 14px;
   align-items: center;
   margin-top: 10px;
 }
 
 .top-bar input,
 .top-bar select {
-
+  width: 100%;
+  min-width: 0;
   height: 46px;
   padding: 0 16px;
   margin: 0;
-  font-size: 12px;
+  font-size: 14px;
   border-radius: 16px;
   border: 1px solid #dbe5f0;
   background: #ffffff;
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+  box-sizing: border-box;
 }
 
 top-bar input,.
@@ -1077,4 +1080,15 @@ top-bar input,.
 
 .campo-dropi {
   display: block;
+}
+
+#dropiIdWrap {
+  width: 100%;
+  min-width: 0;
+}
+
+#dropiIdWrap input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }

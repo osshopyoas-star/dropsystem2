@@ -1235,14 +1235,13 @@ window.toggleCampoDropi = function() {
   if (!origen || !wrap || !input) return;
 
   if (origen.value === "dropi") {
-    wrap.style.display = "block";
+    wrap.hidden = false;
     input.placeholder = "ID Dropi";
   } else {
-    wrap.style.display = "none";
+    wrap.hidden = true;
     input.value = "";
   }
 };
-
 window.guardarProducto = async function() {
  const producto = {
   nombre: document.getElementById("nombre").value,
