@@ -892,13 +892,12 @@ aside::after {
 
 
 .top-bar {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr 1fr 1fr 1fr 1fr auto;
   gap: 14px;
   margin-top: 10px;
-  flex-wrap: wrap;
+  align-items: center;
 }
-
 .top-bar input,
 .top-bar select {
   width: 100%;
@@ -1070,12 +1069,6 @@ aside::after {
 
 .fila-producto .acciones {
   justify-content: flex-start;
-}
-
-
-
-.top-bar {
-  gap: 18px; /* 🔥 más separación real */
 }
 
 .campo-dropi {
