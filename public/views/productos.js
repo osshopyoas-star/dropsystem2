@@ -32,7 +32,7 @@ export function renderProductos() {
 </div>
           <input id="material" placeholder="Material / Tipo">
           <input id="creativos" placeholder="Link Creativos">
-          <input id="landing" placeholder="Landing Page">
+          <input id="landing" placeholder="Link Landing Page">
 
           <button class="btn-primary" onclick="guardarProducto()">
             <i data-lucide="save"></i>
