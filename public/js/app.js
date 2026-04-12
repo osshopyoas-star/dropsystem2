@@ -1941,13 +1941,13 @@ function renderTendencias() {
           <div>
             <h1 class="tendencias-title">Tendencias</h1>
             <p class="tendencias-subtitle">
-              Panel ejecutivo para detectar oportunidad, dolor, solución y ángulos ganadores.
+              Analiza una oportunidad como mercado, dolor, solución, mecanismo y decisión.
             </p>
           </div>
         </div>
 
         <div class="tendencias-form tendencias-form-4">
-          <input id="trendInput" placeholder="Ej: bebés, hígado graso, ansiedad, energía masculina..." />
+          <input id="trendInput" placeholder="Ej: caída del cabello, ansiedad, seguridad física..." />
 
           <select id="trendPais">
             <option value="ALL">Todos</option>
@@ -1972,143 +1972,119 @@ function renderTendencias() {
         </div>
       </div>
 
-    <div class="trend-tabs">
-  <button class="trend-tab active">Resumen</button>
-  <button class="trend-tab">Problema</button>
-  <button class="trend-tab">Marketing</button>
-  <button class="trend-tab">Keywords</button>
-</div>
+      <div class="trend-tabs">
+        <button class="trend-tab active">1 Pantalla</button>
+        <button class="trend-tab">Problema</button>
+        <button class="trend-tab">Marketing</button>
+        <button class="trend-tab">Keywords</button>
+      </div>
 
-      <div id="trendResult" class="trend-dashboard trend-dashboard-exec">
+      <div id="trendResult" class="trend-board">
 
-        <div class="exec-top-grid">
-          <div class="exec-hero-card">
-            <span class="trend-label">Tema central</span>
+        <div class="trend-board-top">
+          <!-- TEMA CENTRAL -->
+          <section class="board-topic">
+            <div class="board-block-title">TEMA CENTRAL</div>
             <h2 id="kpiTema">-</h2>
-            <p id="resEstacionalidadTop" class="trend-muted">-</p>
-    
-            <div class="trend-chart-box">
-            <div class="trend-chart-placeholder">
-           Gráfica aquí
-           </div>
-             </div>
-          
-          </div>
+            <p id="resEstacionalidadTop" class="board-muted">-</p>
 
-          <div class="exec-score-card">
-            <span class="trend-label">Score general</span>
+            <div class="trend-chart-box">
+              <div class="trend-chart-placeholder">
+                Gráfica aquí
+              </div>
+            </div>
+          </section>
+
+          <!-- SEÑAL DEL MERCADO -->
+          <section class="board-market">
+            <div class="board-block-title">Señal del mercado</div>
+
+            <div class="board-market-grid">
+              <div class="board-market-label">PAÍSES <strong id="countPaises">0</strong></div>
+              <div class="board-market-label">AUDIENCIAS <strong id="countAudiencias">0</strong></div>
+              <div class="board-market-label">HOOKS <strong id="countHooks">0</strong></div>
+            </div>
+
+            <div class="trend-signal trend-signal-lg board-signal">
+              <span id="sig1"></span>
+              <span id="sig2"></span>
+              <span id="sig3"></span>
+            </div>
+          </section>
+
+          <!-- SCORE -->
+          <section class="board-score">
+            <div class="board-block-title">SCORE GENERAL</div>
+
             <div class="score-ring score-ring-lg" id="scoreRing">
               <div class="score-ring-inner">
                 <strong id="kpiScore">0</strong>
                 <span>/100</span>
               </div>
             </div>
-            <span id="kpiDireccionBadge" class="trend-badge">-</span>
-          </div>
 
-          <div class="exec-signal-card">
-            <span class="trend-label">Señal del mercado</span>
-            <div class="trend-signal trend-signal-lg">
-              <span id="sig1"></span>
-              <span id="sig2"></span>
-              <span id="sig3"></span>
-            </div>
-
-            <div class="exec-mini-summary">
-              <div class="mini-box">
-                <span>Países</span>
-                <strong id="countPaises">0</strong>
-              </div>
-              <div class="mini-box">
-                <span>Audiencias</span>
-                <strong id="countAudiencias">0</strong>
-              </div>
-              <div class="mini-box">
-                <span>Hooks</span>
-                <strong id="countHooks">0</strong>
-              </div>
-            </div>
-          </div>
+            <div class="board-score-direction" id="kpiDireccionBadge">-</div>
+          </section>
         </div>
-        
-        
 
-        <div class="exec-summary-grid">
-         
-         <div class="trend-card trend-card-highlight">
-  <div class="trend-card-head">
-    <h3>📈 Estacionalidad</h3>
-  </div>
+        <div class="trend-board-bottom">
+          <!-- ESTACIONALIDAD -->
+          <section class="board-seasonality">
+            <div class="board-section-bar">Estacionalidad</div>
 
-  <div class="trend-stat-list compact">
-    <div class="trend-stat-row">
-      <span>Señal</span>
-      <strong id="kpiSenalBox">-</strong>
-    </div>
-    <div class="trend-stat-row">
-      <span>Etapa</span>
-      <strong id="kpiEtapaBox">-</strong>
-    </div>
-    <div class="trend-stat-row">
-      <span>Dirección</span>
-      <strong id="kpiDireccionBox">-</strong>
-    </div>
-    <div class="trend-stat-row">
-      <span>Estacionalidad</span>
-      <strong id="resEstacionalidadBox">-</strong>
-    </div>
-  </div>
-</div>
+            <div class="seasonality-table">
+              <div class="seasonality-row">
+                <span>SEÑAL</span>
+                <strong id="kpiSenalBox">-</strong>
+              </div>
 
+              <div class="seasonality-row light">
+                <span>ETAPA</span>
+                <strong id="kpiEtapaBox">-</strong>
+              </div>
 
-          <div class="trend-card trend-card-highlight">
-            <div class="trend-card-head">
+              <div class="seasonality-row dark">
+                <span>DIRECCIÓN</span>
+                <strong id="kpiDireccionBox">-</strong>
+              </div>
+            </div>
+          </section>
+
+          <!-- RESUMEN -->
+          <section class="board-summary">
+            <div class="board-summary-head">
               <h3>🧠 Resumen ejecutivo</h3>
             </div>
 
-            <div class="trend-stat-list compact">
-              <div class="trend-stat-row">
-                <span>Estacionalidad</span>
-                <strong id="resEstacionalidad">-</strong>
-              </div>
-              <div class="trend-stat-row">
-                <span>Oportunidad</span>
-                <strong id="resOportunidad">-</strong>
-              </div>
-              <div class="trend-stat-row">
-                <span>Recomendación</span>
-                <strong id="resRecomendacion">-</strong>
-              </div>
+            <div class="board-summary-text">
+              <p><strong>Estacionalidad</strong> <span id="resEstacionalidad">-</span></p>
+              <p><strong>Oportunidad</strong> <span id="resOportunidad">-</span></p>
+              <p><strong>Recomendación</strong> <span id="resRecomendacion">-</span></p>
             </div>
-          </div>
+          </section>
 
-          <div class="trend-card trend-card-highlight">
-            <div class="trend-card-head">
+          <!-- DECISIÓN -->
+          <section class="board-decision">
+            <div class="board-decision-head">
               <h3>🚀 Decisión</h3>
             </div>
 
-            <div class="trend-stat-list compact">
-              <div class="trend-stat-row">
-                <span>Oportunidad</span>
-                <strong id="decisionOportunidad">-</strong>
-              </div>
-              <div class="trend-stat-row">
-                <span>Recomendación</span>
-                <strong id="decisionRecomendacion">-</strong>
-              </div>
+            <div class="board-decision-text">
+              <p><strong>Oportunidad</strong> <span id="decisionOportunidad">-</span></p>
+              <p><strong>Recomendación</strong> <span id="decisionRecomendacion">-</span></p>
             </div>
 
-            <div class="trend-list-block">
+            <div class="trend-list-block board-risk-list">
               <strong>Riesgos</strong>
               <ul id="decisionRiesgos"></ul>
             </div>
-          </div>
+          </section>
         </div>
+
       </div>
     </div>
   `;
 }
-
 function fillList(id, items = []) {
   const el = document.getElementById(id);
   if (!el) return;
