@@ -1191,7 +1191,7 @@ aside.collapsed .submenu .sidebar-item {
 }
 
 .tendencias-hero.ejecutivo {
-  padding: 24px 26px;
+  padding: 20px 22px;
 }
 
 .exec-top-grid {
@@ -1211,11 +1211,9 @@ aside.collapsed .submenu .sidebar-item {
 }
 
 .exec-hero-card h2 {
-  margin: 10px 0 8px 0;
-  font-size: 34px;
+  margin: 8px 0 6px 0;
+  font-size: 30px;
   line-height: 1.05;
-  color: #0f172a;
-  letter-spacing: -0.03em;
 }
 
 .exec-inline-stats {
@@ -1404,4 +1402,27 @@ aside.collapsed .submenu .sidebar-item {
 
 .exec-score-card {
   text-align: center;
+}
+
+.trend-tabs {
+  display: flex;
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.trend-tab {
+  background: white;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: default;
+}
+
+.trend-tab.active {
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  color: white;
+  border: none;
 }

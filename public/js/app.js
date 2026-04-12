@@ -1972,6 +1972,13 @@ function renderTendencias() {
         </div>
       </div>
 
+    <div class="trend-tabs">
+  <button class="trend-tab active">Resumen</button>
+  <button class="trend-tab">Problema</button>
+  <button class="trend-tab">Marketing</button>
+  <button class="trend-tab">Keywords</button>
+</div>
+
       <div id="trendResult" class="trend-dashboard trend-dashboard-exec">
 
         <div class="exec-top-grid">
