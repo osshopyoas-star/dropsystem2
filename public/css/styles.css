@@ -1338,3 +1338,15 @@ aside.collapsed .submenu .sidebar-item {
     grid-template-columns: 1fr;
   }
 }
+
+.trend-card {
+  min-height: 280px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.trend-card-highlight {
+  min-height: 280px;
+  max-height: 360px;
+  overflow-y: auto;
+}

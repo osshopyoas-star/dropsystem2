@@ -1143,16 +1143,41 @@ window.goTo = function(route) {
   return;
 }
 
-  if (route === "tendencias") {
-    view.innerHTML = renderTendencias();
-    marcarMenuActivo("tendencias");
+if (route === "tendencias") {
+  view.innerHTML = renderTendencias();
+  marcarMenuActivo("tendencias");
 
-    setTimeout(() => {
-      if (window.lucide) lucide.createIcons();
-    }, 0);
+  setTimeout(() => {
+    const savedInput = localStorage.getItem("trendInput");
+    const savedPais = localStorage.getItem("trendPais");
+    const savedMode = localStorage.getItem("trendMode");
+    const savedTrendMap = localStorage.getItem("trendMap");
 
-    return;
-  }
+    if (savedInput) {
+      const input = document.getElementById("trendInput");
+      if (input) input.value = savedInput;
+    }
+
+    if (savedPais) {
+      const selectPais = document.getElementById("trendPais");
+      if (selectPais) selectPais.value = savedPais;
+    }
+
+    if (savedMode) {
+      const selectMode = document.getElementById("trendMode");
+      if (selectMode) selectMode.value = savedMode;
+    }
+
+    if (savedTrendMap) {
+      const json = JSON.parse(savedTrendMap);
+      renderTrendDashboard(json);
+    }
+
+    if (window.lucide) lucide.createIcons();
+  }, 0);
+
+  return;
+}
 
   if (route === "nichos") {
     view.innerHTML = `
@@ -1940,12 +1965,165 @@ function renderTendencias() {
         </div>
       </div>
 
-      <div id="trendResult" class="trend-result-empty">
-        Escribe un tema para empezar.
+      <div id="trendResult" class="trend-dashboard">
+        <div class="trend-topbar">
+          <div class="trend-kpi"><span class="trend-kpi-label">Tema</span><strong id="kpiTema">-</strong></div>
+          <div class="trend-kpi"><span class="trend-kpi-label">Score</span><strong id="kpiScore">-</strong></div>
+          <div class="trend-kpi"><span class="trend-kpi-label">Dirección</span><strong id="kpiDireccion">-</strong></div>
+          <div class="trend-kpi"><span class="trend-kpi-label">Señal</span><strong id="kpiSenal">-</strong></div>
+          <div class="trend-kpi"><span class="trend-kpi-label">Etapa</span><strong id="kpiEtapa">-</strong></div>
+        </div>
+
+        <div class="trend-main-grid">
+          <div class="trend-card trend-card-highlight">
+            <div class="trend-card-head"><h3>🧠 Resumen ejecutivo</h3></div>
+            <p><strong>Estacionalidad:</strong> <span id="resEstacionalidad">-</span></p>
+            <p><strong>Oportunidad:</strong> <span id="resOportunidad">-</span></p>
+            <p><strong>Recomendación:</strong> <span id="resRecomendacion">-</span></p>
+          </div>
+
+          <div class="trend-card">
+            <div class="trend-card-head"><h3>📈 Mercado</h3></div>
+            <p><strong>Intención:</strong> <span id="mercadoIntencion">-</span></p>
+            <div id="mercadoPaises" class="trend-chip-group"></div>
+            <div class="trend-list-block">
+              <strong>Audiencias</strong>
+              <ul id="mercadoAudiencias"></ul>
+            </div>
+          </div>
+
+          <div class="trend-card">
+            <div class="trend-card-head"><h3>🔺 Maslow</h3></div>
+            <p><strong>Nivel:</strong> <span id="maslowNivel">-</span></p>
+            <p><strong>Explicación:</strong> <span id="maslowExplicacion">-</span></p>
+          </div>
+
+          <div class="trend-card">
+            <div class="trend-card-head"><h3>💥 Problema</h3></div>
+            <p><strong>Dolor principal:</strong> <span id="problemaPrincipal">-</span></p>
+            <div class="trend-list-block">
+              <strong>Dolores relacionados</strong>
+              <ul id="problemaDolores"></ul>
+            </div>
+            <div id="problemaEmociones" class="trend-chip-group"></div>
+          </div>
+
+          <div class="trend-card">
+            <div class="trend-card-head"><h3>✨ Solución</h3></div>
+            <p><strong>Solución principal:</strong> <span id="solucionPrincipal">-</span></p>
+            <div class="trend-list-block">
+              <strong>Beneficios</strong>
+              <ul id="solucionBeneficios"></ul>
+            </div>
+            <div class="trend-list-block">
+              <strong>Productos relacionados</strong>
+              <ul id="solucionProductos"></ul>
+            </div>
+          </div>
+
+          <div class="trend-card">
+            <div class="trend-card-head"><h3>⚙️ Mecanismo</h3></div>
+            <p><strong>Mecanismo principal:</strong> <span id="mecanismoPrincipal">-</span></p>
+            <div class="trend-list-block">
+              <strong>Mecanismos secundarios</strong>
+              <ul id="mecanismoSecundarios"></ul>
+            </div>
+            <div class="trend-list-block">
+              <strong>Creencias de venta</strong>
+              <ul id="mecanismoCreencias"></ul>
+            </div>
+          </div>
+
+          <div class="trend-card">
+            <div class="trend-card-head"><h3>🎯 Marketing</h3></div>
+            <div class="trend-list-block">
+              <strong>Ángulos</strong>
+              <ul id="marketingAngulos"></ul>
+            </div>
+            <div class="trend-list-block">
+              <strong>Hooks</strong>
+              <ul id="marketingHooks"></ul>
+            </div>
+            <p><strong>Formato ganador:</strong> <span id="marketingFormato">-</span></p>
+          </div>
+
+          <div class="trend-card">
+            <div class="trend-card-head"><h3>🔎 Cluster</h3></div>
+            <div class="trend-list-block">
+              <strong>Búsquedas relacionadas</strong>
+              <ul id="mercadoBusquedas"></ul>
+            </div>
+          </div>
+
+          <div class="trend-card trend-card-highlight">
+            <div class="trend-card-head"><h3>🚀 Decisión</h3></div>
+            <p><strong>Oportunidad:</strong> <span id="decisionOportunidad">-</span></p>
+            <p><strong>Recomendación:</strong> <span id="decisionRecomendacion">-</span></p>
+            <div class="trend-list-block">
+              <strong>Riesgos</strong>
+              <ul id="decisionRiesgos"></ul>
+            </div>
+          </div>
+        </div>
       </div>
 
     </div>
   `;
+}
+
+function fillList(id, items = []) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML = (items || []).map(x => `<li>${x}</li>`).join("");
+}
+
+function fillChips(id, items = [], extraClass = "") {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML = (items || [])
+    .map(x => `<span class="trend-chip ${extraClass}">${x}</span>`)
+    .join("");
+}
+
+function renderTrendDashboard(json) {
+  document.getElementById("kpiTema").textContent = json.tema_central || "-";
+  document.getElementById("kpiScore").textContent = json.score ?? "-";
+  document.getElementById("kpiDireccion").textContent = json.direccion || "-";
+  document.getElementById("kpiSenal").textContent = json.senal_general || "-";
+  document.getElementById("kpiEtapa").textContent = json.etapa_mercado || "-";
+
+  document.getElementById("resEstacionalidad").textContent = json.estacionalidad || "-";
+  document.getElementById("resOportunidad").textContent = json.decision?.oportunidad || "-";
+  document.getElementById("resRecomendacion").textContent = json.decision?.recomendacion || "-";
+
+  document.getElementById("mercadoIntencion").textContent = json.mercado?.intencion_busqueda || "-";
+  fillChips("mercadoPaises", json.mercado?.paises_recomendados || []);
+  fillList("mercadoAudiencias", json.mercado?.audiencias || []);
+
+  document.getElementById("maslowNivel").textContent = json.maslow?.nivel || "-";
+  document.getElementById("maslowExplicacion").textContent = json.maslow?.explicacion || "-";
+
+  document.getElementById("problemaPrincipal").textContent = json.problema?.dolor_principal || "-";
+  fillList("problemaDolores", json.problema?.dolores_relacionados || []);
+  fillChips("problemaEmociones", json.problema?.emociones || [], "trend-chip-danger");
+
+  document.getElementById("solucionPrincipal").textContent = json.solucion?.solucion_principal || "-";
+  fillList("solucionBeneficios", json.solucion?.beneficios_relacionados || []);
+  fillList("solucionProductos", json.solucion?.productos_relacionados || []);
+
+  document.getElementById("mecanismoPrincipal").textContent = json.mecanismo?.mecanismo_principal || "-";
+  fillList("mecanismoSecundarios", json.mecanismo?.mecanismos_secundarios || []);
+  fillList("mecanismoCreencias", json.mecanismo?.creencias_venta || []);
+
+  fillList("marketingAngulos", json.marketing?.angulos_marketing || []);
+  fillList("marketingHooks", json.marketing?.hooks || []);
+  document.getElementById("marketingFormato").textContent = json.marketing?.formato_ganador || "-";
+
+  fillList("mercadoBusquedas", json.mercado?.busquedas_relacionadas || []);
+
+  document.getElementById("decisionOportunidad").textContent = json.decision?.oportunidad || "-";
+  document.getElementById("decisionRecomendacion").textContent = json.decision?.recomendacion || "-";
+  fillList("decisionRiesgos", json.decision?.riesgos || []);
 }
 
 window.analizarTendencia = async function() {
@@ -2101,183 +2279,12 @@ state.ideaActual = texto;
 state.nichoActual = json.tema_central || "";
 state.tendenciaActual = json.direccion || "";
 
- document.getElementById("trendResult").innerHTML = `
-  <div class="trend-dashboard">
+localStorage.setItem("trendMap", JSON.stringify(json));
+localStorage.setItem("trendInput", texto);
+localStorage.setItem("trendPais", pais);
+localStorage.setItem("trendMode", modo);
 
-    <div class="trend-topbar">
-      <div class="trend-kpi">
-        <span class="trend-kpi-label">Tema</span>
-        <strong>${json.tema_central || "-"}</strong>
-      </div>
-
-      <div class="trend-kpi">
-        <span class="trend-kpi-label">Score</span>
-        <strong>${json.score ?? "-"}</strong>
-      </div>
-
-      <div class="trend-kpi">
-        <span class="trend-kpi-label">Dirección</span>
-        <strong>${json.direccion || "-"}</strong>
-      </div>
-
-      <div class="trend-kpi">
-        <span class="trend-kpi-label">Señal</span>
-        <strong>${json.senal_general || "-"}</strong>
-      </div>
-
-      <div class="trend-kpi">
-        <span class="trend-kpi-label">Etapa</span>
-        <strong>${json.etapa_mercado || "-"}</strong>
-      </div>
-    </div>
-
-    <div class="trend-main-grid">
-      <div class="trend-card trend-card-highlight">
-        <div class="trend-card-head">
-          <h3>🧠 Resumen ejecutivo</h3>
-        </div>
-        <p><strong>Estacionalidad:</strong> ${json.estacionalidad || "-"}</p>
-        <p><strong>Oportunidad:</strong> ${json.decision?.oportunidad || "-"}</p>
-        <p><strong>Recomendación:</strong> ${json.decision?.recomendacion || "-"}</p>
-      </div>
-
-      <div class="trend-card">
-        <div class="trend-card-head">
-          <h3>📈 Mercado</h3>
-        </div>
-        <p><strong>Intención:</strong> ${json.mercado?.intencion_busqueda || "-"}</p>
-
-        <div class="trend-chip-group">
-          ${(json.mercado?.paises_recomendados || []).map(x => `<span class="trend-chip">${x}</span>`).join("")}
-        </div>
-
-        <div class="trend-list-block">
-          <strong>Audiencias</strong>
-          <ul>
-            ${(json.mercado?.audiencias || []).map(x => `<li>${x}</li>`).join("")}
-          </ul>
-        </div>
-      </div>
-
-      <div class="trend-card">
-        <div class="trend-card-head">
-          <h3>🔺 Maslow</h3>
-        </div>
-        <p><strong>Nivel:</strong> ${json.maslow?.nivel || "-"}</p>
-        <p><strong>Explicación:</strong> ${json.maslow?.explicacion || "-"}</p>
-      </div>
-
-      <div class="trend-card">
-        <div class="trend-card-head">
-          <h3>💥 Problema</h3>
-        </div>
-        <p><strong>Dolor principal:</strong> ${json.problema?.dolor_principal || "-"}</p>
-
-        <div class="trend-list-block">
-          <strong>Dolores relacionados</strong>
-          <ul>
-            ${(json.problema?.dolores_relacionados || []).map(x => `<li>${x}</li>`).join("")}
-          </ul>
-        </div>
-
-        <div class="trend-chip-group">
-          ${(json.problema?.emociones || []).map(x => `<span class="trend-chip trend-chip-danger">${x}</span>`).join("")}
-        </div>
-      </div>
-
-      <div class="trend-card">
-        <div class="trend-card-head">
-          <h3>✨ Solución</h3>
-        </div>
-        <p><strong>Solución principal:</strong> ${json.solucion?.solucion_principal || "-"}</p>
-
-        <div class="trend-list-block">
-          <strong>Beneficios</strong>
-          <ul>
-            ${(json.solucion?.beneficios_relacionados || []).map(x => `<li>${x}</li>`).join("")}
-          </ul>
-        </div>
-
-        <div class="trend-list-block">
-          <strong>Productos relacionados</strong>
-          <ul>
-            ${(json.solucion?.productos_relacionados || []).map(x => `<li>${x}</li>`).join("")}
-          </ul>
-        </div>
-      </div>
-
-      <div class="trend-card">
-        <div class="trend-card-head">
-          <h3>⚙️ Mecanismo</h3>
-        </div>
-        <p><strong>Mecanismo principal:</strong> ${json.mecanismo?.mecanismo_principal || "-"}</p>
-
-        <div class="trend-list-block">
-          <strong>Mecanismos secundarios</strong>
-          <ul>
-            ${(json.mecanismo?.mecanismos_secundarios || []).map(x => `<li>${x}</li>`).join("")}
-          </ul>
-        </div>
-
-        <div class="trend-list-block">
-          <strong>Creencias de venta</strong>
-          <ul>
-            ${(json.mecanismo?.creencias_venta || []).map(x => `<li>${x}</li>`).join("")}
-          </ul>
-        </div>
-      </div>
-
-      <div class="trend-card">
-        <div class="trend-card-head">
-          <h3>🎯 Marketing</h3>
-        </div>
-
-        <div class="trend-list-block">
-          <strong>Ángulos</strong>
-          <ul>
-            ${(json.marketing?.angulos_marketing || []).map(x => `<li>${x}</li>`).join("")}
-          </ul>
-        </div>
-
-        <div class="trend-list-block">
-          <strong>Hooks</strong>
-          <ul>
-            ${(json.marketing?.hooks || []).map(x => `<li>${x}</li>`).join("")}
-          </ul>
-        </div>
-
-        <p><strong>Formato ganador:</strong> ${json.marketing?.formato_ganador || "-"}</p>
-      </div>
-
-      <div class="trend-card">
-        <div class="trend-card-head">
-          <h3>🔎 Cluster de búsqueda</h3>
-        </div>
-        <div class="trend-list-block">
-          <strong>Búsquedas relacionadas</strong>
-          <ul>
-            ${(json.mercado?.busquedas_relacionadas || []).map(x => `<li>${x}</li>`).join("")}
-          </ul>
-        </div>
-      </div>
-
-      <div class="trend-card trend-card-highlight">
-        <div class="trend-card-head">
-          <h3>🚀 Decisión</h3>
-        </div>
-        <p><strong>Oportunidad:</strong> ${json.decision?.oportunidad || "-"}</p>
-        <p><strong>Recomendación:</strong> ${json.decision?.recomendacion || "-"}</p>
-
-        <div class="trend-list-block">
-          <strong>Riesgos</strong>
-          <ul>
-            ${(json.decision?.riesgos || []).map(x => `<li>${x}</li>`).join("")}
-          </ul>
-        </div>
-      </div>
-    </div>
-  </div>
-`;
+renderTrendDashboard(json);
     } catch (e) {
       console.error("ERROR PARSE:", e);
       document.getElementById("trendResult").innerText = data.reply || "Respuesta inválida";
