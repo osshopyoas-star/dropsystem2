@@ -1898,20 +1898,60 @@ async function llamarIA(texto) {
 
 function renderTendencias() {
   return `
-    <h1>📊 Tendencias</h1>
+    <div class="tendencias-page">
 
-    <input id="trendInput" placeholder="Ej: baja energía masculina" />
+      <div class="tendencias-hero">
+        <div class="tendencias-title-wrap">
+          <div class="tendencias-title-icon">
+            <i data-lucide="line-chart"></i>
+          </div>
 
-    <button onclick="analizarTendencia()">Analizar</button>
+          <div>
+            <h1 class="tendencias-title">Tendencias</h1>
+            <p class="tendencias-subtitle">
+              Analiza un tema como mapa de oportunidad, no solo como keyword.
+            </p>
+          </div>
+        </div>
 
-    <div id="trendResult" style="margin-top:20px;">
-      Esperando análisis...
+        <div class="tendencias-form tendencias-form-3">
+          <input id="trendInput" placeholder="Ej: baja energía masculina" />
+
+          <select id="trendPais">
+            <option value="ALL">Todos</option>
+            <option value="CO">Colombia</option>
+            <option value="MX">México</option>
+            <option value="EC">Ecuador</option>
+            <option value="US">USA</option>
+            <option value="ES">España</option>
+          </select>
+
+          <select id="trendMode">
+            <option value="cluster">Mapa de oportunidad</option>
+            <option value="pain">Mapa de dolor</option>
+            <option value="product">Mapa de producto</option>
+            <option value="angle">Mapa de ángulos</option>
+          </select>
+
+          <button class="primary" onclick="analizarTendencia()">
+            <i data-lucide="sparkles"></i>
+            Analizar
+          </button>
+        </div>
+      </div>
+
+      <div id="trendResult" class="trend-result-empty">
+        Escribe un tema para empezar.
+      </div>
+
     </div>
   `;
 }
 
 window.analizarTendencia = async function() {
   const texto = document.getElementById("trendInput").value;
+  const pais = document.getElementById("trendPais")?.value || "ALL";
+const modo = document.getElementById("trendMode")?.value || "cluster";
 
   if (!texto) return alert("Escribe algo");
 
@@ -1923,32 +1963,51 @@ window.analizarTendencia = async function() {
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({
-       prompt: `
+     body: JSON.stringify({
+  prompt: `
 Responde SOLO en JSON válido, sin explicación extra.
 
 Analiza esta oportunidad de mercado: "${texto}"
 
-Devuelve exactamente esta estructura:
+País prioritario: "${pais}"
+Modo de análisis: "${modo}"
+
+No respondas como si fuera solo una keyword exacta.
+Analízalo como un CLUSTER o MAPA de oportunidad:
+- intención de búsqueda
+- problemas relacionados
+- beneficios buscados
+- productos relacionados
+- audiencias
+- países donde puede funcionar
+- señales de crecimiento o saturación
+- ángulos de marketing
+- riesgo de estacionalidad
+
+Devuelve exactamente este JSON:
 
 {
-  "problema_detectado": "",
-  "audiencia": "",
-  "nicho": "",
-  "subnicho": "",
-  "maslow": "",
-  "demanda": "alta/media/baja",
-  "tendencia": "creciendo/estable/muriendo",
-  "volatilidad": "alta/media/baja",
-  "competencia": "alta/media/baja",
-  "mecanismo_solucion": "",
-  "producto_sugerido": "",
-  "angulo_venta": "",
+  "tema_central": "",
+  "intencion_busqueda": "",
+  "etapa_mercado": "nuevo/creciendo/competido/saturado",
+  "senal_general": "fuerte/media/debil",
+  "direccion": "subiendo/estable/bajando",
+  "estacionalidad": "",
+  "paises_recomendados": [],
+  "audiencias": [],
+  "dolores_relacionados": [],
+  "beneficios_relacionados": [],
+  "busquedas_relacionadas": [],
+  "productos_relacionados": [],
+  "angulos_marketing": [],
+  "formato_ganador": "",
+  "riesgos": [],
+  "oportunidad": "",
   "recomendacion": "",
   "score": 0
 }
 `
-      })
+})
     });
 
     const data = await res.json();
@@ -1964,49 +2023,72 @@ Devuelve exactamente esta estructura:
       }
 
       const json = JSON.parse(respuesta);
+      state.trendMap = json;
+state.ideaActual = texto;
+state.nichoActual = json.tema_central || "";
+state.tendenciaActual = json.direccion || "";
 
-     document.getElementById("trendResult").innerHTML = `
-  <div style="
-    background:#0f172a;
-    color:white;
-    padding:22px;
-    border-radius:16px;
-    margin-top:16px;
-  ">
-    <h2 style="margin-top:0;">🧠 Análisis Inteligente</h2>
+    document.getElementById("trendResult").innerHTML = `
+  <div class="trend-result-card">
+    <div class="trend-result-head">
+      <h2>🧠 Mapa de Oportunidad</h2>
+      <div class="trend-score">Score: ${json.score}</div>
+    </div>
 
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:18px;">
-      
-      <div style="background:rgba(255,255,255,0.04); padding:16px; border-radius:12px;">
-        <h3>📌 Problema</h3>
-        <p><strong>Problema:</strong> ${json.problema_detectado}</p>
-        <p><strong>Audiencia:</strong> ${json.audiencia}</p>
-        <p><strong>Nicho:</strong> ${json.nicho}</p>
-        <p><strong>Subnicho:</strong> ${json.subnicho}</p>
-        <p><strong>Maslow:</strong> ${json.maslow}</p>
+    <div class="trend-grid">
+      <div class="trend-box">
+        <h3>📌 Resumen</h3>
+        <p><strong>Tema:</strong> ${json.tema_central}</p>
+        <p><strong>Intención:</strong> ${json.intencion_busqueda}</p>
+        <p><strong>Etapa:</strong> ${json.etapa_mercado}</p>
+        <p><strong>Señal:</strong> ${json.senal_general}</p>
+        <p><strong>Dirección:</strong> ${json.direccion}</p>
+        <p><strong>Estacionalidad:</strong> ${json.estacionalidad}</p>
       </div>
 
-      <div style="background:rgba(255,255,255,0.04); padding:16px; border-radius:12px;">
-        <h3>📊 Mercado</h3>
-        <p><strong>Demanda:</strong> ${json.demanda}</p>
-        <p><strong>Tendencia:</strong> ${json.tendencia}</p>
-        <p><strong>Volatilidad:</strong> ${json.volatilidad}</p>
-        <p><strong>Competencia:</strong> ${json.competencia}</p>
-        <p><strong>Score:</strong> ${json.score}</p>
+      <div class="trend-box">
+        <h3>🌍 Mercado</h3>
+        <p><strong>Países recomendados:</strong></p>
+        <ul>${(json.paises_recomendados || []).map(x => `<li>${x}</li>`).join("")}</ul>
+
+        <p><strong>Audiencias:</strong></p>
+        <ul>${(json.audiencias || []).map(x => `<li>${x}</li>`).join("")}</ul>
       </div>
 
-      <div style="background:rgba(255,255,255,0.04); padding:16px; border-radius:12px;">
-        <h3>⚙️ Solución</h3>
-        <p><strong>Mecanismo:</strong> ${json.mecanismo_solucion}</p>
-        <p><strong>Producto sugerido:</strong> ${json.producto_sugerido}</p>
-        <p><strong>Ángulo de venta:</strong> ${json.angulo_venta}</p>
+      <div class="trend-box">
+        <h3>💥 Dolores y beneficios</h3>
+        <p><strong>Dolores:</strong></p>
+        <ul>${(json.dolores_relacionados || []).map(x => `<li>${x}</li>`).join("")}</ul>
+
+        <p><strong>Beneficios:</strong></p>
+        <ul>${(json.beneficios_relacionados || []).map(x => `<li>${x}</li>`).join("")}</ul>
       </div>
 
-      <div style="background:rgba(255,255,255,0.04); padding:16px; border-radius:12px;">
+      <div class="trend-box">
+        <h3>🔎 Cluster de búsqueda</h3>
+        <p><strong>Búsquedas relacionadas:</strong></p>
+        <ul>${(json.busquedas_relacionadas || []).map(x => `<li>${x}</li>`).join("")}</ul>
+      </div>
+
+      <div class="trend-box">
+        <h3>📦 Productos y ángulos</h3>
+        <p><strong>Productos relacionados:</strong></p>
+        <ul>${(json.productos_relacionados || []).map(x => `<li>${x}</li>`).join("")}</ul>
+
+        <p><strong>Ángulos:</strong></p>
+        <ul>${(json.angulos_marketing || []).map(x => `<li>${x}</li>`).join("")}</ul>
+
+        <p><strong>Formato ganador:</strong> ${json.formato_ganador}</p>
+      </div>
+
+      <div class="trend-box trend-box--highlight">
         <h3>🚀 Decisión</h3>
-        <p>${json.recomendacion}</p>
-      </div>
+        <p><strong>Oportunidad:</strong> ${json.oportunidad}</p>
+        <p><strong>Recomendación:</strong> ${json.recomendacion}</p>
 
+        <p><strong>Riesgos:</strong></p>
+        <ul>${(json.riesgos || []).map(x => `<li>${x}</li>`).join("")}</ul>
+      </div>
     </div>
   </div>
 `;

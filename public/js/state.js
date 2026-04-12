@@ -1,11 +1,10 @@
 export const state = {
   productos: [],
   productoActivo: null,
-
-  // nuevo
   ideaActual: "",
   nichoActual: "",
   tendenciaActual: "",
+  trendMap: null,
   validacionDraft: {
     texto: "",
     pais: "US",
