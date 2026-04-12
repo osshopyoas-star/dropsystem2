@@ -2356,8 +2356,7 @@ Devuelve exactamente este JSON:
 `
 })
     });
-
-   const raw = await res.text();
+const raw = await res.text();
 
 if (!res.ok) {
   console.error("ERROR API RAW:", raw);
@@ -2365,26 +2364,18 @@ if (!res.ok) {
   return;
 }
 
-let respuesta = raw.trim();
+try {
+  const data = JSON.parse(raw);
+  let respuesta = (data.reply || "").trim();
 
-// 🔥 extraer JSON si viene con texto
-const inicio = respuesta.indexOf("{");
-const fin = respuesta.lastIndexOf("}");
+  const jsonStart = respuesta.indexOf("{");
+  const jsonEnd = respuesta.lastIndexOf("}");
 
-if (inicio !== -1 && fin !== -1) {
-  respuesta = respuesta.substring(inicio, fin + 1);
-}
+  if (jsonStart !== -1 && jsonEnd !== -1) {
+    respuesta = respuesta.substring(jsonStart, jsonEnd + 1);
+  }
 
-const json = JSON.parse(respuesta);
-
-      const inicio = respuesta.indexOf("{");
-      const fin = respuesta.lastIndexOf("}");
-
-      if (inicio !== -1 && fin !== -1) {
-        respuesta = respuesta.substring(inicio, fin + 1);
-      }
-
-      const json = JSON.parse(respuesta);
+  const json = JSON.parse(respuesta);
       state.trendMap = json;
 state.ideaActual = texto;
 state.nichoActual = json.tema_central || "";
