@@ -2202,7 +2202,18 @@ function renderTrendChart(json) {
   });
 
   // path
-  const d = data.map((v, i) => `${i === 0 ? "M" : "L"} ${toX(i)} ${toY(v)}`).join(" ");
+ let d = `M ${toX(0)} ${toY(data[0])}`;
+
+for (let i = 1; i < data.length; i++) {
+  const x = toX(i);
+  const y = toY(data[i]);
+  const prevX = toX(i - 1);
+  const prevY = toY(data[i - 1]);
+
+  const cx = (prevX + x) / 2;
+
+  d += ` Q ${cx} ${prevY}, ${x} ${y}`;
+}
   line.setAttribute("d", d);
   line.setAttribute("class", "chart-line");
 

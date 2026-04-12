@@ -1345,13 +1345,10 @@ aside.collapsed .submenu .sidebar-item {
 
 .trend-chart-box {
   margin-top: 6px;
-  border-radius: 0;
-  background: transparent;
-  border: none;
-  min-height: 120px;
-  padding: 0;
-  align-items: center;
-  justify-content: flex-start;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%);
+  border: 1px solid #dbe4f0;
+  padding: 10px;
 }
 
 .board-market {
@@ -1545,11 +1542,6 @@ aside.collapsed .submenu .sidebar-item {
   display: block;
 }
 
-.chart-grid-line {
-  stroke: #dbe4f0;
-  stroke-width: 1;
-}
-
 .chart-axis-label {
   font-size: 10px;
   fill: #64748b;
@@ -1568,8 +1560,11 @@ aside.collapsed .submenu .sidebar-item {
   stroke-width: 3;
   stroke-linecap: round;
   stroke-linejoin: round;
+  filter: drop-shadow(0 4px 10px rgba(79,126,247,0.35));
 }
 
 .chart-dot {
   fill: #4f7ef7;
+  stroke: white;
+  stroke-width: 2;
 }
