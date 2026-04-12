@@ -2243,32 +2243,35 @@ function fillChips(id, items = [], extraClass = "") {
     .map(x => `<span class="trend-chip ${extraClass}">${x}</span>`)
     .join("");
 }
-
+function setText(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = value ?? "-";
+}
 function renderTrendDashboard(json) {
   const score = Number(json.score || 0);
 
-  document.getElementById("kpiTema").textContent = json.tema_central || "-";
-  document.getElementById("kpiScore").textContent = score || 0;
-  document.getElementById("kpiDireccion").textContent = json.direccion || "-";
-  document.getElementById("kpiSenal").textContent = json.senal_general || "-";
-  document.getElementById("kpiEtapa").textContent = json.etapa_mercado || "-";
+  setText("kpiTema", json.tema_central || "-");
+  setText("kpiScore", score || 0);
+  setText("kpiDireccion", json.direccion || "-");
+  setText("kpiSenal", json.senal_general || "-");
+  setText("kpiEtapa", json.etapa_mercado || "-");
 
-  document.getElementById("resEstacionalidad").textContent = json.estacionalidad || "-";
-  document.getElementById("resEstacionalidadTop").textContent = json.estacionalidad || "-";
-  document.getElementById("resOportunidad").textContent = json.decision?.oportunidad || "-";
-  document.getElementById("resRecomendacion").textContent = json.decision?.recomendacion || "-";
+  setText("resEstacionalidad", json.estacionalidad || "-");
+  setText("resEstacionalidadTop", json.estacionalidad || "-");
+  setText("resOportunidad", json.decision?.oportunidad || "-");
+  setText("resRecomendacion", json.decision?.recomendacion || "-");
 
-  document.getElementById("mercadoIntencion").textContent = json.mercado?.intencion_busqueda || "-";
-  document.getElementById("maslowNivel").textContent = json.maslow?.nivel || "-";
-  document.getElementById("maslowExplicacion").textContent = json.maslow?.explicacion || "-";
+  setText("mercadoIntencion", json.mercado?.intencion_busqueda || "-");
+  setText("maslowNivel", json.maslow?.nivel || "-");
+  setText("maslowExplicacion", json.maslow?.explicacion || "-");
 
-  document.getElementById("problemaPrincipal").textContent = json.problema?.dolor_principal || "-";
-  document.getElementById("solucionPrincipal").textContent = json.solucion?.solucion_principal || "-";
-  document.getElementById("mecanismoPrincipal").textContent = json.mecanismo?.mecanismo_principal || "-";
-  document.getElementById("marketingFormato").textContent = json.marketing?.formato_ganador || "-";
+  setText("problemaPrincipal", json.problema?.dolor_principal || "-");
+  setText("solucionPrincipal", json.solucion?.solucion_principal || "-");
+  setText("mecanismoPrincipal", json.mecanismo?.mecanismo_principal || "-");
+  setText("marketingFormato", json.marketing?.formato_ganador || "-");
 
-  document.getElementById("decisionOportunidad").textContent = json.decision?.oportunidad || "-";
-  document.getElementById("decisionRecomendacion").textContent = json.decision?.recomendacion || "-";
+  setText("decisionOportunidad", json.decision?.oportunidad || "-");
+  setText("decisionRecomendacion", json.decision?.recomendacion || "-");
 
   fillChips("mercadoPaises", json.mercado?.paises_recomendados || []);
   fillList("mercadoAudiencias", json.mercado?.audiencias || []);
@@ -2288,22 +2291,21 @@ function renderTrendDashboard(json) {
 
   fillList("decisionRiesgos", json.decision?.riesgos || []);
 
-  document.getElementById("countPaises").textContent = (json.mercado?.paises_recomendados || []).length;
-  document.getElementById("countAudiencias").textContent = (json.mercado?.audiencias || []).length;
-  document.getElementById("countBusquedas").textContent = (json.mercado?.busquedas_relacionadas || []).length;
+  setText("countPaises", (json.mercado?.paises_recomendados || []).length);
+  setText("countAudiencias", (json.mercado?.audiencias || []).length);
+  setText("countBusquedas", (json.mercado?.busquedas_relacionadas || []).length);
 
-  document.getElementById("countDolores").textContent = (json.problema?.dolores_relacionados || []).length;
-  document.getElementById("countEmociones").textContent = (json.problema?.emociones || []).length;
+  setText("countDolores", (json.problema?.dolores_relacionados || []).length);
+  setText("countEmociones", (json.problema?.emociones || []).length);
 
-  document.getElementById("countBeneficios").textContent = (json.solucion?.beneficios_relacionados || []).length;
-  document.getElementById("countProductos").textContent = (json.solucion?.productos_relacionados || []).length;
+  setText("countBeneficios", (json.solucion?.beneficios_relacionados || []).length);
+  setText("countProductos", (json.solucion?.productos_relacionados || []).length);
 
-  document.getElementById("countMecanismos").textContent = (json.mecanismo?.mecanismos_secundarios || []).length;
-  document.getElementById("countCreencias").textContent = (json.mecanismo?.creencias_venta || []).length;
+  setText("countMecanismos", (json.mecanismo?.mecanismos_secundarios || []).length);
+  setText("countCreencias", (json.mecanismo?.creencias_venta || []).length);
 
-  document.getElementById("countAngulos").textContent = (json.marketing?.angulos_marketing || []).length;
-  document.getElementById("countHooks").textContent = (json.marketing?.hooks || []).length;
-  document.getElementById("countHooks2").textContent = (json.marketing?.hooks || []).length;
+  setText("countAngulos", (json.marketing?.angulos_marketing || []).length);
+  setText("countHooks", (json.marketing?.hooks || []).length);
 
   const scoreRing = document.getElementById("scoreRing");
   if (scoreRing) {
