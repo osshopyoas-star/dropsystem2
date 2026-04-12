@@ -1928,7 +1928,7 @@ async function llamarIA(texto) {
   console.log(data);
 }
 
-function renderTendencias() {
+function renderTendenciasDashboard() {
   return `
   <div class="tendencias-page">
     <div class="trend-screen-1">
@@ -1974,11 +1974,14 @@ function renderTendencias() {
       </div>
 
       <div class="trend-tabs">
-        <button class="trend-tab active">1 Pantalla</button>
-        <button class="trend-tab">Problema</button>
-        <button class="trend-tab">Marketing</button>
-        <button class="trend-tab">Keywords</button>
-      </div>
+  <button class="trend-tab active" onclick="goStep(1)">Maslow</button>
+  <button class="trend-tab" onclick="goStep(2)">Problema</button>
+  <button class="trend-tab" onclick="goStep(3)">Audiencia</button>
+  <button class="trend-tab" onclick="goStep(4)">Nicho</button>
+  <button class="trend-tab" onclick="goStep(5)">Tendencia</button>
+  <button class="trend-tab" onclick="goStep(6)">Producto</button>
+  <button class="trend-tab" onclick="goStep(7)">Marketing</button>
+</div>
 
       <div id="trendResult" class="trend-board">
 
@@ -2677,3 +2680,33 @@ window.addEventListener("DOMContentLoaded", () => {
     };
   }
 });
+
+window.currentStep = 5; // default: tendencia
+
+window.goStep = function(step) {
+  window.currentStep = step;
+
+  // activar botón
+  document.querySelectorAll(".trend-tab").forEach((btn, i) => {
+    btn.classList.toggle("active", i === step - 1);
+  });
+
+  renderStep();
+};
+
+ // =========================
+  // 7. MARKETING
+  if (currentStep === 7) {
+    container.innerHTML = `
+      <h2>Marketing</h2>
+
+      <ul>
+        ${(data.marketing?.angulos_marketing || []).map(x => `<li>${x}</li>`).join("")}
+      </ul>
+
+      <ul>
+        ${(data.marketing?.hooks || []).map(x => `<li>${x}</li>`).join("")}
+      </ul>
+    `;
+  }
+}
