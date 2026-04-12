@@ -2376,21 +2376,23 @@ try {
   }
 
   const json = JSON.parse(respuesta);
-      state.trendMap = json;
-state.ideaActual = texto;
-state.nichoActual = json.tema_central || "";
-state.tendenciaActual = json.direccion || "";
 
-localStorage.setItem("trendMap", JSON.stringify(json));
-localStorage.setItem("trendInput", texto);
-localStorage.setItem("trendPais", pais);
-localStorage.setItem("trendMode", modo);
+  state.trendMap = json;
+  state.ideaActual = texto;
+  state.nichoActual = json.tema_central || "";
+  state.tendenciaActual = json.direccion || "";
 
-renderTrendDashboard(json);
-    } catch (e) {
-      console.error("ERROR PARSE:", e);
-      document.getElementById("trendResult").innerText = data.reply || "Respuesta inválida";
-    }
+  localStorage.setItem("trendMap", JSON.stringify(json));
+  localStorage.setItem("trendInput", texto);
+  localStorage.setItem("trendPais", pais);
+  localStorage.setItem("trendMode", modo);
+
+  renderTrendDashboard(json);
+} catch (e) {
+  console.error("ERROR PARSE:", e);
+  console.error("RAW IA:", raw);
+  document.getElementById("trendResult").innerText = "Respuesta inválida";
+}
 
   } catch (err) {
     console.error("ERROR API:", err);
