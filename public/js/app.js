@@ -60,6 +60,102 @@ window.marcarMenuActivo = function(route) {
 };
 
 
+
+window.currentStep = 5;
+
+window.goStep = function(step) {
+  function renderStep() {
+  const container = document.getElementById("trendResult");
+  const data = JSON.parse(localStorage.getItem("trendMap") || "{}");
+
+  if (!container) return;
+
+  // =========================
+  // 1. MASLOW
+  if (window.currentStep === 1) {
+    container.innerHTML = `
+      <h2>Maslow</h2>
+      <p><strong>Nivel:</strong> ${data.maslow?.nivel || "-"}</p>
+      <p>${data.maslow?.explicacion || "-"}</p>
+    `;
+  }
+
+  // =========================
+  // 2. PROBLEMA
+  if (window.currentStep === 2) {
+    container.innerHTML = `
+      <h2>Problema</h2>
+      <p><strong>Dolor:</strong> ${data.problema?.dolor_principal || "-"}</p>
+
+      <ul>
+        ${(data.problema?.dolores_relacionados || []).map(x => `<li>${x}</li>`).join("")}
+      </ul>
+    `;
+  }
+
+  // =========================
+  // 3. AUDIENCIA
+  if (window.currentStep === 3) {
+    container.innerHTML = `
+      <h2>Audiencia</h2>
+
+      <ul>
+        ${(data.mercado?.audiencias || []).map(x => `<li>${x}</li>`).join("")}
+      </ul>
+    `;
+  }
+
+  // =========================
+  // 4. NICHO
+  if (window.currentStep === 4) {
+    container.innerHTML = `
+      <h2>Nicho</h2>
+      <p>${data.tema_central || "-"}</p>
+    `;
+  }
+
+  // =========================
+  // 5. TENDENCIA (TU DASHBOARD)
+  if (window.currentStep === 5) {
+    container.innerHTML = renderTendenciasDashboard();
+    renderTrendDashboard(data);
+  }
+
+  // =========================
+  // 6. PRODUCTO
+  if (window.currentStep === 6) {
+    container.innerHTML = `
+      <h2>Producto</h2>
+
+      <p>${data.solucion?.solucion_principal || "-"}</p>
+
+      <ul>
+        ${(data.solucion?.beneficios_relacionados || []).map(x => `<li>${x}</li>`).join("")}
+      </ul>
+    `;
+  }
+
+  // =========================
+  // 7. MARKETING
+  if (window.currentStep === 7) {
+    container.innerHTML = `
+      <h2>Marketing</h2>
+
+      <ul>
+        ${(data.marketing?.hooks || []).map(x => `<li>${x}</li>`).join("")}
+      </ul>
+    `;
+  }
+}
+  window.currentStep = step;
+
+  document.querySelectorAll(".trend-tab").forEach((btn, i) => {
+    btn.classList.toggle("active", i === step - 1);
+  });
+
+  renderStep();
+};
+
 function autoSeleccionarKeywords(texto) {
 
   texto = texto.toLowerCase();
@@ -1928,7 +2024,7 @@ async function llamarIA(texto) {
   console.log(data);
 }
 
-function renderTendenciasDashboard() {
+function renderTendencias() {
   return `
   <div class="tendencias-page">
     <div class="trend-screen-1">
@@ -1973,12 +2069,12 @@ function renderTendenciasDashboard() {
         </div>
       </div>
 
-      <div class="trend-tabs">
-  <button class="trend-tab active" onclick="goStep(1)">Maslow</button>
+ <div class="trend-tabs">
+  <button class="trend-tab" onclick="goStep(1)">Maslow</button>
   <button class="trend-tab" onclick="goStep(2)">Problema</button>
   <button class="trend-tab" onclick="goStep(3)">Audiencia</button>
   <button class="trend-tab" onclick="goStep(4)">Nicho</button>
-  <button class="trend-tab" onclick="goStep(5)">Tendencia</button>
+  <button class="trend-tab active" onclick="goStep(5)">Tendencia</button>
   <button class="trend-tab" onclick="goStep(6)">Producto</button>
   <button class="trend-tab" onclick="goStep(7)">Marketing</button>
 </div>
@@ -2681,32 +2777,3 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-window.currentStep = 5; // default: tendencia
-
-window.goStep = function(step) {
-  window.currentStep = step;
-
-  // activar botón
-  document.querySelectorAll(".trend-tab").forEach((btn, i) => {
-    btn.classList.toggle("active", i === step - 1);
-  });
-
-  renderStep();
-};
-
- // =========================
-  // 7. MARKETING
-  if (currentStep === 7) {
-    container.innerHTML = `
-      <h2>Marketing</h2>
-
-      <ul>
-        ${(data.marketing?.angulos_marketing || []).map(x => `<li>${x}</li>`).join("")}
-      </ul>
-
-      <ul>
-        ${(data.marketing?.hooks || []).map(x => `<li>${x}</li>`).join("")}
-      </ul>
-    `;
-  }
-}
