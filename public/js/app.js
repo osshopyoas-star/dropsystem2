@@ -2015,17 +2015,18 @@ function renderTendencias() {
 
           <!-- SCORE -->
           <section class="board-score">
-            <div class="board-block-title">SCORE GENERAL</div>
+  <div class="board-block-title">SCORE GENERAL</div>
 
-            <div class="score-ring score-ring-lg" id="scoreRing">
-              <div class="score-ring-inner">
-                <strong id="kpiScore">0</strong>
-                <span>/100</span>
-              </div>
-            </div>
+  <div class="score-ring score-ring-lg" id="scoreRing">
+    <div class="score-ring-inner">
+      <strong id="kpiScore">0</strong>
+      <span>/100</span>
+    </div>
+  </div>
 
-            <div class="board-score-direction" id="kpiDireccionBadge">-</div>
-          </section>
+  <div class="board-score-direction" id="kpiDireccionBadge">-</div>
+  <div class="board-score-stage" id="kpiEtapaMini">-</div>
+</section>
         </div>
 
         <div class="trend-board-bottom">
@@ -2106,7 +2107,7 @@ function setText(id, value) {
 function renderTrendDashboard(json) {
   const score = Number(json.score || 0);
 
-
+setText("kpiEtapaMini", json.etapa_mercado || "-");
   setText("kpiSenalBox", json.senal_general || "-");
 setText("kpiEtapaBox", json.etapa_mercado || "-");
 setText("kpiDireccionBox", json.direccion || "-");
