@@ -1986,11 +1986,7 @@ function renderTendencias() {
             <span class="trend-label">Tema central</span>
             <h2 id="kpiTema">-</h2>
             <p id="resEstacionalidadTop" class="trend-muted">-</p>
-    <div class="trend-chart-box">
-  <div class="trend-chart-placeholder">
-    Gráfica aquí
-  </div>
-</div>
+    
             <div class="trend-chart-box">
             <div class="trend-chart-placeholder">
            Gráfica aquí
@@ -2035,7 +2031,11 @@ function renderTendencias() {
           </div>
         </div>
         
-        <div class="trend-card trend-card-highlight">
+        
+
+        <div class="exec-summary-grid">
+         
+         <div class="trend-card trend-card-highlight">
   <div class="trend-card-head">
     <h3>📈 Estacionalidad</h3>
   </div>
@@ -2060,7 +2060,7 @@ function renderTendencias() {
   </div>
 </div>
 
-        <div class="exec-summary-grid">
+
           <div class="trend-card trend-card-highlight">
             <div class="trend-card-head">
               <h3>🧠 Resumen ejecutivo</h3>
@@ -2237,9 +2237,6 @@ const modo = document.getElementById("trendMode")?.value || "cluster";
 
   document.getElementById("kpiTema").textContent = "Analizando...";
 document.getElementById("kpiScore").textContent = "-";
-document.getElementById("kpiDireccion").textContent = "-";
-document.getElementById("kpiSenal").textContent = "-";
-document.getElementById("kpiEtapa").textContent = "-";
 
 const scoreBar = document.getElementById("kpiScoreBar");
 if (scoreBar) scoreBar.style.width = "0%";
@@ -2368,10 +2365,17 @@ if (!res.ok) {
   return;
 }
 
-const data = JSON.parse(raw);
+let respuesta = raw.trim();
 
-    try {
-      let respuesta = data.reply.trim();
+// 🔥 extraer JSON si viene con texto
+const inicio = respuesta.indexOf("{");
+const fin = respuesta.lastIndexOf("}");
+
+if (inicio !== -1 && fin !== -1) {
+  respuesta = respuesta.substring(inicio, fin + 1);
+}
+
+const json = JSON.parse(respuesta);
 
       const inicio = respuesta.indexOf("{");
       const fin = respuesta.lastIndexOf("}");
