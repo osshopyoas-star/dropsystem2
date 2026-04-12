@@ -1989,10 +1989,14 @@ function renderTendencias() {
             <h2 id="kpiTema">-</h2>
             <p id="resEstacionalidadTop" class="board-muted">-</p>
 
-            <div class="trend-chart-box">
-              <div class="trend-chart-placeholder">
-  Aquí va la gráfica
-</div>
+             <div class="trend-chart-box">
+                <svg id="trendChart" class="trend-chart-svg" viewBox="0 0 520 180" preserveAspectRatio="none">
+                  <g id="trendChartGrid"></g>
+                  <path id="trendChartLine" d="" />
+                  <g id="trendChartDots"></g>
+                  <g id="trendChartLabels"></g>
+                </svg>
+              </div>
             </div>
           </section>
 
@@ -2106,7 +2110,112 @@ function setText(id, value) {
 }
 function renderTrendDashboard(json) {
   const score = Number(json.score || 0);
+function buildTrendSeries(json) {
+  const dir = (json.direccion || "").toLowerCase();
+  const senal = (json.senal_general || "").toLowerCase();
+  const score = Number(json.score || 50);
 
+  let base = [22, 28, 18, 21, 26, 35, 22, 24, 25, 29, 33, 38];
+
+  if (dir.includes("baj")) {
+    base = [38, 36, 34, 31, 29, 27, 24, 22, 20, 18, 16, 14];
+  }
+
+  if (dir.includes("est")) {
+    base = [24, 26, 25, 24, 26, 27, 25, 24, 26, 27, 26, 25];
+  }
+
+  if (senal === "media") {
+    base = base.map((v, i) => v + (i % 2 === 0 ? -2 : 2));
+  }
+
+  if (senal === "debil") {
+    base = base.map(v => Math.max(10, v - 6));
+  }
+
+  const scoreBoost = Math.round((score - 50) / 8);
+  return base.map(v => Math.max(8, Math.min(48, v + scoreBoost)));
+}
+
+function renderTrendChart(json) {
+  const svg = document.getElementById("trendChart");
+  const grid = document.getElementById("trendChartGrid");
+  const line = document.getElementById("trendChartLine");
+  const dots = document.getElementById("trendChartDots");
+  const labels = document.getElementById("trendChartLabels");
+
+  if (!svg || !grid || !line || !dots || !labels) return;
+
+  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const data = buildTrendSeries(json);
+
+  const W = 520;
+  const H = 180;
+  const left = 18;
+  const right = 18;
+  const top = 18;
+  const bottom = 30;
+
+  const innerW = W - left - right;
+  const innerH = H - top - bottom;
+
+  const minVal = 0;
+  const maxVal = 50;
+
+  const xStep = innerW / (data.length - 1);
+
+  const toX = (i) => left + i * xStep;
+  const toY = (v) => top + innerH - ((v - minVal) / (maxVal - minVal)) * innerH;
+
+  grid.innerHTML = "";
+  dots.innerHTML = "";
+  labels.innerHTML = "";
+
+  // líneas horizontales
+  [0, 10, 20, 30, 40, 50].forEach(val => {
+    const y = toY(val);
+    const lineEl = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    lineEl.setAttribute("x1", left);
+    lineEl.setAttribute("x2", W - right);
+    lineEl.setAttribute("y1", y);
+    lineEl.setAttribute("y2", y);
+    lineEl.setAttribute("class", "chart-grid-line");
+    grid.appendChild(lineEl);
+
+    const textEl = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    textEl.setAttribute("x", 0);
+    textEl.setAttribute("y", y + 4);
+    textEl.setAttribute("class", "chart-axis-label");
+    textEl.textContent = val;
+    labels.appendChild(textEl);
+  });
+
+  // labels meses
+  months.forEach((m, i) => {
+    const tx = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    tx.setAttribute("x", toX(i));
+    tx.setAttribute("y", H - 8);
+    tx.setAttribute("text-anchor", "middle");
+    tx.setAttribute("class", "chart-month-label");
+    tx.textContent = m;
+    labels.appendChild(tx);
+  });
+
+  // path
+  const d = data.map((v, i) => `${i === 0 ? "M" : "L"} ${toX(i)} ${toY(v)}`).join(" ");
+  line.setAttribute("d", d);
+  line.setAttribute("class", "chart-line");
+
+  // dots
+  data.forEach((v, i) => {
+    const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    c.setAttribute("cx", toX(i));
+    c.setAttribute("cy", toY(v));
+    c.setAttribute("r", i === data.length - 1 ? 4 : 2.8);
+    c.setAttribute("class", "chart-dot");
+    dots.appendChild(c);
+  });
+}
 setText("kpiEtapaMini", json.etapa_mercado || "-");
   setText("kpiSenalBox", json.senal_general || "-");
 setText("kpiEtapaBox", json.etapa_mercado || "-");
@@ -2204,6 +2313,7 @@ setText("kpiDireccionBox", json.direccion || "-");
     sig2?.classList.add("on");
     sig3?.classList.add("on");
   }
+   renderTrendChart(json);
 }
 
 window.analizarTendencia = async function() {
