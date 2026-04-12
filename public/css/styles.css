@@ -1186,45 +1186,126 @@ aside.collapsed .submenu .sidebar-item {
    TENDENCIAS 3.0 EJECUTIVO
 ========================= */
 
+
+.trend-screen-1 {
+  width: 100%;
+  max-width: 1320px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tendencias-hero.ejecutivo {
+  background: linear-gradient(180deg, #f1f5ff 0%, #eef4ff 100%);
+  border: 1px solid #dde7fb;
+  border-radius: 24px;
+  padding: 18px 20px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+}
+
+.tendencias-title-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.tendencias-title-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8fbff;
+  border: 1px solid #dce7fb;
+}
+
+.tendencias-title-icon i {
+  width: 20px;
+  height: 20px;
+  color: #334155;
+}
+
+.tendencias-title {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.1;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.tendencias-subtitle {
+  margin: 4px 0 0 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.tendencias-form.tendencias-form-4 {
+  display: grid;
+  grid-template-columns: 1.2fr 0.6fr 0.7fr 0.7fr;
+  gap: 10px;
+  align-items: center;
+}
+
+.tendencias-form input,
+.tendencias-form select {
+  height: 42px;
+  margin: 0;
+  font-size: 13px;
+  border-radius: 12px;
+  background: white;
+  border: 1px solid #dbe4f0;
+}
+
+.tendencias-form .primary {
+  height: 42px;
+  border-radius: 14px;
+  margin: 0;
+}
+
 .trend-tabs {
   display: flex;
   gap: 10px;
-  margin: 16px 0 18px 0;
+  margin: 2px 0 0 0;
 }
 
 .trend-tab {
-  background: #fff;
+  background: white;
   color: #0f172a;
   border: 1px solid #dbe4f0;
-  border-radius: 14px;
-  padding: 10px 16px;
-  font-size: 13px;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 12px;
   font-weight: 700;
   cursor: default;
 }
 
 .trend-tab.active {
-  background: linear-gradient(135deg, #3b82f6, #6366f1);
-  color: #fff;
-  border: none;
+  background: white;
+  color: #0f172a;
+  border: 1px solid #94a3b8;
+  box-shadow: inset 0 0 0 1px #cbd5e1;
 }
 
 .trend-board {
+  background: transparent;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 14px;
 }
 
 .trend-board-top {
   display: grid;
-  grid-template-columns: 1.35fr 0.95fr 0.8fr;
+  grid-template-columns: 1.25fr 0.9fr 0.72fr;
   gap: 18px;
   align-items: stretch;
 }
 
 .trend-board-bottom {
   display: grid;
-  grid-template-columns: 1.1fr 1fr 0.95fr;
+  grid-template-columns: 1.15fr 0.95fr 0.78fr;
   gap: 18px;
   align-items: start;
 }
@@ -1235,150 +1316,150 @@ aside.collapsed .submenu .sidebar-item {
 .board-seasonality,
 .board-summary,
 .board-decision {
-  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
-  border: 1px solid #e4ecf8;
-  border-radius: 26px;
-  padding: 22px;
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
 }
 
 .board-block-title {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: #475569;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .board-topic h2 {
-  margin: 0 0 12px 0;
-  font-size: 32px;
+  margin: 0 0 8px 0;
+  font-size: 28px;
   line-height: 1.05;
   font-weight: 800;
   color: #0f172a;
 }
 
 .board-muted {
-  margin: 0 0 14px 0;
-  font-size: 14px;
+  margin: 0 0 10px 0;
+  font-size: 12px;
   color: #475569;
 }
 
 .trend-chart-box {
-  margin-top: 12px;
-  border-radius: 20px;
-  background: #f8fbff;
-  border: 1px solid #e6edf8;
-  min-height: 240px;
-  display: flex;
+  margin-top: 8px;
+  border-radius: 0;
+  background: transparent;
+  border: none;
+  min-height: 170px;
+  padding: 0;
   align-items: center;
-  justify-content: center;
-  padding: 20px;
+  justify-content: flex-start;
 }
 
 .trend-chart-placeholder {
-  font-size: 14px;
+  width: 100%;
+  height: 170px;
+  border-bottom: 1px solid #dbe4f0;
   color: #64748b;
+  font-size: 14px;
   font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .board-market {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
+  padding-top: 2px;
 }
 
 .board-market-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 14px;
-  margin-top: 10px;
+  gap: 10px;
+  margin-top: 4px;
 }
 
 .board-market-label {
-  font-size: 14px;
+  font-size: 12px;
   color: #334155;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .board-market-label strong {
-  font-size: 16px;
+  font-size: 14px;
   color: #0f172a;
 }
 
 .board-signal {
-  margin-top: 22px;
+  margin-top: 18px;
 }
 
 .trend-signal-lg {
   display: flex;
-  gap: 12px;
+  gap: 10px;
 }
 
 .trend-signal-lg span {
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   border-radius: 999px;
   background: #dbe4f0;
   display: inline-block;
 }
 
 .trend-signal-lg span.on {
-  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  background: #4f7ef7;
 }
 
 .board-score {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
   text-align: center;
-  gap: 16px;
+  padding-top: 18px;
 }
 
 .score-ring-lg {
-  width: 150px;
-  height: 150px;
+  width: 124px;
+  height: 124px;
+  margin: 10px auto 10px auto;
 }
 
 .board-score-direction {
-  font-size: 18px;
-  font-weight: 700;
-  color: #334155;
+  font-size: 16px;
+  font-weight: 500;
+  color: #6b3d7a;
 }
 
 .board-section-bar {
   width: 100%;
-  background: linear-gradient(135deg, #2491e6, #3278f6);
+  background: #2892d8;
   color: #fff;
-  border-radius: 14px;
-  padding: 10px 16px;
-  font-size: 16px;
+  border-radius: 12px;
+  padding: 6px 14px;
+  font-size: 15px;
   font-weight: 800;
   letter-spacing: 0.08em;
-  text-transform: none;
-  margin-bottom: 14px;
+  text-align: center;
+  margin-bottom: 10px;
 }
 
 .seasonality-table {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .seasonality-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   align-items: center;
-  border-radius: 12px;
-  padding: 14px 16px;
+  border-radius: 4px;
+  padding: 10px 12px;
   background: #2892d8;
   color: #fff;
 }
 
 .seasonality-row.light {
-  background: #e9eef5;
+  background: #e8eef6;
   color: #0f172a;
 }
 
@@ -1388,61 +1469,71 @@ aside.collapsed .submenu .sidebar-item {
 }
 
 .seasonality-row span {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.05em;
 }
 
 .seasonality-row strong {
   justify-self: end;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 800;
+}
+
+.board-summary,
+.board-decision {
+  padding-top: 2px;
 }
 
 .board-summary-head,
 .board-decision-head {
-  margin-bottom: 14px;
+  margin-bottom: 8px;
 }
 
 .board-summary-head h3,
 .board-decision-head h3 {
   margin: 0;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 800;
   color: #0f172a;
 }
 
 .board-summary-text p,
 .board-decision-text p {
-  margin: 0 0 10px 0;
-  font-size: 15px;
-  line-height: 1.35;
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  line-height: 1.25;
   color: #1e293b;
 }
 
-.board-summary-text strong,
-.board-decision-text strong,
-.board-risk-list strong {
-  color: #0f172a;
+.board-risk-list {
+  margin-top: 8px;
 }
 
-.board-risk-list {
-  margin-top: 14px;
+.board-risk-list strong {
+  font-size: 13px;
 }
 
 .board-risk-list ul {
-  margin: 10px 0 0 18px;
+  margin: 8px 0 0 18px;
   padding: 0;
 }
 
 .board-risk-list li {
-  margin-bottom: 8px;
+  margin-bottom: 5px;
+  font-size: 13px;
+  line-height: 1.2;
   color: #1e293b;
 }
 
-@media (max-width: 1400px) {
+@media (max-width: 1200px) {
+  .tendencias-form.tendencias-form-4,
   .trend-board-top,
   .trend-board-bottom {
     grid-template-columns: 1fr;
+  }
+
+  .trend-chart-placeholder {
+    height: 140px;
   }
 }

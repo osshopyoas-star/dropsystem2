@@ -1930,7 +1930,8 @@ async function llamarIA(texto) {
 
 function renderTendencias() {
   return `
-    <div class="tendencias-page">
+  <div class="tendencias-page">
+    <div class="trend-screen-1">
 
       <div class="tendencias-hero ejecutivo">
         <div class="tendencias-title-wrap">
@@ -1990,8 +1991,8 @@ function renderTendencias() {
 
             <div class="trend-chart-box">
               <div class="trend-chart-placeholder">
-                Gráfica aquí
-              </div>
+  Aquí va la gráfica
+</div>
             </div>
           </section>
 
@@ -2081,7 +2082,7 @@ function renderTendencias() {
           </section>
         </div>
 
-      </div>
+     </div>
     </div>
   `;
 }
@@ -2109,7 +2110,7 @@ function renderTrendDashboard(json) {
   setText("kpiSenalBox", json.senal_general || "-");
 setText("kpiEtapaBox", json.etapa_mercado || "-");
 setText("kpiDireccionBox", json.direccion || "-");
-setText("resEstacionalidadBox", json.estacionalidad || "-"); 
+
 
   setText("kpiTema", json.tema_central || "-");
   setText("kpiScore", score || 0);
