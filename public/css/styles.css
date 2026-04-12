@@ -692,7 +692,7 @@ aside {
 }
 
 * {
-  transition: all 0.15s ease;
+  box-sizing: border-box;
 }
 
 /* LOGO FULL (default) */
@@ -1186,57 +1186,282 @@ aside.collapsed .submenu .sidebar-item {
    TENDENCIAS DASHBOARD PRO
 ========================= */
 
+.tendencias-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.tendencias-hero {
+  background:
+    radial-gradient(circle at top left, rgba(96, 165, 250, 0.18), transparent 28%),
+    radial-gradient(circle at top right, rgba(99, 102, 241, 0.14), transparent 30%),
+    linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  border: 1px solid #dbe7fb;
+  border-radius: 28px;
+  padding: 28px;
+  box-shadow:
+    0 20px 50px rgba(15, 23, 42, 0.07),
+    inset 0 1px 0 rgba(255,255,255,0.8);
+}
+
+.tendencias-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 22px;
+}
+
+.tendencias-title-icon {
+  width: 62px;
+  height: 62px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #dbeafe, #eef2ff);
+  border: 1px solid #d9e6fb;
+  box-shadow: 0 10px 25px rgba(59, 130, 246, 0.14);
+}
+
+.tendencias-title-icon i {
+  width: 30px;
+  height: 30px;
+  color: #2563eb;
+}
+
+.tendencias-title {
+  margin: 0;
+  font-size: 30px;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #0f172a;
+}
+
+.tendencias-subtitle {
+  margin: 8px 0 0 0;
+  font-size: 14px;
+  color: #64748b;
+  max-width: 680px;
+}
+
+.tendencias-form {
+  display: grid;
+  gap: 14px;
+}
+
+.tendencias-form-3 {
+  grid-template-columns: 1.6fr 0.9fr 1fr auto;
+  align-items: end;
+}
+
+.tendencias-form-3 input,
+.tendencias-form-3 select {
+  height: 50px;
+  border-radius: 16px;
+  border: 1px solid #dbe5f3;
+  background: rgba(255,255,255,0.82);
+  padding: 0 16px;
+  font-size: 14px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
+}
+
+.tendencias-form-3 input:focus,
+.tendencias-form-3 select:focus {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 4px rgba(59,130,246,0.12);
+}
+
+.tendencias-form-3 button {
+  height: 50px;
+  min-width: 170px;
+  border-radius: 16px;
+  padding: 0 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  color: white;
+  box-shadow: 0 14px 30px rgba(99, 102, 241, 0.24);
+}
+
+.tendencias-form-3 button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 38px rgba(99, 102, 241, 0.30);
+}
+
 .trend-dashboard {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 20px;
 }
 
 .trend-topbar {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 14px;
+  gap: 16px;
 }
 
 .trend-kpi {
-  background: #ffffff;
-  border: 1px solid #e5edf8;
-  border-radius: 18px;
-  padding: 16px 18px;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+  position: relative;
+  background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
+  border: 1px solid #e4ecf8;
+  border-radius: 22px;
+  padding: 18px 18px 16px 18px;
+  box-shadow:
+    0 14px 30px rgba(15, 23, 42, 0.05),
+    inset 0 1px 0 rgba(255,255,255,0.85);
+  min-height: 138px;
+}
+
+.trend-kpi::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 22px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.28), transparent 55%);
+  pointer-events: none;
 }
 
 .trend-kpi-label {
-  display: block;
+  display: inline-block;
   font-size: 12px;
   color: #64748b;
-  margin-bottom: 6px;
+  margin-bottom: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
+  font-weight: 700;
 }
 
 .trend-kpi strong {
+  display: block;
   font-size: 20px;
+  line-height: 1.15;
   color: #0f172a;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+#kpiTema,
+#kpiDireccion,
+#kpiSenal,
+#kpiEtapa {
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+#kpiScore {
+  font-size: 40px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.trend-meter {
+  width: 100%;
+  height: 12px;
+  background: #e8eef8;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.trend-meter-fill {
+  height: 100%;
+  width: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #60a5fa, #6366f1);
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.22);
+  transition: width 0.35s ease;
+}
+
+.trend-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 12px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  background: #e5e7eb;
+  color: #334155;
+  border: 1px solid transparent;
+}
+
+.trend-badge.up {
+  background: #dcfce7;
+  color: #166534;
+  border-color: #bbf7d0;
+}
+
+.trend-badge.mid {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fde68a;
+}
+
+.trend-badge.down {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+
+.trend-signal {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.trend-signal span {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #e5e7eb;
+  transition: 0.2s;
+}
+
+.trend-signal span.on {
+  background: linear-gradient(135deg, #60a5fa, #6366f1);
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.10);
 }
 
 .trend-main-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 18px;
 }
 
 .trend-card {
-  background: #ffffff;
-  border: 1px solid #e5edf8;
-  border-radius: 22px;
-  padding: 20px;
-  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.06);
+  grid-column: span 6;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  border: 1px solid #e6edf8;
+  border-radius: 24px;
+  padding: 22px;
+  box-shadow:
+    0 16px 34px rgba(15, 23, 42, 0.05),
+    inset 0 1px 0 rgba(255,255,255,0.85);
+  min-height: 250px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.trend-card:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 22px 44px rgba(15, 23, 42, 0.07),
+    inset 0 1px 0 rgba(255,255,255,0.9);
 }
 
 .trend-card-highlight {
-  background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%);
-  border-color: #d7e4fb;
+  background:
+    radial-gradient(circle at top left, rgba(96, 165, 250, 0.10), transparent 30%),
+    linear-gradient(180deg, #f7fbff 0%, #eef4ff 100%);
+  border-color: #d6e3fb;
+}
+
+.trend-card.trend-card-wide {
+  grid-column: span 12;
 }
 
 .trend-card-head {
@@ -1248,88 +1473,92 @@ aside.collapsed .submenu .sidebar-item {
 
 .trend-card-head h3 {
   margin: 0;
-  font-size: 22px;
+  font-size: 19px;
+  line-height: 1.1;
+  font-weight: 800;
   color: #0f172a;
+  letter-spacing: -0.02em;
 }
 
 .trend-card p {
-  margin: 10px 0;
+  margin: 12px 0;
   color: #1e293b;
-  line-height: 1.5;
+  line-height: 1.65;
+  font-size: 15px;
+}
+
+.trend-card p strong {
+  color: #0f172a;
 }
 
 .trend-list-block {
-  margin-top: 14px;
+  margin-top: 16px;
 }
 
 .trend-list-block strong {
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   color: #0f172a;
+  font-size: 15px;
 }
 
 .trend-list-block ul {
   margin: 0;
-  padding-left: 20px;
+  padding-left: 22px;
 }
 
 .trend-list-block li {
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   color: #334155;
+  line-height: 1.55;
 }
 
 .trend-chip-group {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
+  gap: 10px;
+  margin-top: 14px;
 }
 
 .trend-chip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 8px 12px;
+  padding: 9px 14px;
   border-radius: 999px;
   background: #eef2ff;
   color: #3730a3;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 800;
   border: 1px solid #dbeafe;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.8);
 }
 
 .trend-chip-danger {
-  background: #fee2e2;
-  color: #991b1b;
-  border-color: #fecaca;
+  background: #fff1f2;
+  color: #be123c;
+  border-color: #fecdd3;
 }
 
-.tendencias-form-3 {
-  display: grid;
-  grid-template-columns: 1.2fr 1fr 1fr;
-  gap: 12px;
+#trendResult {
+  scroll-margin-top: 20px;
 }
 
-.tendencias-form-3 button {
-  grid-column: 1 / -1;
-  height: 46px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-@media (max-width: 1200px) {
+@media (max-width: 1280px) {
   .trend-topbar {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .trend-main-grid {
-    grid-template-columns: 1fr;
+  .trend-card {
+    grid-column: span 6;
+  }
+
+  .trend-card.trend-card-wide {
+    grid-column: span 12;
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 900px) {
   .tendencias-form-3 {
     grid-template-columns: 1fr;
   }
@@ -1337,79 +1566,31 @@ aside.collapsed .submenu .sidebar-item {
   .trend-topbar {
     grid-template-columns: 1fr;
   }
+
+  .trend-main-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .trend-card,
+  .trend-card.trend-card-wide {
+    grid-column: span 1;
+  }
+
+  .tendencias-title {
+    font-size: 24px;
+  }
+
+  .tendencias-hero {
+    padding: 20px;
+    border-radius: 22px;
+  }
 }
 
-.trend-card {
-  min-height: 280px;
-  max-height: 360px;
-  overflow-y: auto;
-}
-
-.trend-card-highlight {
-  min-height: 280px;
-  max-height: 360px;
-  overflow-y: auto;
-}
-.trend-meter {
-  width: 100%;
-  height: 10px;
-  background: #e5e7eb;
-  border-radius: 999px;
-  overflow: hidden;
-  margin-top: 12px;
-}
-
-.trend-meter-fill {
-  height: 100%;
-  width: 0;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #60a5fa, #6366f1);
-  transition: width 0.35s ease;
-}
-
-.trend-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: 12px;
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 700;
-  background: #e5e7eb;
-  color: #334155;
-}
-
-.trend-badge.up {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.trend-badge.mid {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.trend-badge.down {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-.trend-signal {
-  display: flex;
-  gap: 6px;
-  margin-top: 12px;
-}
-
-.trend-signal span {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: #e5e7eb;
-  transition: 0.2s;
-}
-
-.trend-signal span.on {
-  background: linear-gradient(135deg, #60a5fa, #6366f1);
-  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12);
+button,
+input,
+select,
+.panel,
+.trend-card,
+.sidebar-item {
+  transition: all 0.18s ease;
 }

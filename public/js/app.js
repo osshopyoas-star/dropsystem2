@@ -1941,13 +1941,13 @@ function renderTendencias() {
           <div>
             <h1 class="tendencias-title">Tendencias</h1>
             <p class="tendencias-subtitle">
-              Analiza un tema como mapa de oportunidad, no solo como keyword.
+              Analiza una oportunidad como mercado, dolor, solución y ángulos de venta.
             </p>
           </div>
         </div>
 
         <div class="tendencias-form tendencias-form-3">
-          <input id="trendInput" placeholder="Ej: baja energía masculina" />
+          <input id="trendInput" placeholder="Ej: suplementos y productos para salud hepática" />
 
           <select id="trendPais">
             <option value="ALL">Todos</option>
@@ -1973,46 +1973,46 @@ function renderTendencias() {
       </div>
 
       <div id="trendResult" class="trend-dashboard">
-  <div class="trend-topbar">
+        <div class="trend-topbar">
 
-    <div class="trend-kpi">
-      <span class="trend-kpi-label">Tema</span>
-      <strong id="kpiTema">-</strong>
-    </div>
+          <div class="trend-kpi">
+            <span class="trend-kpi-label">Tema</span>
+            <strong id="kpiTema">-</strong>
+          </div>
 
-    <div class="trend-kpi">
-      <span class="trend-kpi-label">Score</span>
-      <strong id="kpiScore">-</strong>
-      <div class="trend-meter">
-        <div id="kpiScoreBar" class="trend-meter-fill"></div>
-      </div>
-    </div>
+          <div class="trend-kpi">
+            <span class="trend-kpi-label">Score</span>
+            <strong id="kpiScore">-</strong>
+            <div class="trend-meter">
+              <div id="kpiScoreBar" class="trend-meter-fill"></div>
+            </div>
+          </div>
 
-    <div class="trend-kpi">
-      <span class="trend-kpi-label">Dirección</span>
-      <strong id="kpiDireccion">-</strong>
-      <span id="kpiDireccionBadge" class="trend-badge">-</span>
-    </div>
+          <div class="trend-kpi">
+            <span class="trend-kpi-label">Dirección</span>
+            <strong id="kpiDireccion">-</strong>
+            <span id="kpiDireccionBadge" class="trend-badge">-</span>
+          </div>
 
-    <div class="trend-kpi">
-      <span class="trend-kpi-label">Señal</span>
-      <strong id="kpiSenal">-</strong>
-      <div class="trend-signal">
-        <span id="sig1"></span>
-        <span id="sig2"></span>
-        <span id="sig3"></span>
-      </div>
-    </div>
+          <div class="trend-kpi">
+            <span class="trend-kpi-label">Señal</span>
+            <strong id="kpiSenal">-</strong>
+            <div class="trend-signal">
+              <span id="sig1"></span>
+              <span id="sig2"></span>
+              <span id="sig3"></span>
+            </div>
+          </div>
 
-    <div class="trend-kpi">
-      <span class="trend-kpi-label">Etapa</span>
-      <strong id="kpiEtapa">-</strong>
-    </div>
-         
+          <div class="trend-kpi">
+            <span class="trend-kpi-label">Etapa</span>
+            <strong id="kpiEtapa">-</strong>
+          </div>
+
         </div>
 
         <div class="trend-main-grid">
-          <div class="trend-card trend-card-highlight">
+          <div class="trend-card trend-card-wide trend-card-highlight">
             <div class="trend-card-head"><h3>🧠 Resumen ejecutivo</h3></div>
             <p><strong>Estacionalidad:</strong> <span id="resEstacionalidad">-</span></p>
             <p><strong>Oportunidad:</strong> <span id="resOportunidad">-</span></p>
@@ -2092,7 +2092,7 @@ function renderTendencias() {
             </div>
           </div>
 
-          <div class="trend-card trend-card-highlight">
+          <div class="trend-card trend-card-wide trend-card-highlight">
             <div class="trend-card-head"><h3>🚀 Decisión</h3></div>
             <p><strong>Oportunidad:</strong> <span id="decisionOportunidad">-</span></p>
             <p><strong>Recomendación:</strong> <span id="decisionRecomendacion">-</span></p>
