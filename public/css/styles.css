@@ -1350,3 +1350,66 @@ aside.collapsed .submenu .sidebar-item {
   max-height: 360px;
   overflow-y: auto;
 }
+.trend-meter {
+  width: 100%;
+  height: 10px;
+  background: #e5e7eb;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 12px;
+}
+
+.trend-meter-fill {
+  height: 100%;
+  width: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #60a5fa, #6366f1);
+  transition: width 0.35s ease;
+}
+
+.trend-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: #e5e7eb;
+  color: #334155;
+}
+
+.trend-badge.up {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.trend-badge.mid {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.trend-badge.down {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.trend-signal {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.trend-signal span {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #e5e7eb;
+  transition: 0.2s;
+}
+
+.trend-signal span.on {
+  background: linear-gradient(135deg, #60a5fa, #6366f1);
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12);
+}

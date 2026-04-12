@@ -1966,11 +1966,41 @@ function renderTendencias() {
       </div>
 
       <div id="trendResult" class="trend-dashboard">
-        <div class="trend-topbar">
-          <div class="trend-kpi"><span class="trend-kpi-label">Tema</span><strong id="kpiTema">-</strong></div>
-          <div class="trend-kpi"><span class="trend-kpi-label">Score</span><strong id="kpiScore">-</strong></div>
-          <div class="trend-kpi"><span class="trend-kpi-label">Dirección</span><strong id="kpiDireccion">-</strong></div>
-          <div class="trend-kpi"><span class="trend-kpi-label">Señal</span><strong id="kpiSenal">-</strong></div>
+  <div class="trend-topbar">
+
+    <div class="trend-kpi">
+      <span class="trend-kpi-label">Tema</span>
+      <strong id="kpiTema">-</strong>
+    </div>
+
+    <div class="trend-kpi">
+      <span class="trend-kpi-label">Score</span>
+      <strong id="kpiScore">-</strong>
+      <div class="trend-meter">
+        <div id="kpiScoreBar" class="trend-meter-fill"></div>
+      </div>
+    </div>
+
+    <div class="trend-kpi">
+      <span class="trend-kpi-label">Dirección</span>
+      <strong id="kpiDireccion">-</strong>
+      <span id="kpiDireccionBadge" class="trend-badge">-</span>
+    </div>
+
+    <div class="trend-kpi">
+      <span class="trend-kpi-label">Señal</span>
+      <strong id="kpiSenal">-</strong>
+      <div class="trend-signal">
+        <span id="sig1"></span>
+        <span id="sig2"></span>
+        <span id="sig3"></span>
+      </div>
+    </div>
+
+    <div class="trend-kpi">
+      <span class="trend-kpi-label">Etapa</span>
+      <strong id="kpiEtapa">-</strong>
+    </div>
           <div class="trend-kpi"><span class="trend-kpi-label">Etapa</span><strong id="kpiEtapa">-</strong></div>
         </div>
 
@@ -2088,6 +2118,45 @@ function fillChips(id, items = [], extraClass = "") {
 function renderTrendDashboard(json) {
   document.getElementById("kpiTema").textContent = json.tema_central || "-";
   document.getElementById("kpiScore").textContent = json.score ?? "-";
+
+  const score = Number(json.score || 0);
+const scoreBar = document.getElementById("kpiScoreBar");
+if (scoreBar) {
+  scoreBar.style.width = `${Math.max(0, Math.min(score, 100))}%`;
+}
+
+const dir = (json.direccion || "").toLowerCase();
+const dirBadge = document.getElementById("kpiDireccionBadge");
+if (dirBadge) {
+  dirBadge.textContent = json.direccion || "-";
+  dirBadge.className = "trend-badge";
+
+  if (dir.includes("sub")) dirBadge.classList.add("up");
+  else if (dir.includes("baj")) dirBadge.classList.add("down");
+  else dirBadge.classList.add("mid");
+}
+
+const senal = (json.senal_general || "").toLowerCase();
+const sig1 = document.getElementById("sig1");
+const sig2 = document.getElementById("sig2");
+const sig3 = document.getElementById("sig3");
+
+[sig1, sig2, sig3].forEach(el => {
+  if (el) el.className = "";
+});
+
+if (senal === "debil") {
+  sig1?.classList.add("on");
+}
+if (senal === "media") {
+  sig1?.classList.add("on");
+  sig2?.classList.add("on");
+}
+if (senal === "fuerte") {
+  sig1?.classList.add("on");
+  sig2?.classList.add("on");
+  sig3?.classList.add("on");
+}
   document.getElementById("kpiDireccion").textContent = json.direccion || "-";
   document.getElementById("kpiSenal").textContent = json.senal_general || "-";
   document.getElementById("kpiEtapa").textContent = json.etapa_mercado || "-";
@@ -2125,6 +2194,8 @@ function renderTrendDashboard(json) {
   document.getElementById("decisionRecomendacion").textContent = json.decision?.recomendacion || "-";
   fillList("decisionRiesgos", json.decision?.riesgos || []);
 }
+
+
 
 window.analizarTendencia = async function() {
   const texto = document.getElementById("trendInput").value;
