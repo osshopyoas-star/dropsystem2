@@ -2010,7 +2010,15 @@ Devuelve exactamente este JSON:
 })
     });
 
-    const data = await res.json();
+   const raw = await res.text();
+
+if (!res.ok) {
+  console.error("ERROR API RAW:", raw);
+  document.getElementById("trendResult").innerText = `Error API (${res.status})`;
+  return;
+}
+
+const data = JSON.parse(raw);
 
     try {
       let respuesta = data.reply.trim();
