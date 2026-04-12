@@ -1955,7 +1955,9 @@ const modo = document.getElementById("trendMode")?.value || "cluster";
 
   if (!texto) return alert("Escribe algo");
 
-  document.getElementById("trendResult").innerText = "Analizando...";
+  document.getElementById("trendResult").innerHTML = `
+  <div class="trend-result-empty">Analizando tendencia...</div>
+`;
 
   try {
     const res = await fetch("/api/ia", {
