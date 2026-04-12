@@ -63,90 +63,79 @@ window.marcarMenuActivo = function(route) {
 
 window.currentStep = 5;
 
-window.goStep = function(step) {
-  function renderStep() {
+function renderStep() {
   const container = document.getElementById("trendResult");
   const data = JSON.parse(localStorage.getItem("trendMap") || "{}");
 
   if (!container) return;
 
-  // =========================
-  // 1. MASLOW
   if (window.currentStep === 1) {
     container.innerHTML = `
       <h2>Maslow</h2>
       <p><strong>Nivel:</strong> ${data.maslow?.nivel || "-"}</p>
       <p>${data.maslow?.explicacion || "-"}</p>
     `;
+    return;
   }
 
-  // =========================
-  // 2. PROBLEMA
   if (window.currentStep === 2) {
     container.innerHTML = `
       <h2>Problema</h2>
       <p><strong>Dolor:</strong> ${data.problema?.dolor_principal || "-"}</p>
-
       <ul>
         ${(data.problema?.dolores_relacionados || []).map(x => `<li>${x}</li>`).join("")}
       </ul>
     `;
+    return;
   }
 
-  // =========================
-  // 3. AUDIENCIA
   if (window.currentStep === 3) {
     container.innerHTML = `
       <h2>Audiencia</h2>
-
       <ul>
         ${(data.mercado?.audiencias || []).map(x => `<li>${x}</li>`).join("")}
       </ul>
     `;
+    return;
   }
 
-  // =========================
-  // 4. NICHO
   if (window.currentStep === 4) {
     container.innerHTML = `
       <h2>Nicho</h2>
       <p>${data.tema_central || "-"}</p>
     `;
+    return;
   }
 
-  // =========================
-  // 5. TENDENCIA (TU DASHBOARD)
   if (window.currentStep === 5) {
     container.innerHTML = renderTendenciasDashboard();
     renderTrendDashboard(data);
+    return;
   }
 
-  // =========================
-  // 6. PRODUCTO
   if (window.currentStep === 6) {
     container.innerHTML = `
       <h2>Producto</h2>
-
       <p>${data.solucion?.solucion_principal || "-"}</p>
-
       <ul>
         ${(data.solucion?.beneficios_relacionados || []).map(x => `<li>${x}</li>`).join("")}
       </ul>
     `;
+    return;
   }
 
-  // =========================
-  // 7. MARKETING
   if (window.currentStep === 7) {
     container.innerHTML = `
       <h2>Marketing</h2>
-
       <ul>
         ${(data.marketing?.hooks || []).map(x => `<li>${x}</li>`).join("")}
       </ul>
     `;
+    return;
   }
 }
+
+window.goStep = function(step) {
   window.currentStep = step;
 
   document.querySelectorAll(".trend-tab").forEach((btn, i) => {
@@ -2079,117 +2068,120 @@ function renderTendencias() {
   <button class="trend-tab" onclick="goStep(7)">Marketing</button>
 </div>
 
-      <div id="trendResult" class="trend-board">
-
-        <div class="trend-board-top">
-          <!-- TEMA CENTRAL -->
-          <section class="board-topic">
-            <div class="board-block-title">TEMA CENTRAL</div>
-            <h2 id="kpiTema">-</h2>
-            <p id="resEstacionalidadTop" class="board-muted">-</p>
-
-             <div class="trend-chart-box">
-                <svg id="trendChart" class="trend-chart-svg" viewBox="0 0 520 180" preserveAspectRatio="none">
-                  <g id="trendChartGrid"></g>
-                  <path id="trendChartLine" d="" />
-                  <g id="trendChartDots"></g>
-                  <g id="trendChartLabels"></g>
-                </svg>
-              </div>
-            </div>
-          </section>
-
-          <!-- SEÑAL DEL MERCADO -->
-          <section class="board-market">
-            <div class="board-block-title">Señal del mercado</div>
-
-            <div class="board-market-grid">
-              <div class="board-market-label">PAÍSES <strong id="countPaises">0</strong></div>
-              <div class="board-market-label">AUDIENCIAS <strong id="countAudiencias">0</strong></div>
-              <div class="board-market-label">HOOKS <strong id="countHooks">0</strong></div>
-            </div>
-
-            <div class="trend-signal trend-signal-lg board-signal">
-              <span id="sig1"></span>
-              <span id="sig2"></span>
-              <span id="sig3"></span>
-            </div>
-          </section>
-
-          <!-- SCORE -->
-          <section class="board-score">
-  <div class="board-block-title">SCORE GENERAL</div>
-
-  <div class="score-ring score-ring-lg" id="scoreRing">
-    <div class="score-ring-inner">
-      <strong id="kpiScore">0</strong>
-      <span>/100</span>
-    </div>
-  </div>
-
-  <div class="board-score-direction" id="kpiDireccionBadge">-</div>
-  <div class="board-score-stage" id="kpiEtapaMini">-</div>
-</section>
-        </div>
-
-        <div class="trend-board-bottom">
-          <!-- ESTACIONALIDAD -->
-          <section class="board-seasonality">
-            <div class="board-section-bar">Estacionalidad</div>
-
-            <div class="seasonality-table">
-              <div class="seasonality-row">
-                <span>SEÑAL</span>
-                <strong id="kpiSenalBox">-</strong>
-              </div>
-
-              <div class="seasonality-row light">
-                <span>ETAPA</span>
-                <strong id="kpiEtapaBox">-</strong>
-              </div>
-
-              <div class="seasonality-row dark">
-                <span>DIRECCIÓN</span>
-                <strong id="kpiDireccionBox">-</strong>
-              </div>
-            </div>
-          </section>
-
-          <!-- RESUMEN -->
-          <section class="board-summary">
-            <div class="board-summary-head">
-              <h3>🧠 Resumen ejecutivo</h3>
-            </div>
-
-            <div class="board-summary-text">
-              <p><strong>Estacionalidad</strong> <span id="resEstacionalidad">-</span></p>
-              <p><strong>Oportunidad</strong> <span id="resOportunidad">-</span></p>
-              <p><strong>Recomendación</strong> <span id="resRecomendacion">-</span></p>
-            </div>
-          </section>
-
-          <!-- DECISIÓN -->
-          <section class="board-decision">
-            <div class="board-decision-head">
-              <h3>🚀 Decisión</h3>
-            </div>
-
-            <div class="board-decision-text">
-              <p><strong>Oportunidad</strong> <span id="decisionOportunidad">-</span></p>
-              <p><strong>Recomendación</strong> <span id="decisionRecomendacion">-</span></p>
-            </div>
-
-            <div class="trend-list-block board-risk-list">
-              <strong>Riesgos</strong>
-              <ul id="decisionRiesgos"></ul>
-            </div>
-          </section>
-        </div>
+     <div id="trendResult" class="trend-step-content"></div>
 
      </div>
     </div>
   `;
 }
+
+
+function renderTendenciasDashboard() {
+  return `
+    <div class="trend-board">
+
+      <div class="trend-board-top">
+        <section class="board-topic">
+          <div class="board-block-title">TEMA CENTRAL</div>
+          <h2 id="kpiTema">-</h2>
+          <p id="resEstacionalidadTop" class="board-muted">-</p>
+
+          <div class="trend-chart-box">
+            <svg id="trendChart" class="trend-chart-svg" viewBox="0 0 520 180" preserveAspectRatio="none">
+              <g id="trendChartGrid"></g>
+              <path id="trendChartLine" d=""></path>
+              <g id="trendChartDots"></g>
+              <g id="trendChartLabels"></g>
+            </svg>
+          </div>
+        </section>
+
+        <section class="board-market">
+          <div class="board-block-title">Señal del mercado</div>
+
+          <div class="board-market-grid">
+            <div class="board-market-label">PAÍSES <strong id="countPaises">0</strong></div>
+            <div class="board-market-label">AUDIENCIAS <strong id="countAudiencias">0</strong></div>
+            <div class="board-market-label">HOOKS <strong id="countHooks">0</strong></div>
+          </div>
+
+          <div class="trend-signal trend-signal-lg board-signal">
+            <span id="sig1"></span>
+            <span id="sig2"></span>
+            <span id="sig3"></span>
+          </div>
+        </section>
+
+        <section class="board-score">
+          <div class="board-block-title">SCORE GENERAL</div>
+
+          <div class="score-ring score-ring-lg" id="scoreRing">
+            <div class="score-ring-inner">
+              <strong id="kpiScore">0</strong>
+              <span>/100</span>
+            </div>
+          </div>
+
+          <div class="board-score-direction" id="kpiDireccionBadge">-</div>
+          <div class="board-score-stage" id="kpiEtapaMini">-</div>
+        </section>
+      </div>
+
+      <div class="trend-board-bottom">
+        <section class="board-seasonality">
+          <div class="board-section-bar">Estacionalidad</div>
+
+          <div class="seasonality-table">
+            <div class="seasonality-row">
+              <span>SEÑAL</span>
+              <strong id="kpiSenalBox">-</strong>
+            </div>
+
+            <div class="seasonality-row light">
+              <span>ETAPA</span>
+              <strong id="kpiEtapaBox">-</strong>
+            </div>
+
+            <div class="seasonality-row dark">
+              <span>DIRECCIÓN</span>
+              <strong id="kpiDireccionBox">-</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="board-summary">
+          <div class="board-summary-head">
+            <h3>🧠 Resumen ejecutivo</h3>
+          </div>
+
+          <div class="board-summary-text">
+            <p><strong>Estacionalidad</strong> <span id="resEstacionalidad">-</span></p>
+            <p><strong>Oportunidad</strong> <span id="resOportunidad">-</span></p>
+            <p><strong>Recomendación</strong> <span id="resRecomendacion">-</span></p>
+          </div>
+        </section>
+
+        <section class="board-decision">
+          <div class="board-decision-head">
+            <h3>🚀 Decisión</h3>
+          </div>
+
+          <div class="board-decision-text">
+            <p><strong>Oportunidad</strong> <span id="decisionOportunidad">-</span></p>
+            <p><strong>Recomendación</strong> <span id="decisionRecomendacion">-</span></p>
+          </div>
+
+          <div class="trend-list-block board-risk-list">
+            <strong>Riesgos</strong>
+            <ul id="decisionRiesgos"></ul>
+          </div>
+        </section>
+      </div>
+
+    </div>
+  `;
+}
+
 function fillList(id, items = []) {
   const el = document.getElementById(id);
   if (!el) return;
