@@ -1932,22 +1932,24 @@ function renderTendencias() {
   return `
     <div class="tendencias-page">
 
-      <div class="tendencias-hero">
-        <div class="tendencias-title-wrap">
-          <div class="tendencias-title-icon">
-            <i data-lucide="line-chart"></i>
-          </div>
+      <div class="tendencias-hero tendencias-hero-compact">
+        <div class="tendencias-hero-top">
+          <div class="tendencias-title-wrap">
+            <div class="tendencias-title-icon">
+              <i data-lucide="line-chart"></i>
+            </div>
 
-          <div>
-            <h1 class="tendencias-title">Tendencias</h1>
-            <p class="tendencias-subtitle">
-              Analiza una oportunidad como mercado, dolor, solución, mecanismo y decisión.
-            </p>
+            <div>
+              <h1 class="tendencias-title">Tendencias</h1>
+              <p class="tendencias-subtitle">
+                Dashboard ejecutivo para analizar oportunidad, mercado, dolor, solución y decisión.
+              </p>
+            </div>
           </div>
         </div>
 
         <div class="tendencias-form tendencias-form-4">
-          <input id="trendInput" placeholder="Ej: suplementos para hígado, bebés, ansiedad, etc." />
+          <input id="trendInput" placeholder="Ej: bebés, ansiedad, hígado graso, cuidado facial..." />
 
           <select id="trendPais">
             <option value="ALL">Todos</option>
@@ -1974,15 +1976,14 @@ function renderTendencias() {
 
       <div id="trendResult" class="trend-dashboard">
 
-        <!-- TOP -->
-        <div class="trend-overview-grid">
-          <div class="trend-panel trend-panel-main">
-            <span class="trend-label">Tema central</span>
+        <div class="trend-kpi-grid-v3">
+          <div class="trend-kpi-card trend-kpi-topic">
+            <span class="trend-label">Tema</span>
             <h2 id="kpiTema">-</h2>
-            <p class="trend-muted" id="resEstacionalidad">-</p>
+            <p id="resEstacionalidadTop" class="trend-muted">-</p>
           </div>
 
-          <div class="trend-panel trend-panel-score">
+          <div class="trend-kpi-card trend-kpi-score">
             <span class="trend-label">Score</span>
             <div class="score-ring-wrap">
               <div class="score-ring" id="scoreRing">
@@ -1994,13 +1995,13 @@ function renderTendencias() {
             </div>
           </div>
 
-          <div class="trend-panel trend-panel-mini">
+          <div class="trend-kpi-card">
             <span class="trend-label">Dirección</span>
             <strong id="kpiDireccion">-</strong>
             <span id="kpiDireccionBadge" class="trend-badge">-</span>
           </div>
 
-          <div class="trend-panel trend-panel-mini">
+          <div class="trend-kpi-card">
             <span class="trend-label">Señal</span>
             <strong id="kpiSenal">-</strong>
             <div class="trend-signal">
@@ -2010,23 +2011,22 @@ function renderTendencias() {
             </div>
           </div>
 
-          <div class="trend-panel trend-panel-mini">
+          <div class="trend-kpi-card">
             <span class="trend-label">Etapa</span>
             <strong id="kpiEtapa">-</strong>
           </div>
         </div>
 
-        <!-- RESUMEN / DECISION -->
-        <div class="trend-summary-grid">
-          <div class="trend-card trend-card-highlight trend-card-large">
+        <div class="trend-executive-grid">
+          <div class="trend-card trend-card-highlight trend-executive-card">
             <div class="trend-card-head">
               <h3>🧠 Resumen ejecutivo</h3>
             </div>
 
-            <div class="trend-stat-list">
+            <div class="trend-stat-list compact">
               <div class="trend-stat-row">
                 <span>Estacionalidad</span>
-                <strong id="resEstacionalidadTop">-</strong>
+                <strong id="resEstacionalidad">-</strong>
               </div>
               <div class="trend-stat-row">
                 <span>Oportunidad</span>
@@ -2039,12 +2039,12 @@ function renderTendencias() {
             </div>
           </div>
 
-          <div class="trend-card trend-card-highlight trend-card-large">
+          <div class="trend-card trend-card-highlight trend-executive-card">
             <div class="trend-card-head">
               <h3>🚀 Decisión</h3>
             </div>
 
-            <div class="trend-stat-list">
+            <div class="trend-stat-list compact">
               <div class="trend-stat-row">
                 <span>Oportunidad</span>
                 <strong id="decisionOportunidad">-</strong>
@@ -2062,10 +2062,8 @@ function renderTendencias() {
           </div>
         </div>
 
-        <!-- GRID PRINCIPAL -->
-        <div class="trend-main-grid-compact">
-
-          <div class="trend-card">
+        <div class="trend-dashboard-sections">
+          <div class="trend-card trend-card-v3">
             <div class="trend-card-head">
               <h3>📈 Mercado</h3>
             </div>
@@ -2095,12 +2093,12 @@ function renderTendencias() {
             </div>
           </div>
 
-          <div class="trend-card">
+          <div class="trend-card trend-card-v3">
             <div class="trend-card-head">
               <h3>🔺 Maslow</h3>
             </div>
 
-            <div class="trend-stat-list">
+            <div class="trend-stat-list compact">
               <div class="trend-stat-row">
                 <span>Nivel</span>
                 <strong id="maslowNivel">-</strong>
@@ -2110,14 +2108,14 @@ function renderTendencias() {
             <p id="maslowExplicacion">-</p>
           </div>
 
-          <div class="trend-card">
+          <div class="trend-card trend-card-v3">
             <div class="trend-card-head">
               <h3>💥 Problema</h3>
             </div>
 
             <p><strong>Dolor principal:</strong> <span id="problemaPrincipal">-</span></p>
 
-            <div class="trend-mini-metrics">
+            <div class="trend-mini-metrics two">
               <div class="mini-box">
                 <span>Dolores</span>
                 <strong id="countDolores">0</strong>
@@ -2128,22 +2126,22 @@ function renderTendencias() {
               </div>
             </div>
 
+            <div id="problemaEmociones" class="trend-chip-group"></div>
+
             <div class="trend-list-block">
               <strong>Dolores relacionados</strong>
               <ul id="problemaDolores"></ul>
             </div>
-
-            <div id="problemaEmociones" class="trend-chip-group"></div>
           </div>
 
-          <div class="trend-card">
+          <div class="trend-card trend-card-v3">
             <div class="trend-card-head">
               <h3>✨ Solución</h3>
             </div>
 
             <p><strong>Solución principal:</strong> <span id="solucionPrincipal">-</span></p>
 
-            <div class="trend-mini-metrics">
+            <div class="trend-mini-metrics two">
               <div class="mini-box">
                 <span>Beneficios</span>
                 <strong id="countBeneficios">0</strong>
@@ -2165,14 +2163,14 @@ function renderTendencias() {
             </div>
           </div>
 
-          <div class="trend-card">
+          <div class="trend-card trend-card-v3">
             <div class="trend-card-head">
               <h3>⚙️ Mecanismo</h3>
             </div>
 
             <p><strong>Mecanismo principal:</strong> <span id="mecanismoPrincipal">-</span></p>
 
-            <div class="trend-mini-metrics">
+            <div class="trend-mini-metrics two">
               <div class="mini-box">
                 <span>Secundarios</span>
                 <strong id="countMecanismos">0</strong>
@@ -2194,12 +2192,12 @@ function renderTendencias() {
             </div>
           </div>
 
-          <div class="trend-card">
+          <div class="trend-card trend-card-v3">
             <div class="trend-card-head">
               <h3>🎯 Marketing</h3>
             </div>
 
-            <div class="trend-mini-metrics">
+            <div class="trend-mini-metrics two">
               <div class="mini-box">
                 <span>Ángulos</span>
                 <strong id="countAngulos">0</strong>
@@ -2222,8 +2220,10 @@ function renderTendencias() {
 
             <p><strong>Formato ganador:</strong> <span id="marketingFormato">-</span></p>
           </div>
+        </div>
 
-          <div class="trend-card trend-card-cluster">
+        <div class="trend-bottom-grid">
+          <div class="trend-card trend-card-wide-v3">
             <div class="trend-card-head">
               <h3>🔎 Cluster</h3>
             </div>
@@ -2233,7 +2233,6 @@ function renderTendencias() {
               <ul id="mercadoBusquedas"></ul>
             </div>
           </div>
-
         </div>
       </div>
     </div>
