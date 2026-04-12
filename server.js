@@ -87,16 +87,27 @@ app.post("/api/ia", async (req, res) => {
       })
     });
 
-    const data = await response.json();
+const data = await response.json();
 
-    if (!data.choices) {
-      console.log("ERROR IA:", data);
-      return res.status(500).json(data);
-    }
+if (!response.ok) {
+  console.log("ERROR HTTP IA:", data);
+  return res.status(response.status).json({
+    error: "Error HTTP en IA",
+    raw: data
+  });
+}
 
-    res.json({
-      reply: data.choices[0].message.content
-    });
+if (!data?.choices?.[0]?.message?.content) {
+  console.log("ERROR IA:", data);
+  return res.status(500).json({
+    error: "Respuesta IA inválida",
+    raw: data
+  });
+}
+
+res.json({
+  reply: data.choices[0].message.content
+});
 
   } catch (error) {
     console.error("ERROR SERVER:", error);

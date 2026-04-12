@@ -115,32 +115,3 @@ export function renderSidebar() {
   lucide.createIcons();
 }
 }
-window.toggleDesarrolloMenu = function() {
-  const submenu = document.getElementById("desarrollo-submenu");
-  const arrow = document.getElementById("desarrollo-arrow");
-
-  submenu.classList.toggle("open");
-
-  if (submenu.classList.contains("open")) {
-    arrow.setAttribute("data-lucide", "chevron-down");
-  } else {
-    arrow.setAttribute("data-lucide", "chevron-right");
-  }
-
-  lucide.createIcons();
-};
-
-window.toggleValidacionMenu = function() {
-  const submenu = document.getElementById("validacion-submenu");
-  const arrow = document.getElementById("validacion-arrow");
-
-  submenu.classList.toggle("open");
-
-  if (submenu.classList.contains("open")) {
-    arrow.setAttribute("data-lucide", "chevron-down");
-  } else {
-    arrow.setAttribute("data-lucide", "chevron-right");
-  }
-
-  lucide.createIcons();
-};

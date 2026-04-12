@@ -26,7 +26,7 @@ Valida demanda, revisa competidores y confirma si el producto ya se vende
         <option value="IT">Italia</option>
         <option value="JP">Japón</option>
         <option value="ES">España</option>
-        <option value="PT">Brasil</option>
+        <option value="BR">Brasil</option>
        <option value="PT">Portugal</option>
       </select>
 
@@ -43,8 +43,8 @@ Valida demanda, revisa competidores y confirma si el producto ya se vende
 
       <div id="keywords-import" class="keywords-box"></div>
        <h3>Bibliotecas de Busqueda</h3>
-      <button onclick="">Meta</button>
-      <button onclick="">TikTok</button>
+     <button onclick="buscarImport()">Meta</button>
+<button onclick="buscarEnTikTok()">TikTok</button>
     </div>
 
 
@@ -98,7 +98,7 @@ Valida demanda, revisa competidores y confirma si el producto ya se vende
         <option value="IT">Italia</option>
         <option value="JP">Japón</option>
         <option value="ES">España</option>
-        <option value="PT">Brasil</option>
+        <option value="BR">Brasil</option>
        <option value="PT">Portugal</option>
 
 </select>
@@ -130,7 +130,7 @@ Valida demanda, revisa competidores y confirma si el producto ya se vende
         Productos ya existentes en LATAM (Dropi)
       </p>
 
-      <select id="pais-cat">
+      <select id="pais-cat" onchange="renderKeywordsCat()">
         <option value="CO">Colombia</option>
         <option value="MX">México</option>
         <option value="CL">Chile</option>
@@ -155,8 +155,8 @@ Valida demanda, revisa competidores y confirma si el producto ya se vende
 
       <div id="keywords-cat" class="keywords-box"></div>
       <h3>Bibliotecas de Busqueda</h3>
-      <button onclick="">Meta</button>
-      <button onclick="">TikTok</button>
+      <button onclick="buscarImport()">Meta</button>
+<button onclick="buscarEnTikTok()">TikTok</button>
     </div>
 
   </div>

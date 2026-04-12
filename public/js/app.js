@@ -999,20 +999,7 @@ window.setPais = function(pais) {
 };
 
 // =============================
-window.renderKeywords = function() {
-  const tipo = document.getElementById("tipo").value;
-  const idioma = getIdioma(paisActivo);
 
-  const lista = keywordsDB[idioma][tipo] || keywordsDB["EN"][tipo] || [];
-
-  const contenedor = document.getElementById("keywords");
-
-  contenedor.innerHTML = lista.map(k => `
-    <button class="keyword-btn" onclick="buscar('${k}')">
-      ${k}
-    </button>
-  `).join("");
-};
 
 // =============================
 window.buscar = function(keyword) {
@@ -1265,6 +1252,8 @@ window.toggleDesarrolloMenu = function() {
 
   lucide.createIcons();
 };
+
+
 window.setProductoPais = function(pais) {
   window.productoPaisActivo = pais;
   goTo("productos");
@@ -1367,6 +1356,19 @@ estado: window.productoEditandoId
     alert("No se pudo guardar");
   }
 };
+
+function escapeHTML(str = "") {
+  return String(str).replace(/[&<>"']/g, function(m) {
+    return {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    }[m];
+  });
+}
+
 // =============================
 // RENDER TABLA
 function renderTablaProductos() {
@@ -1376,12 +1378,12 @@ function renderTablaProductos() {
 tabla.innerHTML = state.productos.map((p, i) => `
   <div class="fila-producto">
 
-   <div class="texto-celda">${p.nombre}</div>
+  <div class="texto-celda">${escapeHTML(p.nombre || "")}</div>
 
 <div class="texto-celda">
   ${
     p.origen === "dropi"
-      ? `Dropi: ${p.dropiId || "sin id"}`
+      ? `Dropi: ${escapeHTML(p.dropiId || "sin id")}`
       : p.origen === "importacion"
       ? "Importación"
       : p.origen === "laboratorio"
@@ -1450,10 +1452,12 @@ lucide.createIcons();
 
 // =============================
 window.abrirLanding = function(url) {
+  if (!url) return;
   window.open(url, "_blank");
 };
 
 window.abrirCreativos = function(url) {
+  if (!url) return;
   window.open(url, "_blank");
 };
 
@@ -1571,8 +1575,11 @@ window.buscarProducto = function(tipo) {
   if (tipo === "alibaba") {
     window.open(`https://www.alibaba.com/trade/search?SearchText=${encodeURIComponent(q)}`, "_blank");
   }
-};
 
+  if (tipo === "ml") {
+    window.open(`https://listado.mercadolibre.com/${encodeURIComponent(q)}`, "_blank");
+  }
+};
 
 
 
