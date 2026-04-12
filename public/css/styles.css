@@ -1196,7 +1196,7 @@ aside.collapsed .submenu .sidebar-item {
 
 .exec-top-grid {
   display: grid;
-  grid-template-columns: 1.5fr 0.8fr 0.9fr;
+  grid-template-columns: 1.4fr 0.85fr 0.85fr;
   gap: 16px;
 }
 
@@ -1290,8 +1290,9 @@ aside.collapsed .submenu .sidebar-item {
 
 .exec-summary-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 0.9fr 1.2fr 1fr;
   gap: 16px;
+  align-items: stretch;
 }
 
 .exec-core-grid {
@@ -1353,4 +1354,54 @@ aside.collapsed .submenu .sidebar-item {
   .exec-mini-summary {
     grid-template-columns: 1fr 1fr 1fr;
   }
+}
+
+.trend-chart-box {
+  margin-top: 16px;
+  border-radius: 16px;
+  background: #f8fbff;
+  border: 1px solid #e6edf8;
+  padding: 20px;
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.trend-chart-placeholder {  
+  font-size: 14px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.trend-chart-box {
+  margin-top: 16px;
+  border-radius: 18px;
+  background: #f8fbff;
+  border: 1px solid #e6edf8;
+  padding: 20px;
+  min-height: 190px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.trend-card,
+.exec-hero-card,
+.exec-score-card,
+.exec-signal-card {
+  min-height: 100%;
+}
+.trend-dashboard-exec {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.exec-hero-card h2 {
+  margin-bottom: 6px;
+}
+
+.exec-score-card {
+  text-align: center;
 }
