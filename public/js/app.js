@@ -1975,38 +1975,101 @@ País prioritario: "${pais}"
 Modo de análisis: "${modo}"
 
 No respondas como si fuera solo una keyword exacta.
-Analízalo como un CLUSTER o MAPA de oportunidad:
+Analízalo como un sistema de oportunidad ecommerce usando este framework:
+
+1. MERCADO
 - intención de búsqueda
-- problemas relacionados
-- beneficios buscados
-- productos relacionados
-- audiencias
 - países donde puede funcionar
-- señales de crecimiento o saturación
-- ángulos de marketing
-- riesgo de estacionalidad
+- audiencias
+- búsquedas relacionadas
+
+2. PIRÁMIDE DE MASLOW
+- nivel principal que activa la compra
+- explicación psicológica
+
+3. PROBLEMA
+- dolor principal
+- dolores secundarios
+- emociones asociadas
+
+4. SOLUCIÓN
+- transformación prometida
+- beneficios esperados
+- productos relacionados
+
+5. MECANISMO
+- mecanismo principal de venta
+- mecanismos alternos
+- creencias que hacen que el producto parezca lógico
+
+6. MARKETING
+- ángulos
+- hooks
+- formato ganador
+
+7. DECISIÓN
+- oportunidad
+- recomendación
+- riesgos
+
+Usa lenguaje concreto y estructurado.
+No mezcles problema, solución y mecanismo en el mismo campo.
+No pongas párrafos demasiado largos.
+Cada lista debe tener máximo 6 elementos.
+Evita redundancias.
+Piensa como estratega de ecommerce DTC.
 
 Devuelve exactamente este JSON:
 
 {
   "tema_central": "",
-  "intencion_busqueda": "",
-  "etapa_mercado": "nuevo/creciendo/competido/saturado",
-  "senal_general": "fuerte/media/debil",
+  "score": 0,
   "direccion": "subiendo/estable/bajando",
+  "senal_general": "fuerte/media/debil",
+  "etapa_mercado": "nuevo/creciendo/competido/saturado",
   "estacionalidad": "",
-  "paises_recomendados": [],
-  "audiencias": [],
-  "dolores_relacionados": [],
-  "beneficios_relacionados": [],
-  "busquedas_relacionadas": [],
-  "productos_relacionados": [],
-  "angulos_marketing": [],
-  "formato_ganador": "",
-  "riesgos": [],
-  "oportunidad": "",
-  "recomendacion": "",
-  "score": 0
+
+  "maslow": {
+    "nivel": "",
+    "explicacion": ""
+  },
+
+  "mercado": {
+    "intencion_busqueda": "",
+    "paises_recomendados": [],
+    "audiencias": [],
+    "busquedas_relacionadas": []
+  },
+
+  "problema": {
+    "dolor_principal": "",
+    "dolores_relacionados": [],
+    "emociones": []
+  },
+
+  "solucion": {
+    "solucion_principal": "",
+    "beneficios_relacionados": [],
+    "productos_relacionados": []
+  },
+
+  "mecanismo": {
+    "mecanismo_principal": "",
+    "mecanismos_secundarios": [],
+    "creencias_venta": []
+  },
+
+  "marketing": {
+    "angulos_marketing": [],
+    "formato_ganador": "",
+    "hooks": []
+  },
+
+  "decision": {
+    "oportunidad": "",
+    "recomendacion": "",
+    "riesgos": []
+  }
 }
 `
 })
@@ -2038,66 +2101,179 @@ state.ideaActual = texto;
 state.nichoActual = json.tema_central || "";
 state.tendenciaActual = json.direccion || "";
 
-    document.getElementById("trendResult").innerHTML = `
-  <div class="trend-result-card">
-    <div class="trend-result-head">
-      <h2>🧠 Mapa de Oportunidad</h2>
-      <div class="trend-score">Score: ${json.score}</div>
+ document.getElementById("trendResult").innerHTML = `
+  <div class="trend-dashboard">
+
+    <div class="trend-topbar">
+      <div class="trend-kpi">
+        <span class="trend-kpi-label">Tema</span>
+        <strong>${json.tema_central || "-"}</strong>
+      </div>
+
+      <div class="trend-kpi">
+        <span class="trend-kpi-label">Score</span>
+        <strong>${json.score ?? "-"}</strong>
+      </div>
+
+      <div class="trend-kpi">
+        <span class="trend-kpi-label">Dirección</span>
+        <strong>${json.direccion || "-"}</strong>
+      </div>
+
+      <div class="trend-kpi">
+        <span class="trend-kpi-label">Señal</span>
+        <strong>${json.senal_general || "-"}</strong>
+      </div>
+
+      <div class="trend-kpi">
+        <span class="trend-kpi-label">Etapa</span>
+        <strong>${json.etapa_mercado || "-"}</strong>
+      </div>
     </div>
 
-    <div class="trend-grid">
-      <div class="trend-box">
-        <h3>📌 Resumen</h3>
-        <p><strong>Tema:</strong> ${json.tema_central}</p>
-        <p><strong>Intención:</strong> ${json.intencion_busqueda}</p>
-        <p><strong>Etapa:</strong> ${json.etapa_mercado}</p>
-        <p><strong>Señal:</strong> ${json.senal_general}</p>
-        <p><strong>Dirección:</strong> ${json.direccion}</p>
-        <p><strong>Estacionalidad:</strong> ${json.estacionalidad}</p>
+    <div class="trend-main-grid">
+      <div class="trend-card trend-card-highlight">
+        <div class="trend-card-head">
+          <h3>🧠 Resumen ejecutivo</h3>
+        </div>
+        <p><strong>Estacionalidad:</strong> ${json.estacionalidad || "-"}</p>
+        <p><strong>Oportunidad:</strong> ${json.decision?.oportunidad || "-"}</p>
+        <p><strong>Recomendación:</strong> ${json.decision?.recomendacion || "-"}</p>
       </div>
 
-      <div class="trend-box">
-        <h3>🌍 Mercado</h3>
-        <p><strong>Países recomendados:</strong></p>
-        <ul>${(json.paises_recomendados || []).map(x => `<li>${x}</li>`).join("")}</ul>
+      <div class="trend-card">
+        <div class="trend-card-head">
+          <h3>📈 Mercado</h3>
+        </div>
+        <p><strong>Intención:</strong> ${json.mercado?.intencion_busqueda || "-"}</p>
 
-        <p><strong>Audiencias:</strong></p>
-        <ul>${(json.audiencias || []).map(x => `<li>${x}</li>`).join("")}</ul>
+        <div class="trend-chip-group">
+          ${(json.mercado?.paises_recomendados || []).map(x => `<span class="trend-chip">${x}</span>`).join("")}
+        </div>
+
+        <div class="trend-list-block">
+          <strong>Audiencias</strong>
+          <ul>
+            ${(json.mercado?.audiencias || []).map(x => `<li>${x}</li>`).join("")}
+          </ul>
+        </div>
       </div>
 
-      <div class="trend-box">
-        <h3>💥 Dolores y beneficios</h3>
-        <p><strong>Dolores:</strong></p>
-        <ul>${(json.dolores_relacionados || []).map(x => `<li>${x}</li>`).join("")}</ul>
-
-        <p><strong>Beneficios:</strong></p>
-        <ul>${(json.beneficios_relacionados || []).map(x => `<li>${x}</li>`).join("")}</ul>
+      <div class="trend-card">
+        <div class="trend-card-head">
+          <h3>🔺 Maslow</h3>
+        </div>
+        <p><strong>Nivel:</strong> ${json.maslow?.nivel || "-"}</p>
+        <p><strong>Explicación:</strong> ${json.maslow?.explicacion || "-"}</p>
       </div>
 
-      <div class="trend-box">
-        <h3>🔎 Cluster de búsqueda</h3>
-        <p><strong>Búsquedas relacionadas:</strong></p>
-        <ul>${(json.busquedas_relacionadas || []).map(x => `<li>${x}</li>`).join("")}</ul>
+      <div class="trend-card">
+        <div class="trend-card-head">
+          <h3>💥 Problema</h3>
+        </div>
+        <p><strong>Dolor principal:</strong> ${json.problema?.dolor_principal || "-"}</p>
+
+        <div class="trend-list-block">
+          <strong>Dolores relacionados</strong>
+          <ul>
+            ${(json.problema?.dolores_relacionados || []).map(x => `<li>${x}</li>`).join("")}
+          </ul>
+        </div>
+
+        <div class="trend-chip-group">
+          ${(json.problema?.emociones || []).map(x => `<span class="trend-chip trend-chip-danger">${x}</span>`).join("")}
+        </div>
       </div>
 
-      <div class="trend-box">
-        <h3>📦 Productos y ángulos</h3>
-        <p><strong>Productos relacionados:</strong></p>
-        <ul>${(json.productos_relacionados || []).map(x => `<li>${x}</li>`).join("")}</ul>
+      <div class="trend-card">
+        <div class="trend-card-head">
+          <h3>✨ Solución</h3>
+        </div>
+        <p><strong>Solución principal:</strong> ${json.solucion?.solucion_principal || "-"}</p>
 
-        <p><strong>Ángulos:</strong></p>
-        <ul>${(json.angulos_marketing || []).map(x => `<li>${x}</li>`).join("")}</ul>
+        <div class="trend-list-block">
+          <strong>Beneficios</strong>
+          <ul>
+            ${(json.solucion?.beneficios_relacionados || []).map(x => `<li>${x}</li>`).join("")}
+          </ul>
+        </div>
 
-        <p><strong>Formato ganador:</strong> ${json.formato_ganador}</p>
+        <div class="trend-list-block">
+          <strong>Productos relacionados</strong>
+          <ul>
+            ${(json.solucion?.productos_relacionados || []).map(x => `<li>${x}</li>`).join("")}
+          </ul>
+        </div>
       </div>
 
-      <div class="trend-box trend-box--highlight">
-        <h3>🚀 Decisión</h3>
-        <p><strong>Oportunidad:</strong> ${json.oportunidad}</p>
-        <p><strong>Recomendación:</strong> ${json.recomendacion}</p>
+      <div class="trend-card">
+        <div class="trend-card-head">
+          <h3>⚙️ Mecanismo</h3>
+        </div>
+        <p><strong>Mecanismo principal:</strong> ${json.mecanismo?.mecanismo_principal || "-"}</p>
 
-        <p><strong>Riesgos:</strong></p>
-        <ul>${(json.riesgos || []).map(x => `<li>${x}</li>`).join("")}</ul>
+        <div class="trend-list-block">
+          <strong>Mecanismos secundarios</strong>
+          <ul>
+            ${(json.mecanismo?.mecanismos_secundarios || []).map(x => `<li>${x}</li>`).join("")}
+          </ul>
+        </div>
+
+        <div class="trend-list-block">
+          <strong>Creencias de venta</strong>
+          <ul>
+            ${(json.mecanismo?.creencias_venta || []).map(x => `<li>${x}</li>`).join("")}
+          </ul>
+        </div>
+      </div>
+
+      <div class="trend-card">
+        <div class="trend-card-head">
+          <h3>🎯 Marketing</h3>
+        </div>
+
+        <div class="trend-list-block">
+          <strong>Ángulos</strong>
+          <ul>
+            ${(json.marketing?.angulos_marketing || []).map(x => `<li>${x}</li>`).join("")}
+          </ul>
+        </div>
+
+        <div class="trend-list-block">
+          <strong>Hooks</strong>
+          <ul>
+            ${(json.marketing?.hooks || []).map(x => `<li>${x}</li>`).join("")}
+          </ul>
+        </div>
+
+        <p><strong>Formato ganador:</strong> ${json.marketing?.formato_ganador || "-"}</p>
+      </div>
+
+      <div class="trend-card">
+        <div class="trend-card-head">
+          <h3>🔎 Cluster de búsqueda</h3>
+        </div>
+        <div class="trend-list-block">
+          <strong>Búsquedas relacionadas</strong>
+          <ul>
+            ${(json.mercado?.busquedas_relacionadas || []).map(x => `<li>${x}</li>`).join("")}
+          </ul>
+        </div>
+      </div>
+
+      <div class="trend-card trend-card-highlight">
+        <div class="trend-card-head">
+          <h3>🚀 Decisión</h3>
+        </div>
+        <p><strong>Oportunidad:</strong> ${json.decision?.oportunidad || "-"}</p>
+        <p><strong>Recomendación:</strong> ${json.decision?.recomendacion || "-"}</p>
+
+        <div class="trend-list-block">
+          <strong>Riesgos</strong>
+          <ul>
+            ${(json.decision?.riesgos || []).map(x => `<li>${x}</li>`).join("")}
+          </ul>
+        </div>
       </div>
     </div>
   </div>

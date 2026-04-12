@@ -1181,3 +1181,160 @@ aside.collapsed .submenu .sidebar-item {
   justify-content: center;
   align-items: center;
 }
+
+/* =========================
+   TENDENCIAS DASHBOARD PRO
+========================= */
+
+.trend-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.trend-topbar {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.trend-kpi {
+  background: #ffffff;
+  border: 1px solid #e5edf8;
+  border-radius: 18px;
+  padding: 16px 18px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+}
+
+.trend-kpi-label {
+  display: block;
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.trend-kpi strong {
+  font-size: 20px;
+  color: #0f172a;
+}
+
+.trend-main-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.trend-card {
+  background: #ffffff;
+  border: 1px solid #e5edf8;
+  border-radius: 22px;
+  padding: 20px;
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.06);
+}
+
+.trend-card-highlight {
+  background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%);
+  border-color: #d7e4fb;
+}
+
+.trend-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.trend-card-head h3 {
+  margin: 0;
+  font-size: 22px;
+  color: #0f172a;
+}
+
+.trend-card p {
+  margin: 10px 0;
+  color: #1e293b;
+  line-height: 1.5;
+}
+
+.trend-list-block {
+  margin-top: 14px;
+}
+
+.trend-list-block strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #0f172a;
+}
+
+.trend-list-block ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.trend-list-block li {
+  margin-bottom: 6px;
+  color: #334155;
+}
+
+.trend-chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.trend-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-size: 13px;
+  font-weight: 700;
+  border: 1px solid #dbeafe;
+}
+
+.trend-chip-danger {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+
+.tendencias-form-3 {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr;
+  gap: 12px;
+}
+
+.tendencias-form-3 button {
+  grid-column: 1 / -1;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+@media (max-width: 1200px) {
+  .trend-topbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .trend-main-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .tendencias-form-3 {
+    grid-template-columns: 1fr;
+  }
+
+  .trend-topbar {
+    grid-template-columns: 1fr;
+  }
+}
