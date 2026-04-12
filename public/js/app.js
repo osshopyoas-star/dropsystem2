@@ -1932,24 +1932,22 @@ function renderTendencias() {
   return `
     <div class="tendencias-page">
 
-      <div class="tendencias-hero tendencias-hero-compact">
-        <div class="tendencias-hero-top">
-          <div class="tendencias-title-wrap">
-            <div class="tendencias-title-icon">
-              <i data-lucide="line-chart"></i>
-            </div>
+      <div class="tendencias-hero ejecutivo">
+        <div class="tendencias-title-wrap">
+          <div class="tendencias-title-icon">
+            <i data-lucide="line-chart"></i>
+          </div>
 
-            <div>
-              <h1 class="tendencias-title">Tendencias</h1>
-              <p class="tendencias-subtitle">
-                Dashboard ejecutivo para analizar oportunidad, mercado, dolor, solución y decisión.
-              </p>
-            </div>
+          <div>
+            <h1 class="tendencias-title">Tendencias</h1>
+            <p class="tendencias-subtitle">
+              Panel ejecutivo para detectar oportunidad, dolor, solución y ángulos ganadores.
+            </p>
           </div>
         </div>
 
         <div class="tendencias-form tendencias-form-4">
-          <input id="trendInput" placeholder="Ej: bebés, ansiedad, hígado graso, cuidado facial..." />
+          <input id="trendInput" placeholder="Ej: bebés, hígado graso, ansiedad, energía masculina..." />
 
           <select id="trendPais">
             <option value="ALL">Todos</option>
@@ -1974,51 +1972,70 @@ function renderTendencias() {
         </div>
       </div>
 
-      <div id="trendResult" class="trend-dashboard">
+      <div id="trendResult" class="trend-dashboard trend-dashboard-exec">
 
-        <div class="trend-kpi-grid-v3">
-          <div class="trend-kpi-card trend-kpi-topic">
-            <span class="trend-label">Tema</span>
+        <div class="exec-top-grid">
+          <div class="exec-hero-card">
+            <span class="trend-label">Tema central</span>
             <h2 id="kpiTema">-</h2>
             <p id="resEstacionalidadTop" class="trend-muted">-</p>
-          </div>
 
-          <div class="trend-kpi-card trend-kpi-score">
-            <span class="trend-label">Score</span>
-            <div class="score-ring-wrap">
-              <div class="score-ring" id="scoreRing">
-                <div class="score-ring-inner">
-                  <strong id="kpiScore">0</strong>
-                  <span>/100</span>
-                </div>
+            <div class="exec-inline-stats">
+              <div class="exec-stat-pill">
+                <span>Dirección</span>
+                <strong id="kpiDireccion">-</strong>
+              </div>
+
+              <div class="exec-stat-pill">
+                <span>Etapa</span>
+                <strong id="kpiEtapa">-</strong>
+              </div>
+
+              <div class="exec-stat-pill">
+                <span>Señal</span>
+                <strong id="kpiSenal">-</strong>
               </div>
             </div>
           </div>
 
-          <div class="trend-kpi-card">
-            <span class="trend-label">Dirección</span>
-            <strong id="kpiDireccion">-</strong>
+          <div class="exec-score-card">
+            <span class="trend-label">Score general</span>
+            <div class="score-ring score-ring-lg" id="scoreRing">
+              <div class="score-ring-inner">
+                <strong id="kpiScore">0</strong>
+                <span>/100</span>
+              </div>
+            </div>
             <span id="kpiDireccionBadge" class="trend-badge">-</span>
           </div>
 
-          <div class="trend-kpi-card">
-            <span class="trend-label">Señal</span>
-            <strong id="kpiSenal">-</strong>
-            <div class="trend-signal">
+          <div class="exec-signal-card">
+            <span class="trend-label">Señal del mercado</span>
+            <div class="trend-signal trend-signal-lg">
               <span id="sig1"></span>
               <span id="sig2"></span>
               <span id="sig3"></span>
             </div>
-          </div>
 
-          <div class="trend-kpi-card">
-            <span class="trend-label">Etapa</span>
-            <strong id="kpiEtapa">-</strong>
+            <div class="exec-mini-summary">
+              <div class="mini-box">
+                <span>Países</span>
+                <strong id="countPaises">0</strong>
+              </div>
+              <div class="mini-box">
+                <span>Audiencias</span>
+                <strong id="countAudiencias">0</strong>
+              </div>
+              <div class="mini-box">
+                <span>Hooks</span>
+                <strong id="countHooks">0</strong>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="trend-executive-grid">
-          <div class="trend-card trend-card-highlight trend-executive-card">
+        <div class="exec-summary-grid">
+          <div class="trend-card trend-card-highlight">
             <div class="trend-card-head">
               <h3>🧠 Resumen ejecutivo</h3>
             </div>
@@ -2039,7 +2056,7 @@ function renderTendencias() {
             </div>
           </div>
 
-          <div class="trend-card trend-card-highlight trend-executive-card">
+          <div class="trend-card trend-card-highlight">
             <div class="trend-card-head">
               <h3>🚀 Decisión</h3>
             </div>
@@ -2062,53 +2079,8 @@ function renderTendencias() {
           </div>
         </div>
 
-        <div class="trend-dashboard-sections">
-          <div class="trend-card trend-card-v3">
-            <div class="trend-card-head">
-              <h3>📈 Mercado</h3>
-            </div>
-
-            <p><strong>Intención:</strong> <span id="mercadoIntencion">-</span></p>
-
-            <div class="trend-mini-metrics">
-              <div class="mini-box">
-                <span>Países</span>
-                <strong id="countPaises">0</strong>
-              </div>
-              <div class="mini-box">
-                <span>Audiencias</span>
-                <strong id="countAudiencias">0</strong>
-              </div>
-              <div class="mini-box">
-                <span>Búsquedas</span>
-                <strong id="countBusquedas">0</strong>
-              </div>
-            </div>
-
-            <div id="mercadoPaises" class="trend-chip-group"></div>
-
-            <div class="trend-list-block">
-              <strong>Audiencias</strong>
-              <ul id="mercadoAudiencias"></ul>
-            </div>
-          </div>
-
-          <div class="trend-card trend-card-v3">
-            <div class="trend-card-head">
-              <h3>🔺 Maslow</h3>
-            </div>
-
-            <div class="trend-stat-list compact">
-              <div class="trend-stat-row">
-                <span>Nivel</span>
-                <strong id="maslowNivel">-</strong>
-              </div>
-            </div>
-
-            <p id="maslowExplicacion">-</p>
-          </div>
-
-          <div class="trend-card trend-card-v3">
+        <div class="exec-core-grid">
+          <div class="trend-card trend-card-priority">
             <div class="trend-card-head">
               <h3>💥 Problema</h3>
             </div>
@@ -2134,7 +2106,7 @@ function renderTendencias() {
             </div>
           </div>
 
-          <div class="trend-card trend-card-v3">
+          <div class="trend-card trend-card-priority">
             <div class="trend-card-head">
               <h3>✨ Solución</h3>
             </div>
@@ -2158,41 +2130,12 @@ function renderTendencias() {
             </div>
 
             <div class="trend-list-block">
-              <strong>Productos relacionados</strong>
+              <strong>Productos</strong>
               <ul id="solucionProductos"></ul>
             </div>
           </div>
 
-          <div class="trend-card trend-card-v3">
-            <div class="trend-card-head">
-              <h3>⚙️ Mecanismo</h3>
-            </div>
-
-            <p><strong>Mecanismo principal:</strong> <span id="mecanismoPrincipal">-</span></p>
-
-            <div class="trend-mini-metrics two">
-              <div class="mini-box">
-                <span>Secundarios</span>
-                <strong id="countMecanismos">0</strong>
-              </div>
-              <div class="mini-box">
-                <span>Creencias</span>
-                <strong id="countCreencias">0</strong>
-              </div>
-            </div>
-
-            <div class="trend-list-block">
-              <strong>Mecanismos secundarios</strong>
-              <ul id="mecanismoSecundarios"></ul>
-            </div>
-
-            <div class="trend-list-block">
-              <strong>Creencias de venta</strong>
-              <ul id="mecanismoCreencias"></ul>
-            </div>
-          </div>
-
-          <div class="trend-card trend-card-v3">
+          <div class="trend-card trend-card-priority">
             <div class="trend-card-head">
               <h3>🎯 Marketing</h3>
             </div>
@@ -2204,7 +2147,7 @@ function renderTendencias() {
               </div>
               <div class="mini-box">
                 <span>Hooks</span>
-                <strong id="countHooks">0</strong>
+                <strong id="countHooks2">0</strong>
               </div>
             </div>
 
@@ -2222,8 +2165,55 @@ function renderTendencias() {
           </div>
         </div>
 
-        <div class="trend-bottom-grid">
-          <div class="trend-card trend-card-wide-v3">
+        <div class="exec-secondary-grid">
+          <div class="trend-card">
+            <div class="trend-card-head">
+              <h3>📈 Mercado</h3>
+            </div>
+
+            <p><strong>Intención:</strong> <span id="mercadoIntencion">-</span></p>
+            <div id="mercadoPaises" class="trend-chip-group"></div>
+
+            <div class="trend-list-block">
+              <strong>Audiencias</strong>
+              <ul id="mercadoAudiencias"></ul>
+            </div>
+          </div>
+
+          <div class="trend-card">
+            <div class="trend-card-head">
+              <h3>⚙️ Mecanismo</h3>
+            </div>
+
+            <p><strong>Mecanismo principal:</strong> <span id="mecanismoPrincipal">-</span></p>
+
+            <div class="trend-list-block">
+              <strong>Mecanismos secundarios</strong>
+              <ul id="mecanismoSecundarios"></ul>
+            </div>
+
+            <div class="trend-list-block">
+              <strong>Creencias</strong>
+              <ul id="mecanismoCreencias"></ul>
+            </div>
+          </div>
+
+          <div class="trend-card">
+            <div class="trend-card-head">
+              <h3>🔺 Maslow</h3>
+            </div>
+
+            <div class="trend-stat-list compact">
+              <div class="trend-stat-row">
+                <span>Nivel</span>
+                <strong id="maslowNivel">-</strong>
+              </div>
+            </div>
+
+            <p id="maslowExplicacion">-</p>
+          </div>
+
+          <div class="trend-card">
             <div class="trend-card-head">
               <h3>🔎 Cluster</h3>
             </div>
@@ -2234,6 +2224,7 @@ function renderTendencias() {
             </div>
           </div>
         </div>
+
       </div>
     </div>
   `;
@@ -2254,86 +2245,104 @@ function fillChips(id, items = [], extraClass = "") {
 }
 
 function renderTrendDashboard(json) {
-  document.getElementById("kpiTema").textContent = json.tema_central || "-";
-  document.getElementById("kpiScore").textContent = json.score ?? "-";
-
   const score = Number(json.score || 0);
-const scoreBar = document.getElementById("kpiScoreBar");
-if (scoreBar) {
-  scoreBar.style.width = `${Math.max(0, Math.min(score, 100))}%`;
-}
 
-const dir = (json.direccion || "").toLowerCase();
-const dirBadge = document.getElementById("kpiDireccionBadge");
-if (dirBadge) {
-  dirBadge.textContent = json.direccion || "-";
-  dirBadge.className = "trend-badge";
-
-  if (dir.includes("sub")) dirBadge.classList.add("up");
-  else if (dir.includes("baj")) dirBadge.classList.add("down");
-  else dirBadge.classList.add("mid");
-}
-
-const senal = (json.senal_general || "").toLowerCase();
-const sig1 = document.getElementById("sig1");
-const sig2 = document.getElementById("sig2");
-const sig3 = document.getElementById("sig3");
-
-[sig1, sig2, sig3].forEach(el => {
-  if (el) el.className = "";
-});
-
-if (senal === "debil") {
-  sig1?.classList.add("on");
-}
-if (senal === "media") {
-  sig1?.classList.add("on");
-  sig2?.classList.add("on");
-}
-if (senal === "fuerte") {
-  sig1?.classList.add("on");
-  sig2?.classList.add("on");
-  sig3?.classList.add("on");
-}
+  document.getElementById("kpiTema").textContent = json.tema_central || "-";
+  document.getElementById("kpiScore").textContent = score || 0;
   document.getElementById("kpiDireccion").textContent = json.direccion || "-";
   document.getElementById("kpiSenal").textContent = json.senal_general || "-";
   document.getElementById("kpiEtapa").textContent = json.etapa_mercado || "-";
 
   document.getElementById("resEstacionalidad").textContent = json.estacionalidad || "-";
+  document.getElementById("resEstacionalidadTop").textContent = json.estacionalidad || "-";
   document.getElementById("resOportunidad").textContent = json.decision?.oportunidad || "-";
   document.getElementById("resRecomendacion").textContent = json.decision?.recomendacion || "-";
 
   document.getElementById("mercadoIntencion").textContent = json.mercado?.intencion_busqueda || "-";
-  fillChips("mercadoPaises", json.mercado?.paises_recomendados || []);
-  fillList("mercadoAudiencias", json.mercado?.audiencias || []);
-
   document.getElementById("maslowNivel").textContent = json.maslow?.nivel || "-";
   document.getElementById("maslowExplicacion").textContent = json.maslow?.explicacion || "-";
 
   document.getElementById("problemaPrincipal").textContent = json.problema?.dolor_principal || "-";
+  document.getElementById("solucionPrincipal").textContent = json.solucion?.solucion_principal || "-";
+  document.getElementById("mecanismoPrincipal").textContent = json.mecanismo?.mecanismo_principal || "-";
+  document.getElementById("marketingFormato").textContent = json.marketing?.formato_ganador || "-";
+
+  document.getElementById("decisionOportunidad").textContent = json.decision?.oportunidad || "-";
+  document.getElementById("decisionRecomendacion").textContent = json.decision?.recomendacion || "-";
+
+  fillChips("mercadoPaises", json.mercado?.paises_recomendados || []);
+  fillList("mercadoAudiencias", json.mercado?.audiencias || []);
+  fillList("mercadoBusquedas", json.mercado?.busquedas_relacionadas || []);
+
   fillList("problemaDolores", json.problema?.dolores_relacionados || []);
   fillChips("problemaEmociones", json.problema?.emociones || [], "trend-chip-danger");
 
-  document.getElementById("solucionPrincipal").textContent = json.solucion?.solucion_principal || "-";
   fillList("solucionBeneficios", json.solucion?.beneficios_relacionados || []);
   fillList("solucionProductos", json.solucion?.productos_relacionados || []);
 
-  document.getElementById("mecanismoPrincipal").textContent = json.mecanismo?.mecanismo_principal || "-";
   fillList("mecanismoSecundarios", json.mecanismo?.mecanismos_secundarios || []);
   fillList("mecanismoCreencias", json.mecanismo?.creencias_venta || []);
 
   fillList("marketingAngulos", json.marketing?.angulos_marketing || []);
   fillList("marketingHooks", json.marketing?.hooks || []);
-  document.getElementById("marketingFormato").textContent = json.marketing?.formato_ganador || "-";
 
-  fillList("mercadoBusquedas", json.mercado?.busquedas_relacionadas || []);
-
-  document.getElementById("decisionOportunidad").textContent = json.decision?.oportunidad || "-";
-  document.getElementById("decisionRecomendacion").textContent = json.decision?.recomendacion || "-";
   fillList("decisionRiesgos", json.decision?.riesgos || []);
+
+  document.getElementById("countPaises").textContent = (json.mercado?.paises_recomendados || []).length;
+  document.getElementById("countAudiencias").textContent = (json.mercado?.audiencias || []).length;
+  document.getElementById("countBusquedas").textContent = (json.mercado?.busquedas_relacionadas || []).length;
+
+  document.getElementById("countDolores").textContent = (json.problema?.dolores_relacionados || []).length;
+  document.getElementById("countEmociones").textContent = (json.problema?.emociones || []).length;
+
+  document.getElementById("countBeneficios").textContent = (json.solucion?.beneficios_relacionados || []).length;
+  document.getElementById("countProductos").textContent = (json.solucion?.productos_relacionados || []).length;
+
+  document.getElementById("countMecanismos").textContent = (json.mecanismo?.mecanismos_secundarios || []).length;
+  document.getElementById("countCreencias").textContent = (json.mecanismo?.creencias_venta || []).length;
+
+  document.getElementById("countAngulos").textContent = (json.marketing?.angulos_marketing || []).length;
+  document.getElementById("countHooks").textContent = (json.marketing?.hooks || []).length;
+  document.getElementById("countHooks2").textContent = (json.marketing?.hooks || []).length;
+
+  const scoreRing = document.getElementById("scoreRing");
+  if (scoreRing) {
+    scoreRing.style.setProperty("--score", `${Math.max(0, Math.min(score, 100))}`);
+  }
+
+  const dir = (json.direccion || "").toLowerCase();
+  const dirBadge = document.getElementById("kpiDireccionBadge");
+  if (dirBadge) {
+    dirBadge.textContent = json.direccion || "-";
+    dirBadge.className = "trend-badge";
+
+    if (dir.includes("sub")) dirBadge.classList.add("up");
+    else if (dir.includes("baj")) dirBadge.classList.add("down");
+    else dirBadge.classList.add("mid");
+  }
+
+  const senal = (json.senal_general || "").toLowerCase();
+  const sig1 = document.getElementById("sig1");
+  const sig2 = document.getElementById("sig2");
+  const sig3 = document.getElementById("sig3");
+
+  [sig1, sig2, sig3].forEach(el => {
+    if (el) el.className = "";
+  });
+
+  if (senal === "debil") {
+    sig1?.classList.add("on");
+  }
+  if (senal === "media") {
+    sig1?.classList.add("on");
+    sig2?.classList.add("on");
+  }
+  if (senal === "fuerte") {
+    sig1?.classList.add("on");
+    sig2?.classList.add("on");
+    sig3?.classList.add("on");
+  }
 }
-
-
 
 window.analizarTendencia = async function() {
   const texto = document.getElementById("trendInput").value;
