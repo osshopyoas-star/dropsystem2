@@ -2001,7 +2001,7 @@ function renderTendencias() {
       <span class="trend-kpi-label">Etapa</span>
       <strong id="kpiEtapa">-</strong>
     </div>
-          <div class="trend-kpi"><span class="trend-kpi-label">Etapa</span><strong id="kpiEtapa">-</strong></div>
+         
         </div>
 
         <div class="trend-main-grid">
@@ -2204,9 +2204,14 @@ const modo = document.getElementById("trendMode")?.value || "cluster";
 
   if (!texto) return alert("Escribe algo");
 
-  document.getElementById("trendResult").innerHTML = `
-  <div class="trend-result-empty">Analizando tendencia...</div>
-`;
+  document.getElementById("kpiTema").textContent = "Analizando...";
+document.getElementById("kpiScore").textContent = "-";
+document.getElementById("kpiDireccion").textContent = "-";
+document.getElementById("kpiSenal").textContent = "-";
+document.getElementById("kpiEtapa").textContent = "-";
+
+const scoreBar = document.getElementById("kpiScoreBar");
+if (scoreBar) scoreBar.style.width = "0%";
 
   try {
     const res = await fetch("/api/ia", {
