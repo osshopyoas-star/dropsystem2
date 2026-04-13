@@ -2129,6 +2129,7 @@ function renderTendenciasDashboard() {
 
           <div class="board-market-grid">
             <div class="board-market-label">PAÍSES <strong id="countPaises">0</strong></div>
+            <div id="mercadoPaisesBox" class="paises-box"></div>
             <div class="board-market-label">AUDIENCIAS <strong id="countAudiencias">0</strong></div>
             <div class="board-market-label">HOOKS <strong id="countHooks">0</strong></div>
           </div>
@@ -2425,6 +2426,15 @@ setText("kpiDireccionBox", json.direccion || "-");
   fillList("decisionRiesgos", json.decision?.riesgos || []);
 
   setText("countPaises", (json.mercado?.paises_recomendados || []).length);
+  const paisesBox = document.getElementById("mercadoPaisesBox");
+
+if (paisesBox) {
+  const paises = json.mercado?.paises_recomendados || [];
+
+  paisesBox.innerHTML = paises.map(p => `
+    <div class="pais-chip">${p}</div>
+  `).join("");
+}
   setText("countAudiencias", (json.mercado?.audiencias || []).length);
   setText("countBusquedas", (json.mercado?.busquedas_relacionadas || []).length);
 

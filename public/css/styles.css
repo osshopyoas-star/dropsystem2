@@ -1629,3 +1629,19 @@ aside.collapsed .submenu .sidebar-item {
 .quick-search-grid button {
   width: 100%;
 }
+
+.paises-box {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.pais-chip {
+  background: #eef2ff;
+  color: #1e3a8a;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
