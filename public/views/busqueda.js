@@ -110,9 +110,16 @@ Valida demanda, revisa competidores y confirma si el producto ya se vende
 
 
  <input id="productoInput" placeholder="Buscar producto">
-      <button onclick="buscarProducto('aliexpress')">AliExpress</button>
-      <button onclick="buscarProducto('alibaba')">Alibaba</button>
-      <button onclick="buscarProducto('ml')">Mercado Libre</button>
+
+<div class="quick-search-grid">
+  <button onclick="buscarProducto('googletrends')">Google Trends</button>
+  <button onclick="buscarProducto('amazon')">Amazon</button>
+  <button onclick="buscarProducto('aliexpress')">AliExpress</button>
+  <button onclick="buscarProducto('alibaba')">Alibaba</button>
+  <button onclick="buscarProducto('ml')">Mercado Libre</button>
+  <button onclick="buscarProducto('tiktok')">TikTok</button>
+  <button onclick="buscarProducto('meta')">Meta Ads</button>
+</div>
 
       <p class="info">
         Validar si se vende en LATAM antes de importar

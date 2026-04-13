@@ -41,48 +41,106 @@ const Producto = mongoose.model("Producto", productoSchema);
 
 const app = express();
 
-import googleTrends from "google-trends-api";
 
-app.get("/api/trends", async (req, res) => {
-  const { keyword } = req.query;
+app.post("/api/trends", async (req, res) => {
+  const { keyword, pais = "ALL" } = req.body;
 
   if (!keyword) {
     return res.status(400).json({ error: "Falta keyword" });
   }
 
   try {
-    const results = await googleTrends.interestOverTime({
-      keyword,
-      timeframe: "today 12-m"
+    const response = await fetch("https://api.x.ai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "grok-4-1-fast-non-reasoning",
+        messages: [
+          {
+            role: "system",
+            content: `
+Eres un analista de tendencias ecommerce.
+Debes responder SOLO JSON valido.
+No expliques nada fuera del JSON.
+Genera una estimacion inteligente y coherente de tendencia de 12 meses para ecommerce.
+Los datos deben ser consistentes con el interes actual del tema, su estacionalidad y comportamiento comercial.
+`
+          },
+          {
+            role: "user",
+            content: `
+Tema: "${keyword}"
+Pais prioritario: "${pais}"
+
+Devuelve EXACTAMENTE este JSON:
+
+{
+  "tema_central": "${keyword}",
+  "pais": "${pais}",
+  "trend_data": [
+    { "label": "Ene", "value": 0 },
+    { "label": "Feb", "value": 0 },
+    { "label": "Mar", "value": 0 },
+    { "label": "Abr", "value": 0 },
+    { "label": "May", "value": 0 },
+    { "label": "Jun", "value": 0 },
+    { "label": "Jul", "value": 0 },
+    { "label": "Ago", "value": 0 },
+    { "label": "Sep", "value": 0 },
+    { "label": "Oct", "value": 0 },
+    { "label": "Nov", "value": 0 },
+    { "label": "Dic", "value": 0 }
+  ],
+  "direccion": "subiendo/estable/bajando",
+  "estacionalidad": "",
+  "insight": ""
+}
+
+Reglas:
+- value debe ser numero entero entre 0 y 50
+- los 12 meses deben tener logica realista
+- si hay pico estacional, debe verse claro
+- si el tema va subiendo, los ultimos meses deben tender a subir
+- responde SOLO JSON
+`
+          }
+        ]
+      })
     });
 
-    const parsed = JSON.parse(results);
-    const timeline = parsed?.default?.timelineData || [];
+    const data = await response.json();
 
-    const cleaned = timeline.map(item => ({
-      time: item.time,
-      formattedTime: item.formattedTime,
-      value: Array.isArray(item.value) ? item.value[0] : 0
-    }));
+    if (!response.ok) {
+      console.error("ERROR HTTP trends:", data);
+      return res.status(response.status).json({
+        error: "Error HTTP en trends IA",
+        raw: data
+      });
+    }
 
-    return res.json(cleaned);
-  } catch (err) {
-    console.error("Error /api/trends:", err);
+    const rawReply = data?.choices?.[0]?.message?.content?.trim();
 
-    return res.status(200).json([
-      { formattedTime: "Ene 2025", value: 20 },
-      { formattedTime: "Feb 2025", value: 25 },
-      { formattedTime: "Mar 2025", value: 30 },
-      { formattedTime: "Abr 2025", value: 28 },
-      { formattedTime: "May 2025", value: 35 },
-      { formattedTime: "Jun 2025", value: 40 },
-      { formattedTime: "Jul 2025", value: 32 },
-      { formattedTime: "Ago 2025", value: 30 },
-      { formattedTime: "Sep 2025", value: 31 },
-      { formattedTime: "Oct 2025", value: 33 },
-      { formattedTime: "Nov 2025", value: 36 },
-      { formattedTime: "Dic 2025", value: 42 }
-    ]);
+    if (!rawReply) {
+      return res.status(500).json({ error: "Respuesta trends vacia" });
+    }
+
+    const jsonStart = rawReply.indexOf("{");
+    const jsonEnd = rawReply.lastIndexOf("}");
+
+    const cleanJson =
+      jsonStart !== -1 && jsonEnd !== -1
+        ? rawReply.substring(jsonStart, jsonEnd + 1)
+        : rawReply;
+
+    const parsed = JSON.parse(cleanJson);
+
+    return res.json(parsed);
+  } catch (error) {
+    console.error("ERROR /api/trends:", error);
+    return res.status(500).json({ error: "Error trends IA" });
   }
 });
 

@@ -1669,12 +1669,16 @@ window.buscarEnTikTok = function() {
 
 // producto
 window.buscarProducto = function(tipo) {
-  const q = document.getElementById("productoInput").value;
+  const q = document.getElementById("productoInput").value?.trim();
 
   if (!q) return alert("Escribe producto");
 
-  if (tipo === "dropi") {
-    window.open("https://app.dropi.co/dashboard/search", "_blank");
+  if (tipo === "googletrends") {
+    window.open(`https://trends.google.com/trends/explore?q=${encodeURIComponent(q)}`, "_blank");
+  }
+
+  if (tipo === "amazon") {
+    window.open(`https://www.amazon.com/s?k=${encodeURIComponent(q)}`, "_blank");
   }
 
   if (tipo === "aliexpress") {
@@ -1688,8 +1692,15 @@ window.buscarProducto = function(tipo) {
   if (tipo === "ml") {
     window.open(`https://listado.mercadolibre.com/${encodeURIComponent(q)}`, "_blank");
   }
-};
 
+  if (tipo === "tiktok") {
+    window.open(`https://www.tiktok.com/search?q=${encodeURIComponent(q)}`, "_blank");
+  }
+
+  if (tipo === "meta") {
+    window.open(`https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=ALL&q=${encodeURIComponent(q)}`, "_blank");
+  }
+};
 
 
 // ejecutar final
@@ -2230,26 +2241,46 @@ function setText(id, value) {
 
 async function getRealTrendData(keyword) {
   try {
-    const res = await fetch(`/api/trends?keyword=${encodeURIComponent(keyword)}`);
+    const pais = document.getElementById("trendPais")?.value || "ALL";
+
+    const res = await fetch("/api/trends", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        keyword,
+        pais
+      })
+    });
+
     const data = await res.json();
 
-    if (!Array.isArray(data)) {
-      console.error("Trends no devolvio array:", data);
+    if (!res.ok) {
+      console.error("Error trends API:", data);
       return {
         values: [20, 25, 30, 28, 35, 40, 32, 30, 31, 33, 36, 42],
-        labels: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+        labels: ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
+      };
+    }
+
+    if (!Array.isArray(data.trend_data)) {
+      console.error("trend_data invalido:", data);
+      return {
+        values: [20, 25, 30, 28, 35, 40, 32, 30, 31, 33, 36, 42],
+        labels: ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
       };
     }
 
     return {
-      values: data.map(x => typeof x.value === "number" ? x.value : 0),
-      labels: data.map((x, i) => x.formattedTime || ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][i] || "")
+      values: data.trend_data.map(x => Number(x.value) || 0),
+      labels: data.trend_data.map(x => x.label || "")
     };
   } catch (err) {
     console.error("Error trends:", err);
     return {
       values: [20, 25, 30, 28, 35, 40, 32, 30, 31, 33, 36, 42],
-      labels: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+      labels: ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
     };
   }
 }
