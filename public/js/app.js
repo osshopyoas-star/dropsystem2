@@ -2227,20 +2227,29 @@ function setText(id, value) {
   const el = document.getElementById(id);
   if (el) el.textContent = value ?? "-";
 }
+
 async function getRealTrendData(keyword) {
   try {
     const res = await fetch(`/api/trends?keyword=${encodeURIComponent(keyword)}`);
     const data = await res.json();
 
-    // Google trends devuelve timeline
-    return data.map(x => x.value[0]);
+    if (!res.ok) {
+      console.error("Error trends API:", data);
+      return [20, 25, 30, 28, 35, 40, 32, 30, 31, 33, 36, 42];
+    }
+
+    if (!Array.isArray(data)) {
+      console.error("Trends no devolvio array:", data);
+      return [20, 25, 30, 28, 35, 40, 32, 30, 31, 33, 36, 42];
+    }
+
+    return data.map(x => Array.isArray(x.value) ? x.value[0] : 0);
   } catch (err) {
     console.error("Error trends:", err);
-
-    // fallback por si falla
-    return [20,25,30,28,35,40,32,30,31,33,36,42];
+    return [20, 25, 30, 28, 35, 40, 32, 30, 31, 33, 36, 42];
   }
 }
+
 async function renderTrendChart(json) {
   const svg = document.getElementById("trendChart");
   const grid = document.getElementById("trendChartGrid");
@@ -2434,7 +2443,9 @@ if (scoreRing) {
     sig2?.classList.add("on");
     sig3?.classList.add("on");
   }
-   renderTrendChart(json);
+ renderTrendChart(json).catch(err => {
+  console.error("Error renderTrendChart:", err);
+});
 
 }
 

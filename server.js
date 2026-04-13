@@ -46,16 +46,27 @@ import googleTrends from "google-trends-api";
 app.get("/api/trends", async (req, res) => {
   const { keyword } = req.query;
 
+  if (!keyword) {
+    return res.status(400).json({ error: "Falta keyword" });
+  }
+
   try {
     const results = await googleTrends.interestOverTime({
       keyword,
       geo: "",
+      timeframe: "today 12-m"
     });
 
-    const data = JSON.parse(results);
-    res.json(data.default.timelineData);
+    const parsed = JSON.parse(results);
+    const timeline = parsed?.default?.timelineData || [];
+
+    return res.json(timeline);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("Error /api/trends:", err);
+    return res.status(500).json({
+      error: "No se pudo consultar Google Trends",
+      detail: err.message
+    });
   }
 });
 
