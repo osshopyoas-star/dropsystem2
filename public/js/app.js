@@ -70,13 +70,25 @@ function renderStep() {
   if (!container) return;
 
   if (window.currentStep === 1) {
-    container.innerHTML = `
-      <h2>Maslow</h2>
-      <p><strong>Nivel:</strong> ${data.maslow?.nivel || "-"}</p>
-      <p>${data.maslow?.explicacion || "-"}</p>
-    `;
-    return;
-  }
+  container.innerHTML = `
+    <h2>Maslow</h2>
+
+    <p><strong>Nivel:</strong> ${data.maslow?.nivel || "-"}</p>
+
+    <p><strong>Insight:</strong></p>
+    <p>${data.maslow?.explicacion || "-"}</p>
+
+    <p><strong>Deseo oculto:</strong></p>
+    <p>${data.maslow?.deseo_oculto || "-"}</p>
+
+    <p><strong>Trigger de compra:</strong></p>
+    <p>${data.maslow?.trigger_compra || "-"}</p>
+
+    <p><strong>Cómo piensa el cliente:</strong></p>
+    <p>${data.maslow?.pensamiento_cliente || "-"}</p>
+  `;
+  return;
+}
 
   if (window.currentStep === 2) {
     container.innerHTML = `
@@ -2450,7 +2462,9 @@ setText("kpiDireccionBox", json.direccion || "-");
   setText("maslowNivel", json.maslow?.nivel || "-");
   setText("maslowExplicacion", json.maslow?.explicacion || "-");
 
-
+setText("maslowDeseo", json.maslow?.deseo_oculto || "-");
+setText("maslowTrigger", json.maslow?.trigger_compra || "-");
+setText("maslowPensamiento", json.maslow?.pensamiento_cliente || "-");
 
   setText("mecanismoPrincipal", json.mecanismo?.mecanismo_principal || "-");
   setText("marketingFormato", json.marketing?.formato_ganador || "-");
@@ -2632,10 +2646,16 @@ Quiero insights accionables, específicos y con lógica de negocio real.
 
 ---
 
-2. MASLOW (psicología real)
-- nivel dominante
-- explicación basada en deseo oculto (no obvio)
+2. MASLOW (psicología profunda de compra)
 
+- nivel dominante (elige uno claro)
+- explicación profunda (mínimo 3 líneas)
+- deseo oculto real (qué quiere en el fondo)
+- trigger de compra (qué lo hace actuar ya)
+- pensamiento interno del cliente (como si fuera él hablando)
+
+NO seas superficial.
+Esto debe ayudar a crear copies de venta.
 ---
 
 3. PROBLEMA (deep pain)
@@ -2724,10 +2744,13 @@ Devuelve exactamente este JSON:
   "etapa_mercado": "nuevo/creciendo/competido/saturado",
   "estacionalidad": "",
 
-  "maslow": {
-    "nivel": "",
-    "explicacion": ""
-  },
+ "maslow": {
+  "nivel": "",
+  "explicacion": "",
+  "deseo_oculto": "",
+  "trigger_compra": "",
+  "pensamiento_cliente": ""
+},
 
   "mercado": {
     "intencion_busqueda": "",
