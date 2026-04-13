@@ -1258,7 +1258,6 @@ if (route === "tendencias") {
   setTimeout(() => {
     const savedInput = localStorage.getItem("trendInput");
     const savedPais = localStorage.getItem("trendPais");
-    const savedMode = localStorage.getItem("trendMode");
     const savedTrendMap = localStorage.getItem("trendMap");
 
     if (savedInput) {
@@ -1271,11 +1270,7 @@ if (route === "tendencias") {
       if (selectPais) selectPais.value = savedPais;
     }
 
-    if (savedMode) {
-      const selectMode = document.getElementById("trendMode");
-      if (selectMode) selectMode.value = savedMode;
-    }
-
+   
     if (savedTrendMap) {
       const json = JSON.parse(savedTrendMap);
       renderTrendDashboard(json);
@@ -2068,7 +2063,7 @@ function renderTendencias() {
           </div>
         </div>
 
-        <div class="tendencias-form tendencias-form-4">
+        <div class="tendencias-form tendencias-form-3">
           <input id="trendInput" placeholder="Ej: caída del cabello, ansiedad, seguridad física..." />
 
           <select id="trendPais">
@@ -2078,13 +2073,6 @@ function renderTendencias() {
             <option value="EC">Ecuador</option>
             <option value="US">USA</option>
             <option value="ES">España</option>
-          </select>
-
-          <select id="trendMode">
-            <option value="cluster">Mapa de oportunidad</option>
-            <option value="pain">Mapa de dolor</option>
-            <option value="product">Mapa de producto</option>
-            <option value="angle">Mapa de ángulos</option>
           </select>
 
           <button class="primary" onclick="analizarTendencia()">
@@ -2457,7 +2445,7 @@ setText("kpiDireccionBox", json.direccion || "-");
 window.analizarTendencia = async function() {
   const texto = document.getElementById("trendInput").value;
   const pais = document.getElementById("trendPais")?.value || "ALL";
-const modo = document.getElementById("trendMode")?.value || "cluster";
+const modo = "full";
 
   if (!texto) return alert("Escribe algo");
 
