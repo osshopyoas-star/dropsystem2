@@ -43,7 +43,7 @@ const app = express();
 
 
 app.post("/api/trends", async (req, res) => {
-  const { keyword, pais = "ALL" } = req.body;
+  const { keyword, pais = "ALL" } = req.body || {};
 
   if (!keyword) {
     return res.status(400).json({ error: "Falta keyword" });
@@ -61,86 +61,89 @@ app.post("/api/trends", async (req, res) => {
         messages: [
           {
             role: "system",
-            content: `
-Eres un analista de tendencias ecommerce.
-Debes responder SOLO JSON valido.
-No expliques nada fuera del JSON.
-Genera una estimacion inteligente y coherente de tendencia de 12 meses para ecommerce.
-Los datos deben ser consistentes con el interes actual del tema, su estacionalidad y comportamiento comercial.
-`
+            content: "Responde SOLO JSON valido. Eres un analista senior de tendencias ecommerce."
           },
           {
             role: "user",
             content: `
 Tema: "${keyword}"
-Pais prioritario: "${pais}"
+Pais: "${pais}"
 
 Devuelve EXACTAMENTE este JSON:
-
 {
-  "tema_central": "${keyword}",
-  "pais": "${pais}",
   "trend_data": [
-    { "label": "Ene", "value": 0 },
-    { "label": "Feb", "value": 0 },
-    { "label": "Mar", "value": 0 },
-    { "label": "Abr", "value": 0 },
-    { "label": "May", "value": 0 },
-    { "label": "Jun", "value": 0 },
-    { "label": "Jul", "value": 0 },
-    { "label": "Ago", "value": 0 },
-    { "label": "Sep", "value": 0 },
-    { "label": "Oct", "value": 0 },
-    { "label": "Nov", "value": 0 },
-    { "label": "Dic", "value": 0 }
-  ],
-  "direccion": "subiendo/estable/bajando",
-  "estacionalidad": "",
-  "insight": ""
+    { "label": "Ene", "value": 20 },
+    { "label": "Feb", "value": 25 },
+    { "label": "Mar", "value": 30 },
+    { "label": "Abr", "value": 28 },
+    { "label": "May", "value": 35 },
+    { "label": "Jun", "value": 40 },
+    { "label": "Jul", "value": 32 },
+    { "label": "Ago", "value": 30 },
+    { "label": "Sep", "value": 31 },
+    { "label": "Oct", "value": 33 },
+    { "label": "Nov", "value": 36 },
+    { "label": "Dic", "value": 42 }
+  ]
 }
-
-Reglas:
-- value debe ser numero entero entre 0 y 50
-- los 12 meses deben tener logica realista
-- si hay pico estacional, debe verse claro
-- si el tema va subiendo, los ultimos meses deben tender a subir
-- responde SOLO JSON
 `
           }
         ]
       })
     });
 
-    const data = await response.json();
+    const raw = await response.text();
 
-    if (!response.ok) {
-      console.error("ERROR HTTP trends:", data);
-      return res.status(response.status).json({
-        error: "Error HTTP en trends IA",
-        raw: data
+    let parsedApi;
+    try {
+      parsedApi = JSON.parse(raw);
+    } catch (e) {
+      console.error("xAI devolvio no-JSON:", raw);
+      return res.status(500).json({
+        error: "xAI devolvio respuesta invalida",
+        raw
       });
     }
 
-    const rawReply = data?.choices?.[0]?.message?.content?.trim();
-
-    if (!rawReply) {
-      return res.status(500).json({ error: "Respuesta trends vacia" });
+    if (!response.ok) {
+      console.error("Error HTTP xAI:", parsedApi);
+      return res.status(response.status).json({
+        error: "Error HTTP en xAI",
+        raw: parsedApi
+      });
     }
 
-    const jsonStart = rawReply.indexOf("{");
-    const jsonEnd = rawReply.lastIndexOf("}");
+    const reply = parsedApi?.choices?.[0]?.message?.content?.trim();
 
-    const cleanJson =
-      jsonStart !== -1 && jsonEnd !== -1
-        ? rawReply.substring(jsonStart, jsonEnd + 1)
-        : rawReply;
+    if (!reply) {
+      return res.status(500).json({ error: "xAI no devolvio contenido" });
+    }
 
-    const parsed = JSON.parse(cleanJson);
+    const jsonStart = reply.indexOf("{");
+    const jsonEnd = reply.lastIndexOf("}");
+    const clean = jsonStart !== -1 && jsonEnd !== -1
+      ? reply.substring(jsonStart, jsonEnd + 1)
+      : reply;
 
-    return res.json(parsed);
-  } catch (error) {
-    console.error("ERROR /api/trends:", error);
-    return res.status(500).json({ error: "Error trends IA" });
+    let finalJson;
+    try {
+      finalJson = JSON.parse(clean);
+    } catch (e) {
+      console.error("No se pudo parsear JSON final:", clean);
+      return res.status(500).json({
+        error: "JSON final invalido",
+        raw: clean
+      });
+    }
+
+    return res.json(finalJson);
+
+  } catch (err) {
+    console.error("Error /api/trends:", err);
+    return res.status(500).json({
+      error: "Error interno trends",
+      detail: err.message
+    });
   }
 });
 

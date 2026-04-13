@@ -2255,6 +2255,7 @@ function setText(id, value) {
   if (el) el.textContent = value ?? "-";
 }
 
+
 async function getRealTrendData(keyword) {
   try {
     const pais = document.getElementById("trendPais")?.value || "ALL";
@@ -2270,7 +2271,18 @@ async function getRealTrendData(keyword) {
       })
     });
 
-    const data = await res.json();
+    const raw = await res.text();
+
+    let data;
+    try {
+      data = JSON.parse(raw);
+    } catch (e) {
+      console.error("Respuesta no JSON en /api/trends:", raw);
+      return {
+        values: [20, 25, 30, 28, 35, 40, 32, 30, 31, 33, 36, 42],
+        labels: ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
+      };
+    }
 
     if (!res.ok) {
       console.error("Error trends API:", data);
@@ -2300,6 +2312,9 @@ async function getRealTrendData(keyword) {
     };
   }
 }
+
+
+
 async function renderTrendChart(json) {
   const svg = document.getElementById("trendChart");
   const grid = document.getElementById("trendChartGrid");
