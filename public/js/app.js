@@ -2875,9 +2875,11 @@ Deben ser problemas reales que la gente buscaría o compraría para resolver.
 País prioritario: "${pais}"
 
 Devuelve EXACTAMENTE este JSON:
-
 {
-  Reglas:
+  "keywords": []
+}
+
+Reglas:
 - devuelve entre 20 y 30 keywords
 - NO repitas ejemplos genéricos
 - NO copies siempre las mismas palabras
@@ -2886,8 +2888,6 @@ Devuelve EXACTAMENTE este JSON:
 - frases cortas, directas y vendibles
 - evita categorías; quiero keywords concretas
 - devuelve solo el JSON
-  ]
-}
 `
       })
     });
@@ -2916,7 +2916,6 @@ Devuelve EXACTAMENTE este JSON:
     list.innerHTML = "Error generando palabras clave";
   }
 };
-
 
 
 window.usarKeywordMaslow = function(keyword) {
