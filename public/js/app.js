@@ -2201,21 +2201,36 @@ function renderTendenciasDashboard() {
           </div>
         </section>
 
-      <section class="board-decision card-decision">
-          <div class="board-decision-head">
-            <h3> Decisión</h3>
-          </div>
+    <section class="board-decision card-decision">
+  <div class="board-decision-head">
+    <h3> Decisión</h3>
+  </div>
 
-          <div class="board-decision-text">
-            <p><strong>Oportunidad</strong> <span id="decisionOportunidad">-</span></p>
-            <p><strong>Recomendación</strong> <span id="decisionRecomendacion">-</span></p>
-          </div>
+  <div class="board-decision-text">
+    <p><strong>Oportunidad</strong> <span id="decisionOportunidad">-</span></p>
+    <p><strong>Recomendación</strong> <span id="decisionRecomendacion">-</span></p>
+  </div>
 
-          <div class="trend-list-block board-risk-list">
-            <strong>Riesgos</strong>
-            <ul id="decisionRiesgos"></ul>
-          </div>
-        </section>
+  <div class="trend-list-block board-risk-list">
+    <strong>Riesgos</strong>
+    <ul id="decisionRiesgos"></ul>
+  </div>
+
+  <div class="trend-list-block board-risk-list">
+    <strong>Validación real</strong>
+    <ul id="valSenales"></ul>
+  </div>
+
+  <div class="trend-list-block board-risk-list">
+    <strong>Saturación</strong>
+    <ul id="valSaturacion"></ul>
+  </div>
+
+  <div class="trend-list-block board-risk-list">
+    <strong>Oportunidad oculta</strong>
+    <ul id="valOportunidad"></ul>
+  </div>
+</section>
       </div>
 
     </div>
@@ -2423,7 +2438,10 @@ setText("kpiDireccionBox", json.direccion || "-");
   fillList("marketingAngulos", json.marketing?.angulos_marketing || []);
   fillList("marketingHooks", json.marketing?.hooks || []);
 
-  fillList("decisionRiesgos", json.decision?.riesgos || []);
+  
+  fillList("valSenales", json.validacion?.senales_ads || []);
+fillList("valSaturacion", json.validacion?.indicadores_saturacion || []);
+fillList("valOportunidad", json.validacion?.oportunidad_oculta || []);
 
  setText("countPaises", (json.mercado?.paises_recomendados || []).length);
 
@@ -2555,57 +2573,87 @@ if (scoreBar) scoreBar.style.width = "0%";
       },
      body: JSON.stringify({
   prompt: `
-Responde SOLO en JSON válido, sin explicación extra.
 
-Analiza esta oportunidad de mercado: "${texto}"
+
+
+
+Responde SOLO en JSON válido, sin explicación fuera del JSON.
+
+Actúa como un estratega senior de ecommerce DTC, experto en productos virales, Ads Library y comportamiento de compra.
+
+Analiza esta oportunidad:
+"${texto}"
 
 País prioritario: "${pais}"
-Modo de análisis: "${modo}"
 
-No respondas como si fuera solo una keyword exacta.
-Analízalo como un sistema de oportunidad ecommerce usando este framework:
+NO respondas superficial.
+Quiero insights accionables, específicos y con lógica de negocio real.
 
-1. MERCADO
-- intención de búsqueda
-- países donde puede funcionar
-- audiencias
-- búsquedas relacionadas
+---
 
-2. PIRÁMIDE DE MASLOW
-- nivel principal que activa la compra
-- explicación psicológica
+1. MERCADO (nivel PRO)
+- intención de compra (no genérica, explica el por qué compran)
+- países donde realmente escalaría (no obvio)
+- audiencias detalladas (edad, mindset, situación)
+- búsquedas reales tipo Ads Library (no genéricas)
 
-3. PROBLEMA
-- dolor principal
-- dolores secundarios
-- emociones asociadas
+---
 
-4. SOLUCIÓN
-- transformación prometida
-- beneficios esperados
-- productos relacionados
+2. MASLOW (psicología real)
+- nivel dominante
+- explicación basada en deseo oculto (no obvio)
 
-5. MECANISMO
-- mecanismo principal de venta
-- mecanismos alternos
-- creencias que hacen que el producto parezca lógico
+---
 
-6. MARKETING
-- ángulos
-- hooks
-- formato ganador
+3. PROBLEMA (deep pain)
+- dolor principal real (emocional + físico)
+- dolores secundarios (situaciones específicas)
+- emociones (miedo, frustración, vergüenza, etc.)
 
-7. DECISIÓN
-- oportunidad
-- recomendación
-- riesgos
+---
 
-Usa lenguaje concreto y estructurado.
-No mezcles problema, solución y mecanismo en el mismo campo.
-No pongas párrafos demasiado largos.
-Cada lista debe tener máximo 6 elementos.
-Evita redundancias.
-Piensa como estratega de ecommerce DTC.
+4. SOLUCIÓN (transformación)
+- transformación real que promete
+- beneficios tangibles
+- tipo de producto ideal (formato ganador)
+
+---
+
+5. MECANISMO (clave para vender)
+- mecanismo principal creíble
+- mecanismos alternativos usados en ads
+- creencias que hacen que el producto convierta
+
+---
+
+6. MARKETING (nivel creativo)
+- ángulos que realmente escalan
+- hooks tipo UGC (copy corto realista)
+- formato ganador (UGC, testimonial, antes/después, etc.)
+
+---
+
+7. VALIDACIÓN REAL (NUEVO 🔥)
+- qué señales buscar en Ads Library
+- cómo saber si está saturado o no
+- qué indicaría oportunidad escondida
+
+---
+
+8. DECISIÓN (estratégica)
+- oportunidad real (no genérica)
+- recomendación concreta (qué hacer exactamente)
+- riesgos reales de negocio
+
+---
+
+Reglas:
+- máximo 5-6 items por lista
+- lenguaje directo (no académico)
+- evita frases vacías
+- todo debe ser accionable para vender
+
+---
 
 Devuelve exactamente este JSON:
 
@@ -2653,6 +2701,12 @@ Devuelve exactamente este JSON:
     "hooks": []
   },
 
+  "validacion": {
+    "senales_ads": [],
+    "indicadores_saturacion": [],
+    "oportunidad_oculta": []
+  },
+
   "decision": {
     "oportunidad": "",
     "recomendacion": "",
@@ -2660,6 +2714,7 @@ Devuelve exactamente este JSON:
   }
 }
 `
+
 })
     });
 const raw = await res.text();
