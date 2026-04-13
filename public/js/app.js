@@ -2128,11 +2128,12 @@ function renderTendenciasDashboard() {
           <div class="board-block-title">Señal del mercado</div>
 
           <div class="board-market-grid">
-            <div class="board-market-label">PAÍSES <strong id="countPaises">0</strong></div>
-            <div id="mercadoPaisesBox" class="paises-box"></div>
-            <div class="board-market-label">AUDIENCIAS <strong id="countAudiencias">0</strong></div>
-            <div class="board-market-label">HOOKS <strong id="countHooks">0</strong></div>
-          </div>
+  <div class="board-market-label">PAÍSES <strong id="countPaises">0</strong></div>
+  <div id="mercadoPaisesBox" class="paises-box pro"></div>
+
+  <div class="board-market-label">AUDIENCIAS <strong id="countAudiencias">0</strong></div>
+  <div class="board-market-label">HOOKS <strong id="countHooks">0</strong></div>
+</div>
 
           <div class="trend-signal trend-signal-lg board-signal">
             <span id="sig1"></span>
@@ -2425,15 +2426,55 @@ setText("kpiDireccionBox", json.direccion || "-");
 
   fillList("decisionRiesgos", json.decision?.riesgos || []);
 
-  setText("countPaises", (json.mercado?.paises_recomendados || []).length);
-  const paisesBox = document.getElementById("mercadoPaisesBox");
+ setText("countPaises", (json.mercado?.paises_recomendados || []).length);
+
+const paisesBox = document.getElementById("mercadoPaisesBox");
 
 if (paisesBox) {
   const paises = json.mercado?.paises_recomendados || [];
 
-  paisesBox.innerHTML = paises.map(p => `
-    <div class="pais-chip">${p}</div>
-  `).join("");
+  const flags = {
+    "USA": "🇺🇸",
+    "ESTADOS UNIDOS": "🇺🇸",
+    "COLOMBIA": "🇨🇴",
+    "MEXICO": "🇲🇽",
+    "MÉXICO": "🇲🇽",
+    "ECUADOR": "🇪🇨",
+    "ESPAÑA": "🇪🇸",
+    "SPAIN": "🇪🇸",
+    "CHILE": "🇨🇱",
+    "PERU": "🇵🇪",
+    "PERÚ": "🇵🇪",
+    "ARGENTINA": "🇦🇷",
+    "BRASIL": "🇧🇷",
+    "BRAZIL": "🇧🇷",
+    "CANADA": "🇨🇦",
+    "CANADÁ": "🇨🇦",
+    "FRANCIA": "🇫🇷",
+    "FRANCE": "🇫🇷",
+    "ALEMANIA": "🇩🇪",
+    "GERMANY": "🇩🇪",
+    "ITALIA": "🇮🇹",
+    "ITALY": "🇮🇹",
+    "JAPON": "🇯🇵",
+    "JAPÓN": "🇯🇵",
+    "JAPAN": "🇯🇵",
+    "REINO UNIDO": "🇬🇧",
+    "UK": "🇬🇧"
+  };
+
+  paisesBox.innerHTML = paises.map((p, i) => {
+    const nombre = String(p).toUpperCase();
+    const flag = flags[nombre] || "🌍";
+
+    return `
+      <div class="pais-card">
+        <span class="pais-rank">${i + 1}</span>
+        <span class="pais-flag">${flag}</span>
+        <span class="pais-name">${p}</span>
+      </div>
+    `;
+  }).join("");
 }
   setText("countAudiencias", (json.mercado?.audiencias || []).length);
   setText("countBusquedas", (json.mercado?.busquedas_relacionadas || []).length);
