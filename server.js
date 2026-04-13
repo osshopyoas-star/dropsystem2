@@ -7,6 +7,26 @@ import path from "path";
 import mongoose from "mongoose";
 import { fileURLToPath } from "url";
 
+
+
+import googleTrends from "google-trends-api";
+
+app.get("/api/trends", async (req, res) => {
+  const { keyword } = req.query;
+
+  try {
+    const results = await googleTrends.interestOverTime({
+      keyword,
+      geo: "",
+    });
+
+    const data = JSON.parse(results);
+    res.json(data.default.timelineData);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // 🔥 CONEXIÓN CORRECTA
 console.log("Conectando a Mongo...");
 

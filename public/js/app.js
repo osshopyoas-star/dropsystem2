@@ -2148,7 +2148,17 @@ function renderTendenciasDashboard() {
         <section class="board-seasonality">
           <div class="board-section-bar">Estacionalidad</div>
 
-          <div class="seasonality-table">
+          <div class="seasonality-scale">
+  <div class="scale-bar"></div>
+  <div class="scale-numbers">
+    <span>0</span>
+    <span>10</span>
+    <span>20</span>
+    <span>30</span>
+    <span>40</span>
+    <span>50</span>
+  </div>
+</div>
             <div class="seasonality-row">
               <span>SEÑAL</span>
               <strong id="kpiSenalBox">-</strong>
@@ -2166,10 +2176,11 @@ function renderTendenciasDashboard() {
           </div>
         </section>
 
-        <section class="board-summary">
-          <div class="board-summary-head">
-            <h3>🧠 Resumen ejecutivo</h3>
-          </div>
+      <section class="board-summary card-resumen">
+  <div class="resumen-head">
+    <i data-lucide="brain"></i>
+    <h3>Resumen ejecutivo</h3>
+  </div>
 
           <div class="board-summary-text">
             <p><strong>Estacionalidad</strong> <span id="resEstacionalidad">-</span></p>
@@ -2178,9 +2189,9 @@ function renderTendenciasDashboard() {
           </div>
         </section>
 
-        <section class="board-decision">
+      <section class="board-decision card-decision">
           <div class="board-decision-head">
-            <h3>🚀 Decisión</h3>
+            <h3> Decisión</h3>
           </div>
 
           <div class="board-decision-text">
@@ -2216,37 +2227,21 @@ function setText(id, value) {
   const el = document.getElementById(id);
   if (el) el.textContent = value ?? "-";
 }
+async function getRealTrendData(keyword) {
+  try {
+    const res = await fetch(`/api/trends?keyword=${encodeURIComponent(keyword)}`);
+    const data = await res.json();
 
+    // Google trends devuelve timeline
+    return data.map(x => x.value[0]);
+  } catch (err) {
+    console.error("Error trends:", err);
 
-
-function buildTrendSeries(json) {
-  const dir = (json.direccion || "").toLowerCase();
-  const senal = (json.senal_general || "").toLowerCase();
-  const score = Number(json.score || 50);
-
-  let base = [22, 28, 18, 21, 26, 35, 22, 24, 25, 29, 33, 38];
-
-  if (dir.includes("baj")) {
-    base = [38, 36, 34, 31, 29, 27, 24, 22, 20, 18, 16, 14];
+    // fallback por si falla
+    return [20,25,30,28,35,40,32,30,31,33,36,42];
   }
-
-  if (dir.includes("est")) {
-    base = [24, 26, 25, 24, 26, 27, 25, 24, 26, 27, 26, 25];
-  }
-
-  if (senal === "media") {
-    base = base.map((v, i) => v + (i % 2 === 0 ? -2 : 2));
-  }
-
-  if (senal === "debil") {
-    base = base.map(v => Math.max(10, v - 6));
-  }
-
-  const scoreBoost = Math.round((score - 50) / 8);
-  return base.map(v => Math.max(8, Math.min(48, v + scoreBoost)));
 }
-
-function renderTrendChart(json) {
+async function renderTrendChart(json) {
   const svg = document.getElementById("trendChart");
   const grid = document.getElementById("trendChartGrid");
   const line = document.getElementById("trendChartLine");
@@ -2256,7 +2251,7 @@ function renderTrendChart(json) {
   if (!svg || !grid || !line || !dots || !labels) return;
 
   const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  const data = buildTrendSeries(json);
+const data = await getRealTrendData(json.tema_central);
 
   const W = 520;
   const H = 180;
@@ -2333,6 +2328,9 @@ for (let i = 1; i < data.length; i++) {
     c.setAttribute("cy", toY(v));
     c.setAttribute("r", i === data.length - 1 ? 4 : 2.8);
     c.setAttribute("class", "chart-dot");
+    c.addEventListener("click", () => {
+  alert(`${months[i]}: ${data[i]}`);
+});
     dots.appendChild(c);
   });
 }
@@ -2394,6 +2392,12 @@ setText("kpiDireccionBox", json.direccion || "-");
   setText("countHooks", (json.marketing?.hooks || []).length);
 
   const scoreRing = document.getElementById("scoreRing");
+
+if (scoreRing) {
+  const percent = Math.max(0, Math.min(score, 100));
+  scoreRing.style.background = `conic-gradient(#4f7ef7 ${percent * 3.6}deg, #e5e7eb 0deg)`;
+}
+
   if (scoreRing) {
     scoreRing.style.setProperty("--score", `${Math.max(0, Math.min(score, 100))}`);
   }
