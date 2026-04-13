@@ -114,15 +114,51 @@ function renderStep() {
   }
 
   if (window.currentStep === 6) {
-    container.innerHTML = `
+  container.innerHTML = `
+    <div class="trend-step-panel">
       <h2>Producto</h2>
-      <p>${data.solucion?.solucion_principal || "-"}</p>
-      <ul>
-        ${(data.solucion?.beneficios_relacionados || []).map(x => `<li>${x}</li>`).join("")}
-      </ul>
-    `;
-    return;
-  }
+
+      <div class="trend-step-block">
+        <h3>Solución principal</h3>
+        <p>${data.solucion?.solucion_principal || "-"}</p>
+      </div>
+
+      <div class="trend-step-block">
+        <h3>Beneficios</h3>
+        <ul>
+          ${(data.solucion?.beneficios_relacionados || []).map(x => `<li>${x}</li>`).join("")}
+        </ul>
+      </div>
+
+      <div class="trend-step-block">
+        <h3>Productos relacionados</h3>
+        <ul>
+          ${(data.solucion?.productos_relacionados || []).map(x => `<li>${x}</li>`).join("")}
+        </ul>
+      </div>
+
+      <div class="trend-step-block">
+        <h3>Mecanismo principal</h3>
+        <p>${data.mecanismo?.mecanismo_principal || "-"}</p>
+      </div>
+
+      <div class="trend-step-block">
+        <h3>Mecanismos secundarios</h3>
+        <ul>
+          ${(data.mecanismo?.mecanismos_secundarios || []).map(x => `<li>${x}</li>`).join("")}
+        </ul>
+      </div>
+
+      <div class="trend-step-block">
+        <h3>Creencias de venta</h3>
+        <ul>
+          ${(data.mecanismo?.creencias_venta || []).map(x => `<li>${x}</li>`).join("")}
+        </ul>
+      </div>
+    </div>
+  `;
+  return;
+}
 
   if (window.currentStep === 7) {
     container.innerHTML = `
@@ -2199,8 +2235,9 @@ function setText(id, value) {
   const el = document.getElementById(id);
   if (el) el.textContent = value ?? "-";
 }
-function renderTrendDashboard(json) {
-  const score = Number(json.score || 0);
+
+
+
 function buildTrendSeries(json) {
   const dir = (json.direccion || "").toLowerCase();
   const senal = (json.senal_general || "").toLowerCase();
@@ -2318,6 +2355,11 @@ for (let i = 1; i < data.length; i++) {
     dots.appendChild(c);
   });
 }
+
+
+function renderTrendDashboard(json) {
+  const score = Number(json.score || 0);
+
 setText("kpiEtapaMini", json.etapa_mercado || "-");
   setText("kpiSenalBox", json.senal_general || "-");
 setText("kpiEtapaBox", json.etapa_mercado || "-");
@@ -2336,8 +2378,12 @@ setText("kpiDireccionBox", json.direccion || "-");
   setText("maslowNivel", json.maslow?.nivel || "-");
   setText("maslowExplicacion", json.maslow?.explicacion || "-");
 
-  setText("problemaPrincipal", json.problema?.dolor_principal || "-");
-  setText("solucionPrincipal", json.solucion?.solucion_principal || "-");
+
+
+
+
+
+
   setText("mecanismoPrincipal", json.mecanismo?.mecanismo_principal || "-");
   setText("marketingFormato", json.marketing?.formato_ganador || "-");
 
@@ -2351,12 +2397,6 @@ setText("kpiDireccionBox", json.direccion || "-");
   fillList("problemaDolores", json.problema?.dolores_relacionados || []);
   fillChips("problemaEmociones", json.problema?.emociones || [], "trend-chip-danger");
 
-  fillList("solucionBeneficios", json.solucion?.beneficios_relacionados || []);
-  fillList("solucionProductos", json.solucion?.productos_relacionados || []);
-
-  fillList("mecanismoSecundarios", json.mecanismo?.mecanismos_secundarios || []);
-  fillList("mecanismoCreencias", json.mecanismo?.creencias_venta || []);
-
   fillList("marketingAngulos", json.marketing?.angulos_marketing || []);
   fillList("marketingHooks", json.marketing?.hooks || []);
 
@@ -2368,12 +2408,6 @@ setText("kpiDireccionBox", json.direccion || "-");
 
   setText("countDolores", (json.problema?.dolores_relacionados || []).length);
   setText("countEmociones", (json.problema?.emociones || []).length);
-
-  setText("countBeneficios", (json.solucion?.beneficios_relacionados || []).length);
-  setText("countProductos", (json.solucion?.productos_relacionados || []).length);
-
-  setText("countMecanismos", (json.mecanismo?.mecanismos_secundarios || []).length);
-  setText("countCreencias", (json.mecanismo?.creencias_venta || []).length);
 
   setText("countAngulos", (json.marketing?.angulos_marketing || []).length);
   setText("countHooks", (json.marketing?.hooks || []).length);
@@ -2416,7 +2450,9 @@ setText("kpiDireccionBox", json.direccion || "-");
     sig3?.classList.add("on");
   }
    renderTrendChart(json);
+
 }
+
 
 window.analizarTendencia = async function() {
   const texto = document.getElementById("trendInput").value;
