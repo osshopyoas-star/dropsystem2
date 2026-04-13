@@ -2259,11 +2259,6 @@ function renderTendenciasDashboard() {
   `;
 }
 
-function fillList(id, items = []) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.innerHTML = (items || []).map(x => `<li>${x}</li>`).join("");
-}
 
 function fillChips(id, items = [], extraClass = "") {
   const el = document.getElementById(id);
