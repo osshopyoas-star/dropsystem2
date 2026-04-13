@@ -1325,16 +1325,17 @@ aside.collapsed .submenu .sidebar-item {
 }
 
 .board-topic h2 {
-    margin: 0 0 6px 0;
-  font-size: 24px;
-  line-height: 1.05;
-  font-weight: 800;
+  margin: 0 0 4px 0;
+  font-size: 28px;
+  line-height: 1.02;
+  font-weight: 900;
   color: #0f172a;
 }
 
 .board-muted {
-   margin: 0 0 8px 0;
-  font-size: 11px;  color: #475569;
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  color: #5b6475;
 }
 
 .trend-chart-box {
