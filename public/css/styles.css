@@ -1297,8 +1297,8 @@ aside.collapsed .submenu .sidebar-item {
 
 .trend-board-bottom {
   display: grid;
-  grid-template-columns: 1.12fr 0.95fr 0.8fr;
-  gap: 14px;
+  grid-template-columns: 1.05fr 0.9fr 0.7fr;
+  gap: 18px;
   align-items: start;
 }
 
@@ -1400,10 +1400,34 @@ aside.collapsed .submenu .sidebar-item {
   padding-top: 18px;
 }
 
+.score-ring {
+  position: relative;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: conic-gradient(#4f7ef7 0deg, #e5e7eb 0deg);
+}
+
 .score-ring-lg {
-  width: 124px;
-  height: 124px;
-  margin: 10px auto 10px auto;
+  width: 120px;
+  height: 120px;
+  margin: 8px auto 14px auto;
+}
+
+.score-ring-inner {
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  background: #f8fbff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: row;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #5b3b6d;
 }
 
 .board-score-direction {
@@ -1468,9 +1492,57 @@ aside.collapsed .submenu .sidebar-item {
   padding-top: 2px;
 }
 
+
+
+.board-decision-head {
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+
 .board-summary-head,
 .board-decision-head {
   margin-bottom: 8px;
+}
+
+
+
+.board-decision-head h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #444;
+  position: relative;
+  display: inline-block;
+  padding-bottom: 8px;
+}
+
+.board-decision-head h3::after {
+  content: "";
+  display: block;
+  width: 140px;
+  height: 3px;
+  margin: 8px auto 0 auto;
+  background: #5876ff;
+  border-radius: 999px;
+}
+
+.board-decision-text p {
+  font-size: 14px;
+  line-height: 1.35;
+  margin: 0 0 10px 0;
+}
+
+.board-risk-list ul {
+  margin: 8px 0 0 18px;
+}
+
+.board-risk-list li {
+  font-size: 13px;
+  line-height: 1.35;
+  margin-bottom: 6px;
 }
 
 .board-summary-head h3,
@@ -1585,23 +1657,50 @@ aside.collapsed .submenu .sidebar-item {
 }
 
 .card-resumen {
-  background: #eef2ff;
-  border-radius: 16px;
-  padding: 16px;
+  background: #dfe6f4;
+  border-radius: 24px;
+  padding: 22px 24px;
+  min-height: 220px;
+  box-shadow: none;
 }
 
 .resumen-head {
   display: flex;
-  gap: 10px;
-  align-items: center;
-  margin-bottom: 10px;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
 }
+
+.resumen-head i {
+  width: 34px;
+  height: 34px;
+  color: #334155;
+}
+
+.resumen-head h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: #5b3b6d;
+}
+
+
+
+.board-summary-text p {
+  margin: 0 0 10px 0;
+  font-size: 15px;
+  line-height: 1.35;
+  color: #5b3b6d;
+}
+
 .card-decision {
-  border-left: 4px solid #4f7ef7;
-  padding: 14px;
-  background: #f8fafc;
-  border-radius: 12px;
+  background: transparent;
+  border-left: none;
+  border-radius: 0;
+  padding: 0 10px;
 }
+
+
 .seasonality-scale {
   margin-top: 10px;
 }
@@ -1649,18 +1748,18 @@ aside.collapsed .submenu .sidebar-item {
 .paises-box.pro {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 10px;
+  gap: 10px;
+  margin-top: 12px;
 }
 
 .pais-card {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #eef2ff;
-  border: 1px solid #dbeafe;
-  border-radius: 10px;
-  padding: 8px 10px;
+  background: #dde4ef;
+  border: none;
+  border-radius: 12px;
+  padding: 10px 12px;
   min-width: 0;
 }
 
@@ -1685,10 +1784,7 @@ aside.collapsed .submenu .sidebar-item {
 }
 
 .pais-name {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
-  color: #334155;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  color: #475569;
 }
