@@ -1465,7 +1465,6 @@ estado: window.productoEditandoId
     alert("No se pudo guardar");
   }
 };
-
 function escapeHTML(str = "") {
   return String(str).replace(/[&<>"']/g, function(m) {
     return {
@@ -1476,6 +1475,15 @@ function escapeHTML(str = "") {
       "'": "&#39;"
     }[m];
   });
+}
+
+function fillList(id, items = []) {
+  const el = document.getElementById(id);
+  if (!el) return;
+
+  el.innerHTML = (items || [])
+    .map(x => `<li>${escapeHTML(x)}</li>`)
+    .join("");
 }
 
 // =============================
@@ -2260,8 +2268,9 @@ function fillList(id, items = []) {
 function fillChips(id, items = [], extraClass = "") {
   const el = document.getElementById(id);
   if (!el) return;
+
   el.innerHTML = (items || [])
-    .map(x => `<span class="trend-chip ${extraClass}">${x}</span>`)
+    .map(x => `<span class="trend-chip ${extraClass}">${escapeHTML(x)}</span>`)
     .join("");
 }
 function setText(id, value) {
@@ -2425,7 +2434,8 @@ for (let i = 1; i < data.length; i++) {
 
 
 function renderTrendDashboard(json) {
-  const score = Number(json.score || 0);
+ const rawScore = Number(json.score || 0);
+const score = Math.max(35, Math.min(rawScore, 100));
 
 setText("kpiEtapaMini", json.etapa_mercado || "-");
   setText("kpiSenalBox", json.senal_general || "-");
@@ -2514,7 +2524,7 @@ if (paisesBox) {
       <div class="pais-card">
         <span class="pais-rank">${i + 1}</span>
         <span class="pais-flag">${flag}</span>
-        <span class="pais-name">${p}</span>
+        <span class="pais-name">${escapeHTML(p)}</span>
       </div>
     `;
   }).join("");
@@ -2674,13 +2684,39 @@ Quiero insights accionables, específicos y con lógica de negocio real.
 - riesgos reales de negocio
 
 ---
+9. SCORE (OBLIGATORIO)
+Calcula un score de 0 a 100 con esta lógica:
+
+- +25 si el dolor es frecuente y claro
+- +20 si tiene compra impulsiva o urgente
+- +15 si el mercado permite hooks visuales fuertes
+- +15 si hay varios ángulos de marketing
+- +10 si se puede vender en formato simple ecommerce
+- +10 si hay posibilidad de repetición o recompra
+- -10 si tiene alta complejidad regulatoria
+- -10 si requiere demasiada educación para vender
+- -15 si está muy saturado sin diferenciación
+
+Reglas del score:
+- 80 a 100 = oportunidad fuerte
+- 60 a 79 = buena oportunidad testable
+- 40 a 59 = oportunidad media
+- 0 a 39 = débil
+
+NO pongas scores absurdamente bajos si hay dolor, demanda y ángulos claros.
+El score debe ser coherente con la oportunidad y con la decisión final.
+---
 
 Reglas:
 - máximo 5-6 items por lista
 - lenguaje directo (no académico)
 - evita frases vacías
 - todo debe ser accionable para vender
-
+- oportunidad y recomendación deben tener máximo 2 frases
+- riesgos deben ser cortos
+- no uses signos como < o >; escribe "menos de 14 días" en vez de "<14 días"
+- no uses markdown
+- no uses comillas innecesarias
 ---
 
 Devuelve exactamente este JSON:
