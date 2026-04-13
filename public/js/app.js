@@ -2182,12 +2182,11 @@ function renderTendenciasDashboard() {
               <strong id="kpiEtapaBox">-</strong>
             </div>
 
-            <div class="seasonality-row dark">
-              <span>DIRECCIÓN</span>
-              <strong id="kpiDireccionBox">-</strong>
-            </div>
-          </div>
-        </section>
+           <div class="seasonality-row dark">
+  <span>DIRECCIÓN</span>
+  <strong id="kpiDireccionBox">-</strong>
+</div>
+</section>
 
       <section class="board-summary card-resumen">
   <div class="resumen-head">
