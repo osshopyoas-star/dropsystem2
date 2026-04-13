@@ -2433,10 +2433,6 @@ setText("kpiDireccionBox", json.direccion || "-");
 
 
 
-
-
-
-
   setText("mecanismoPrincipal", json.mecanismo?.mecanismo_principal || "-");
   setText("marketingFormato", json.marketing?.formato_ganador || "-");
 
