@@ -20,7 +20,7 @@ export function renderSidebar() {
   <span>Inicio</span>
 </div>
 
- <div class="sidebar-item" onclick="toggleDescubrimientoMenu()">
+<div class="sidebar-item sidebar-item-desc" onclick="toggleDescubrimientoMenu()">
   <i data-lucide="compass"></i>
   <span>Descubrimiento</span>
   <i id="descubrimiento-arrow" data-lucide="chevron-right" style="margin-left:auto;"></i>
@@ -32,10 +32,6 @@ export function renderSidebar() {
     <span>Tendencias</span>
   </div>
 
-  <div class="sidebar-item" data-route="nichos" onclick="goTo('nichos')">
-    <i data-lucide="layers-3"></i>
-    <span>Nichos</span>
-  </div>
 </div>
 
 <div class="sidebar-item" onclick="toggleValidacionMenu()">

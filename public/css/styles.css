@@ -260,7 +260,7 @@ aside.collapsed .submenu .sidebar-item {
   justify-content: center;
 }
 aside.collapsed {
-  width: 47px;
+  width: 70px;
   padding-left: 10px;
   padding-right: 10px;
   align-items: center;
@@ -307,13 +307,6 @@ aside.collapsed {
   justify-content: center;
 }
 
-.sidebar-item i {
-  font-size: 20px;
-  min-width: 22px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
 
 /* COLOR BASE */
 .sidebar-item {
@@ -330,18 +323,18 @@ aside.collapsed {
   color: #c7d2fe;
 }
 
-.sidebar-item i {
-  width: 22px;
-  height: 22px;
-  stroke-width: 2;
-}
 
 .sidebar-item i {
-  width: 22px;
-  height: 22px;
-  stroke-width: 2;
+  margin: 0 auto;
 }
 
+.sidebar-item i,
+.sidebar-item svg {
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  min-height: 22px;
+}
 
 /* COLAPSADO */
 aside.collapsed .sidebar-item span {
@@ -666,9 +659,6 @@ aside {
   border-right: 1px solid rgba(255,255,255,0.05);
 }
 
-.sidebar-item i {
-  margin: 0 auto;
-}
 
 .sidebar-item {
   padding: 12px;
@@ -1261,8 +1251,12 @@ aside.collapsed .submenu .sidebar-item {
 
 .tendencias-form .primary {
   height: 40px;
-  border-radius: 14px;
-  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+  line-height: 1;
 }
 
 .trend-tabs {
@@ -1567,4 +1561,16 @@ aside.collapsed .submenu .sidebar-item {
   fill: #4f7ef7;
   stroke: white;
   stroke-width: 2;
+}
+.sidebar-item-desc i,
+.sidebar-item-desc svg {
+  width: 24px;
+  height: 24px;
+}
+
+.tendencias-form .primary i,
+.tendencias-form .primary svg {
+  width: 18px;
+  height: 18px;
+  display: block;
 }

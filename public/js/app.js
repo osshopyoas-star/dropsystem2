@@ -1255,6 +1255,12 @@ if (route === "tendencias") {
   view.innerHTML = renderTendencias();
   marcarMenuActivo("tendencias");
 
+  const sub = document.getElementById("descubrimiento-submenu");
+const arrow = document.getElementById("descubrimiento-arrow");
+
+if (sub) sub.classList.add("open");
+if (arrow) arrow.setAttribute("data-lucide", "chevron-down");
+
   setTimeout(() => {
     const savedInput = localStorage.getItem("trendInput");
     const savedPais = localStorage.getItem("trendPais");
@@ -1282,19 +1288,6 @@ if (route === "tendencias") {
   return;
 }
 
-  if (route === "nichos") {
-    view.innerHTML = `
-      <h1>🧠 Nichos</h1>
-      <p>Aquí clasificaremos problemas, audiencias y oportunidades</p>
-    `;
-    marcarMenuActivo("nichos");
-
-    setTimeout(() => {
-      if (window.lucide) lucide.createIcons();
-    }, 0);
-
-    return;
-  }
 };
 
 setTimeout(() => {
@@ -2056,7 +2049,7 @@ function renderTendencias() {
           </div>
 
           <div>
-            <h1 class="tendencias-title">Tendencias</h1>
+           <h1 class="tendencias-title">Radar de oportunidad</h1>
             <p class="tendencias-subtitle">
               Analiza una oportunidad como mercado, dolor, solución, mecanismo y decisión.
             </p>
@@ -2087,7 +2080,7 @@ function renderTendencias() {
   <button class="trend-tab" onclick="goStep(2)">Problema</button>
   <button class="trend-tab" onclick="goStep(3)">Audiencia</button>
   <button class="trend-tab" onclick="goStep(4)">Nicho</button>
-  <button class="trend-tab active" onclick="goStep(5)">Tendencia</button>
+ <button class="trend-tab active" onclick="goStep(5)">Validación</button>
   <button class="trend-tab" onclick="goStep(6)">Producto</button>
   <button class="trend-tab" onclick="goStep(7)">Marketing</button>
 </div>
