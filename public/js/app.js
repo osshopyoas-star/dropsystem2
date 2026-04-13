@@ -2233,23 +2233,26 @@ async function getRealTrendData(keyword) {
     const res = await fetch(`/api/trends?keyword=${encodeURIComponent(keyword)}`);
     const data = await res.json();
 
-    if (!res.ok) {
-      console.error("Error trends API:", data);
-      return [20, 25, 30, 28, 35, 40, 32, 30, 31, 33, 36, 42];
-    }
-
     if (!Array.isArray(data)) {
       console.error("Trends no devolvio array:", data);
-      return [20, 25, 30, 28, 35, 40, 32, 30, 31, 33, 36, 42];
+      return {
+        values: [20, 25, 30, 28, 35, 40, 32, 30, 31, 33, 36, 42],
+        labels: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+      };
     }
 
-    return data.map(x => Array.isArray(x.value) ? x.value[0] : 0);
+    return {
+      values: data.map(x => typeof x.value === "number" ? x.value : 0),
+      labels: data.map((x, i) => x.formattedTime || ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][i] || "")
+    };
   } catch (err) {
     console.error("Error trends:", err);
-    return [20, 25, 30, 28, 35, 40, 32, 30, 31, 33, 36, 42];
+    return {
+      values: [20, 25, 30, 28, 35, 40, 32, 30, 31, 33, 36, 42],
+      labels: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+    };
   }
 }
-
 async function renderTrendChart(json) {
   const svg = document.getElementById("trendChart");
   const grid = document.getElementById("trendChartGrid");
@@ -2258,9 +2261,9 @@ async function renderTrendChart(json) {
   const labels = document.getElementById("trendChartLabels");
 
   if (!svg || !grid || !line || !dots || !labels) return;
-
-  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const data = await getRealTrendData(json.tema_central);
+const trend = await getRealTrendData(json.tema_central);
+const data = trend.values;
+const months = trend.labels;
 
   const W = 520;
   const H = 180;
