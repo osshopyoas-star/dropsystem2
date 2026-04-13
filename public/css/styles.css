@@ -1789,3 +1789,61 @@ aside.collapsed .submenu .sidebar-item {
   font-weight: 700;
   color: #475569;
 }
+
+
+
+.tendencias-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.btn-secondary {
+  background: #eaf1ff;
+  color: #1e3a8a;
+  border: 1px solid #c7d7ff;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.btn-secondary:hover {
+  background: #dbeafe;
+}
+
+.maslow-keywords-panel {
+  margin-top: 14px;
+  background: #f8fbff;
+  border: 1px solid #dbe4f0;
+  border-radius: 16px;
+  padding: 14px;
+}
+
+.maslow-keywords-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.keyword-pick-btn {
+  display: inline-block;
+  margin: 6px;
+  background: #eef2ff;
+  color: #1e3a8a;
+  border: 1px solid #dbeafe;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.keyword-pick-btn:hover {
+  background: #dbeafe;
+}
+
+.hidden {
+  display: none;
+}

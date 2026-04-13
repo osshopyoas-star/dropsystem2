@@ -2060,7 +2060,12 @@ function renderTendencias() {
           </div>
 
           <div>
-           <h1 class="tendencias-title">Radar de oportunidad</h1>
+          <div class="tendencias-title-row">
+  <h1 class="tendencias-title">Radar de oportunidad</h1>
+  <button class="btn-secondary" onclick="generarKeywordsMaslow()">
+    Palabras clave IA
+  </button>
+</div>
             <p class="tendencias-subtitle">
               Analiza una oportunidad como mercado, dolor, solución, mecanismo y decisión.
             </p>
@@ -2068,6 +2073,15 @@ function renderTendencias() {
         </div>
 
         <div class="tendencias-form tendencias-form-3">
+           <div id="maslowKeywordsPanel" class="maslow-keywords-panel hidden">
+  <div class="maslow-keywords-head">
+    <strong>Palabras clave sugeridas por IA</strong>
+    <button onclick="cerrarMaslowKeywords()">✕</button>
+  </div>
+
+  <div id="maslowKeywordsList"></div>
+</div>
+
           <input id="trendInput" placeholder="Ej: caída del cabello, ansiedad, seguridad física..." />
 
           <select id="trendPais">
@@ -2774,6 +2788,98 @@ try {
     document.getElementById("trendResult").innerText = "Error en API";
   }
 };
+
+
+
+
+window.generarKeywordsMaslow = async function() {
+  const panel = document.getElementById("maslowKeywordsPanel");
+  const list = document.getElementById("maslowKeywordsList");
+
+  if (!panel || !list) return;
+
+  panel.classList.remove("hidden");
+  list.innerHTML = "Generando palabras clave...";
+
+  try {
+    const res = await fetch("/api/ia", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        prompt: `
+Responde SOLO en JSON válido.
+
+Actúa como estratega de ecommerce y psicología del consumidor.
+
+Genera una lista de palabras clave tipo problema, basadas en la pirámide de Maslow.
+Quiero ideas amplias, no una sola categoría.
+Deben ser problemas reales que la gente buscaría o compraría para resolver.
+
+Devuelve EXACTAMENTE este JSON:
+
+{
+  "keywords": [
+    "caída del cabello",
+    "dolor muscular",
+    "ansiedad",
+    "insomnio",
+    "cansancio extremo",
+    "dolor de rodilla",
+    "estrés",
+    "uñas débiles",
+    "piel manchada",
+    "mala circulación",
+    "grasa abdominal",
+    "baja energía"
+  ]
+}
+`
+      })
+    });
+
+    const data = await res.json();
+    let raw = (data.reply || "").trim();
+
+    const start = raw.indexOf("{");
+    const end = raw.lastIndexOf("}");
+
+    if (start !== -1 && end !== -1) {
+      raw = raw.substring(start, end + 1);
+    }
+
+    const parsed = JSON.parse(raw);
+    const keywords = parsed.keywords || [];
+
+    list.innerHTML = keywords.map(k => `
+      <button class="keyword-pick-btn" onclick="usarKeywordMaslow('${String(k).replace(/'/g, "\\'")}')">
+        ${k}
+      </button>
+    `).join("");
+
+  } catch (err) {
+    console.error("Error generando keywords Maslow:", err);
+    list.innerHTML = "Error generando palabras clave";
+  }
+};
+
+
+
+window.usarKeywordMaslow = function(keyword) {
+  const input = document.getElementById("trendInput");
+  if (input) input.value = keyword;
+
+  cerrarMaslowKeywords();
+};
+
+
+window.cerrarMaslowKeywords = function() {
+  const panel = document.getElementById("maslowKeywordsPanel");
+  if (panel) panel.classList.add("hidden");
+};
+
+
 
 window.toggleDescubrimientoMenu = function() {
   const sidebar = document.querySelector("aside");
