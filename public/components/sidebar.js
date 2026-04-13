@@ -31,22 +31,12 @@ export function renderSidebar() {
     <i data-lucide="trending-up"></i>
     <span>Tendencias</span>
   </div>
-
 </div>
 
-<div class="sidebar-item" onclick="toggleValidacionMenu()">
-  <i data-lucide="check-circle"></i>
-  <span>Validación</span>
-  <i id="validacion-arrow" data-lucide="chevron-right" style="margin-left:auto;"></i>
-</div>
-
-<div id="validacion-submenu" class="submenu">
-  <div class="sidebar-item" data-route="busqueda" onclick="goTo('busqueda')">
+<div class="sidebar-item" data-route="busqueda" onclick="goTo('busqueda')">
    <i data-lucide="check-circle"></i>
     <span>Buscar productos</span>
   </div>
-</div>
-
      <div class="sidebar-item" onclick="toggleProductosMenu()">
   <i data-lucide="package"></i>
   <span>Base de Productos</span>
