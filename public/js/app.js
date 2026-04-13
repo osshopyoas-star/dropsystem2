@@ -2453,8 +2453,9 @@ setText("kpiDireccionBox", json.direccion || "-");
   fillList("marketingAngulos", json.marketing?.angulos_marketing || []);
   fillList("marketingHooks", json.marketing?.hooks || []);
 
-  
-  fillList("valSenales", json.validacion?.senales_ads || []);
+
+fillList("decisionRiesgos", json.decision?.riesgos || []);
+fillList("valSenales", json.validacion?.senales_ads || []);
 fillList("valSaturacion", json.validacion?.indicadores_saturacion || []);
 fillList("valOportunidad", json.validacion?.oportunidad_oculta || []);
 
@@ -2574,10 +2575,12 @@ const modo = "full";
 
   if (!texto) return alert("Escribe algo");
 
-  document.getElementById("kpiTema").textContent = "Analizando...";
-document.getElementById("kpiScore").textContent = "-";
-
+ const kpiTema = document.getElementById("kpiTema");
+const kpiScore = document.getElementById("kpiScore");
 const scoreBar = document.getElementById("kpiScoreBar");
+
+if (kpiTema) kpiTema.textContent = "Analizando...";
+if (kpiScore) kpiScore.textContent = "-";
 if (scoreBar) scoreBar.style.width = "0%";
 
   try {

@@ -41,6 +41,27 @@ const Producto = mongoose.model("Producto", productoSchema);
 
 const app = express();
 
+const API_KEY = process.env.API_KEY;
+
+// 🔧 necesario para __dirname en ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// 🌐 CORS
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "Content-Type");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+
+  next();
+});
+
+app.use(express.json());
+app.use(express.static(path.join(__dirname, "public")));
 
 app.post("/api/trends", async (req, res) => {
   const { keyword, pais = "ALL" } = req.body || {};
@@ -147,27 +168,7 @@ Devuelve EXACTAMENTE este JSON:
   }
 });
 
-const API_KEY = process.env.API_KEY;
 
-// 🔧 necesario para __dirname en ES modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// 🌐 CORS
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Headers", "Content-Type");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(200);
-  }
-
-  next();
-});
-
-app.use(express.json());
-app.use(express.static(path.join(__dirname, "public")));
 
 app.get("/api/test", (req, res) => {
   res.json({ status: "ok" });
