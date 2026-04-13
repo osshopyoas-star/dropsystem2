@@ -2847,6 +2847,7 @@ try {
 
 
 window.generarKeywordsMaslow = async function() {
+  const pais = document.getElementById("trendPais")?.value || "ALL";
   const panel = document.getElementById("maslowKeywordsPanel");
   const list = document.getElementById("maslowKeywordsList");
 
@@ -2871,22 +2872,20 @@ Genera una lista de palabras clave tipo problema, basadas en la pirámide de Mas
 Quiero ideas amplias, no una sola categoría.
 Deben ser problemas reales que la gente buscaría o compraría para resolver.
 
+País prioritario: "${pais}"
+
 Devuelve EXACTAMENTE este JSON:
 
 {
-  "keywords": [
-    "caída del cabello",
-    "dolor muscular",
-    "ansiedad",
-    "insomnio",
-    "cansancio extremo",
-    "dolor de rodilla",
-    "estrés",
-    "uñas débiles",
-    "piel manchada",
-    "mala circulación",
-    "grasa abdominal",
-    "baja energía"
+  Reglas:
+- devuelve entre 20 y 30 keywords
+- NO repitas ejemplos genéricos
+- NO copies siempre las mismas palabras
+- mezcla problemas físicos, emocionales, estéticos, energéticos, sueño, dolor, seguridad, autoestima y atracción
+- deben ser búsquedas que una persona sí escribiría
+- frases cortas, directas y vendibles
+- evita categorías; quiero keywords concretas
+- devuelve solo el JSON
   ]
 }
 `
