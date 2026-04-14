@@ -1518,7 +1518,16 @@ Formato limpio, claro y organizado.
       })
     });
 
-    const data = await res.json();
+ const raw = await res.text();
+console.log("RAW /api/ia:", raw);
+
+let data;
+
+try {
+  data = JSON.parse(raw);
+} catch (e) {
+  throw new Error("El servidor devolvió HTML o respuesta inválida");
+}
 
     if (!res.ok) {
       throw new Error(data?.error || "Error generando desarrollo");
