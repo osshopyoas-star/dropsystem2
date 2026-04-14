@@ -1233,7 +1233,7 @@ if (route === "desarrollo") {
               <input id="inputProductoDev" placeholder="Ej: parche para dolor de rodilla, mejora movilidad y reduce inflamación">
     <label>Imagen del producto</label>
 <input id="inputImagenDev" type="file" accept="image/*">
-              <input id="inputImagenDev" type="file" accept="image/*">
+              
               <label>Información adicional</label>
               <textarea id="inputInfoDev" placeholder="Ej: público objetivo, beneficios, objeciones, promesa, competencia..."></textarea>
 
@@ -1548,16 +1548,6 @@ Formato limpio, claro y organizado.
   }
 };
 
-function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-
-    reader.readAsDataURL(file);
-  });
-}
 
 function escapeHtmlDev(str = "") {
   return String(str).replace(/[&<>"']/g, function(m) {
