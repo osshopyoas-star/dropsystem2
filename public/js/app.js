@@ -1190,6 +1190,35 @@ window.toggleSidebar = function() {
 };
 
 window.goTo = function(route) {
+
+
+
+if (route === "desarrollo") {
+  view.innerHTML = `
+    <div class="panel">
+      <h2>🧠 Desarrollo de Producto</h2>
+
+      <p>Ingresa información del producto:</p>
+
+      <input id="inputProducto" placeholder="Ej: crema anti acné, suplemento energía, etc">
+
+      <button class="primary" onclick="generarDesarrollo()">
+        Generar
+      </button>
+
+      <div id="resultadoDesarrollo" style="margin-top:20px;"></div>
+    </div>
+  `;
+
+  marcarMenuActivo("desarrollo");
+
+  setTimeout(() => {
+    if (window.lucide) lucide.createIcons();
+  }, 0);
+
+  return;
+}
+
   if (route === "inicio") {
    view.innerHTML = `
   <h1>🏠 Inicio</h1>
@@ -1308,6 +1337,41 @@ setTimeout(() => {
   }
 }, 500);
 
+
+
+window.generarDesarrollo = async function() {
+  const producto = document.getElementById("inputProducto").value;
+
+  if (!producto) return alert("Escribe producto");
+
+  const res = await fetch("/api/ia", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      prompt: `
+Producto: ${producto}
+
+Dame:
+
+1. 3 AVATARES (cliente ideal)
+2. 5 ÁNGULOS por cada avatar
+3. 3 GUIONES de video (25-30 segundos, AIDA, CTA fuerte, compra impulsiva)
+4. 2 ideas de imagen creativa
+
+Formato claro y organizado
+`
+    })
+  });
+
+  const data = await res.json();
+
+  document.getElementById("resultadoDesarrollo").innerHTML = `
+    <pre>${data.reply}</pre>
+  `;
+};
+
 window.toggleBusquedaMenu = function() {
   const sidebar = document.querySelector("aside");
   if (sidebar.classList.contains("collapsed")) {
@@ -1351,29 +1415,6 @@ window.toggleProductosMenu = function() {
 
   lucide.createIcons();
 };
-
-window.toggleDesarrolloMenu = function() {
-  const sidebar = document.querySelector("aside");
-  if (sidebar.classList.contains("collapsed")) {
-    toggleSidebar();
-    setTimeout(() => toggleDesarrolloMenu(), 50);
-    return;
-  }
-
-  const menu = document.getElementById("desarrollo-submenu");
-  const arrow = document.getElementById("desarrollo-arrow");
-
-  menu.classList.toggle("open");
-
-  if (menu.classList.contains("open")) {
-    arrow.setAttribute("data-lucide", "chevron-down");
-  } else {
-    arrow.setAttribute("data-lucide", "chevron-right");
-  }
-
-  lucide.createIcons();
-};
-
 
 window.setProductoPais = function(pais) {
   window.productoPaisActivo = pais;

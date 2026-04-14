@@ -59,44 +59,13 @@ export function renderSidebar() {
 
 </div>
 
-<div class="sidebar-item" onclick="toggleDesarrolloMenu()">
+<div class="sidebar-item" data-route="desarrollo" onclick="goTo('desarrollo')">
   <i data-lucide="brain"></i>
   <span>Desarrollo</span>
-
-  <i id="desarrollo-arrow" data-lucide="chevron-right" style="margin-left:auto;"></i>
 </div>
 
 
-<div id="desarrollo-submenu" class="submenu">
-
-  <div class="sidebar-item" onclick="setActive(this); goTo('avatar')">
-    <span>Avatar</span>
-  </div>
-
-  <div class="sidebar-item" onclick="setActive(this); goTo('angulos')">
-    <span>Ángulos</span>
-  </div>
-
-  <div class="sidebar-item" onclick="setActive(this); goTo('prompts')">
-    <span>Prompts IA</span>
-  </div>
-
-  <div class="sidebar-item" onclick="setActive(this); goTo('creativos')">
-    <span>Creativos</span>
-  </div>
-
-  <div class="sidebar-item" onclick="setActive(this); goTo('landing')">
-    <span>Landing Page</span>
-  </div>
-
-  <div class="sidebar-item" onclick="setActive(this); goTo('banpage')">
-    <span>Ban Page</span>
-  </div>
-
 </div>
-
-
-    </div>
   `;
 
  if (window.lucide) {
