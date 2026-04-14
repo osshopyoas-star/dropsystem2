@@ -1494,13 +1494,13 @@ Devuelve el resultado con títulos claros, bien separado y fácil de leer.
       throw new Error(data?.error || "Error generando desarrollo");
     }
 
-    resultado.className = "dev-result-box";
-    resultado.innerHTML = `
-      <div class="dev-result-toolbar">
-        <span class="dev-result-pill">IA lista</span>
-      </div>
-      <pre class="dev-pre">${data.reply || "Sin respuesta"}</pre>
-    `;
+   resultado.className = "dev-result-box";
+resultado.innerHTML = `
+  <div class="dev-result-toolbar">
+    <span class="dev-result-pill">IA lista</span>
+  </div>
+  ${renderParsedDesarrollo(data.reply || "Sin respuesta")}
+`;
 
     if (window.lucide) lucide.createIcons();
 
@@ -1514,6 +1514,175 @@ Devuelve el resultado con títulos claros, bien separado y fácil de leer.
     `;
   }
 };
+
+
+
+
+function escapeHtmlDev(str = "") {
+  return String(str).replace(/[&<>"']/g, function(m) {
+    return {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    }[m];
+  });
+}
+
+function splitBlocks(text) {
+  const normalized = String(text || "").replace(/\r/g, "").trim();
+
+  const patterns = [
+    { key: "avatares", regex: /(?:^|\n)(?:1[\).\-\s]*|#+\s*)\s*AVATARES\b/i },
+    { key: "angulos", regex: /(?:^|\n)(?:2[\).\-\s]*|#+\s*)\s*[ÁA]NGULOS\b/i },
+    { key: "guiones", regex: /(?:^|\n)(?:3[\).\-\s]*|#+\s*)\s*GUIONES(?:\s+DE\s+VIDEO)?\b/i },
+    { key: "creativos", regex: /(?:^|\n)(?:4[\).\-\s]*|#+\s*)\s*CREATIVOS(?:\s+DE\s+IMAGEN)?\b/i },
+    { key: "recomendacion", regex: /(?:^|\n)(?:5[\).\-\s]*|#+\s*)\s*RECOMENDACI[ÓO]N(?:\s+FINAL)?\b/i }
+  ];
+
+  const found = patterns
+    .map(p => {
+      const match = normalized.match(p.regex);
+      return match ? { key: p.key, index: match.index, match: match[0] } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.index - b.index);
+
+  if (!found.length) {
+    return {
+      avatares: "",
+      angulos: "",
+      guiones: "",
+      creativos: "",
+      recomendacion: "",
+      raw: normalized
+    };
+  }
+
+  const result = {
+    avatares: "",
+    angulos: "",
+    guiones: "",
+    creativos: "",
+    recomendacion: "",
+    raw: ""
+  };
+
+  for (let i = 0; i < found.length; i++) {
+    const current = found[i];
+    const next = found[i + 1];
+    const start = current.index;
+    const end = next ? next.index : normalized.length;
+    result[current.key] = normalized.slice(start, end).trim();
+  }
+
+  return result;
+}
+
+function formatSectionHtml(text = "") {
+  if (!text) {
+    return `<div class="dev-card-empty">Sin contenido</div>`;
+  }
+
+  const safe = escapeHtmlDev(text);
+
+  const html = safe
+    .split("\n")
+    .map(line => {
+      const trimmed = line.trim();
+
+      if (!trimmed) {
+        return `<div class="dev-line-space"></div>`;
+      }
+
+      if (/^(AVATARES|ÁNGULOS|ANGULOS|GUIONES|GUIONES DE VIDEO|CREATIVOS|CREATIVOS DE IMAGEN|RECOMENDACIÓN FINAL|RECOMENDACION FINAL)\b/i.test(trimmed.replace(/^(\d+[\).\-\s]*)/, ""))) {
+        return `<h4 class="dev-section-mini-title">${trimmed}</h4>`;
+      }
+
+      if (/^[-•*]\s+/.test(trimmed) || /^\d+[\).\s-]+/.test(trimmed)) {
+        return `<div class="dev-bullet-row">${trimmed}</div>`;
+      }
+
+      if (/^[A-ZÁÉÍÓÚÑ0-9 ][A-ZÁÉÍÓÚÑ0-9 :\-]{4,}$/i.test(trimmed) && trimmed.length < 90) {
+        return `<h5 class="dev-subblock-title">${trimmed}</h5>`;
+      }
+
+      return `<p class="dev-paragraph">${trimmed}</p>`;
+    })
+    .join("");
+
+  return html;
+}
+
+function renderParsedDesarrollo(reply = "") {
+  const sections = splitBlocks(reply);
+
+  if (sections.raw) {
+    return `
+      <div class="dev-result-grid single">
+        <section class="dev-result-card full">
+          <div class="dev-result-card-head">
+            <h3>Resultado</h3>
+          </div>
+          <div class="dev-result-card-body">
+            ${formatSectionHtml(sections.raw)}
+          </div>
+        </section>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="dev-result-grid">
+      <section class="dev-result-card">
+        <div class="dev-result-card-head">
+          <h3>👤 Avatares</h3>
+        </div>
+        <div class="dev-result-card-body">
+          ${formatSectionHtml(sections.avatares)}
+        </div>
+      </section>
+
+      <section class="dev-result-card">
+        <div class="dev-result-card-head">
+          <h3>🎯 Ángulos</h3>
+        </div>
+        <div class="dev-result-card-body">
+          ${formatSectionHtml(sections.angulos)}
+        </div>
+      </section>
+
+      <section class="dev-result-card">
+        <div class="dev-result-card-head">
+          <h3>🎬 Guiones</h3>
+        </div>
+        <div class="dev-result-card-body">
+          ${formatSectionHtml(sections.guiones)}
+        </div>
+      </section>
+
+      <section class="dev-result-card">
+        <div class="dev-result-card-head">
+          <h3>🖼️ Creativos</h3>
+        </div>
+        <div class="dev-result-card-body">
+          ${formatSectionHtml(sections.creativos)}
+        </div>
+      </section>
+
+      <section class="dev-result-card full">
+        <div class="dev-result-card-head">
+          <h3>📌 Recomendación final</h3>
+        </div>
+        <div class="dev-result-card-body">
+          ${formatSectionHtml(sections.recomendacion)}
+        </div>
+      </section>
+    </div>
+  `;
+}
+
 
 window.toggleBusquedaMenu = function() {
   const sidebar = document.querySelector("aside");
