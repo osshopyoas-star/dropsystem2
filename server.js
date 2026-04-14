@@ -203,7 +203,7 @@ app.post("/api/ia", async (req, res) => {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "grok-4-vision-latest",
+       model: "grok-4-1-fast-non-reasoning",
         messages: [
           {
             role: "system",
