@@ -1195,18 +1195,91 @@ window.goTo = function(route) {
 
 if (route === "desarrollo") {
   view.innerHTML = `
-    <div class="panel">
-      <h2>🧠 Desarrollo de Producto</h2>
+    <div class="dev-page">
 
-      <p>Ingresa información del producto:</p>
+      <section class="dev-hero">
+        <div class="dev-hero-left">
+          <div class="dev-badge">
+            <i data-lucide="brain"></i>
+            <span>Desarrollo de producto</span>
+          </div>
 
-      <input id="inputProducto" placeholder="Ej: crema anti acné, suplemento energía, etc">
+          <h1 class="dev-title">Crea avatares, ángulos y guiones con IA</h1>
+          <p class="dev-subtitle">
+            Analiza producto, problema, mecanismo o información del producto
+            para construir la base de landing, creativos y segmentación.
+          </p>
+        </div>
 
-      <button class="primary" onclick="generarDesarrollo()">
-        Generar
-      </button>
+        <div class="dev-hero-right">
+          <div class="dev-stat-card">
+            <strong>Salida esperada</strong>
+            <span>3 avatares · 5 ángulos por avatar · 3 guiones · 2 ideas visuales</span>
+          </div>
+        </div>
+      </section>
 
-      <div id="resultadoDesarrollo" style="margin-top:20px;"></div>
+      <section class="dev-layout">
+
+        <div class="dev-left">
+          <div class="dev-card">
+            <div class="dev-card-head">
+              <h3>Entrada estratégica</h3>
+              <p>Describe producto, problema, mecanismo, beneficios o contexto de mercado.</p>
+            </div>
+
+            <div class="dev-form">
+              <label>Producto / mecanismo / problema</label>
+              <input id="inputProductoDev" placeholder="Ej: parche para dolor de rodilla, mejora movilidad y reduce inflamación">
+
+              <label>Información adicional</label>
+              <textarea id="inputInfoDev" placeholder="Ej: público objetivo, beneficios, objeciones, promesa, competencia..."></textarea>
+
+              <label>Objetivo</label>
+              <select id="tipoDesarrolloDev">
+                <option value="completo">Desarrollo completo</option>
+                <option value="avatar">Solo avatar</option>
+                <option value="angulos">Solo ángulos</option>
+                <option value="guiones">Solo guiones</option>
+                <option value="creativos">Solo creativos</option>
+              </select>
+
+              <button class="primary dev-main-btn" onclick="generarDesarrollo()">
+                <i data-lucide="sparkles"></i>
+                Generar desarrollo
+              </button>
+            </div>
+          </div>
+
+          <div class="dev-card dev-help-card">
+            <div class="dev-card-head">
+              <h3>Cómo usarlo</h3>
+            </div>
+
+            <ul class="dev-help-list">
+              <li>Empieza por el problema principal.</li>
+              <li>Luego define mecanismo y producto.</li>
+              <li>Después genera avatars y ángulos.</li>
+              <li>Con eso construyes landings y creativos.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="dev-right">
+          <div class="dev-card">
+            <div class="dev-card-head">
+              <h3>Resultado IA</h3>
+              <p>Salida organizada para avatar, ángulos, guiones y creativos.</p>
+            </div>
+
+            <div id="resultadoDesarrollo" class="dev-result-empty">
+              <i data-lucide="layout-dashboard"></i>
+              <p>Aquí aparecerá el desarrollo del producto.</p>
+            </div>
+          </div>
+        </div>
+
+      </section>
     </div>
   `;
 
@@ -1218,7 +1291,6 @@ if (route === "desarrollo") {
 
   return;
 }
-
   if (route === "inicio") {
    view.innerHTML = `
   <h1>🏠 Inicio</h1>
@@ -1338,38 +1410,109 @@ setTimeout(() => {
 }, 500);
 
 
-
 window.generarDesarrollo = async function() {
-  const producto = document.getElementById("inputProducto").value;
+  const producto = document.getElementById("inputProductoDev")?.value?.trim();
+  const info = document.getElementById("inputInfoDev")?.value?.trim();
+  const tipo = document.getElementById("tipoDesarrolloDev")?.value || "completo";
+  const resultado = document.getElementById("resultadoDesarrollo");
 
-  if (!producto) return alert("Escribe producto");
+  if (!producto) {
+    alert("Escribe el producto o problema");
+    return;
+  }
 
-  const res = await fetch("/api/ia", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      prompt: `
-Producto: ${producto}
-
-Dame:
-
-1. 3 AVATARES (cliente ideal)
-2. 5 ÁNGULOS por cada avatar
-3. 3 GUIONES de video (25-30 segundos, AIDA, CTA fuerte, compra impulsiva)
-4. 2 ideas de imagen creativa
-
-Formato claro y organizado
-`
-    })
-  });
-
-  const data = await res.json();
-
-  document.getElementById("resultadoDesarrollo").innerHTML = `
-    <pre>${data.reply}</pre>
+  resultado.className = "dev-result-loading";
+  resultado.innerHTML = `
+    <div class="dev-loading-box">
+      <div class="dev-loading-spinner"></div>
+      <p>Generando estrategia de desarrollo...</p>
+    </div>
   `;
+
+  try {
+    const prompt = `
+Eres un estratega senior de ecommerce y performance creativo.
+
+Analiza este producto o contexto:
+PRODUCTO / PROBLEMA / MECANISMO:
+${producto}
+
+INFO ADICIONAL:
+${info || "Sin info adicional"}
+
+TIPO DE SALIDA:
+${tipo}
+
+Quiero una respuesta clara, elegante, comercial y muy útil para vender.
+
+Si el tipo es "completo", devuelve exactamente estas secciones:
+
+1. AVATARES
+- Dame 3 avatars
+- Cada avatar debe incluir:
+  - nombre del avatar
+  - dolor principal
+  - deseo principal
+  - objeción principal
+  - trigger de compra
+
+2. ANGULOS
+- Dame 5 ángulos por cada avatar
+- Cada ángulo debe ser directo, vendible y orientado a landing/ads
+
+3. GUIONES DE VIDEO
+- Dame 3 guiones de 25 a 30 segundos
+- Usa estructura AIDA
+- CTA fuerte
+- Enfoque compra impulsiva
+- Mostrar problema, beneficio, solución, oferta y efecto wow
+
+4. CREATIVOS DE IMAGEN
+- Dame 2 ideas de creativos de imagen
+- Explica qué debe mostrar visualmente
+- Qué texto principal debe llevar
+- Qué emoción debe activar
+
+5. RECOMENDACION FINAL
+- Cómo usar estos ángulos en landing
+- Cómo usar estos ángulos en anuncios
+
+Devuelve el resultado con títulos claros, bien separado y fácil de leer.
+`;
+
+    const res = await fetch("/api/ia", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ prompt })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data?.error || "Error generando desarrollo");
+    }
+
+    resultado.className = "dev-result-box";
+    resultado.innerHTML = `
+      <div class="dev-result-toolbar">
+        <span class="dev-result-pill">IA lista</span>
+      </div>
+      <pre class="dev-pre">${data.reply || "Sin respuesta"}</pre>
+    `;
+
+    if (window.lucide) lucide.createIcons();
+
+  } catch (error) {
+    resultado.className = "dev-result-error";
+    resultado.innerHTML = `
+      <div class="dev-error-box">
+        <strong>Error</strong>
+        <p>${error.message}</p>
+      </div>
+    `;
+  }
 };
 
 window.toggleBusquedaMenu = function() {
