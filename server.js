@@ -175,9 +175,27 @@ app.get("/api/test", (req, res) => {
 });
 
 app.post("/api/ia", async (req, res) => {
-  const { prompt } = req.body;
+  const { prompt, image } = req.body;
 
   try {
+    const userContent = [];
+
+    if (prompt) {
+      userContent.push({
+        type: "text",
+        text: prompt
+      });
+    }
+
+    if (image) {
+      userContent.push({
+        type: "image_url",
+        image_url: {
+          url: image
+        }
+      });
+    }
+
     const response = await fetch("https://api.x.ai/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -185,41 +203,32 @@ app.post("/api/ia", async (req, res) => {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "grok-4-1-fast-non-reasoning",
+        model: "grok-4-vision-latest",
         messages: [
           {
             role: "system",
-            content: "Eres un experto en marketing, tendencias y validación de productos para ecommerce."
+            content: "Eres un experto en marketing, análisis de producto y ecommerce."
           },
           {
             role: "user",
-            content: prompt
+            content: userContent
           }
         ]
       })
     });
 
-const data = await response.json();
+    const data = await response.json();
 
-if (!response.ok) {
-  console.log("ERROR HTTP IA:", data);
-  return res.status(response.status).json({
-    error: "Error HTTP en IA",
-    raw: data
-  });
-}
+    if (!response.ok) {
+      return res.status(response.status).json({
+        error: "Error HTTP en IA",
+        raw: data
+      });
+    }
 
-if (!data?.choices?.[0]?.message?.content) {
-  console.log("ERROR IA:", data);
-  return res.status(500).json({
-    error: "Respuesta IA inválida",
-    raw: data
-  });
-}
-
-res.json({
-  reply: data.choices[0].message.content
-});
+    res.json({
+      reply: data?.choices?.[0]?.message?.content || "Sin respuesta"
+    });
 
   } catch (error) {
     console.error("ERROR SERVER:", error);

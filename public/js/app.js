@@ -1231,7 +1231,9 @@ if (route === "desarrollo") {
             <div class="dev-form">
               <label>Producto / mecanismo / problema</label>
               <input id="inputProductoDev" placeholder="Ej: parche para dolor de rodilla, mejora movilidad y reduce inflamación">
-
+    <label>Imagen del producto</label>
+<input id="inputImagenDev" type="file" accept="image/*">
+              <input id="inputImagenDev" type="file" accept="image/*">
               <label>Información adicional</label>
               <textarea id="inputInfoDev" placeholder="Ej: público objetivo, beneficios, objeciones, promesa, competencia..."></textarea>
 
@@ -1410,14 +1412,25 @@ setTimeout(() => {
 }, 500);
 
 
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 window.generarDesarrollo = async function() {
   const producto = document.getElementById("inputProductoDev")?.value?.trim();
   const info = document.getElementById("inputInfoDev")?.value?.trim();
   const tipo = document.getElementById("tipoDesarrolloDev")?.value || "completo";
   const resultado = document.getElementById("resultadoDesarrollo");
+  const imageInput = document.getElementById("inputImagenDev");
+  const imageFile = imageInput?.files?.[0] || null;
 
-  if (!producto) {
-    alert("Escribe el producto o problema");
+  if (!producto && !imageFile) {
+    alert("Escribe el producto o sube una imagen");
     return;
   }
 
@@ -1430,54 +1443,68 @@ window.generarDesarrollo = async function() {
   `;
 
   try {
-    const prompt = `
-Eres un estratega senior de ecommerce y performance creativo.
+    let imageBase64 = null;
 
-Analiza este producto o contexto:
+    if (imageFile) {
+      imageBase64 = await fileToBase64(imageFile);
+    }
+
+    const prompt = `
+Eres un estratega senior de ecommerce y marketing de respuesta directa.
+
+CONTEXTO:
 PRODUCTO / PROBLEMA / MECANISMO:
-${producto}
+${producto || "No se escribió texto. Analiza la imagen."}
 
 INFO ADICIONAL:
 ${info || "Sin info adicional"}
 
+IMPORTANTE:
+Si se adjunta una imagen, primero analízala y determina:
+- qué producto es
+- qué problema resuelve
+- beneficios visibles o inferidos
+- tipo de cliente ideal
+- mecanismo o promesa principal
+
+Si NO hay imagen, usa solo el texto.
+Si HAY imagen, prioriza la imagen sobre el texto.
+
 TIPO DE SALIDA:
 ${tipo}
 
-Quiero una respuesta clara, elegante, comercial y muy útil para vender.
-
-Si el tipo es "completo", devuelve exactamente estas secciones:
+Si el tipo es "completo", devuelve EXACTAMENTE estas secciones:
 
 1. AVATARES
-- Dame 3 avatars
-- Cada avatar debe incluir:
-  - nombre del avatar
-  - dolor principal
-  - deseo principal
-  - objeción principal
-  - trigger de compra
+- 3 avatares
+- nombre
+- dolor principal
+- deseo
+- objeción
+- trigger de compra
 
-2. ANGULOS
-- Dame 5 ángulos por cada avatar
-- Cada ángulo debe ser directo, vendible y orientado a landing/ads
+2. ÁNGULOS
+- 5 ángulos por avatar
+- enfocados en venta
 
 3. GUIONES DE VIDEO
-- Dame 3 guiones de 25 a 30 segundos
-- Usa estructura AIDA
+- 3 guiones de 25 a 30 segundos
+- modelo AIDA
 - CTA fuerte
-- Enfoque compra impulsiva
-- Mostrar problema, beneficio, solución, oferta y efecto wow
+- compra impulsiva
+- efecto wow
 
 4. CREATIVOS DE IMAGEN
-- Dame 2 ideas de creativos de imagen
-- Explica qué debe mostrar visualmente
-- Qué texto principal debe llevar
-- Qué emoción debe activar
+- 2 ideas
+- qué mostrar
+- texto principal
+- emoción
 
-5. RECOMENDACION FINAL
-- Cómo usar estos ángulos en landing
-- Cómo usar estos ángulos en anuncios
+5. RECOMENDACIÓN FINAL
+- cómo usar en landing
+- cómo usar en ads
 
-Devuelve el resultado con títulos claros, bien separado y fácil de leer.
+Formato limpio, claro y organizado.
 `;
 
     const res = await fetch("/api/ia", {
@@ -1485,7 +1512,10 @@ Devuelve el resultado con títulos claros, bien separado y fácil de leer.
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ prompt })
+      body: JSON.stringify({
+        prompt,
+        image: imageBase64
+      })
     });
 
     const data = await res.json();
@@ -1494,13 +1524,15 @@ Devuelve el resultado con títulos claros, bien separado y fácil de leer.
       throw new Error(data?.error || "Error generando desarrollo");
     }
 
-   resultado.className = "dev-result-box";
-resultado.innerHTML = `
-  <div class="dev-result-toolbar">
-    <span class="dev-result-pill">IA lista</span>
-  </div>
-  ${renderParsedDesarrollo(data.reply || "Sin respuesta")}
-`;
+    const reply = data && data.reply ? data.reply : "Sin respuesta del servidor";
+
+    resultado.className = "dev-result-box";
+    resultado.innerHTML = `
+      <div class="dev-result-toolbar">
+        <span class="dev-result-pill">IA lista</span>
+      </div>
+      ${renderParsedDesarrollo(reply)}
+    `;
 
     if (window.lucide) lucide.createIcons();
 
@@ -1512,11 +1544,20 @@ resultado.innerHTML = `
         <p>${error.message}</p>
       </div>
     `;
+    console.error("Error en generarDesarrollo:", error);
   }
 };
 
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
 
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
 
+    reader.readAsDataURL(file);
+  });
+}
 
 function escapeHtmlDev(str = "") {
   return String(str).replace(/[&<>"']/g, function(m) {
