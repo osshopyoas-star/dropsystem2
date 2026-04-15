@@ -1340,7 +1340,8 @@ if (route === "calculadora") {
                 <option value="CO">Colombia (COP)</option>
                 <option value="EC">Ecuador (USD)</option>
               </select>
-
+              <label>Precio de venta final</label>
+              <input id="calcPrecioVentaManual" type="number" value="100000" oninput="actualizarCalculadora()">
               <label>Origen</label>
               <select id="calcOrigen" onchange="actualizarCalculadora()">
                 <option value="catalogo">Catálogo público</option>
@@ -1355,6 +1356,11 @@ if (route === "calculadora") {
 
               <label>Entrega sobre despachado (%)</label>
               <input id="calcEntrega" type="number" value="75" oninput="actualizarCalculadora()">
+              <label>% Devoluciones</label>
+              <input id="calcDevoluciones" type="number" value="20" oninput="actualizarCalculadora()">
+
+               <label>% Cancelados</label>
+               <input id="calcCancelados" type="number" value="10" oninput="actualizarCalculadora()">
 
               <label>Costos administrativos</label>
               <input id="calcAdmin" type="number" value="5000" oninput="actualizarCalculadora()">
@@ -3651,11 +3657,18 @@ window.actualizarCalculadora = function() {
 
   const precioProveedorRaw = Number(document.getElementById("calcPrecioProveedor")?.value || 0);
   const fleteBase = Number(document.getElementById("calcFleteBase")?.value || 0);
-  const entrega = Number(document.getElementById("calcEntrega")?.value || 0);
+  const precioVentaManual = Number(document.getElementById("calcPrecioVentaManual")?.value || 0);
+
+// CPA automático = 20% del precio de venta
+const cpaAuto = precioVentaManual * 0.20;
+  const devoluciones = Number(document.getElementById("calcDevoluciones")?.value || 0);
+const cancelados = Number(document.getElementById("calcCancelados")?.value || 0);
+
+const efectividad = 1 - ((devoluciones + cancelados) / 100);
   const admin = Number(document.getElementById("calcAdmin")?.value || 0);
   const fulfillment = Number(document.getElementById("calcFulfillment")?.value || 0);
-  const cpa1 = Number(document.getElementById("calcCpa1")?.value || 0);
-  const cpa2 = Number(document.getElementById("calcCpa2")?.value || 0);
+ const cpa1 = cpaAuto;
+const cpa2 = 0;
   const cpaNoMedir = Number(document.getElementById("calcCpaNoMedir")?.value || 0);
   const impuestosPct = Number(document.getElementById("calcImpuestos")?.value || 0);
 
@@ -3663,10 +3676,9 @@ window.actualizarCalculadora = function() {
     ? precioProveedorRaw * 1.2
     : precioProveedorRaw;
 
-  const efectividad = entrega / 100;
-  const fleteConDevoluciones = efectividad > 0
-    ? fleteBase / efectividad
-    : 0;
+ const fleteConDevoluciones = efectividad > 0
+  ? fleteBase / efectividad
+  : 0;
 
   const subtotalCostos =
     precioProveedorAjustado +
