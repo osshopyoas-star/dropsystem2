@@ -1230,7 +1230,7 @@ if (route === "desarrollo") {
 
             <div class="dev-form">
               <label>Producto / mecanismo / problema</label>
-              <input id="inputProductoDev" placeholder="Ej: parche para dolor de rodilla, mejora movilidad y reduce inflamación">
+              <input id="inputProductoDev" oninput="guardarEstadoDesarrollo()" placeholder="Ej: parche para dolor de rodilla, mejora movilidad y reduce inflamación">
     <label>Imagen del producto</label>
 
 <div class="dev-upload-box" onclick="document.getElementById('inputImagenDev').click()">
@@ -1249,10 +1249,9 @@ if (route === "desarrollo") {
 </div>
               
               <label>Información adicional</label>
-              <textarea id="inputInfoDev" placeholder="Ej: público objetivo, beneficios, objeciones, promesa, competencia..."></textarea>
-
+              <textarea id="inputInfoDev" placeholder="Ej: público objetivo, beneficios, objeciones, promesa, competencia..."></textarea<textarea id="inputInfoDev" oninput="guardarEstadoDesarrollo()" placeholder="Ej: público objetivo, beneficios, objeciones, promesa, competencia..."></textarea>
               <label>Objetivo</label>
-              <select id="tipoDesarrolloDev">
+              <select id="tipoDesarrolloDev" onchange="guardarEstadoDesarrollo()">
                 <option value="completo">Desarrollo completo</option>
                 <option value="avatar">Solo avatar</option>
                 <option value="angulos">Solo ángulos</option>
@@ -1447,7 +1446,6 @@ window.previewImagenDev = function(event) {
   empty?.classList.add("hidden");
   preview?.classList.remove("hidden");
 
-  guardarEstadoDesarrollo();
 };
 
 
@@ -1634,27 +1632,30 @@ try {
     }
 
     const reply = data && data.reply ? data.reply : "Sin respuesta del servidor";
+resultado.className = "dev-result-box";
+resultado.innerHTML = `
+  <div class="dev-result-toolbar">
+    <span class="dev-result-pill">IA lista</span>
+  </div>
+  ${renderParsedDesarrollo(reply)}
+`;
 
-    resultado.className = "dev-result-box";
-    resultado.innerHTML = `
-      <div class="dev-result-toolbar">
-        <span class="dev-result-pill">IA lista</span>
-      </div>
-      ${renderParsedDesarrollo(reply)}
-    `;
+guardarEstadoDesarrollo();
 
-    if (window.lucide) lucide.createIcons();
+if (window.lucide) lucide.createIcons();
 
   } catch (error) {
-    resultado.className = "dev-result-error";
-    resultado.innerHTML = `
-      <div class="dev-error-box">
-        <strong>Error</strong>
-        <p>${error.message}</p>
-      </div>
-    `;
-    console.error("Error en generarDesarrollo:", error);
-  }
+  resultado.className = "dev-result-error";
+  resultado.innerHTML = `
+    <div class="dev-error-box">
+      <strong>Error</strong>
+      <p>${error.message}</p>
+    </div>
+  `;
+
+  guardarEstadoDesarrollo();
+  console.error("Error en generarDesarrollo:", error);
+}
 };
 
 
