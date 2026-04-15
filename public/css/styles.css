@@ -2824,20 +2824,21 @@ aside.collapsed .submenu .sidebar-item {
     width: 100%;
   }
 }
+
 /* =========================
    CALCULADORA DASHBOARD FINAL
 ========================= */
 
 .calcx-page {
   width: 100%;
-  max-width: none;
-  margin: 0;
+  max-width: 1440px;
+  margin: 0 auto;
 }
 
 .calcx-layout {
   display: grid;
-  grid-template-columns: 340px minmax(0, 1fr);
-  gap: 24px;
+  grid-template-columns: 360px minmax(0, 1fr);
+  gap: 22px;
   align-items: start;
 }
 
@@ -2939,37 +2940,21 @@ aside.collapsed .submenu .sidebar-item {
 .calcx-main {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
   min-width: 0;
 }
 
-/* arriba: 1 largo + 2 medianos */
 .calcx-top-grid {
   display: grid;
-  grid-template-columns: 1.55fr 0.9fr 0.95fr;
-  gap: 18px;
+  grid-template-columns: 1.25fr 0.9fr 0.95fr;
+  gap: 16px;
   align-items: stretch;
 }
 
-/* tarjetas medianas */
 .calcx-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 18px;
-}
-
-/* fila larga tipo análisis */
-.calcx-wide-row {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 18px;
-}
-
-/* dos columnas grandes abajo */
-.calcx-bottom-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 18px;
+  gap: 16px;
 }
 
 .calcx-card {
@@ -3015,9 +3000,13 @@ aside.collapsed .submenu .sidebar-item {
 .calcx-card.principal span,
 .calcx-card.principal strong,
 .calcx-card.principal small,
-.calcx-card.principal b,
-.calcx-card.principal p {
+.calcx-card.principal b {
   color: #ffffff;
+}
+
+.calcx-card.principal.danger {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  box-shadow: 0 18px 38px rgba(220, 38, 38, 0.22);
 }
 
 .calcx-card.amarillo {
@@ -3028,8 +3017,7 @@ aside.collapsed .submenu .sidebar-item {
 
 .calcx-card.amarillo span,
 .calcx-card.amarillo strong,
-.calcx-card.amarillo small,
-.calcx-card.amarillo p {
+.calcx-card.amarillo small {
   color: #111827;
 }
 
@@ -3041,9 +3029,12 @@ aside.collapsed .submenu .sidebar-item {
 
 .calcx-card.naranja span,
 .calcx-card.naranja strong,
-.calcx-card.naranja small,
-.calcx-card.naranja p {
+.calcx-card.naranja small {
   color: #ffffff;
+}
+
+.calcx-card.full {
+  grid-column: 1 / -1;
 }
 
 .calcx-card.resumen {
@@ -3055,10 +3046,6 @@ aside.collapsed .submenu .sidebar-item {
   color: #475569;
   font-size: 14px;
   line-height: 1.8;
-}
-
-.calcx-card.full {
-  grid-column: 1 / -1;
 }
 
 .calcx-triple {
@@ -3091,17 +3078,28 @@ aside.collapsed .submenu .sidebar-item {
   word-break: break-word;
 }
 
+/* Ajuste visual de números largos */
+#calcxOutPrecioVenta,
+#calcxOutUtilidad,
+#calcxOutBreakEven,
+#calcxOutCostosTotales,
+#calcxOutPrecioMinimo,
+#calcxOutPrecioIdeal,
+#calcxOutPautaMaxima,
+#calcxOutCPA,
+#calcxOutPerdidaCancelados,
+#calcxOutPerdidaDevoluciones {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Responsive */
 @media (max-width: 1280px) {
   .calcx-top-grid {
     grid-template-columns: 1fr;
   }
 
   .calcx-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .calcx-bottom-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -3112,6 +3110,10 @@ aside.collapsed .submenu .sidebar-item {
 
   .calcx-sidebar {
     position: static;
+  }
+
+  .calcx-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
