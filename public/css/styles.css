@@ -136,10 +136,10 @@ aside.collapsed .sidebar-logo img {
 ========================= */
 main {
   margin-left: 272px;
-  width: calc(100vw - 272px);
-  max-width: calc(100vw - 272px);
+  width: auto;
+  max-width: none;
   background: transparent;
-  padding: 30px 30px 30px 34px;
+  padding: 24px;
   min-width: 0;
   overflow-x: hidden;
   box-sizing: border-box;
@@ -147,6 +147,8 @@ main {
   display: flex;
   flex-direction: column;
   align-items: stretch;
+
+  transition: margin-left 0.3s ease, padding 0.3s ease;
 }
 
 /* CARDS */
@@ -791,22 +793,21 @@ aside.collapsed #desarrollo-arrow {
 
 aside.collapsed + main {
   margin-left: 112px;
-  width: calc(100vw - 112px);
-  max-width: calc(100vw - 112px);
+  width: auto;
+  max-width: none;
 }
 
 body:has(aside.collapsed) main {
   margin-left: 112px;
-  width: calc(100vw - 112px);
-  max-width: calc(100vw - 112px);
+  width: auto;
+  max-width: none;
 }
 
 body:has(aside:not(.collapsed)) main {
   margin-left: 272px;
-  width: calc(100vw - 272px);
-  max-width: calc(100vw - 272px);
+  width: auto;
+  max-width: none;
 }
-
 
 aside::after {
   content: "";
@@ -3133,4 +3134,31 @@ aside.collapsed .submenu .sidebar-item {
   .calcx-triple {
     grid-template-columns: 1fr;
   }
+}
+
+/* ===== CALCULADORA: panel izquierdo más natural ===== */
+.calculadora-layout,
+.calculadora-dashboard,
+.calculadora-grid {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.calculadora-panel,
+.panel-parametros,
+.parametros-panel {
+  width: 100%;
+  max-width: 320px;
+}
+
+.calculadora-panel input,
+.calculadora-panel select,
+.panel-parametros input,
+.panel-parametros select,
+.parametros-panel input,
+.parametros-panel select {
+  width: 100%;
+  box-sizing: border-box;
 }
