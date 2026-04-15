@@ -1307,6 +1307,20 @@ if (route === "desarrollo") {
 
   return;
 }
+
+if (route === "calculadora") {
+  view.innerHTML = renderCalculadoraDashboard();
+  marcarMenuActivo("calculadora");
+
+  setTimeout(() => {
+    actualizarCalculadoraDashboard();
+    if (window.lucide) lucide.createIcons();
+  }, 0);
+
+  return;
+}
+
+
 if (route === "inicio") {
   view.innerHTML = `
     <div class="home-page">
@@ -3078,6 +3092,325 @@ for (let i = 1; i < data.length; i++) {
   });
 }
 
+
+function renderCalculadoraDashboard() {
+  return `
+    <div class="calcx-page">
+      <section class="calcx-hero">
+        <div class="calcx-hero-left">
+          <div class="calcx-badge">
+            <i data-lucide="calculator"></i>
+            <span>Calculadora de rentabilidad</span>
+          </div>
+
+          <h1 class="calcx-title">Calcula precio, utilidad, margen y punto de equilibrio</h1>
+          <p class="calcx-subtitle">
+            Dashboard de pricing para Colombia y Ecuador. Si el origen es importación,
+            se suma automáticamente 20% al precio del proveedor.
+          </p>
+        </div>
+      </section>
+
+      <section class="calcx-layout">
+        <aside class="calcx-sidebar">
+          <div class="calcx-panel">
+            <div class="calcx-panel-head">
+              <h3>Parámetros</h3>
+              <p>Configura costos, pérdidas y precio final.</p>
+            </div>
+
+            <div class="calcx-form">
+              <label>País</label>
+              <select id="calcxPais" onchange="syncMonedaCalculadora(); actualizarCalculadoraDashboard();">
+                <option value="CO">Colombia</option>
+                <option value="EC">Ecuador</option>
+              </select>
+
+              <label>Moneda</label>
+              <select id="calcxMoneda" onchange="actualizarCalculadoraDashboard()">
+                <option value="COP">COP</option>
+                <option value="USD">USD</option>
+              </select>
+
+              <label>Origen</label>
+              <select id="calcxOrigen" onchange="actualizarCalculadoraDashboard()">
+                <option value="catalogo">Catálogo público</option>
+                <option value="importacion">Importación</option>
+              </select>
+
+              <label>Precio proveedor</label>
+              <input id="calcxPrecioProveedor" type="number" value="21000" oninput="actualizarCalculadoraDashboard()">
+
+              <label>Flete base</label>
+              <input id="calcxFleteBase" type="number" value="20000" oninput="actualizarCalculadoraDashboard()">
+
+              <label>Fulfillment</label>
+              <input id="calcxFulfillment" type="number" value="0" oninput="actualizarCalculadoraDashboard()">
+
+              <label>Confirmación logística</label>
+              <input id="calcxConfirmacion" type="number" value="0" oninput="actualizarCalculadoraDashboard()">
+
+              <label>Costos administrativos</label>
+              <input id="calcxAdmin" type="number" value="5000" oninput="actualizarCalculadoraDashboard()">
+
+              <label>Plataforma de pago</label>
+              <select id="calcxPasarela" onchange="actualizarCalculadoraDashboard()">
+                <option value="none">Sin comisión</option>
+                <option value="payu">PayU</option>
+                <option value="mercadopago">Mercado Pago</option>
+                <option value="stripe">Stripe</option>
+              </select>
+
+              <label>% Devoluciones</label>
+              <input id="calcxDevoluciones" type="number" step="0.1" value="20" oninput="actualizarCalculadoraDashboard()">
+
+              <label>% Cancelados</label>
+              <input id="calcxCancelados" type="number" step="0.1" value="10" oninput="actualizarCalculadoraDashboard()">
+
+              <label>Precio de venta final</label>
+              <input id="calcxPrecioVenta" type="number" value="99842" oninput="actualizarCalculadoraDashboard()">
+
+              <label>Margen objetivo (%)</label>
+              <input id="calcxMargenObjetivo" type="number" step="0.1" value="18" oninput="actualizarCalculadoraDashboard()">
+            </div>
+          </div>
+        </aside>
+
+        <div class="calcx-main">
+          <div class="calcx-grid">
+            <div class="calcx-card primary">
+              <span>Precio de venta final</span>
+              <strong id="calcxOutPrecioVenta">$0</strong>
+              <small>Valor ingresado manualmente</small>
+            </div>
+
+            <div class="calcx-card success">
+              <span>Utilidad</span>
+              <strong id="calcxOutUtilidad">$0</strong>
+              <small id="calcxOutMargen">0%</small>
+            </div>
+
+            <div class="calcx-card warning">
+              <span>Punto de equilibrio</span>
+              <strong id="calcxOutBreakEven">$0</strong>
+              <small>Costo total por venta</small>
+            </div>
+
+            <div class="calcx-card orange">
+              <span>Costo bruto total</span>
+              <strong id="calcxOutCostosTotales">$0</strong>
+              <small>Incluye pérdidas y comisión</small>
+            </div>
+
+            <div class="calcx-card">
+              <span>Proveedor ajustado</span>
+              <strong id="calcxOutProveedorAjustado">$0</strong>
+              <small>Importación suma 20%</small>
+            </div>
+
+            <div class="calcx-card">
+              <span>Flete ajustado</span>
+              <strong id="calcxOutFleteAjustado">$0</strong>
+              <small>Impactado por devoluciones/cancelados</small>
+            </div>
+
+            <div class="calcx-card">
+              <span>CPA automático</span>
+              <strong id="calcxOutCPA">$0</strong>
+              <small>20% del precio final</small>
+            </div>
+
+            <div class="calcx-card">
+              <span>Comisión pasarela</span>
+              <strong id="calcxOutPasarela">$0</strong>
+              <small id="calcxOutPasarelaDetalle">Sin comisión</small>
+            </div>
+
+            <div class="calcx-card">
+              <span>Pérdida por cancelados</span>
+              <strong id="calcxOutPerdidaCancelados">$0</strong>
+              <small>Impacto estimado</small>
+            </div>
+
+            <div class="calcx-card">
+              <span>Pérdida por devoluciones</span>
+              <strong id="calcxOutPerdidaDevoluciones">$0</strong>
+              <small>Impacto estimado</small>
+            </div>
+
+            <div class="calcx-card">
+              <span>Precio mínimo</span>
+              <strong id="calcxOutPrecioMinimo">$0</strong>
+              <small>Margen mínimo 10%</small>
+            </div>
+
+            <div class="calcx-card">
+              <span>Precio ideal</span>
+              <strong id="calcxOutPrecioIdeal">$0</strong>
+              <small>Basado en margen objetivo</small>
+            </div>
+
+            <div class="calcx-card">
+              <span>Pauta máxima permitida</span>
+              <strong id="calcxOutPautaMaxima">$0</strong>
+              <small>Límite recomendado</small>
+            </div>
+
+            <div class="calcx-card">
+              <span>ROAS estimado</span>
+              <strong id="calcxOutROAS">0.00</strong>
+              <small>Precio / CPA</small>
+            </div>
+
+            <div class="calcx-card">
+              <span>ROI estimado</span>
+              <strong id="calcxOutROI">0%</strong>
+              <small>Utilidad / costos totales</small>
+            </div>
+
+            <div class="calcx-card full summary">
+              <span>Resumen ejecutivo</span>
+              <p id="calcxResumen">Aquí verás el resumen de la calculadora.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+window.syncMonedaCalculadora = function() {
+  const pais = document.getElementById("calcxPais")?.value || "CO";
+  const moneda = document.getElementById("calcxMoneda");
+  if (!moneda) return;
+  moneda.value = pais === "CO" ? "COP" : "USD";
+};
+
+function formatMoneyCalcx(value, currency) {
+  const num = Number(value || 0);
+
+  if (currency === "COP") {
+    return new Intl.NumberFormat("es-CO", {
+      style: "currency",
+      currency: "COP",
+      maximumFractionDigits: 0
+    }).format(num);
+  }
+
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(num);
+}
+
+function getPasarelaConfig(tipo) {
+  const map = {
+    none: { pct: 0, fijo: 0, nombre: "Sin comisión" },
+    payu: { pct: 0.044, fijo: 900, nombre: "PayU 4.4% + fijo" },
+    mercadopago: { pct: 0.035, fijo: 0, nombre: "Mercado Pago 3.5%" },
+    stripe: { pct: 0.029, fijo: 0.3, nombre: "Stripe 2.9% + fijo" }
+  };
+
+  return map[tipo] || map.none;
+}
+
+window.actualizarCalculadoraDashboard = function() {
+  const pais = document.getElementById("calcxPais")?.value || "CO";
+  const moneda = document.getElementById("calcxMoneda")?.value || (pais === "CO" ? "COP" : "USD");
+  const origen = document.getElementById("calcxOrigen")?.value || "catalogo";
+
+  const precioProveedor = Number(document.getElementById("calcxPrecioProveedor")?.value || 0);
+  const fleteBase = Number(document.getElementById("calcxFleteBase")?.value || 0);
+  const fulfillment = Number(document.getElementById("calcxFulfillment")?.value || 0);
+  const confirmacion = Number(document.getElementById("calcxConfirmacion")?.value || 0);
+  const admin = Number(document.getElementById("calcxAdmin")?.value || 0);
+  const devoluciones = Number(document.getElementById("calcxDevoluciones")?.value || 0);
+  const cancelados = Number(document.getElementById("calcxCancelados")?.value || 0);
+  const precioVentaFinal = Number(document.getElementById("calcxPrecioVenta")?.value || 0);
+  const margenObjetivo = Number(document.getElementById("calcxMargenObjetivo")?.value || 0);
+  const pasarelaTipo = document.getElementById("calcxPasarela")?.value || "none";
+
+  const proveedorAjustado = origen === "importacion"
+    ? precioProveedor * 1.20
+    : precioProveedor;
+
+  const efectividad = 1 - ((devoluciones + cancelados) / 100);
+  const fleteAjustado = efectividad > 0 ? fleteBase / efectividad : 0;
+
+  const cpa = precioVentaFinal * 0.20;
+
+  const pasarela = getPasarelaConfig(pasarelaTipo);
+  const comisionPasarela = (precioVentaFinal * pasarela.pct) + pasarela.fijo;
+
+  const perdidaCancelados = precioVentaFinal * (cancelados / 100) * 0.25;
+  const perdidaDevoluciones = precioVentaFinal * (devoluciones / 100) * 0.12;
+
+  const costosTotales =
+    proveedorAjustado +
+    fleteAjustado +
+    fulfillment +
+    confirmacion +
+    admin +
+    cpa +
+    comisionPasarela +
+    perdidaCancelados +
+    perdidaDevoluciones;
+
+  const utilidad = precioVentaFinal - costosTotales;
+  const margen = precioVentaFinal > 0 ? (utilidad / precioVentaFinal) * 100 : 0;
+
+  const breakEven = costosTotales;
+  const precioMinimo = costosTotales / 0.90;
+  const precioIdeal = (100 - margenObjetivo) > 0
+    ? costosTotales / (1 - (margenObjetivo / 100))
+    : costosTotales;
+
+  const pautaMaxima = precioVentaFinal * 0.20;
+  const roas = cpa > 0 ? (precioVentaFinal / cpa) : 0;
+  const roi = costosTotales > 0 ? (utilidad / costosTotales) * 100 : 0;
+
+  const setText = (id, value) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+  };
+
+  setText("calcxOutPrecioVenta", formatMoneyCalcx(precioVentaFinal, moneda));
+  setText("calcxOutUtilidad", formatMoneyCalcx(utilidad, moneda));
+  setText("calcxOutMargen", `${margen.toFixed(1)}% de margen`);
+  setText("calcxOutBreakEven", formatMoneyCalcx(breakEven, moneda));
+  setText("calcxOutCostosTotales", formatMoneyCalcx(costosTotales, moneda));
+  setText("calcxOutProveedorAjustado", formatMoneyCalcx(proveedorAjustado, moneda));
+  setText("calcxOutFleteAjustado", formatMoneyCalcx(fleteAjustado, moneda));
+  setText("calcxOutCPA", formatMoneyCalcx(cpa, moneda));
+  setText("calcxOutPasarela", formatMoneyCalcx(comisionPasarela, moneda));
+  setText("calcxOutPasarelaDetalle", pasarela.nombre);
+  setText("calcxOutPerdidaCancelados", formatMoneyCalcx(perdidaCancelados, moneda));
+  setText("calcxOutPerdidaDevoluciones", formatMoneyCalcx(perdidaDevoluciones, moneda));
+  setText("calcxOutPrecioMinimo", formatMoneyCalcx(precioMinimo, moneda));
+  setText("calcxOutPrecioIdeal", formatMoneyCalcx(precioIdeal, moneda));
+  setText("calcxOutPautaMaxima", formatMoneyCalcx(pautaMaxima, moneda));
+  setText("calcxOutROAS", roas.toFixed(2));
+  setText("calcxOutROI", `${roi.toFixed(1)}%`);
+
+  const resumen = document.getElementById("calcxResumen");
+  if (resumen) {
+    resumen.textContent =
+      `En ${pais === "CO" ? "Colombia" : "Ecuador"} con moneda ${moneda}, ` +
+      `el costo total estimado por venta es ${formatMoneyCalcx(costosTotales, moneda)}. ` +
+      `Con un precio final de ${formatMoneyCalcx(precioVentaFinal, moneda)}, ` +
+      `la utilidad proyectada es ${formatMoneyCalcx(utilidad, moneda)} y el margen es ${margen.toFixed(1)}%. ` +
+      `${origen === "importacion" ? "El proveedor ya incluye el 20% adicional por importación. " : ""}` +
+      `El precio ideal por margen objetivo sería ${formatMoneyCalcx(precioIdeal, moneda)}.`;
+  }
+
+  const utilidadCard = document.querySelector(".calcx-card.success");
+  if (utilidadCard) {
+    utilidadCard.classList.toggle("danger", utilidad < 0);
+    utilidadCard.classList.toggle("success", utilidad >= 0);
+  }
+};
 
 function renderTrendDashboard(json) {
  const rawScore = Number(json.score || 0);
