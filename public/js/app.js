@@ -3098,7 +3098,7 @@ function renderCalculadoraDashboard() {
     <div class="calcx-page">
       <section class="calcx-layout">
 
-        <!-- COLUMNA IZQUIERDA -->
+        <!-- PANEL IZQUIERDO -->
         <aside class="calcx-sidebar">
           <div class="calcx-panel">
             <div class="calcx-panel-head">
@@ -3140,13 +3140,13 @@ function renderCalculadoraDashboard() {
               <input id="calcxImpuestos" type="number" step="0.1" value="19" oninput="actualizarCalculadoraDashboard()">
 
               <label>% Cancelaciones</label>
-              <input id="calcxCancelaciones" type="number" step="0.1" value="8" oninput="actualizarCalculadoraDashboard()">
+              <input id="calcxCancelaciones" type="number" step="0.1" value="0" oninput="actualizarCalculadoraDashboard()">
 
               <label>% Devoluciones</label>
-              <input id="calcxDevoluciones" type="number" step="0.1" value="5" oninput="actualizarCalculadoraDashboard()">
+              <input id="calcxDevoluciones" type="number" step="0.1" value="3" oninput="actualizarCalculadoraDashboard()">
 
               <label>% Margen objetivo</label>
-              <input id="calcxMargenObjetivo" type="number" step="0.1" value="18.9" oninput="actualizarCalculadoraDashboard()">
+              <input id="calcxMargenObjetivo" type="number" step="0.1" value="19" oninput="actualizarCalculadoraDashboard()">
 
               <label>% Pauta máxima</label>
               <input id="calcxPautaPorcentaje" type="number" step="0.1" value="20" oninput="actualizarCalculadoraDashboard()">
@@ -3160,51 +3160,51 @@ function renderCalculadoraDashboard() {
           </div>
         </aside>
 
-        <!-- COLUMNA DERECHA -->
+        <!-- CONTENIDO DERECHO -->
         <div class="calcx-main">
 
-          <!-- KPIs TOP -->
+          <!-- FILA 1: BLOQUES GRANDES -->
           <div class="calcx-top-grid">
-            <div class="calcx-card primary">
+            <div class="calcx-card principal">
               <span>Precio / utilidad / margen</span>
               <strong id="calcxOutPrecioVenta">$ 99.842</strong>
 
               <div class="calcx-triple">
                 <div>
                   <small>Utilidad</small>
-                  <b id="calcxOutUtilidad">$ 18.821</b>
+                  <b id="calcxOutUtilidad">$ 19.374</b>
                 </div>
                 <div>
                   <small>Margen</small>
-                  <b id="calcxOutMargen">18.9%</b>
+                  <b id="calcxOutMargen">19.4%</b>
                 </div>
               </div>
             </div>
 
-            <div class="calcx-card warning">
+            <div class="calcx-card amarillo">
               <span>Punto de equilibrio</span>
-              <strong id="calcxOutBreakEven">$ 81.021</strong>
+              <strong id="calcxOutBreakEven">$ 80.468</strong>
               <small>Lo mínimo para no perder</small>
             </div>
 
-            <div class="calcx-card orange">
+            <div class="calcx-card naranja">
               <span>Costo bruto total por venta</span>
-              <strong id="calcxOutCostosTotales">$ 81.021</strong>
+              <strong id="calcxOutCostosTotales">$ 80.468</strong>
               <small>Incluye operación, pérdidas y pauta</small>
             </div>
           </div>
 
-          <!-- GRID DE RESULTADOS -->
+          <!-- FILA 2: TARJETAS MEDIANAS -->
           <div class="calcx-grid">
             <div class="calcx-card">
               <span>Precio mínimo</span>
-              <strong id="calcxOutPrecioMinimo">$ 90.023</strong>
+              <strong id="calcxOutPrecioMinimo">$ 89.409</strong>
               <small>Con margen mínimo de seguridad</small>
             </div>
 
             <div class="calcx-card">
               <span>Precio ideal</span>
-              <strong id="calcxOutPrecioIdeal">$ 98.806</strong>
+              <strong id="calcxOutPrecioIdeal">$ 99.221</strong>
               <small>Basado en margen objetivo</small>
             </div>
 
@@ -3222,13 +3222,13 @@ function renderCalculadoraDashboard() {
 
             <div class="calcx-card">
               <span>Pérdida por cancelaciones</span>
-              <strong id="calcxOutPerdidaCancelados">$ 2.496</strong>
+              <strong id="calcxOutPerdidaCancelados">$ 0</strong>
               <small>Impacto estimado</small>
             </div>
 
             <div class="calcx-card">
               <span>Pérdida por devoluciones</span>
-              <strong id="calcxOutPerdidaDevoluciones">$ 2.396</strong>
+              <strong id="calcxOutPerdidaDevoluciones">$ 599</strong>
               <small>Impacto estimado</small>
             </div>
 
@@ -3240,34 +3240,36 @@ function renderCalculadoraDashboard() {
 
             <div class="calcx-card">
               <span>Proyección ROI</span>
-              <strong id="calcxOutROI">23.2%</strong>
+              <strong id="calcxOutROI">24.1%</strong>
               <small>Utilidad / costo</small>
             </div>
+          </div>
 
-            <div class="calcx-card success">
-              <span>Utilidad total proyectada</span>
-              <strong id="calcxOutUtilidadTotal">$ 1.882.100</strong>
-              <small>Con ventas estimadas</small>
+          <!-- FILA 3: BLOQUE LARGO -->
+          <div class="calcx-wide-row">
+            <div class="calcx-card principal">
+              <span>Análisis con tu valor de venta deseado</span>
+              <strong id="calcxOutAnalisisVenta">$ 99.842 COP</strong>
+              <small id="calcxOutAnalisisTexto">→ Utilidad: $19.374 COP</small>
+              <p id="calcxOutAnalisisMargen" style="margin:0; font-weight:800;">Margen de ganancia: 19.4%</p>
             </div>
+          </div>
 
-            <div class="calcx-card primary">
-              <span>Ingresos totales</span>
-              <strong id="calcxOutIngresos">$ 9.984.200</strong>
-              <small>Facturación estimada</small>
-            </div>
-
-            <div class="calcx-card">
-              <span>Costos totales proyectados</span>
-              <strong id="calcxOutCostosProyectados">$ 8.102.100</strong>
-              <small>Incluye pauta + pérdidas</small>
-            </div>
-
-            <div class="calcx-card summary full">
-              <span>Resumen</span>
+          <!-- FILA 4: DOS COLUMNAS GRANDES -->
+          <div class="calcx-bottom-grid">
+            <div class="calcx-card resumen">
+              <span>Resumen estratégico</span>
               <p id="calcxResumen">
-                Ajusta los parámetros de la izquierda para recalcular automáticamente
-                precios, margen, punto de equilibrio, pérdidas, ROAS y utilidad proyectada.
+                Con este precio de venta, el negocio cubre costos base, absorbe pérdidas operativas y mantiene un margen saludable.
               </p>
+            </div>
+
+            <div class="calcx-card resumen">
+              <span>Proyección de ventas</span>
+              <p><strong id="calcxOutUtilidadTotal">$ 1.937.400</strong></p>
+              <small>Utilidad total proyectada con <span id="calcxOutVentas">100</span> ventas</small>
+              <p style="margin-top:8px;"><strong id="calcxOutIngresos">$ 9.984.200</strong></p>
+              <small>Ingresos totales estimados</small>
             </div>
           </div>
 
@@ -3276,6 +3278,8 @@ function renderCalculadoraDashboard() {
     </div>
   `;
 }
+
+
 window.syncMonedaCalculadora = function() {
   const pais = document.getElementById("calcxPais")?.value || "CO";
   const moneda = document.getElementById("calcxMoneda");
