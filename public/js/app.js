@@ -1249,7 +1249,7 @@ if (route === "desarrollo") {
 </div>
               
               <label>Información adicional</label>
-              <textarea id="inputInfoDev" placeholder="Ej: público objetivo, beneficios, objeciones, promesa, competencia..."></textarea<textarea id="inputInfoDev" oninput="guardarEstadoDesarrollo()" placeholder="Ej: público objetivo, beneficios, objeciones, promesa, competencia..."></textarea>
+             <textarea id="inputInfoDev" oninput="guardarEstadoDesarrollo()" placeholder="Ej: público objetivo, beneficios, objeciones, promesa, competencia..."></textarea>
               <label>Objetivo</label>
               <select id="tipoDesarrolloDev" onchange="guardarEstadoDesarrollo()">
                 <option value="completo">Desarrollo completo</option>
