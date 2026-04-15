@@ -2840,10 +2840,10 @@ aside.collapsed .submenu .sidebar-item {
 
 .calcx-layout {
   display: grid;
-  grid-template-columns: 320px 1fr;
-  gap: 28px;
+  grid-template-columns: 330px minmax(0, 1fr);
+  gap: 16px;
   align-items: start;
-  margin-left: -10px;
+  width: 100%;
 }
 
 .calcx-sidebar {
@@ -2940,23 +2940,26 @@ aside.collapsed .submenu .sidebar-item {
   color: #111827;
   background: #ffffff;
 }
-
 .calcx-main {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
+  width: 100%;
+  min-width: 0;
 }
-
 .calcx-top-grid {
   display: grid;
   grid-template-columns: 1.35fr 0.85fr 0.95fr;
   gap: 16px;
+  width: 100%;
 }
+
 
 .calcx-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
+  width: 100%;
 }
 
 .calcx-card {
