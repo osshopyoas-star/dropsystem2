@@ -2840,14 +2840,15 @@ aside.collapsed .submenu .sidebar-item {
 
 .calcx-layout {
   display: grid;
-  grid-template-columns: 340px minmax(0, 1fr);
-  gap: 16px; /* 🔥 menos separación */
+  grid-template-columns: 320px 1fr;
+  gap: 28px;
   align-items: start;
+  margin-left: -10px;
 }
 
 .calcx-sidebar {
   position: sticky;
-  top: 20px;
+  top: 24px;
 }
 
 .calcx-panel {
@@ -2943,15 +2944,13 @@ aside.collapsed .submenu .sidebar-item {
 .calcx-main {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  min-width: 0;
+  gap: 18px;
 }
 
 .calcx-top-grid {
   display: grid;
-  grid-template-columns: 1.25fr 0.9fr 0.95fr;
+  grid-template-columns: 1.35fr 0.85fr 0.95fr;
   gap: 16px;
-  align-items: stretch;
 }
 
 .calcx-grid {
@@ -2987,6 +2986,20 @@ aside.collapsed .submenu .sidebar-item {
   letter-spacing: -0.02em;
   word-break: break-word;
 }
+
+
+
+.calcx-card,
+.calcx-triple div {
+  min-width: 0;
+}
+
+.calcx-card strong,
+.calcx-triple b {
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
 
 .calcx-card small {
   color: #64748b;
@@ -3096,18 +3109,7 @@ aside.collapsed .submenu .sidebar-item {
 }
 
 
-.calcx-top-grid {
-  display: grid;
-  grid-template-columns: 1.35fr 0.9fr 0.9fr;
-  gap: 16px;
-  align-items: stretch;
-}
 
-.calcx-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
-}
 
 .calcx-card {
   min-width: 0;
@@ -3120,50 +3122,8 @@ aside.collapsed .submenu .sidebar-item {
 
 
 /* Responsive */
-@media (max-width: 1280px) {
-  .calcx-top-grid {
-    grid-template-columns: 1.25fr 0.75fr 0.75fr;
-  }
 
-  .calcx-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-}
-@media (max-width: 1100px) {
-  .calcx-layout {
-    grid-template-columns: 1fr;
-  }
 
-  .calcx-sidebar {
-    position: static;
-  }
-
-  .calcx-top-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .calcx-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 700px) {
-  .calcx-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .calcx-panel-head h2 {
-    font-size: 22px;
-  }
-
-  .calcx-card strong {
-    font-size: 26px;
-  }
-
-  .calcx-triple {
-    grid-template-columns: 1fr;
-  }
-}
 
 /* ===== CALCULADORA: panel izquierdo más natural ===== */
 .calculadora-layout,
