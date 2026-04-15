@@ -1232,7 +1232,21 @@ if (route === "desarrollo") {
               <label>Producto / mecanismo / problema</label>
               <input id="inputProductoDev" placeholder="Ej: parche para dolor de rodilla, mejora movilidad y reduce inflamación">
     <label>Imagen del producto</label>
-<input id="inputImagenDev" type="file" accept="image/*">
+
+<div class="dev-upload-box" onclick="document.getElementById('inputImagenDev').click()">
+  <input id="inputImagenDev" type="file" accept="image/*" onchange="previewImagenDev(event)" hidden>
+
+  <div id="devUploadEmpty" class="dev-upload-empty">
+    <div class="dev-upload-icon">⇪</div>
+    <div class="dev-upload-title">Subir Archivo</div>
+    <div class="dev-upload-sub">PNG, JPG, WEBP</div>
+  </div>
+
+  <div id="devUploadPreview" class="dev-upload-preview hidden">
+    <img id="devUploadImg" src="" alt="preview">
+    <div id="devUploadName" class="dev-upload-name"></div>
+  </div>
+</div>
               
               <label>Información adicional</label>
               <textarea id="inputInfoDev" placeholder="Ej: público objetivo, beneficios, objeciones, promesa, competencia..."></textarea>
@@ -1287,9 +1301,10 @@ if (route === "desarrollo") {
 
   marcarMenuActivo("desarrollo");
 
-  setTimeout(() => {
-    if (window.lucide) lucide.createIcons();
-  }, 0);
+ setTimeout(() => {
+  restaurarEstadoDesarrollo();
+  if (window.lucide) lucide.createIcons();
+}, 0);
 
   return;
 }
@@ -1412,6 +1427,90 @@ setTimeout(() => {
 }, 500);
 
 
+
+
+
+window.previewImagenDev = function(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+
+  const empty = document.getElementById("devUploadEmpty");
+  const preview = document.getElementById("devUploadPreview");
+  const img = document.getElementById("devUploadImg");
+  const name = document.getElementById("devUploadName");
+
+  const url = URL.createObjectURL(file);
+
+  if (img) img.src = url;
+  if (name) name.textContent = file.name;
+
+  empty?.classList.add("hidden");
+  preview?.classList.remove("hidden");
+
+  guardarEstadoDesarrollo();
+};
+
+
+
+
+function guardarEstadoDesarrollo() {
+  const producto = document.getElementById("inputProductoDev")?.value || "";
+  const info = document.getElementById("inputInfoDev")?.value || "";
+  const tipo = document.getElementById("tipoDesarrolloDev")?.value || "completo";
+  const resultado = document.getElementById("resultadoDesarrollo")?.innerHTML || "";
+  const claseResultado = document.getElementById("resultadoDesarrollo")?.className || "dev-result-empty";
+  const nombreImagen = document.getElementById("devUploadName")?.textContent || "";
+  const previewSrc = document.getElementById("devUploadImg")?.src || "";
+
+  localStorage.setItem("dev_producto", producto);
+  localStorage.setItem("dev_info", info);
+  localStorage.setItem("dev_tipo", tipo);
+  localStorage.setItem("dev_resultado_html", resultado);
+  localStorage.setItem("dev_resultado_class", claseResultado);
+  localStorage.setItem("dev_imagen_nombre", nombreImagen);
+  localStorage.setItem("dev_imagen_preview", previewSrc);
+}
+
+function restaurarEstadoDesarrollo() {
+  const producto = localStorage.getItem("dev_producto") || "";
+  const info = localStorage.getItem("dev_info") || "";
+  const tipo = localStorage.getItem("dev_tipo") || "completo";
+  const resultadoHtml = localStorage.getItem("dev_resultado_html") || "";
+  const resultadoClass = localStorage.getItem("dev_resultado_class") || "dev-result-empty";
+  const imagenNombre = localStorage.getItem("dev_imagen_nombre") || "";
+  const imagenPreview = localStorage.getItem("dev_imagen_preview") || "";
+
+  const inputProducto = document.getElementById("inputProductoDev");
+  const inputInfo = document.getElementById("inputInfoDev");
+  const inputTipo = document.getElementById("tipoDesarrolloDev");
+  const resultado = document.getElementById("resultadoDesarrollo");
+
+  if (inputProducto) inputProducto.value = producto;
+  if (inputInfo) inputInfo.value = info;
+  if (inputTipo) inputTipo.value = tipo;
+
+  if (resultado && resultadoHtml) {
+    resultado.className = resultadoClass;
+    resultado.innerHTML = resultadoHtml;
+  }
+
+  if (imagenPreview) {
+    const empty = document.getElementById("devUploadEmpty");
+    const preview = document.getElementById("devUploadPreview");
+    const img = document.getElementById("devUploadImg");
+    const name = document.getElementById("devUploadName");
+
+    if (img) img.src = imagenPreview;
+    if (name) name.textContent = imagenNombre;
+
+    empty?.classList.add("hidden");
+    preview?.classList.remove("hidden");
+  }
+
+  if (window.lucide) lucide.createIcons();
+}
+
+
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -1441,6 +1540,7 @@ window.generarDesarrollo = async function() {
       <p>Generando estrategia de desarrollo...</p>
     </div>
   `;
+  guardarEstadoDesarrollo();
 
   try {
     let imageBase64 = null;
@@ -1658,71 +1758,66 @@ function formatSectionHtml(text = "") {
 function renderParsedDesarrollo(reply = "") {
   const sections = splitBlocks(reply);
 
-  if (sections.raw) {
-    return `
-      <div class="dev-result-grid single">
-        <section class="dev-result-card full">
-          <div class="dev-result-card-head">
-            <h3>Resultado</h3>
-          </div>
-          <div class="dev-result-card-body">
-            ${formatSectionHtml(sections.raw)}
-          </div>
-        </section>
+  const renderBlock = (title, content, icon) => `
+    <div class="pro-card">
+      <div class="pro-card-head">
+        <div class="pro-icon">${icon}</div>
+        <h3>${title}</h3>
       </div>
-    `;
-  }
+      <div class="pro-card-body">
+        ${formatProContent(content)}
+      </div>
+    </div>
+  `;
 
   return `
-    <div class="dev-result-grid">
-      <section class="dev-result-card">
-        <div class="dev-result-card-head">
-          <h3>👤 Avatares</h3>
-        </div>
-        <div class="dev-result-card-body">
-          ${formatSectionHtml(sections.avatares)}
-        </div>
-      </section>
+    <div class="pro-grid">
 
-      <section class="dev-result-card">
-        <div class="dev-result-card-head">
-          <h3>🎯 Ángulos</h3>
-        </div>
-        <div class="dev-result-card-body">
-          ${formatSectionHtml(sections.angulos)}
-        </div>
-      </section>
+      ${renderBlock("Avatares", sections.avatares, "👤")}
+      ${renderBlock("Ángulos", sections.angulos, "🎯")}
+      ${renderBlock("Guiones", sections.guiones, "🎬")}
+      ${renderBlock("Creativos", sections.creativos, "🖼️")}
 
-      <section class="dev-result-card">
-        <div class="dev-result-card-head">
-          <h3>🎬 Guiones</h3>
+      <div class="pro-card full">
+        <div class="pro-card-head">
+          <div class="pro-icon">📌</div>
+          <h3>Recomendación final</h3>
         </div>
-        <div class="dev-result-card-body">
-          ${formatSectionHtml(sections.guiones)}
+        <div class="pro-card-body">
+          ${formatProContent(sections.recomendacion)}
         </div>
-      </section>
+      </div>
 
-      <section class="dev-result-card">
-        <div class="dev-result-card-head">
-          <h3>🖼️ Creativos</h3>
-        </div>
-        <div class="dev-result-card-body">
-          ${formatSectionHtml(sections.creativos)}
-        </div>
-      </section>
-
-      <section class="dev-result-card full">
-        <div class="dev-result-card-head">
-          <h3>📌 Recomendación final</h3>
-        </div>
-        <div class="dev-result-card-body">
-          ${formatSectionHtml(sections.recomendacion)}
-        </div>
-      </section>
     </div>
   `;
 }
 
+function formatProContent(text = "") {
+  if (!text) return `<div class="empty">Sin contenido</div>`;
+
+  return text.split("\n").map(line => {
+    const l = line.trim();
+
+    if (!l) return "";
+
+    // títulos
+    if (/^(#+|\d+\.|\*\*)/.test(l)) {
+      return `<div class="pro-title">${l.replace(/\*\*/g, "")}</div>`;
+    }
+
+    // bullets
+    if (l.startsWith("-") || l.startsWith("•")) {
+      return `<div class="pro-bullet">${l}</div>`;
+    }
+
+    // AIDA
+    if (l.includes("[A:") || l.includes("[I:") || l.includes("[D:")) {
+      return `<div class="pro-highlight">${l}</div>`;
+    }
+
+    return `<div class="pro-text">${l}</div>`;
+  }).join("");
+}
 
 window.toggleBusquedaMenu = function() {
   const sidebar = document.querySelector("aside");
