@@ -2814,9 +2814,26 @@ aside.collapsed .submenu .sidebar-item {
 }
 
 @media (max-width: 700px) {
-  .home-title {
-    font-size: 32px;
+  .calcx-top-grid {
+    grid-template-columns: 1.45fr 0.85fr 0.95fr;
   }
+
+  .calcx-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .calcx-panel-head h2 {
+    font-size: 22px;
+  }
+
+  .calcx-card strong {
+    font-size: 26px;
+  }
+
+  .calcx-triple {
+    grid-template-columns: 1fr 1fr;
+  }
+}
 
   .home-actions {
     flex-direction: column;
@@ -2827,6 +2844,11 @@ aside.collapsed .submenu .sidebar-item {
     width: 100%;
   }
 }
+
+
+
+
+
 
 /* =========================
    CALCULADORA DASHBOARD FINAL
@@ -2840,7 +2862,7 @@ aside.collapsed .submenu .sidebar-item {
 
 .calcx-layout {
   display: grid;
-  grid-template-columns: 330px minmax(0, 1fr);
+  grid-template-columns: 320px minmax(0, 1fr);
   gap: 16px;
   align-items: start;
   width: 100%;
@@ -2949,17 +2971,15 @@ aside.collapsed .submenu .sidebar-item {
 }
 .calcx-top-grid {
   display: grid;
-  grid-template-columns: 1.35fr 0.85fr 0.95fr;
+  grid-template-columns: 1.45fr 0.85fr 0.95fr;
   gap: 16px;
-  width: 100%;
+  align-items: stretch;
 }
-
 
 .calcx-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
-  width: 100%;
 }
 
 .calcx-card {
@@ -3190,4 +3210,35 @@ aside.collapsed .submenu .sidebar-item {
 /* opcional: más compacto */
 .calcx-panel {
   padding: 18px;
+}
+
+
+
+@media (max-width: 1280px) {
+  .calcx-top-grid {
+    grid-template-columns: 1.45fr 0.85fr 0.95fr;
+  }
+
+  .calcx-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1100px) {
+  .calcx-layout {
+    grid-template-columns: 320px minmax(0, 1fr);
+  }
+
+  .calcx-sidebar {
+    position: sticky;
+    top: 24px;
+  }
+
+  .calcx-top-grid {
+    grid-template-columns: 1.45fr 0.85fr 0.95fr;
+  }
+
+  .calcx-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
