@@ -150,6 +150,13 @@ main {
   transition: margin-left 0.3s ease, padding 0.3s ease;
 }
 
+
+
+main {
+  padding: 24px 24px 24px 10px; /* 🔥 menos espacio a la izquierda */
+}
+
+
 /* CARDS */
 .card {
   width: 100%;
@@ -2833,8 +2840,8 @@ aside.collapsed .submenu .sidebar-item {
 
 .calcx-layout {
   display: grid;
-  grid-template-columns: 360px minmax(0, 1fr);
-  gap: 22px;
+  grid-template-columns: 340px minmax(0, 1fr);
+  gap: 16px; /* 🔥 menos separación */
   align-items: start;
 }
 
@@ -3187,4 +3194,14 @@ aside.collapsed .submenu .sidebar-item {
   .calcx-panel {
     max-width: 100%;
   }
+}
+
+/* 🔥 PEGADO REAL AL SIDEBAR */
+.calcx-sidebar {
+  margin-left: -10px; /* 👈 esto lo pega visualmente */
+}
+
+/* opcional: más compacto */
+.calcx-panel {
+  padding: 18px;
 }
