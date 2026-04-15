@@ -2856,30 +2856,21 @@ aside.collapsed .submenu .sidebar-item {
 
 .calcx-page {
   width: 100%;
-  max-width: 1440px;
-  margin: 0 auto;
+  max-width: none;
+  margin: 0;
 }
-
 .calcx-layout {
   display: grid;
-  grid-template-columns: 320px minmax(0, 1fr);
-  gap: 16px;
+  grid-template-columns: 340px minmax(0, 1fr);
+  gap: 14px;
   align-items: start;
   width: 100%;
 }
-
 .calcx-sidebar {
   position: sticky;
   top: 24px;
 }
 
-.calcx-panel {
-  background: linear-gradient(180deg, #0f172a 0%, #131c2c 100%);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 24px;
-  padding: 22px;
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.24);
-}
 
 .calcx-panel-head {
   margin-bottom: 18px;
@@ -2971,11 +2962,10 @@ aside.collapsed .submenu .sidebar-item {
 }
 .calcx-top-grid {
   display: grid;
-  grid-template-columns: 1.45fr 0.85fr 0.95fr;
+  grid-template-columns: minmax(0, 1.12fr) minmax(260px, 0.94fr) minmax(280px, 1fr);
   gap: 16px;
   align-items: stretch;
 }
-
 .calcx-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2992,6 +2982,10 @@ aside.collapsed .submenu .sidebar-item {
   flex-direction: column;
   gap: 10px;
   min-width: 0;
+}
+
+.calcx-top-grid > .calcx-card {
+  min-height: 186px;
 }
 
 .calcx-card span {
@@ -3133,11 +3127,6 @@ aside.collapsed .submenu .sidebar-item {
 
 
 
-
-.calcx-card {
-  min-width: 0;
-}
-
 .calcx-card strong {
   white-space: normal;
   word-break: break-word;
@@ -3183,7 +3172,15 @@ aside.collapsed .submenu .sidebar-item {
 
 .calcx-panel {
   width: 100%;
-  max-width: 360px;
+  max-width: none;
+}
+
+.calcx-panel {
+  background: linear-gradient(180deg, #0f172a 0%, #131c2c 100%);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 24px;
+  padding: 22px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.24);
 }
 
 .calcx-form input,
@@ -3197,10 +3194,7 @@ aside.collapsed .submenu .sidebar-item {
     position: static;
   }
 
-  .calcx-panel {
-    max-width: 100%;
-  }
-}
+  
 
 /* 🔥 PEGADO REAL AL SIDEBAR */
 .calcx-sidebar {
@@ -3216,17 +3210,16 @@ aside.collapsed .submenu .sidebar-item {
 
 @media (max-width: 1280px) {
   .calcx-top-grid {
-    grid-template-columns: 1.45fr 0.85fr 0.95fr;
+    grid-template-columns: minmax(0, 1.12fr) minmax(260px, 0.94fr) minmax(280px, 1fr);
   }
 
   .calcx-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
-
 @media (max-width: 1100px) {
   .calcx-layout {
-    grid-template-columns: 320px minmax(0, 1fr);
+    grid-template-columns: 340px minmax(0, 1fr);
   }
 
   .calcx-sidebar {
@@ -3235,7 +3228,7 @@ aside.collapsed .submenu .sidebar-item {
   }
 
   .calcx-top-grid {
-    grid-template-columns: 1.45fr 0.85fr 0.95fr;
+    grid-template-columns: minmax(0, 1.12fr) minmax(260px, 0.94fr) minmax(280px, 1fr);
   }
 
   .calcx-grid {
