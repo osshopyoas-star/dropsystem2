@@ -3098,7 +3098,7 @@ function renderCalculadoraDashboard() {
     <div class="calcx-page">
       <section class="calcx-layout">
 
-        <aside class="calcx-sidebar">
+      <div class="calcx-sidebar">
           <div class="calcx-panel">
             <div class="calcx-panel-head">
               <div class="calcx-badge">
@@ -3154,7 +3154,7 @@ function renderCalculadoraDashboard() {
               <input id="calcxMargenObjetivo" type="number" step="0.1" value="18" oninput="actualizarCalculadoraDashboard()">
             </div>
           </div>
-        </aside>
+      </div>
 
         <div class="calcx-main">
           <div class="calcx-top-grid">
