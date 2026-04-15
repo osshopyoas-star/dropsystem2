@@ -3133,6 +3133,8 @@ function renderCalculadoraDashboard() {
 
               <label>Costos administrativos</label>
               <input id="calcxAdmin" type="number" value="5000" oninput="actualizarCalculadoraDashboard()">
+              <label>Impuestos (%)</label>
+              <input id="calcxImpuestos" type="number" step="0.1" value="2" oninput="actualizarCalculadoraDashboard()">
 
               <label>Plataforma de pago</label>
               <select id="calcxPasarela" onchange="actualizarCalculadoraDashboard()">
@@ -3284,7 +3286,7 @@ function getPasarelaConfig(tipo) {
 
 window.actualizarCalculadoraDashboard = function() {
   const moneda = document.getElementById("calcxMoneda")?.value || "COP";
-
+const impuestosPct = Number(document.getElementById("calcxImpuestos")?.value || 0);
   const precioVentaFinal = Number(document.getElementById("calcxPrecioVenta")?.value || 0);
   const costoProducto = Number(document.getElementById("calcxPrecioProveedor")?.value || 0);
   const fleteBase = Number(document.getElementById("calcxFleteBase")?.value || 0);
@@ -3307,16 +3309,21 @@ window.actualizarCalculadoraDashboard = function() {
   const perdidaCancelados = precioVentaFinal * (cancelados / 100) * 0.25;
   const perdidaDevoluciones = precioVentaFinal * (devoluciones / 100) * 0.12;
 
-  const costosTotales =
-    costoProducto +
-    fleteAjustado +
-    fulfillment +
-    confirmacion +
-    admin +
-    comisionPasarela +
-    cpa +
-    perdidaCancelados +
-    perdidaDevoluciones;
+const subtotalCostos =
+  costoProducto +
+  fleteAjustado +
+  fulfillment +
+  confirmacion +
+  admin +
+  comisionPasarela +
+  cpa +
+  perdidaCancelados +
+  perdidaDevoluciones;
+
+// impuestos sobre el subtotal
+const impuestos = subtotalCostos * (impuestosPct / 100);
+
+const costosTotales = subtotalCostos + impuestos;
 
   const utilidad = precioVentaFinal - costosTotales;
   const margen = precioVentaFinal > 0 ? (utilidad / precioVentaFinal) * 100 : 0;
