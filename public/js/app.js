@@ -1306,7 +1306,148 @@ if (route === "desarrollo") {
 }, 0);
 
   return;
+
 }
+
+if (route === "calculadora") {
+  view.innerHTML = `
+    <div class="calc-page">
+      <section class="calc-hero">
+        <div>
+          <div class="calc-badge">
+            <i data-lucide="calculator"></i>
+            <span>Calculadora de precios</span>
+          </div>
+          <h1 class="calc-title">Calcula precio final, utilidad y margen</h1>
+          <p class="calc-subtitle">
+            Configura país, moneda y origen del producto. Para importación,
+            el sistema suma 20% adicional al precio proveedor.
+          </p>
+        </div>
+      </section>
+
+      <section class="calc-layout">
+        <div class="calc-left">
+          <div class="calc-card">
+            <div class="calc-card-head">
+              <h3>Entrada de datos</h3>
+              <p>Llena los costos base del producto.</p>
+            </div>
+
+            <div class="calc-form">
+              <label>País</label>
+              <select id="calcPais" onchange="actualizarCalculadora()">
+                <option value="CO">Colombia (COP)</option>
+                <option value="EC">Ecuador (USD)</option>
+              </select>
+
+              <label>Origen</label>
+              <select id="calcOrigen" onchange="actualizarCalculadora()">
+                <option value="catalogo">Catálogo público</option>
+                <option value="importacion">Importación</option>
+              </select>
+
+              <label>Precio proveedor</label>
+              <input id="calcPrecioProveedor" type="number" value="21000" oninput="actualizarCalculadora()">
+
+              <label>Flete base</label>
+              <input id="calcFleteBase" type="number" value="20000" oninput="actualizarCalculadora()">
+
+              <label>Entrega sobre despachado (%)</label>
+              <input id="calcEntrega" type="number" value="75" oninput="actualizarCalculadora()">
+
+              <label>Costos administrativos</label>
+              <input id="calcAdmin" type="number" value="5000" oninput="actualizarCalculadora()">
+
+              <label>Fulfillment</label>
+              <input id="calcFulfillment" type="number" value="0" oninput="actualizarCalculadora()">
+
+              <label>CPA Ads Manager 1</label>
+              <input id="calcCpa1" type="number" value="13167" oninput="actualizarCalculadora()">
+
+              <label>CPA Ads Manager 2</label>
+              <input id="calcCpa2" type="number" value="18000" oninput="actualizarCalculadora()">
+
+              <label>CPA costeado no medir</label>
+              <input id="calcCpaNoMedir" type="number" value="30000" oninput="actualizarCalculadora()">
+
+              <label>Impuestos (%)</label>
+              <input id="calcImpuestos" type="number" step="0.1" value="2" oninput="actualizarCalculadora()">
+            </div>
+          </div>
+        </div>
+
+        <div class="calc-right">
+          <div class="calc-card">
+            <div class="calc-card-head">
+              <h3>Resultado final</h3>
+              <p>Comparación entre costos totales, utilidad y precio sugerido.</p>
+            </div>
+
+            <div class="calc-result-grid">
+              <div class="calc-result-box">
+                <span>Moneda</span>
+                <strong id="calcMoneda">COP</strong>
+              </div>
+
+              <div class="calc-result-box">
+                <span>Proveedor ajustado</span>
+                <strong id="calcProveedorAjustado">$0</strong>
+              </div>
+
+              <div class="calc-result-box">
+                <span>Flete con devoluciones</span>
+                <strong id="calcFleteConDev">$0</strong>
+              </div>
+
+              <div class="calc-result-box">
+                <span>Costos totales</span>
+                <strong id="calcCostosTotales">$0</strong>
+              </div>
+
+              <div class="calc-result-box highlight">
+                <span>Precio de venta sugerido</span>
+                <strong id="calcPrecioVenta">$0</strong>
+              </div>
+
+              <div class="calc-result-box">
+                <span>Utilidad</span>
+                <strong id="calcUtilidad">$0</strong>
+              </div>
+
+              <div class="calc-result-box">
+                <span>Margen</span>
+                <strong id="calcMargen">0%</strong>
+              </div>
+
+              <div class="calc-result-box">
+                <span>Precio comparación</span>
+                <strong id="calcPrecioComparacion">$0</strong>
+              </div>
+            </div>
+
+            <div class="calc-summary">
+              <h4>Resumen</h4>
+              <p id="calcResumen">
+                Aquí verás el resultado de la calculadora.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  `;
+
+  marcarMenuActivo("calculadora");
+
+  setTimeout(() => {
+    actualizarCalculadora();
+    if (window.lucide) lucide.createIcons();
+  }, 0);
+
+  return;
+}
+
 if (route === "inicio") {
   view.innerHTML = `
     <div class="home-page">
@@ -3483,7 +3624,92 @@ try {
 };
 
 
+function formatMoneyCalc(value, currency) {
+  const num = Number(value || 0);
 
+  if (currency === "COP") {
+    return new Intl.NumberFormat("es-CO", {
+      style: "currency",
+      currency: "COP",
+      maximumFractionDigits: 0
+    }).format(num);
+  }
+
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(num);
+}
+
+window.actualizarCalculadora = function() {
+  const pais = document.getElementById("calcPais")?.value || "CO";
+  const origen = document.getElementById("calcOrigen")?.value || "catalogo";
+
+  const currency = pais === "CO" ? "COP" : "USD";
+
+  const precioProveedorRaw = Number(document.getElementById("calcPrecioProveedor")?.value || 0);
+  const fleteBase = Number(document.getElementById("calcFleteBase")?.value || 0);
+  const entrega = Number(document.getElementById("calcEntrega")?.value || 0);
+  const admin = Number(document.getElementById("calcAdmin")?.value || 0);
+  const fulfillment = Number(document.getElementById("calcFulfillment")?.value || 0);
+  const cpa1 = Number(document.getElementById("calcCpa1")?.value || 0);
+  const cpa2 = Number(document.getElementById("calcCpa2")?.value || 0);
+  const cpaNoMedir = Number(document.getElementById("calcCpaNoMedir")?.value || 0);
+  const impuestosPct = Number(document.getElementById("calcImpuestos")?.value || 0);
+
+  const precioProveedorAjustado = origen === "importacion"
+    ? precioProveedorRaw * 1.2
+    : precioProveedorRaw;
+
+  const efectividad = entrega / 100;
+  const fleteConDevoluciones = efectividad > 0
+    ? fleteBase / efectividad
+    : 0;
+
+  const subtotalCostos =
+    precioProveedorAjustado +
+    fleteConDevoluciones +
+    admin +
+    fulfillment +
+    cpa1 +
+    cpa2 +
+    cpaNoMedir;
+
+  const impuestos = subtotalCostos * (impuestosPct / 100);
+  const costosTotales = subtotalCostos + impuestos;
+
+  const margenObjetivo = pais === "CO" ? 0.18 : 0.15;
+  const precioVenta = costosTotales / (1 - margenObjetivo);
+  const utilidad = precioVenta - costosTotales;
+  const margen = precioVenta > 0 ? (utilidad / precioVenta) * 100 : 0;
+  const precioComparacion = precioVenta * (pais === "CO" ? 1.25 : 1.35);
+
+  const setText = (id, value) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+  };
+
+  setText("calcMoneda", currency);
+  setText("calcProveedorAjustado", formatMoneyCalc(precioProveedorAjustado, currency));
+  setText("calcFleteConDev", formatMoneyCalc(fleteConDevoluciones, currency));
+  setText("calcCostosTotales", formatMoneyCalc(costosTotales, currency));
+  setText("calcPrecioVenta", formatMoneyCalc(precioVenta, currency));
+  setText("calcUtilidad", formatMoneyCalc(utilidad, currency));
+  setText("calcMargen", `${margen.toFixed(1)}%`);
+  setText("calcPrecioComparacion", formatMoneyCalc(precioComparacion, currency));
+
+  const resumen = document.getElementById("calcResumen");
+  if (resumen) {
+    resumen.textContent =
+      `Para ${pais === "CO" ? "Colombia" : "Ecuador"} en ${currency}, ` +
+      `el costo total estimado es ${formatMoneyCalc(costosTotales, currency)}. ` +
+      `El precio sugerido de venta es ${formatMoneyCalc(precioVenta, currency)} ` +
+      `con una utilidad aproximada de ${formatMoneyCalc(utilidad, currency)}. ` +
+      `${origen === "importacion" ? "Incluye 20% adicional sobre precio proveedor por importación." : ""}`;
+  }
+};
 
 window.generarKeywordsMaslow = async function() {
   const pais = document.getElementById("trendPais")?.value || "ALL";
