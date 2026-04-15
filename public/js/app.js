@@ -3098,6 +3098,7 @@ function renderCalculadoraDashboard() {
     <div class="calcx-page">
       <section class="calcx-layout">
 
+        <!-- COLUMNA IZQUIERDA -->
         <aside class="calcx-sidebar">
           <div class="calcx-panel">
             <div class="calcx-panel-head">
@@ -3105,6 +3106,7 @@ function renderCalculadoraDashboard() {
                 <i data-lucide="calculator"></i>
                 <span>Calculadora</span>
               </div>
+
               <h2>Panel de parámetros</h2>
               <p>Configura costos, pérdidas y margen objetivo.</p>
             </div>
@@ -3133,116 +3135,143 @@ function renderCalculadoraDashboard() {
 
               <label>Costos administrativos</label>
               <input id="calcxAdmin" type="number" value="5000" oninput="actualizarCalculadoraDashboard()">
+
               <label>Impuestos (%)</label>
-              <input id="calcxImpuestos" type="number" step="0.1" value="2" oninput="actualizarCalculadoraDashboard()">
+              <input id="calcxImpuestos" type="number" step="0.1" value="19" oninput="actualizarCalculadoraDashboard()">
 
-              <label>Plataforma de pago</label>
-              <select id="calcxPasarela" onchange="actualizarCalculadoraDashboard()">
-                <option value="none">Sin comisión</option>
-                <option value="payu">PayU</option>
-                <option value="mercadopago">Mercado Pago</option>
-                <option value="stripe">Stripe</option>
-              </select>
+              <label>% Cancelaciones</label>
+              <input id="calcxCancelaciones" type="number" step="0.1" value="8" oninput="actualizarCalculadoraDashboard()">
 
-              <label>% cancelaciones</label>
-              <input id="calcxCancelados" type="number" step="0.1" value="10" oninput="actualizarCalculadoraDashboard()">
+              <label>% Devoluciones</label>
+              <input id="calcxDevoluciones" type="number" step="0.1" value="5" oninput="actualizarCalculadoraDashboard()">
 
-              <label>% devoluciones</label>
-              <input id="calcxDevoluciones" type="number" step="0.1" value="20" oninput="actualizarCalculadoraDashboard()">
+              <label>% Margen objetivo</label>
+              <input id="calcxMargenObjetivo" type="number" step="0.1" value="18.9" oninput="actualizarCalculadoraDashboard()">
 
-              <label>Margen objetivo</label>
-              <input id="calcxMargenObjetivo" type="number" step="0.1" value="18" oninput="actualizarCalculadoraDashboard()">
+              <label>% Pauta máxima</label>
+              <input id="calcxPautaPorcentaje" type="number" step="0.1" value="20" oninput="actualizarCalculadoraDashboard()">
+
+              <label>ROAS objetivo</label>
+              <input id="calcxRoasObjetivo" type="number" step="0.1" value="5" oninput="actualizarCalculadoraDashboard()">
+
+              <label>Ventas estimadas</label>
+              <input id="calcxVentasEstimadas" type="number" value="100" oninput="actualizarCalculadoraDashboard()">
             </div>
           </div>
         </aside>
 
+        <!-- COLUMNA DERECHA -->
         <div class="calcx-main">
+
+          <!-- KPIs TOP -->
           <div class="calcx-top-grid">
-            <div class="calcx-card principal">
+            <div class="calcx-card primary">
               <span>Precio / utilidad / margen</span>
-              <strong id="calcxOutPrecioVenta">$0</strong>
+              <strong id="calcxOutPrecioVenta">$ 99.842</strong>
 
               <div class="calcx-triple">
                 <div>
                   <small>Utilidad</small>
-                  <b id="calcxOutUtilidad">$0</b>
+                  <b id="calcxOutUtilidad">$ 18.821</b>
                 </div>
                 <div>
                   <small>Margen</small>
-                  <b id="calcxOutMargen">0%</b>
+                  <b id="calcxOutMargen">18.9%</b>
                 </div>
               </div>
             </div>
 
-            <div class="calcx-card amarillo">
+            <div class="calcx-card warning">
               <span>Punto de equilibrio</span>
-              <strong id="calcxOutBreakEven">$0</strong>
+              <strong id="calcxOutBreakEven">$ 81.021</strong>
               <small>Lo mínimo para no perder</small>
             </div>
 
-            <div class="calcx-card naranja">
+            <div class="calcx-card orange">
               <span>Costo bruto total por venta</span>
-              <strong id="calcxOutCostosTotales">$0</strong>
+              <strong id="calcxOutCostosTotales">$ 81.021</strong>
               <small>Incluye operación, pérdidas y pauta</small>
             </div>
           </div>
 
+          <!-- GRID DE RESULTADOS -->
           <div class="calcx-grid">
             <div class="calcx-card">
               <span>Precio mínimo</span>
-              <strong id="calcxOutPrecioMinimo">$0</strong>
+              <strong id="calcxOutPrecioMinimo">$ 90.023</strong>
               <small>Con margen mínimo de seguridad</small>
             </div>
 
             <div class="calcx-card">
               <span>Precio ideal</span>
-              <strong id="calcxOutPrecioIdeal">$0</strong>
+              <strong id="calcxOutPrecioIdeal">$ 98.806</strong>
               <small>Basado en margen objetivo</small>
             </div>
 
             <div class="calcx-card">
               <span>Pauta máxima permitida</span>
-              <strong id="calcxOutPautaMaxima">$0</strong>
+              <strong id="calcxOutPautaMaxima">$ 19.968</strong>
               <small>Límite recomendado</small>
             </div>
 
             <div class="calcx-card">
               <span>Inversión en pauta efectiva</span>
-              <strong id="calcxOutCPA">$0</strong>
+              <strong id="calcxOutCPA">$ 19.968</strong>
               <small>20% del valor de venta</small>
             </div>
 
             <div class="calcx-card">
               <span>Pérdida por cancelaciones</span>
-              <strong id="calcxOutPerdidaCancelados">$0</strong>
+              <strong id="calcxOutPerdidaCancelados">$ 2.496</strong>
               <small>Impacto estimado</small>
             </div>
 
             <div class="calcx-card">
               <span>Pérdida por devoluciones</span>
-              <strong id="calcxOutPerdidaDevoluciones">$0</strong>
+              <strong id="calcxOutPerdidaDevoluciones">$ 2.396</strong>
               <small>Impacto estimado</small>
             </div>
 
             <div class="calcx-card">
               <span>Proyección ROAS</span>
-              <strong id="calcxOutROAS">0.00</strong>
-              <small>Venta / pauta efectiva</small>
+              <strong id="calcxOutRoas">5.00</strong>
+              <small>Venta / pauta</small>
             </div>
 
             <div class="calcx-card">
               <span>Proyección ROI</span>
-              <strong id="calcxOutROI">0%</strong>
-              <small>Utilidad / costo bruto total</small>
+              <strong id="calcxOutROI">23.2%</strong>
+              <small>Utilidad / costo</small>
             </div>
 
-            <div class="calcx-card full resumen">
-              <span>Resumen ejecutivo</span>
-              <p id="calcxResumen">Aquí verás el resumen calculado.</p>
+            <div class="calcx-card success">
+              <span>Utilidad total proyectada</span>
+              <strong id="calcxOutUtilidadTotal">$ 1.882.100</strong>
+              <small>Con ventas estimadas</small>
+            </div>
+
+            <div class="calcx-card primary">
+              <span>Ingresos totales</span>
+              <strong id="calcxOutIngresos">$ 9.984.200</strong>
+              <small>Facturación estimada</small>
+            </div>
+
+            <div class="calcx-card">
+              <span>Costos totales proyectados</span>
+              <strong id="calcxOutCostosProyectados">$ 8.102.100</strong>
+              <small>Incluye pauta + pérdidas</small>
+            </div>
+
+            <div class="calcx-card summary full">
+              <span>Resumen</span>
+              <p id="calcxResumen">
+                Ajusta los parámetros de la izquierda para recalcular automáticamente
+                precios, margen, punto de equilibrio, pérdidas, ROAS y utilidad proyectada.
+              </p>
             </div>
           </div>
-        </div>
 
+        </div>
       </section>
     </div>
   `;
