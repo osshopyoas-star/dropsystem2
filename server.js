@@ -217,7 +217,19 @@ app.post("/api/ia", async (req, res) => {
       })
     });
 
-    const data = await response.json();
+ const raw = await response.text();
+
+let data;
+
+try {
+  data = JSON.parse(raw);
+} catch (e) {
+  console.error("xAI devolvió algo inválido:", raw);
+  return res.status(500).json({
+    error: "Respuesta inválida de IA",
+    raw
+  });
+}
 
     if (!response.ok) {
       return res.status(response.status).json({
