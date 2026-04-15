@@ -1306,311 +1306,43 @@ if (route === "desarrollo") {
 }, 0);
 
   return;
-
 }
+  if (route === "inicio") {
+   view.innerHTML = `
+  <h1>🏠 Inicio</h1>
+  <p>Bienvenido a CoDropX. Desde aquí puedes descubrir oportunidades, validarlas, guardar productos y desarrollar ángulos.</p>
 
-if (route === "calculadora") {
-  view.innerHTML = `
-    <div class="calc-page">
-      <section class="calc-hero">
-        <div>
-          <div class="calc-badge">
-            <i data-lucide="calculator"></i>
-            <span>Calculadora de precios</span>
-          </div>
-          <h1 class="calc-title">Calcula precio final, utilidad y margen</h1>
-          <p class="calc-subtitle">
-            Configura país, moneda y origen del producto. Para importación,
-            el sistema suma 20% adicional al precio proveedor.
-          </p>
-        </div>
-      </section>
-
-      <section class="calc-layout">
-        <div class="calc-left">
-          <div class="calc-card">
-            <div class="calc-card-head">
-              <h3>Entrada de datos</h3>
-              <p>Llena los costos base del producto.</p>
-            </div>
-
-            <div class="calc-form">
-              <label>País</label>
-              <select id="calcPais" onchange="actualizarCalculadora()">
-                <option value="CO">Colombia (COP)</option>
-                <option value="EC">Ecuador (USD)</option>
-              </select>
-              <label>Precio de venta final</label>
-              <input id="calcPrecioVentaManual" type="number" value="100000" oninput="actualizarCalculadora()">
-              <label>Origen</label>
-              <select id="calcOrigen" onchange="actualizarCalculadora()">
-                <option value="catalogo">Catálogo público</option>
-                <option value="importacion">Importación</option>
-              </select>
-
-              <label>Precio proveedor</label>
-              <input id="calcPrecioProveedor" type="number" value="21000" oninput="actualizarCalculadora()">
-
-              <label>Flete base</label>
-              <input id="calcFleteBase" type="number" value="20000" oninput="actualizarCalculadora()">
-
-              <label>Entrega sobre despachado (%)</label>
-              <input id="calcEntrega" type="number" value="75" oninput="actualizarCalculadora()">
-              <label>% Devoluciones</label>
-              <input id="calcDevoluciones" type="number" value="20" oninput="actualizarCalculadora()">
-
-               <label>% Cancelados</label>
-               <input id="calcCancelados" type="number" value="10" oninput="actualizarCalculadora()">
-
-              <label>Costos administrativos</label>
-              <input id="calcAdmin" type="number" value="5000" oninput="actualizarCalculadora()">
-
-              <label>Fulfillment</label>
-              <input id="calcFulfillment" type="number" value="0" oninput="actualizarCalculadora()">
-
-              <label>CPA Ads Manager 1</label>
-              <input id="calcCpa1" type="number" value="13167" oninput="actualizarCalculadora()">
-
-              <label>CPA Ads Manager 2</label>
-              <input id="calcCpa2" type="number" value="18000" oninput="actualizarCalculadora()">
-
-              <label>CPA costeado no medir</label>
-              <input id="calcCpaNoMedir" type="number" value="30000" oninput="actualizarCalculadora()">
-
-              <label>Impuestos (%)</label>
-              <input id="calcImpuestos" type="number" step="0.1" value="2" oninput="actualizarCalculadora()">
-            </div>
-          </div>
-        </div>
-
-        <div class="calc-right">
-          <div class="calc-card">
-            <div class="calc-card-head">
-              <h3>Resultado final</h3>
-              <p>Comparación entre costos totales, utilidad y precio sugerido.</p>
-            </div>
-
-            <div class="calc-result-grid">
-              <div class="calc-result-box">
-                <span>Moneda</span>
-                <strong id="calcMoneda">COP</strong>
-              </div>
-
-              <div class="calc-result-box">
-                <span>Proveedor ajustado</span>
-                <strong id="calcProveedorAjustado">$0</strong>
-              </div>
-
-              <div class="calc-result-box">
-                <span>Flete con devoluciones</span>
-                <strong id="calcFleteConDev">$0</strong>
-              </div>
-
-              <div class="calc-result-box">
-                <span>Costos totales</span>
-                <strong id="calcCostosTotales">$0</strong>
-              </div>
-
-              <div class="calc-result-box highlight">
-                <span>Precio de venta sugerido</span>
-                <strong id="calcPrecioVenta">$0</strong>
-              </div>
-
-              <div class="calc-result-box">
-                <span>Utilidad</span>
-                <strong id="calcUtilidad">$0</strong>
-              </div>
-
-              <div class="calc-result-box">
-                <span>Margen</span>
-                <strong id="calcMargen">0%</strong>
-              </div>
-
-              <div class="calc-result-box">
-                <span>Precio comparación</span>
-                <strong id="calcPrecioComparacion">$0</strong>
-              </div>
-            </div>
-
-            <div class="calc-summary">
-              <h4>Resumen</h4>
-              <p id="calcResumen">
-                Aquí verás el resultado de la calculadora.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
+  <div class="grid-3">
+    <div class="panel">
+      <h3>Descubrimiento</h3>
+      <p>Explora tendencias, nichos y oportunidades de mercado.</p>
     </div>
-  `;
 
-  marcarMenuActivo("calculadora");
-
-  setTimeout(() => {
-    actualizarCalculadora();
-    if (window.lucide) lucide.createIcons();
-  }, 0);
-
-  return;
-}
-
-if (route === "inicio") {
-  view.innerHTML = `
-    <div class="home-page">
-
-      <section class="home-hero">
-        <div class="home-hero-left">
-          <div class="home-badge">
-            <i data-lucide="sparkles"></i>
-            <span>Workspace de ecommerce</span>
-          </div>
-
-          <h1 class="home-title">
-            Descubre, valida y desarrolla productos
-            <span>desde una sola plataforma</span>
-          </h1>
-
-          <p class="home-subtitle">
-            CoDropX te ayuda a encontrar oportunidades, validar demanda,
-            organizar tu base de productos y construir ángulos, avatares,
-            guiones y creativos con IA.
-          </p>
-
-          <div class="home-actions">
-            <button class="primary home-main-btn" onclick="goTo('tendencias')">
-              <i data-lucide="radar"></i>
-              Explorar oportunidades
-            </button>
-
-            <button class="home-secondary-btn" onclick="goTo('desarrollo')">
-              <i data-lucide="brain"></i>
-              Ir a desarrollo
-            </button>
-          </div>
-        </div>
-
-        <div class="home-hero-right">
-          <div class="home-kpi-card">
-            <div class="home-kpi-top">
-              <span class="home-kpi-label">Flujo principal</span>
-              <span class="home-kpi-pill">Activo</span>
-            </div>
-
-            <div class="home-kpi-steps">
-              <div class="home-step">
-                <strong>1</strong>
-                <span>Descubrir</span>
-              </div>
-              <div class="home-step">
-                <strong>2</strong>
-                <span>Validar</span>
-              </div>
-              <div class="home-step">
-                <strong>3</strong>
-                <span>Desarrollar</span>
-              </div>
-              <div class="home-step">
-                <strong>4</strong>
-                <span>Lanzar</span>
-              </div>
-            </div>
-
-            <div class="home-kpi-note">
-              Centraliza tendencias, productos y estrategia creativa en un solo lugar.
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="home-stats">
-        <div class="home-stat">
-          <div class="home-stat-icon"><i data-lucide="line-chart"></i></div>
-          <div>
-            <strong>Radar de tendencias</strong>
-            <p>Encuentra oportunidades con lógica de mercado.</p>
-          </div>
-        </div>
-
-        <div class="home-stat">
-          <div class="home-stat-icon"><i data-lucide="shield-check"></i></div>
-          <div>
-            <strong>Validación real</strong>
-            <p>Contrasta señales con Ads Library y proveedores.</p>
-          </div>
-        </div>
-
-        <div class="home-stat">
-          <div class="home-stat-icon"><i data-lucide="brain-circuit"></i></div>
-          <div>
-            <strong>Desarrollo con IA</strong>
-            <p>Genera avatares, ángulos, guiones y creativos.</p>
-          </div>
-        </div>
-      </section>
-
-      <section class="home-grid">
-        <article class="home-card" onclick="goTo('tendencias')">
-          <div class="home-card-top">
-            <div class="home-card-icon blue"><i data-lucide="compass"></i></div>
-            <span class="home-card-tag">Descubrimiento</span>
-          </div>
-          <h3>Explora tendencias y nichos</h3>
-          <p>Analiza dolores, mercados, señales y oportunidades antes de entrar a validar.</p>
-          <div class="home-card-link">Abrir módulo</div>
-        </article>
-
-        <article class="home-card" onclick="goTo('busqueda')">
-          <div class="home-card-top">
-            <div class="home-card-icon indigo"><i data-lucide="search-check"></i></div>
-            <span class="home-card-tag">Validación</span>
-          </div>
-          <h3>Confirma demanda real</h3>
-          <p>Usa búsquedas, Ads Library, TikTok y análisis de mercado para validar productos.</p>
-          <div class="home-card-link">Abrir módulo</div>
-        </article>
-
-        <article class="home-card" onclick="goTo('productos')">
-          <div class="home-card-top">
-            <div class="home-card-icon sky"><i data-lucide="database"></i></div>
-            <span class="home-card-tag">Base de productos</span>
-          </div>
-          <h3>Organiza tu inventario estratégico</h3>
-          <p>Guarda productos, clasifícalos por estado y controla materiales, landings y creativos.</p>
-          <div class="home-card-link">Abrir módulo</div>
-        </article>
-
-        <article class="home-card wide" onclick="goTo('desarrollo')">
-          <div class="home-card-top">
-            <div class="home-card-icon violet"><i data-lucide="sparkles"></i></div>
-            <span class="home-card-tag">Desarrollo</span>
-          </div>
-          <h3>Construye la estrategia del producto</h3>
-          <p>
-            Convierte un producto o una imagen en avatares, ángulos, guiones,
-            creativos y recomendaciones listas para landing y anuncios.
-          </p>
-
-          <div class="home-feature-list">
-            <span>3 avatares</span>
-            <span>5 ángulos por avatar</span>
-            <span>Guiones AIDA</span>
-            <span>Creativos de imagen</span>
-          </div>
-
-          <div class="home-card-link">Abrir módulo</div>
-        </article>
-      </section>
+    <div class="panel">
+      <h3>Validación</h3>
+      <p>Confirma demanda con Ads Library, tiendas, Dropi y proveedores.</p>
     </div>
-  `;
 
-  marcarMenuActivo("inicio");
+    <div class="panel">
+      <h3>Base de Productos</h3>
+      <p>Organiza productos validados para Colombia y Ecuador.</p>
+    </div>
 
-  setTimeout(() => {
-    if (window.lucide) lucide.createIcons();
-  }, 0);
+    <div class="panel">
+      <h3>Desarrollo</h3>
+      <p>Trabaja avatar, ángulos, prompts, creativos y landing.</p>
+    </div>
+  </div>
+`;
 
-  return;
-}
+    marcarMenuActivo("inicio");
+
+    setTimeout(() => {
+      if (window.lucide) lucide.createIcons();
+    }, 0);
+
+    return;
+  }
 
   if (route === "busqueda") {
     view.innerHTML = renderBusqueda();
@@ -3630,98 +3362,7 @@ try {
 };
 
 
-function formatMoneyCalc(value, currency) {
-  const num = Number(value || 0);
 
-  if (currency === "COP") {
-    return new Intl.NumberFormat("es-CO", {
-      style: "currency",
-      currency: "COP",
-      maximumFractionDigits: 0
-    }).format(num);
-  }
-
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }).format(num);
-}
-
-window.actualizarCalculadora = function() {
-  const pais = document.getElementById("calcPais")?.value || "CO";
-  const origen = document.getElementById("calcOrigen")?.value || "catalogo";
-
-  const currency = pais === "CO" ? "COP" : "USD";
-
-  const precioProveedorRaw = Number(document.getElementById("calcPrecioProveedor")?.value || 0);
-  const fleteBase = Number(document.getElementById("calcFleteBase")?.value || 0);
-  const precioVentaManual = Number(document.getElementById("calcPrecioVentaManual")?.value || 0);
-
-// CPA automático = 20% del precio de venta
-const cpaAuto = precioVentaManual * 0.20;
-  const devoluciones = Number(document.getElementById("calcDevoluciones")?.value || 0);
-const cancelados = Number(document.getElementById("calcCancelados")?.value || 0);
-
-const efectividad = 1 - ((devoluciones + cancelados) / 100);
-  const admin = Number(document.getElementById("calcAdmin")?.value || 0);
-  const fulfillment = Number(document.getElementById("calcFulfillment")?.value || 0);
- const cpa1 = cpaAuto;
-const cpa2 = 0;
-  const cpaNoMedir = Number(document.getElementById("calcCpaNoMedir")?.value || 0);
-  const impuestosPct = Number(document.getElementById("calcImpuestos")?.value || 0);
-
-  const precioProveedorAjustado = origen === "importacion"
-    ? precioProveedorRaw * 1.2
-    : precioProveedorRaw;
-
- const fleteConDevoluciones = efectividad > 0
-  ? fleteBase / efectividad
-  : 0;
-
-  const subtotalCostos =
-    precioProveedorAjustado +
-    fleteConDevoluciones +
-    admin +
-    fulfillment +
-    cpa1 +
-    cpa2 +
-    cpaNoMedir;
-
-  const impuestos = subtotalCostos * (impuestosPct / 100);
-  const costosTotales = subtotalCostos + impuestos;
-
-  const margenObjetivo = pais === "CO" ? 0.18 : 0.15;
-  const precioVenta = costosTotales / (1 - margenObjetivo);
-  const utilidad = precioVenta - costosTotales;
-  const margen = precioVenta > 0 ? (utilidad / precioVenta) * 100 : 0;
-  const precioComparacion = precioVenta * (pais === "CO" ? 1.25 : 1.35);
-
-  const setText = (id, value) => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = value;
-  };
-
-  setText("calcMoneda", currency);
-  setText("calcProveedorAjustado", formatMoneyCalc(precioProveedorAjustado, currency));
-  setText("calcFleteConDev", formatMoneyCalc(fleteConDevoluciones, currency));
-  setText("calcCostosTotales", formatMoneyCalc(costosTotales, currency));
-  setText("calcPrecioVenta", formatMoneyCalc(precioVenta, currency));
-  setText("calcUtilidad", formatMoneyCalc(utilidad, currency));
-  setText("calcMargen", `${margen.toFixed(1)}%`);
-  setText("calcPrecioComparacion", formatMoneyCalc(precioComparacion, currency));
-
-  const resumen = document.getElementById("calcResumen");
-  if (resumen) {
-    resumen.textContent =
-      `Para ${pais === "CO" ? "Colombia" : "Ecuador"} en ${currency}, ` +
-      `el costo total estimado es ${formatMoneyCalc(costosTotales, currency)}. ` +
-      `El precio sugerido de venta es ${formatMoneyCalc(precioVenta, currency)} ` +
-      `con una utilidad aproximada de ${formatMoneyCalc(utilidad, currency)}. ` +
-      `${origen === "importacion" ? "Incluye 20% adicional sobre precio proveedor por importación." : ""}`;
-  }
-};
 
 window.generarKeywordsMaslow = async function() {
   const pais = document.getElementById("trendPais")?.value || "ALL";
