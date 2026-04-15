@@ -1571,7 +1571,13 @@ Si HAY imagen, prioriza la imagen sobre el texto.
 TIPO DE SALIDA:
 ${tipo}
 
-Si el tipo es "completo", devuelve EXACTAMENTE estas secciones:
+Si el tipo es "completo", Devuelve EXACTAMENTE con estos títulos en MAYÚSCULA:
+
+AVATARES:
+ÁNGULOS:
+GUIONES DE VIDEO:
+CREATIVOS DE IMAGEN:
+RECOMENDACIÓN FINAL:
 
 1. AVATARES
 - 3 avatares
@@ -1759,6 +1765,28 @@ function formatSectionHtml(text = "") {
 function renderParsedDesarrollo(reply = "") {
   const sections = splitBlocks(reply);
 
+  const tieneContenido =
+    sections.avatares ||
+    sections.angulos ||
+    sections.guiones ||
+    sections.creativos ||
+    sections.recomendacion;
+
+  // 🔥 SI FALLA EL PARSER → MOSTRAR TODO
+  if (!tieneContenido) {
+    return `
+      <div class="pro-card full">
+        <div class="pro-card-head">
+          <div class="pro-icon">📄</div>
+          <h3>Resultado completo</h3>
+        </div>
+        <div class="pro-card-body">
+          ${formatProContent(reply)}
+        </div>
+      </div>
+    `;
+  }
+
   const renderBlock = (title, content, icon) => `
     <div class="pro-card">
       <div class="pro-card-head">
@@ -1792,6 +1820,7 @@ function renderParsedDesarrollo(reply = "") {
     </div>
   `;
 }
+
 
 function formatProContent(text = "") {
   if (!text) return `<div class="empty">Sin contenido</div>`;
