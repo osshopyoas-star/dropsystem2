@@ -61,7 +61,7 @@ export function renderProductos() {
 <div id="modalMaterial" class="modal-overlay hidden">
   <div class="modal-box" style="width:500px; text-align:left;">
     
-    <h3>Material / Producto</h3>
+    <h3>Contenido o material del producto/h3>
 
     <div id="modalMaterialContenido" style="margin-top:10px; font-size:14px; line-height:1.6;"></div>
 
