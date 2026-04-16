@@ -2243,9 +2243,15 @@ window.abrirCreativos = function(url) {
   window.open(url, "_blank");
 };
 
-window.abrirMaterial = function(url) {
-  if (!url) return;
-  window.open(url, "_blank");
+window.abrirMaterial = function(texto) {
+  if (!texto) return;
+
+  const modal = document.getElementById("modalMaterial");
+  const contenido = document.getElementById("modalMaterialContenido");
+
+  if (contenido) contenido.innerText = texto;
+
+  modal.classList.remove("hidden");
 };
 
 window.abrirDropi = function(id) {
@@ -2338,6 +2344,13 @@ window.buscarEnMeta = function() {
 window.buscarEnTikTok = function() {
   const query = selectedKeywords.join(" ");
   window.open(`https://www.tiktok.com/search?q=${encodeURIComponent(query)}`, "_blank");
+};
+
+
+
+window.cerrarModalMaterial = function() {
+  const modal = document.getElementById("modalMaterial");
+  modal.classList.add("hidden");
 };
 
 // producto

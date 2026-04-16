@@ -30,7 +30,7 @@ export function renderProductos() {
          <div id="dropiIdWrap" hidden>
   <input id="dropiId" placeholder="ID Dropi">
 </div>
-          <input id="material" placeholder="Material/Producto">
+          <input id="material" placeholder="Material/Notas">
           <input id="creativos" placeholder="Link Creativos">
           <input id="landing" placeholder="Link Landing Page">
 
@@ -56,6 +56,21 @@ export function renderProductos() {
         <div id="tabla-productos"></div>
       </div>
 
+
+
+<div id="modalMaterial" class="modal-overlay hidden">
+  <div class="modal-box" style="width:500px; text-align:left;">
+    
+    <h3>Material / Producto</h3>
+
+    <div id="modalMaterialContenido" style="margin-top:10px; font-size:14px; line-height:1.6;"></div>
+
+    <div style="margin-top:20px; text-align:right;">
+      <button onclick="cerrarModalMaterial()">Cerrar</button>
+    </div>
+
+  </div>
+</div>
     </div>
   `;
 }
