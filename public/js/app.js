@@ -1280,34 +1280,32 @@ if (route === "desarrollo") {
           </div>
         </div>
 
-        <div class="dev-right">
-          <div class="dev-card">
-            <div class="dev-card-head">
-              <h3>Resultado IA</h3>
-              <p>Salida organizada para avatar, ángulos, guiones y creativos.</p>
-            </div>
-
-            <div id="resultadoDesarrollo" class="dev-result-empty">
-              <i data-lucide="layout-dashboard"></i>
-              <p>Aquí aparecerá el desarrollo del producto.</p>
-             
-            </div>
-          </div>
-        </div>
-
-    div id="modalAvatar" class="modal-overlay hidden">
-  <div class="modal-box" style="width:700px; max-height:80vh; overflow:auto; text-align:left;">
-    
-    <h3>Detalle Avatar</h3>
-
-    <div id="modalAvatarContenido" style="margin-top:10px;"></div>
-
-    <div style="margin-top:20px; text-align:right;">
-      <button onclick="cerrarAvatarModal()">Cerrar</button>
+   <div class="dev-right">
+  <div class="dev-card">
+    <div class="dev-card-head">
+      <h3>Resultado IA</h3>
+      <p>Salida organizada para avatar, ángulos, guiones y creativos.</p>
     </div>
 
+    <div id="resultadoDesarrollo" class="dev-result-empty">
+      <i data-lucide="layout-dashboard"></i>
+      <p>Aquí aparecerá el desarrollo del producto.</p>
+    </div>
+  </div>
+
+  <div id="modalAvatar" class="modal-overlay hidden">
+    <div class="modal-box" style="width:700px; max-height:80vh; overflow:auto; text-align:left;">
+      <h3>Detalle Avatar</h3>
+
+      <div id="modalAvatarContenido" style="margin-top:10px;"></div>
+
+      <div style="margin-top:20px; text-align:right;">
+        <button onclick="cerrarAvatarModal()">Cerrar</button>
+      </div>
+    </div>
   </div>
 </div>
+    
       </section>
     </div>
   `;
