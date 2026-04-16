@@ -2857,6 +2857,9 @@ aside.collapsed .submenu .sidebar-item {
   width: 100%;
   max-width: none;
   margin: 0;
+  transform: scale(0.92);
+  transform-origin: top left;
+  width: 108.7%;
 }
 .calcx-layout {
   display: grid;
