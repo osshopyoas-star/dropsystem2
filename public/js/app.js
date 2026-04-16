@@ -3922,10 +3922,18 @@ window.toggleValidacionMenu = function() {
   lucide.createIcons();
 };
 window.irDesarrollo = function(index) {
-  state.productoActivo = state.productos[index];
+
+  const producto = state.productos[index];
+
+  if (!producto) return;
+
+  // 🔥 Guardar en localStorage
+  localStorage.setItem("dev_producto", producto.nombre || "");
+  localStorage.setItem("dev_info", producto.material || "");
+
+  // 🔥 ir a desarrollo
   goTo("desarrollo");
 };
-
 window.cargarProductos = async function() {
   try {
     let url = "/api/productos";
