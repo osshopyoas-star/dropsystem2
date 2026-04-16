@@ -3296,3 +3296,10 @@ aside.collapsed .submenu .sidebar-item {
   font-weight: 700;
   cursor: pointer;
 }
+
+.bloque {
+  background: #f1f5f9;
+  padding: 12px;
+  border-radius: 12px;
+  margin-bottom: 15px;
+}
