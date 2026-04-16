@@ -1290,10 +1290,24 @@ if (route === "desarrollo") {
             <div id="resultadoDesarrollo" class="dev-result-empty">
               <i data-lucide="layout-dashboard"></i>
               <p>Aquí aparecerá el desarrollo del producto.</p>
+             
             </div>
           </div>
         </div>
 
+    div id="modalAvatar" class="modal-overlay hidden">
+  <div class="modal-box" style="width:700px; max-height:80vh; overflow:auto; text-align:left;">
+    
+    <h3>Detalle Avatar</h3>
+
+    <div id="modalAvatarContenido" style="margin-top:10px;"></div>
+
+    <div style="margin-top:20px; text-align:right;">
+      <button onclick="cerrarAvatarModal()">Cerrar</button>
+    </div>
+
+  </div>
+</div>
       </section>
     </div>
   `;
@@ -1898,64 +1912,67 @@ function formatSectionHtml(text = "") {
 }
 
 function renderParsedDesarrollo(reply = "") {
-  const sections = splitBlocks(reply);
 
-  const tieneContenido =
-    sections.avatares ||
-    sections.angulos ||
-    sections.guiones ||
-    sections.creativos ||
-    sections.recomendacion;
+  // 🔥 separar por avatares
+  const bloques = reply.split(/Avatar \d:/i);
 
-  // 🔥 SI FALLA EL PARSER → MOSTRAR TODO
-  if (!tieneContenido) {
-    return `
-      <div class="pro-card full">
-        <div class="pro-card-head">
-          <div class="pro-icon">📄</div>
-          <h3>Resultado completo</h3>
-        </div>
-        <div class="pro-card-body">
-          ${formatProContent(reply)}
-        </div>
-      </div>
-    `;
+  if (bloques.length < 2) {
+    return `<div class="pro-card full">
+      <div class="pro-card-body">${formatProContent(reply)}</div>
+    </div>`;
   }
 
-  const renderBlock = (title, content, icon) => `
-    <div class="pro-card">
-      <div class="pro-card-head">
-        <div class="pro-icon">${icon}</div>
-        <h3>${title}</h3>
-      </div>
-      <div class="pro-card-body">
-        ${formatProContent(content)}
-      </div>
-    </div>
-  `;
+  // quitar basura inicial
+  bloques.shift();
+
+  const avatars = bloques.map((b, i) => {
+    return {
+      id: i + 1,
+      contenido: b.trim()
+    };
+  });
+
+  // 🔥 guardar global para usar en modal
+  window._devAvatars = avatars;
 
   return `
-    <div class="pro-grid">
+    <div class="dev-avatar-grid">
 
-      ${renderBlock("Avatares", sections.avatares, "👤")}
-      ${renderBlock("Ángulos", sections.angulos, "🎯")}
-      ${renderBlock("Guiones", sections.guiones, "🎬")}
-      ${renderBlock("Creativos", sections.creativos, "🖼️")}
+      <div class="dev-avatar-header">
+        <h2>Resultado completo</h2>
+      </div>
 
-      <div class="pro-card full">
-        <div class="pro-card-head">
-          <div class="pro-icon">📌</div>
-          <h3>Recomendación final</h3>
-        </div>
-        <div class="pro-card-body">
-          ${formatProContent(sections.recomendacion)}
-        </div>
+      <div class="dev-avatar-cards">
+        ${avatars.map(a => `
+          <div class="dev-avatar-card">
+            <div class="dev-avatar-icon">🤖</div>
+
+            <button onclick="abrirAvatarModal(${a.id})" class="dev-avatar-btn">
+              AVATAR ${a.id}
+            </button>
+          </div>
+        `).join("")}
       </div>
 
     </div>
   `;
 }
+window.abrirAvatarModal = function(id) {
+  const avatar = window._devAvatars.find(a => a.id === id);
+  if (!avatar) return;
 
+  const modal = document.getElementById("modalAvatar");
+  const contenido = document.getElementById("modalAvatarContenido");
+
+  contenido.innerHTML = formatProContent(avatar.contenido);
+
+  modal.classList.remove("hidden");
+};
+
+
+window.cerrarAvatarModal = function() {
+  document.getElementById("modalAvatar").classList.add("hidden");
+};
 
 function formatProContent(text = "") {
   if (!text) return `<div class="empty">Sin contenido</div>`;
