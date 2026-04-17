@@ -1998,7 +1998,9 @@ function renderParsedDesarrollo(reply = "") {
       <div class="dev-avatar-cards">
         ${bloques.map(a => `
           <div class="dev-avatar-card">
-            <div class="dev-avatar-icon">🤖</div>
+           <div class="dev-avatar-icon" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);border-radius:50%;width:52px;height:52px;display:flex;align-items:center;justify-content:center;">
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M9 11V7a3 3 0 0 1 6 0v4"/><circle cx="9" cy="16" r="1" fill="white"/><circle cx="15" cy="16" r="1" fill="white"/><path d="M12 3v2"/></svg>
+</div>
             <button onclick="abrirAvatarModal(${a.id})" class="dev-avatar-btn">
               AVATAR ${a.id}
             </button>
