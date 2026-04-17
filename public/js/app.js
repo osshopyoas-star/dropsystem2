@@ -1264,11 +1264,14 @@ if (route === "desarrollo") {
           </div>
         </div>
 
-   <div class="dev-right">
+     <div class="dev-right">
   <div class="dev-card">
-    <div class="dev-card-head">
-      <h3>Resultado IA</h3>
-      <p>Salida organizada para avatar, ángulos, guiones y creativos.</p>
+    <div class="dev-card-head" style="display:flex; justify-content:space-between; align-items:flex-start;">
+      <div>
+        <h3>Resultado IA</h3>
+        <p>Salida organizada para avatar, ángulos, guiones y creativos.</p>
+      </div>
+      <span id="iaBadge" class="dev-result-pill" style="display:none;">IA lista</span>
     </div>
 
     <div id="resultadoDesarrollo" class="dev-result-empty">

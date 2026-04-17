@@ -1858,9 +1858,9 @@ aside.collapsed .submenu .sidebar-item {
 .hidden {
   display: none;
 }
-/* =========================
-   DESARROLLO PRO SaaS
-========================= */
+/* ===========================
+   DESARROLLO - DISEÑO MEJORADO
+=========================== */
 
 .dev-page {
   width: 100%;
@@ -1875,11 +1875,11 @@ aside.collapsed .submenu .sidebar-item {
   display: grid;
   grid-template-columns: 1.3fr 0.7fr;
   gap: 20px;
-  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
-  border: 1px solid #e5edf8;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  border: 1px solid rgba(99,102,241,0.25);
   border-radius: 24px;
   padding: 28px;
-  box-shadow: 0 14px 38px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 14px 38px rgba(0,0,0,0.25);
 }
 
 .dev-badge {
@@ -1888,12 +1888,12 @@ aside.collapsed .submenu .sidebar-item {
   gap: 10px;
   padding: 8px 14px;
   border-radius: 999px;
-  background: #eef2ff;
-  color: #3730a3;
+  background: rgba(99,102,241,0.15);
+  color: #a5b4fc;
   font-size: 13px;
   font-weight: 700;
   margin-bottom: 14px;
-  border: 1px solid #dbeafe;
+  border: 1px solid rgba(99,102,241,0.3);
 }
 
 .dev-badge i {
@@ -1906,7 +1906,7 @@ aside.collapsed .submenu .sidebar-item {
   font-size: 34px;
   line-height: 1.05;
   font-weight: 900;
-  color: #0f172a;
+  color: #ffffff;
 }
 
 .dev-subtitle {
@@ -1914,7 +1914,7 @@ aside.collapsed .submenu .sidebar-item {
   max-width: 760px;
   font-size: 14px;
   line-height: 1.7;
-  color: #64748b;
+  color: #94a3b8;
 }
 
 .dev-hero-right {
@@ -1927,9 +1927,10 @@ aside.collapsed .submenu .sidebar-item {
   width: 100%;
   border-radius: 22px;
   padding: 22px;
-  background: linear-gradient(135deg, #0f172a, #1e293b);
+  background: linear-gradient(135deg, #1e293b, #0f172a);
+  border: 1px solid rgba(255,255,255,0.07);
   color: white;
-  box-shadow: 0 18px 35px rgba(15, 23, 42, 0.22);
+  box-shadow: 0 18px 35px rgba(0,0,0,0.3);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -1957,14 +1958,15 @@ aside.collapsed .submenu .sidebar-item {
 .dev-right {
   display: flex;
   flex-direction: column;
-
+  gap: 16px;
 }
 
+/* === CARD OSCURA === */
 .dev-card {
-  background: #ffffff;
-  border: 1px solid #e6edf7;
+  background: linear-gradient(180deg, #0f172a 0%, #131c2c 100%);
+  border: 1px solid rgba(255,255,255,0.07);
   border-radius: 24px;
-  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 10px 28px rgba(0,0,0,0.25);
   padding: 24px;
 }
 
@@ -1976,7 +1978,7 @@ aside.collapsed .submenu .sidebar-item {
   margin: 0 0 6px 0;
   font-size: 18px;
   font-weight: 800;
-  color: #0f172a;
+  color: #f1f5f9;
 }
 
 .dev-card-head p {
@@ -1992,28 +1994,33 @@ aside.collapsed .submenu .sidebar-item {
 }
 
 .dev-form label {
-  font-size: 12px;
-  font-weight: 700;
-  color: #475569;
+  font-size: 11px;
+  font-weight: 800;
+  color: #94a3b8;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
 }
 
 .dev-form input,
 .dev-form textarea,
 .dev-form select {
   width: 100%;
-  border: 1px solid #dbe4f0;
-  background: #f8fafc;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.04);
   border-radius: 16px;
   padding: 14px 16px;
   font-size: 14px;
-  color: #0f172a;
+  color: #ffffff;
   box-sizing: border-box;
 }
 
+.dev-form input::placeholder,
+.dev-form textarea::placeholder {
+  color: #64748b;
+}
+
 .dev-form textarea {
-  min-height: 140px;
+  min-height: 110px;
   resize: vertical;
   font-family: inherit;
 }
@@ -2022,20 +2029,39 @@ aside.collapsed .submenu .sidebar-item {
 .dev-form textarea:focus,
 .dev-form select:focus {
   outline: none;
-  border-color: #93c5fd;
-  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
-  background: #fff;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 4px rgba(99,102,241,0.15);
+  background: rgba(255,255,255,0.06);
+}
+
+.dev-form select option {
+  background: #1e293b;
+  color: #ffffff;
 }
 
 .dev-main-btn {
   margin-top: 8px;
-  height: 48px;
+  height: 50px;
   border-radius: 16px;
   font-size: 14px;
+  font-weight: 700;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 8px 20px rgba(99,102,241,0.3);
+  width: 100%;
+}
+
+.dev-main-btn:hover {
+  background: linear-gradient(135deg, #818cf8, #6366f1);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px rgba(99,102,241,0.4);
 }
 
 .dev-main-btn i {
@@ -2044,25 +2070,27 @@ aside.collapsed .submenu .sidebar-item {
 }
 
 .dev-help-card {
-  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+  background: linear-gradient(180deg, #0b1220 0%, #0f172a 100%);
+  border: 1px solid rgba(99,102,241,0.15);
 }
 
 .dev-help-list {
   margin: 0;
   padding-left: 18px;
-  color: #475569;
+  color: #94a3b8;
   font-size: 14px;
-  line-height: 1.8;
+  line-height: 2;
 }
 
+/* === PANEL DERECHO RESULTADO === */
 .dev-result-empty,
 .dev-result-loading,
 .dev-result-error,
 .dev-result-box {
   min-height: 620px;
   border-radius: 20px;
-  background: #f8fafc;
-  border: 1px dashed #dbe4f0;
+  background: rgba(255,255,255,0.02);
+  border: 1px dashed rgba(255,255,255,0.1);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -2072,14 +2100,14 @@ aside.collapsed .submenu .sidebar-item {
 .dev-result-empty {
   align-items: center;
   text-align: center;
-  color: #64748b;
+  color: #475569;
   gap: 12px;
 }
 
 .dev-result-empty i {
   width: 38px;
   height: 38px;
-  color: #94a3b8;
+  color: #334155;
 }
 
 .dev-loading-box,
@@ -2095,21 +2123,19 @@ aside.collapsed .submenu .sidebar-item {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  border: 3px solid #dbeafe;
-  border-top-color: #3b82f6;
+  border: 3px solid rgba(99,102,241,0.2);
+  border-top-color: #6366f1;
   animation: devSpin 0.8s linear infinite;
 }
 
 @keyframes devSpin {
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
 }
 
 .dev-result-box {
   justify-content: flex-start;
-  background: #ffffff;
-  border: 1px solid #e6edf7;
+  background: linear-gradient(180deg, #0f172a 0%, #131c2c 100%);
+  border: 1px solid rgba(255,255,255,0.07);
   overflow: hidden;
 }
 
@@ -2125,8 +2151,9 @@ aside.collapsed .submenu .sidebar-item {
   align-items: center;
   padding: 7px 12px;
   border-radius: 999px;
-  background: #dcfce7;
-  color: #166534;
+  background: rgba(34,197,94,0.15);
+  color: #4ade80;
+  border: 1px solid rgba(34,197,94,0.25);
   font-size: 12px;
   font-weight: 800;
 }
@@ -2138,37 +2165,33 @@ aside.collapsed .submenu .sidebar-item {
   font-family: Inter, sans-serif;
   font-size: 14px;
   line-height: 1.75;
-  color: #0f172a;
-  background: #f8fafc;
-  border: 1px solid #eef2f7;
+  color: #e2e8f0;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
   border-radius: 18px;
   padding: 20px;
 }
 
 .dev-error-box strong {
   font-size: 16px;
-  color: #b91c1c;
+  color: #f87171;
 }
 
 .dev-error-box p {
   margin: 0;
-  color: #7f1d1d;
+  color: #fca5a5;
 }
 
 @media (max-width: 1100px) {
   .dev-layout {
     grid-template-columns: 1fr;
   }
-
   .dev-hero {
     grid-template-columns: 1fr;
   }
 }
 
-/* =========================
-   RESULTADO DESARROLLO CARDS
-========================= */
-
+/* === RESULTADO CARDS === */
 .dev-result-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2180,8 +2203,8 @@ aside.collapsed .submenu .sidebar-item {
 }
 
 .dev-result-card {
-  background: #f8fafc;
-  border: 1px solid #e6edf7;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
   border-radius: 18px;
   overflow: hidden;
 }
@@ -2192,15 +2215,15 @@ aside.collapsed .submenu .sidebar-item {
 
 .dev-result-card-head {
   padding: 14px 16px;
-  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
-  border-bottom: 1px solid #e6edf7;
+  background: rgba(255,255,255,0.04);
+  border-bottom: 1px solid rgba(255,255,255,0.07);
 }
 
 .dev-result-card-head h3 {
   margin: 0;
   font-size: 15px;
   font-weight: 800;
-  color: #0f172a;
+  color: #e2e8f0;
 }
 
 .dev-result-card-body {
@@ -2214,7 +2237,7 @@ aside.collapsed .submenu .sidebar-item {
   margin: 0 0 4px 0;
   font-size: 13px;
   font-weight: 800;
-  color: #1e293b;
+  color: #94a3b8;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -2223,35 +2246,35 @@ aside.collapsed .submenu .sidebar-item {
   margin: 6px 0 0 0;
   font-size: 13px;
   font-weight: 800;
-  color: #334155;
+  color: #cbd5e1;
 }
 
 .dev-paragraph {
   margin: 0;
   font-size: 14px;
   line-height: 1.7;
-  color: #334155;
+  color: #94a3b8;
 }
 
 .dev-bullet-row {
   margin: 0;
   padding: 10px 12px;
   border-radius: 12px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
   font-size: 14px;
   line-height: 1.6;
-  color: #0f172a;
+  color: #cbd5e1;
 }
 
 .dev-card-empty {
   padding: 16px;
-  border: 1px dashed #cbd5e1;
+  border: 1px dashed rgba(255,255,255,0.1);
   border-radius: 14px;
-  color: #64748b;
+  color: #475569;
   font-size: 14px;
   text-align: center;
-  background: #fff;
+  background: transparent;
 }
 
 .dev-line-space {
@@ -2259,15 +2282,9 @@ aside.collapsed .submenu .sidebar-item {
 }
 
 @media (max-width: 900px) {
-  .dev-result-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .dev-result-card.full {
-    grid-column: auto;
-  }
+  .dev-result-grid { grid-template-columns: 1fr; }
+  .dev-result-card.full { grid-column: auto; }
 }
-
 /* ===== PRO IA RESULT ===== */
 
 .pro-grid {
