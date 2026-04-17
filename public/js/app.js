@@ -1824,18 +1824,25 @@ RECOMENDACIÓN FINAL:
 - cómo usar los guiones y creativos
 `;
 
-    const res = await fetch("/api/ia", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        prompt,
-        image: imageBase64
-      })
-    });
+   let res;
+let raw = "";
 
- const raw = await res.text();
+try {
+  res = await fetch("/api/ia", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      prompt,
+      image: imageBase64
+    })
+  });
+} catch (err) {
+  throw new Error("No se pudo conectar con /api/ia. Revisa si el backend está prendido.");
+}
+
+raw = await res.text();
 console.log("RAW /api/ia:", raw);
 
 let data;
@@ -1868,7 +1875,7 @@ if (window.lucide) lucide.createIcons();
   resultado.innerHTML = `
     <div class="dev-error-box">
       <strong>Error</strong>
-      <p>${error.message}</p>
+      <p>${error.message || "Falló la conexión con la IA"}</p>
     </div>
   `;
 
