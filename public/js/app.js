@@ -1574,16 +1574,16 @@ window.previewImagenDev = function(event) {
 
   const url = URL.createObjectURL(file);
 
-  if (img) img.src = url;
+  if (img) {
+    img.src = url;
+    img.style.display = "block";
+  }
+
   if (name) name.textContent = file.name;
 
   empty?.classList.add("hidden");
   preview?.classList.remove("hidden");
-
 };
-
-
-
 
 function guardarEstadoDesarrollo() {
   const producto = document.getElementById("inputProductoDev")?.value || "";
