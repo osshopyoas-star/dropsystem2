@@ -3329,3 +3329,19 @@ aside.collapsed .submenu .sidebar-item {
   padding: 16px;
   margin-bottom: 18px;
 }
+
+.dev-avatar-cards {
+  display: flex;
+  gap: 18px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 22px;
+}
+
+.dev-avatar-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  min-width: 110px;
+}

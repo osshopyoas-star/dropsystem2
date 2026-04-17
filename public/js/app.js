@@ -2026,7 +2026,13 @@ function renderParsedDesarrollo(reply = "") {
 function extraerBloquesPorAvatar(texto = "") {
   const limpio = String(texto).replace(/\r/g, "").trim();
 
-  const regex = /AVATAR\s*(\d+)\s*:\s*([\s\S]*?)(?=AVATAR\s*\d+\s*:|RECOMENDACIÓN FINAL:|RECOMENDACION FINAL:|$)/gi;
+  // SOLO toma los títulos que empiezan al inicio de línea:
+  // AVATAR 1:
+  // AVATAR 2:
+  // AVATAR 3:
+  // y NO ÁNGULOS AVATAR 1, GUIONES AVATAR 1, etc.
+  const regex = /(?:^|\n)AVATAR\s*(\d+)\s*:\s*([\s\S]*?)(?=(?:\nAVATAR\s*\d+\s*:)|(?:\nRECOMENDACIÓN FINAL:)|(?:\nRECOMENDACION FINAL:)|$)/g;
+
   const bloques = [];
   let match;
 
@@ -2034,10 +2040,29 @@ function extraerBloquesPorAvatar(texto = "") {
     const id = Number(match[1]);
     const bloque = match[2].trim();
 
-    const avatarInfo = extraerSeccion(bloque, /^Nombre:|^Dolor principal:|^Deseo:|^Objeción:|^Trigger de compra:/im, /^ÁNGULOS AVATAR|^ANGULOS AVATAR/im);
-    const angulos = extraerSeccion(bloque, /^ÁNGULOS AVATAR|^ANGULOS AVATAR/im, /^GUIONES AVATAR/im);
-    const guiones = extraerSeccion(bloque, /^GUIONES AVATAR/im, /^IDEAS AVATAR/im);
-    const ideas = extraerSeccion(bloque, /^IDEAS AVATAR/im, /^RECOMENDACIÓN FINAL:|^RECOMENDACION FINAL:/im);
+    const avatarInfo = extraerSeccion(
+      bloque,
+      /^(Nombre:|Dolor principal:|Deseo:|Objeción:|Trigger de compra:)/im,
+      /^(ÁNGULOS AVATAR|ANGULOS AVATAR)/im
+    );
+
+    const angulos = extraerSeccion(
+      bloque,
+      /^(ÁNGULOS AVATAR|ANGULOS AVATAR)/im,
+      /^GUIONES AVATAR/im
+    );
+
+    const guiones = extraerSeccion(
+      bloque,
+      /^GUIONES AVATAR/im,
+      /^IDEAS AVATAR/im
+    );
+
+    const ideas = extraerSeccion(
+      bloque,
+      /^IDEAS AVATAR/im,
+      /^(RECOMENDACIÓN FINAL:|RECOMENDACION FINAL:)/im
+    );
 
     bloques.push({
       id,
@@ -2052,47 +2077,19 @@ function extraerBloquesPorAvatar(texto = "") {
 }
 
 function extraerSeccion(texto, inicioRegex, finRegex) {
-  const inicio = texto.search(inicioRegex);
-  if (inicio === -1) return "";
+  const matchInicio = texto.match(inicioRegex);
+  if (!matchInicio) return "";
 
+  const inicio = matchInicio.index;
   const desdeInicio = texto.slice(inicio);
-  const fin = desdeInicio.search(finRegex);
 
-  if (fin === -1) return desdeInicio.trim();
+  const matchFin = desdeInicio.slice(1).match(finRegex);
+
+  if (!matchFin) return desdeInicio.trim();
+
+  const fin = matchFin.index + 1;
   return desdeInicio.slice(0, fin).trim();
 }
-
-window.abrirAvatarModal = function(id) {
-  const avatar = (window._devAvatars || []).find(x => x.id === id);
-  if (!avatar) return;
-
-  const contenido = document.getElementById("modalAvatarContenido");
-  if (!contenido) return;
-
-  contenido.innerHTML = `
-    <h4>👤 Avatar</h4>
-    <div class="bloque">${formatProContent(avatar.avatar)}</div>
-
-    <h4>🎯 5 Ángulos de venta</h4>
-    <div class="bloque">${formatProContent(avatar.angulos)}</div>
-
-    <h4>🎬 3 Guiones AIDA</h4>
-    <div class="bloque">${formatProContent(avatar.guiones)}</div>
-
-    <h4>🖼 2 Ideas de imagen</h4>
-    <div class="bloque">${formatProContent(avatar.ideas)}</div>
-  `;
-
-  document.getElementById("modalAvatar").classList.remove("hidden");
-};
-
-
-function dividirPorNombre(texto) {
-  const partes = texto.split(/Para /i);
-  partes.shift();
-  return partes.map(p => p.trim());
-}
-
 
 window.abrirAvatarModal = function(id) {
 
@@ -2117,6 +2114,16 @@ window.abrirAvatarModal = function(id) {
 
   document.getElementById("modalAvatar").classList.remove("hidden");
 };
+
+
+function dividirPorNombre(texto) {
+  const partes = texto.split(/Para /i);
+  partes.shift();
+  return partes.map(p => p.trim());
+}
+
+
+
 
 window.cerrarAvatarModal = function() {
   document.getElementById("modalAvatar").classList.add("hidden");
