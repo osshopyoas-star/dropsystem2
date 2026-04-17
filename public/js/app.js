@@ -1976,53 +1976,108 @@ function formatSectionHtml(text = "") {
 }
 
 
-
 function renderParsedDesarrollo(reply = "") {
+  const bloques = extraerBloquesPorAvatar(reply);
 
-  const partes = reply.split("ÁNGULOS:");
+  if (!bloques.length) {
+    return `
+      <div class="pro-card full">
+        <div class="pro-card-head">
+          <div class="pro-icon">📄</div>
+          <h3>Resultado completo</h3>
+        </div>
+        <div class="pro-card-body">
+          ${formatProContent(reply)}
+        </div>
+      </div>
+    `;
+  }
 
-  if (partes.length < 2) return reply;
-
-  const bloqueAvatares = partes[0];
-  const resto = partes[1];
-
-  // 🔥 separar avatares
-  const avatarsRaw = bloqueAvatares.split(/Avatar \d:/i);
-  avatarsRaw.shift();
-
-  // 🔥 separar secciones
-  const [bloqueAngulos, bloqueGuiones] = resto.split("GUIONES DE VIDEO:");
-  const [bloqueGuionesReal, bloqueIdeas] = bloqueGuiones.split("CREATIVOS DE IMAGEN:");
-
-  // 🔥 separar por persona (clave)
-  const angulosPorAvatar = dividirPorNombre(bloqueAngulos);
-  const guionesPorAvatar = dividirPorNombre(bloqueGuionesReal);
-  const ideasGlobal = bloqueIdeas || "";
-
-  const avatars = avatarsRaw.map((a, i) => ({
-    id: i + 1,
-    avatar: a.trim(),
-    angulos: angulosPorAvatar[i] || "",
-    guiones: guionesPorAvatar[i] || "",
-    ideas: ideasGlobal
-  }));
-
-  window._devAvatars = avatars;
+  window._devAvatars = bloques;
 
   return `
-    <div class="dev-avatar-cards">
-      ${avatars.map(a => `
-        <div class="dev-avatar-card">
-          <div class="dev-avatar-icon">🤖</div>
-          <button onclick="abrirAvatarModal(${a.id})" class="dev-avatar-btn">
-            AVATAR ${a.id}
-          </button>
-        </div>
-      `).join("")}
+    <div class="dev-avatar-grid">
+      <div class="dev-avatar-header">
+        <h2>Resultado completo</h2>
+      </div>
+
+      <div class="dev-avatar-cards">
+        ${bloques.map(a => `
+          <div class="dev-avatar-card">
+            <div class="dev-avatar-icon">🤖</div>
+            <button onclick="abrirAvatarModal(${a.id})" class="dev-avatar-btn">
+              AVATAR ${a.id}
+            </button>
+          </div>
+        `).join("")}
+      </div>
     </div>
   `;
 }
 
+
+function extraerBloquesPorAvatar(texto = "") {
+  const limpio = String(texto).replace(/\r/g, "").trim();
+
+  const regex = /AVATAR\s*(\d+)\s*:\s*([\s\S]*?)(?=AVATAR\s*\d+\s*:|RECOMENDACIÓN FINAL:|RECOMENDACION FINAL:|$)/gi;
+  const bloques = [];
+  let match;
+
+  while ((match = regex.exec(limpio)) !== null) {
+    const id = Number(match[1]);
+    const bloque = match[2].trim();
+
+    const avatarInfo = extraerSeccion(bloque, /^Nombre:|^Dolor principal:|^Deseo:|^Objeción:|^Trigger de compra:/im, /^ÁNGULOS AVATAR|^ANGULOS AVATAR/im);
+    const angulos = extraerSeccion(bloque, /^ÁNGULOS AVATAR|^ANGULOS AVATAR/im, /^GUIONES AVATAR/im);
+    const guiones = extraerSeccion(bloque, /^GUIONES AVATAR/im, /^IDEAS AVATAR/im);
+    const ideas = extraerSeccion(bloque, /^IDEAS AVATAR/im, /^RECOMENDACIÓN FINAL:|^RECOMENDACION FINAL:/im);
+
+    bloques.push({
+      id,
+      avatar: avatarInfo || bloque,
+      angulos: angulos || "",
+      guiones: guiones || "",
+      ideas: ideas || ""
+    });
+  }
+
+  return bloques;
+}
+
+function extraerSeccion(texto, inicioRegex, finRegex) {
+  const inicio = texto.search(inicioRegex);
+  if (inicio === -1) return "";
+
+  const desdeInicio = texto.slice(inicio);
+  const fin = desdeInicio.search(finRegex);
+
+  if (fin === -1) return desdeInicio.trim();
+  return desdeInicio.slice(0, fin).trim();
+}
+
+window.abrirAvatarModal = function(id) {
+  const avatar = (window._devAvatars || []).find(x => x.id === id);
+  if (!avatar) return;
+
+  const contenido = document.getElementById("modalAvatarContenido");
+  if (!contenido) return;
+
+  contenido.innerHTML = `
+    <h4>👤 Avatar</h4>
+    <div class="bloque">${formatProContent(avatar.avatar)}</div>
+
+    <h4>🎯 5 Ángulos de venta</h4>
+    <div class="bloque">${formatProContent(avatar.angulos)}</div>
+
+    <h4>🎬 3 Guiones AIDA</h4>
+    <div class="bloque">${formatProContent(avatar.guiones)}</div>
+
+    <h4>🖼 2 Ideas de imagen</h4>
+    <div class="bloque">${formatProContent(avatar.ideas)}</div>
+  `;
+
+  document.getElementById("modalAvatar").classList.remove("hidden");
+};
 
 
 function dividirPorNombre(texto) {

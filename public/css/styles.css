@@ -3303,3 +3303,29 @@ aside.collapsed .submenu .sidebar-item {
   border-radius: 12px;
   margin-bottom: 15px;
 }
+
+#modalAvatar .modal-box {
+  width: 900px;
+  max-width: 92vw;
+  max-height: 86vh;
+  overflow-y: auto;
+  text-align: left;
+  border-radius: 24px;
+  padding: 28px;
+}
+
+#modalAvatarContenido h4 {
+  margin-top: 18px;
+  margin-bottom: 10px;
+  font-size: 20px;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #0f172a;
+}
+
+.bloque {
+  background: #f1f5f9;
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 18px;
+}
