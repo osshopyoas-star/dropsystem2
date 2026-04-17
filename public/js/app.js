@@ -1293,9 +1293,12 @@ if (route === "desarrollo") {
     </div>
   </div>
 
-  <div id="modalAvatar" class="modal-overlay hidden">
-    <div class="modal-box" style="width:700px; max-height:80vh; overflow:auto; text-align:left;">
-      <h3>Detalle Avatar</h3>
+ <div id="modalAvatar" class="modal-overlay hidden">
+  <div class="modal-box modal-avatar-box">
+    
+    <button class="modal-close" onclick="cerrarAvatarModal()">✕</button>
+
+    <h3>Detalle Avatar</h3>
 
       <div id="modalAvatarContenido" style="margin-top:10px;"></div>
 
@@ -1573,7 +1576,11 @@ setTimeout(() => {
 }, 500);
 
 
-
+document.getElementById("modalAvatar").onclick = (e) => {
+  if (e.target.id === "modalAvatar") {
+    cerrarAvatarModal();
+  }
+};
 
 
 window.previewImagenDev = function(event) {
