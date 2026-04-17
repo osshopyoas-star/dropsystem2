@@ -1576,13 +1576,6 @@ setTimeout(() => {
 }, 500);
 
 
-document.getElementById("modalAvatar").onclick = (e) => {
-  if (e.target.id === "modalAvatar") {
-    cerrarAvatarModal();
-  }
-};
-
-
 window.previewImagenDev = function(event) {
   const file = event.target.files?.[0];
   if (!file) return;
