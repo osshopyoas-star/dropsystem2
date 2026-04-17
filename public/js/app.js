@@ -1197,31 +1197,15 @@ if (route === "desarrollo") {
   view.innerHTML = `
     <div class="dev-page">
 
-      <section class="dev-hero">
-        <div class="dev-hero-left">
-          <div class="dev-badge">
-            <i data-lucide="brain"></i>
-            <span>Desarrollo de producto</span>
-          </div>
-
-          <h1 class="dev-title">Crea avatares, ángulos y guiones con IA</h1>
-          <p class="dev-subtitle">
-            Analiza producto, problema, mecanismo o información del producto
-            para construir la base de landing, creativos y segmentación.
-          </p>
-        </div>
-
-        <div class="dev-hero-right">
-          <div class="dev-stat-card">
-            <strong>Salida esperada</strong>
-            <span>3 avatares · 5 ángulos por avatar · 3 guiones · 2 ideas visuales</span>
-          </div>
-        </div>
-      </section>
-
       <section class="dev-layout">
 
         <div class="dev-left">
+    <div class="dev-hero-left">
+  <div class="dev-badge">
+    <i data-lucide="brain"></i>
+      <span>Desarrollo de producto</span>
+  </div>
+</div>
           <div class="dev-card">
             <div class="dev-card-head">
               <h3>Entrada estratégica</h3>
