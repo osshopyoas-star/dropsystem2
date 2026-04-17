@@ -1727,35 +1727,101 @@ CREATIVOS DE IMAGEN:
 RECOMENDACIÓN FINAL:
 
 1. AVATARES
-- 3 avatares
-- nombre
-- dolor principal
-- deseo
-- objeción
-- trigger de compra
+- Crea 3 avatares diferentes
+- Cada avatar debe incluir:
+  - nombre
+  - dolor principal
+  - deseo
+  - objeción
+  - trigger de compra
 
 2. ÁNGULOS
-- 5 ángulos por avatar
-- enfocados en venta
+- Para CADA avatar crea exactamente 5 ángulos de venta
+- No mezcles ángulos entre avatares
+- Cada ángulo debe ser distinto y útil para una landing page diferente
 
 3. GUIONES DE VIDEO
-- 3 guiones de 25 a 30 segundos
-- modelo AIDA
-- CTA fuerte
-- compra impulsiva
-- efecto wow
+- Para CADA avatar crea exactamente 3 guiones
+- Cada guión debe estar basado en uno de los ángulos de ese avatar
+- Cada guión debe ser de 25 a 30 segundos
+- Usa estructura AIDA:
+  - Atención
+  - Interés
+  - Deseo
+  - Acción
+- Cada guión debe cerrar con CTA fuerte de compra
+- Los guiones deben ser agresivos, claros y orientados a conversión
 
 4. CREATIVOS DE IMAGEN
-- 2 ideas
-- qué mostrar
-- texto principal
-- emoción
+- Para CADA avatar crea exactamente 2 ideas de imagen
+- Cada idea debe estar basada en los ángulos de venta de ese avatar
+- Cada idea debe incluir:
+  - qué mostrar
+  - texto principal
+  - emoción
+  - CTA sugerido
 
-5. RECOMENDACIÓN FINAL
-- cómo usar en landing
-- cómo usar en ads
+IMPORTANTE:
+Devuelve la información organizada EXACTAMENTE así:
 
-Formato limpio, claro y organizado.
+AVATAR 1:
+Nombre:
+Dolor principal:
+Deseo:
+Objeción:
+Trigger de compra:
+
+ÁNGULOS AVATAR 1:
+1.
+2.
+3.
+4.
+5.
+
+GUIONES AVATAR 1:
+GUION 1:
+A:
+I:
+D:
+A:
+
+GUION 2:
+A:
+I:
+D:
+A:
+
+GUION 3:
+A:
+I:
+D:
+A:
+
+IDEAS AVATAR 1:
+IDEA 1:
+- Qué mostrar:
+- Texto principal:
+- Emoción:
+- CTA:
+
+IDEA 2:
+- Qué mostrar:
+- Texto principal:
+- Emoción:
+- CTA:
+
+AVATAR 2:
+...
+(repite exactamente la misma estructura)
+
+AVATAR 3:
+...
+(repite exactamente la misma estructura)
+
+RECOMENDACIÓN FINAL:
+- cómo usar cada avatar en una landing distinta
+- cómo usar sus ángulos en anuncios
+- cómo usar los guiones y creativos
 `;
 
     const res = await fetch("/api/ia", {
