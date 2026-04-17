@@ -1957,7 +1957,7 @@ aside.collapsed .submenu .sidebar-item {
 .dev-right {
   display: flex;
   flex-direction: column;
-  gap: 22px;
+
 }
 
 .dev-card {
