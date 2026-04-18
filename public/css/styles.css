@@ -2395,6 +2395,8 @@ aside.collapsed .submenu .sidebar-item {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 18px;
+  overflow: hidden;
 }
 
 
@@ -2403,8 +2405,9 @@ aside.collapsed .submenu .sidebar-item {
   background: rgba(99, 102, 241, 0.07);
 }
 
+
 .dev-upload-empty {
-  width: 100%;
+  flex: 0 0 180px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2412,6 +2415,7 @@ aside.collapsed .submenu .sidebar-item {
   text-align: center;
   gap: 10px;
 }
+
 
 .dev-upload-icon {
   width: 56px;
@@ -2437,17 +2441,19 @@ aside.collapsed .submenu .sidebar-item {
   font-size: 12px;
   color: #64748b;
 }
-
 .dev-upload-preview {
-  width: 100%;
+  position: relative;
+  width: 260px;
+  min-height: 120px;
+  padding: 18px;
+  border-radius: 20px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
   display: flex;
   align-items: center;
   gap: 14px;
   justify-content: flex-start;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 16px;
-  padding: 14px;
+  flex-shrink: 0;
 }
 
 
@@ -2472,8 +2478,9 @@ aside.collapsed .submenu .sidebar-item {
   font-size: 14px;
   font-weight: 600;
   color: #cbd5e1;
-  word-break: break-word;
   line-height: 1.4;
+  word-break: break-word;
+  max-width: 130px;
 }
 
 
@@ -3418,37 +3425,29 @@ aside.collapsed .submenu .sidebar-item {
   transform: scale(1.2);
 }
 
-.dev-upload-preview {
-  position: relative; /* 👈 importante para posicionar la X */
-    display: inline-block;
-}
-
 .dev-upload-remove {
   position: absolute;
-  top: -6px;     /* 🔥 lo sube ligeramente */
-  right: -6px;   /* 🔥 lo saca justo al borde */
-
+  top: 10px;
+  right: 10px;
   width: 24px;
   height: 24px;
+  padding: 0;
   border-radius: 50%;
-
   background: #0f172a;
   color: #f87171;
-
-  border: 2px solid #1e293b;
-
+  border: 1px solid rgba(255,255,255,0.12);
   display: flex;
   align-items: center;
   justify-content: center;
-
   font-size: 13px;
+  line-height: 1;
   cursor: pointer;
-
-  z-index: 20;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+  z-index: 30;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.35);
 }
 
 .dev-upload-remove:hover {
   background: #ef4444;
-  color: white;
+  color: #fff;
+  transform: scale(1.08);
 }

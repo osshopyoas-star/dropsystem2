@@ -1226,13 +1226,12 @@ if (route === "desarrollo") {
     <div class="dev-upload-sub">PNG, JPG, WEBP</div>
   </div>
 
- <div id="devUploadPreview" class="dev-upload-preview hidden">
-  <button class="dev-upload-remove" onclick="removeImagenDev(event)">✕</button>
-
-  <img id="devUploadImg" src="" alt="preview">
-  <div id="devUploadName" class="dev-upload-name"></div>
-</div>
-              
+  <div id="devUploadPreview" class="dev-upload-preview hidden">
+    <button type="button" class="dev-upload-remove" onclick="removeImagenDev(event)">✕</button>
+    <img id="devUploadImg" src="" alt="preview">
+    <div id="devUploadName" class="dev-upload-name"></div>
+  </div>
+</div>              
               <label>Información adicional</label>
              <textarea id="inputInfoDev" oninput="guardarEstadoDesarrollo()" placeholder="Ej: público objetivo, beneficios, objeciones, promesa, competencia..."></textarea>
               <label>Objetivo</label>
