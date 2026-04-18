@@ -2395,7 +2395,6 @@ aside.collapsed .submenu .sidebar-item {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 18px;
   overflow: hidden;
 }
 
@@ -2443,7 +2442,7 @@ aside.collapsed .submenu .sidebar-item {
 }
 .dev-upload-preview {
   position: relative;
-  width: 260px;
+      width: 177px;
   min-height: 120px;
   padding: 18px;
   border-radius: 20px;
