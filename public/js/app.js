@@ -1226,10 +1226,11 @@ if (route === "desarrollo") {
     <div class="dev-upload-sub">PNG, JPG, WEBP</div>
   </div>
 
-  <div id="devUploadPreview" class="dev-upload-preview hidden">
-    <img id="devUploadImg" src="" alt="preview">
-    <div id="devUploadName" class="dev-upload-name"></div>
-  </div>
+ <div id="devUploadPreview" class="dev-upload-preview hidden">
+  <button class="dev-upload-remove" onclick="removeImagenDev(event)">✕</button>
+
+  <img id="devUploadImg" src="" alt="preview">
+  <div id="devUploadName" class="dev-upload-name"></div>
 </div>
               
               <label>Información adicional</label>
@@ -4225,4 +4226,21 @@ window.addEventListener("DOMContentLoaded", () => {
     };
   }
 });
+
+window.removeImagenDev = function(e) {
+  e.stopPropagation(); // 🔥 evita que se abra el file picker
+
+  const input = document.getElementById("inputImagenDev");
+  const empty = document.getElementById("devUploadEmpty");
+  const preview = document.getElementById("devUploadPreview");
+  const img = document.getElementById("devUploadImg");
+  const name = document.getElementById("devUploadName");
+
+  if (input) input.value = "";
+  if (img) img.src = "";
+  if (name) name.textContent = "";
+
+  preview?.classList.add("hidden");
+  empty?.classList.remove("hidden");
+};
 

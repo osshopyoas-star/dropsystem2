@@ -3417,3 +3417,37 @@ aside.collapsed .submenu .sidebar-item {
   opacity: 1;
   transform: scale(1.2);
 }
+
+.dev-upload-preview {
+  position: relative; /* 👈 importante para posicionar la X */
+}
+
+.dev-upload-remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+
+  background: rgba(15, 23, 42, 0.9);
+  color: #f87171;
+  border: 1px solid rgba(255,255,255,0.1);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 14px;
+  cursor: pointer;
+  z-index: 10;
+
+  transition: all 0.2s ease;
+}
+
+.dev-upload-remove:hover {
+  background: #ef4444;
+  color: white;
+  transform: scale(1.1);
+}
