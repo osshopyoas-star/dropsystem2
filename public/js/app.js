@@ -4227,7 +4227,7 @@ window.addEventListener("DOMContentLoaded", () => {
 });
 
 window.removeImagenDev = function(e) {
-  e.stopPropagation(); // 🔥 evita que se abra el file picker
+  e.stopPropagation();
 
   const input = document.getElementById("inputImagenDev");
   const empty = document.getElementById("devUploadEmpty");
