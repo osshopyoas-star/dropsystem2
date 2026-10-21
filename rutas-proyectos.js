@@ -21,6 +21,8 @@ const Mixed = mongoose.Schema.Types.Mixed;
 const proyectoSchema = new mongoose.Schema({
   owner: { type: mongoose.Schema.Types.ObjectId, ref: "Usuario", index: true },
   productoId: { type: mongoose.Schema.Types.ObjectId, ref: "Producto", index: true },
+  origen: { type: String, default: "" },        // dropi / importacion / laboratorio (copiado del producto)
+  dropiId: { type: String, default: "" },
   nombre: { type: String, default: "" },
   pais: { type: String, enum: ["CO", "EC"], default: "CO" },
   numAvatares: { type: Number, default: 2 },
@@ -109,7 +111,7 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
       const filtro = { owner: req.user.uid };
       if (req.query.productoId && idValido(req.query.productoId)) filtro.productoId = req.query.productoId;
       const lista = await Proyecto.find(filtro)
-        .select("nombre pais paso productoId vendio estilo.nombre actualizado creado")
+        .select("nombre pais paso productoId origen dropiId vendio estilo.nombre actualizado creado")
         .sort({ actualizado: -1 })
         .limit(100);
       res.json(lista);
@@ -119,28 +121,43 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
     }
   });
 
+  // Estados de la Base de Productos que pasan solos a "desarrollo" al abrir un proyecto
+  const ESTADOS_PREVIOS = ["", "idea", "validando"];
+
   app.post("/api/proyectos", async (req, res) => {
     try {
-      const { productoId = null, pais = "CO" } = req.body || {};
+      const { productoId = null, pais = null } = req.body || {};
       let nombre = String(req.body?.nombre || "").slice(0, 200).trim();
       const ficha = {};
-      let vinculo = null;
+      let prod = null;
 
       if (productoId && idValido(productoId)) {
-        const prod = await Producto.findOne({ _id: productoId, owner: req.user.uid });
-        if (prod) {
-          vinculo = prod._id;
-          nombre = nombre || prod.nombre || "";
-          if (prod.material) ficha.notas = prod.material;
+        prod = await Producto.findOne({ _id: productoId, owner: req.user.uid });
+        if (!prod) return res.status(404).json({ error: "Producto no encontrado" });
+      }
+
+      if (prod) {
+        // Al entrar a desarrollo, el producto pasa a estado "desarrollo"
+        if (ESTADOS_PREVIOS.includes(String(prod.estado || "").toLowerCase())) {
+          await Producto.findOneAndUpdate({ _id: prod._id, owner: req.user.uid }, { estado: "desarrollo" });
         }
+        // Un solo proyecto por producto: si ya existe, se abre ese
+        const existente = await Proyecto.findOne({ owner: req.user.uid, productoId: prod._id });
+        if (existente) return res.json({ ...existente.toObject(), existente: true });
+
+        nombre = nombre || prod.nombre || "";
+        if (prod.material) ficha.notas = prod.material;
       }
       if (!nombre) return res.status(400).json({ error: "Escribe el nombre del producto" });
 
+      const paisFinal = (pais || prod?.pais) === "EC" ? "EC" : "CO";
       const p = await Proyecto.create({
         owner: req.user.uid,
-        productoId: vinculo,
+        productoId: prod?._id || null,
+        origen: prod?.origen || "",
+        dropiId: prod?.dropiId || "",
         nombre,
-        pais: pais === "EC" ? "EC" : "CO",
+        pais: paisFinal,
         ficha
       });
       res.json(p);

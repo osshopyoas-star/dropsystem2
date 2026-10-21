@@ -31,6 +31,21 @@ let proyecto = null;   // proyecto abierto
 let tab = 1;           // paso que se está viendo
 let filtroGrupo = "todas";
 let generandoTodo = false;
+let cacheProductos = [];
+let cacheProyectos = [];
+
+const ORIGEN = { dropi: "Dropi", importacion: "Importación", laboratorio: "Laboratorio" };
+const ESTADO = { idea: "Idea", validando: "Validando", desarrollo: "Desarrollo", lanzado: "Lanzado" };
+
+function proyectoDe(productoId) {
+  return cacheProyectos.find(p => String(p.productoId) === String(productoId));
+}
+
+function fuenteTexto(prod) {
+  if (!prod) return "";
+  if (prod.origen === "dropi") return prod.dropiId ? `Dropi ID ${prod.dropiId}` : "Dropi (sin ID)";
+  return ORIGEN[prod.origen] || "";
+}
 
 const $ = (id) => document.getElementById(id);
 const esc = (v) => escapeHTML(v ?? "");
@@ -141,18 +156,19 @@ async function renderLista(view) {
       <section class="est-card">
         <h3>Nuevo proyecto</h3>
         <div class="est-new">
-          <select id="estNuevoProducto">
-            <option value="">Cargando productos...</option>
-          </select>
-          <input id="estNuevoNombre" placeholder="…o escribe el nombre del producto">
-          <select id="estNuevoPais">
+          <select id="estNuevoPais" onchange="estFiltrarProductos()">
             <option value="CO">Colombia (COP)</option>
             <option value="EC">Ecuador (USD)</option>
           </select>
+          <select id="estNuevoProducto" onchange="estInfoProducto()">
+            <option value="">Cargando productos...</option>
+          </select>
+          <input id="estNuevoNombre" placeholder="…o escribe el nombre del producto">
           <button id="estBtnCrear" class="est-btn primary" onclick="estCrearProyecto()">
             <i data-lucide="plus"></i> Crear
           </button>
         </div>
+        <div id="estInfoProd" class="est-info-prod"></div>
       </section>
 
       <section>
@@ -169,15 +185,13 @@ async function renderLista(view) {
       api("GET", "/api/proyectos")
     ]);
 
-    const sel = $("estNuevoProducto");
-    if (sel) {
-      sel.innerHTML = `<option value="">Elegir de la Base de Productos</option>` +
-        productos.map(p => `<option value="${esc(p._id)}" data-pais="${esc(p.pais || "")}">${esc(p.nombre)} ${p.pais ? `(${esc(p.pais)})` : ""}</option>`).join("");
-      sel.onchange = () => {
-        const op = sel.selectedOptions[0];
-        if (op?.dataset.pais && $("estNuevoPais")) $("estNuevoPais").value = op.dataset.pais === "EC" ? "EC" : "CO";
-      };
-    }
+    cacheProductos = productos;
+    cacheProyectos = proyectos;
+    try {
+      const ultimoPais = localStorage.getItem("est_pais");
+      if (ultimoPais && $("estNuevoPais")) $("estNuevoPais").value = ultimoPais;
+    } catch {}
+    estFiltrarProductos();
 
     const lista = $("estLista");
     if (!lista) return;
@@ -202,13 +216,55 @@ async function renderLista(view) {
   }
 }
 
+// Lista de productos del país elegido: primero los que aún no tienen proyecto
+window.estFiltrarProductos = () => {
+  const pais = $("estNuevoPais")?.value || "CO";
+  try { localStorage.setItem("est_pais", pais); } catch {}
+  const sel = $("estNuevoProducto");
+  if (!sel) return;
+
+  const delPais = cacheProductos.filter(p => (p.pais || "CO") === pais);
+  const sinProyecto = delPais.filter(p => !proyectoDe(p._id));
+  const conProyecto = delPais.filter(p => proyectoDe(p._id));
+
+  const opcion = (p) => {
+    const pr = proyectoDe(p._id);
+    const fuente = fuenteTexto(p);
+    const estado = pr ? `✓ Ya tiene proyecto · paso ${pr.paso || 1}/6` : (ESTADO[p.estado] || "Idea");
+    return `<option value="${esc(p._id)}">${esc(p.nombre)}${fuente ? ` · ${esc(fuente)}` : ""} — ${estado}</option>`;
+  };
+
+  sel.innerHTML = `<option value="">${delPais.length ? `Elegir producto de ${PAIS_NOMBRE[pais]} (${sinProyecto.length} sin proyecto)` : `No hay productos de ${PAIS_NOMBRE[pais]} en la Base`}</option>` +
+    (sinProyecto.length ? `<optgroup label="Sin proyecto">${sinProyecto.map(opcion).join("")}</optgroup>` : "") +
+    (conProyecto.length ? `<optgroup label="Ya tienen proyecto (se abre el existente)">${conProyecto.map(opcion).join("")}</optgroup>` : "");
+  estInfoProducto();
+};
+
+window.estInfoProducto = () => {
+  const id = $("estNuevoProducto")?.value;
+  const info = $("estInfoProd");
+  const boton = $("estBtnCrear");
+  const prod = cacheProductos.find(p => p._id === id);
+  const pr = prod && proyectoDe(prod._id);
+  if (boton) boton.innerHTML = pr ? `<i data-lucide="folder-open"></i> Abrir` : `<i data-lucide="plus"></i> Crear`;
+  if (info) {
+    info.innerHTML = prod ? `
+      ${fuenteTexto(prod) ? `<span class="est-chip">${esc(fuenteTexto(prod))}</span>` : ""}
+      <span class="est-chip">${ESTADO[prod.estado] || "Idea"}</span>
+      ${pr ? `<span class="est-chip ok">Ya tiene proyecto · paso ${pr.paso || 1}/6 — se abrirá ese</span>` : `<span class="est-muted">Al crear el proyecto, el producto pasa a "Desarrollo" en tu Base.</span>`}
+    ` : "";
+  }
+  iconos();
+};
+
 window.estCrearProyecto = () => conCarga("estBtnCrear", "Creando...", async () => {
   const productoId = $("estNuevoProducto")?.value || null;
   const nombre = $("estNuevoNombre")?.value.trim() || "";
   const pais = $("estNuevoPais")?.value || "CO";
   if (!productoId && !nombre) throw new Error("Elige un producto o escribe el nombre");
-  const p = await api("POST", "/api/proyectos", { productoId, nombre, pais });
-  await abrir(p._id);
+  const p = await api("POST", "/api/proyectos", productoId ? { productoId, pais } : { nombre, pais });
+  if (p.existente) avisar("Ese producto ya tenía proyecto: lo abrimos", "ok");
+  await abrir(p._id, p.existente ? null : 1);
 });
 
 window.estAbrirProyecto = (id) => abrir(id);
@@ -239,6 +295,7 @@ function renderProyecto() {
         <div>
           <button class="est-link" onclick="estVolverLista()"><i data-lucide="arrow-left"></i> Proyectos</button>
           <h1>${esc(p.nombre)}</h1>
+          ${fuenteTexto(p) ? `<span class="est-chip est-chip-claro">${esc(fuenteTexto(p))}</span>` : ""}
           <div class="est-head-meta">
             <select onchange="estCambiarPais(this.value)">
               <option value="CO" ${p.pais === "CO" ? "selected" : ""}>Colombia (COP)</option>
@@ -988,10 +1045,10 @@ window.irDesarrollo = async function(index) {
   if (!producto) return;
   goTo("desarrollo");
   try {
-    const existentes = await api("GET", `/api/proyectos?productoId=${encodeURIComponent(producto._id)}`);
-    if (existentes.length) return abrir(existentes[0]._id);
-    const p = await api("POST", "/api/proyectos", { productoId: producto._id, pais: producto.pais === "EC" ? "EC" : "CO" });
-    abrir(p._id, 1);
+    // El servidor abre el proyecto existente o crea uno, y pasa el producto a "Desarrollo"
+    const p = await api("POST", "/api/proyectos", { productoId: producto._id });
+    producto.estado = producto.estado === "lanzado" ? "lanzado" : "desarrollo";
+    abrir(p._id, p.existente ? null : 1);
   } catch (err) {
     avisar(err.message, "error");
   }

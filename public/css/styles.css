@@ -3586,7 +3586,10 @@ aside.collapsed .submenu .sidebar-item {
 @keyframes est-spin { to { transform: rotate(360deg); } }
 
 /* Nuevo proyecto */
-.est-new { display: grid; grid-template-columns: 2fr 2fr 1fr auto; gap: 10px; margin-top: 12px; }
+.est-new { display: grid; grid-template-columns: 1fr 2.4fr 1.6fr auto; gap: 10px; margin-top: 12px; }
+.est-info-prod { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; min-height: 4px; }
+.est-chip-claro { background: #eef2ff; color: #4338ca; margin-bottom: 4px; }
+.est-new optgroup { background: #0f172a; color: #94a3b8; }
 
 /* Tarjetas de proyecto */
 .est-proj {
