@@ -5,6 +5,29 @@ import { state } from "./state.js";
 
 const view = document.getElementById("view");
 
+// =============================
+// 🔐 SESIÓN: si el servidor responde 401, volver al login
+// =============================
+const _fetchOriginal = window.fetch.bind(window);
+
+window.fetch = async (...args) => {
+  const res = await _fetchOriginal(...args);
+  const url = String(args[0]?.url || args[0] || "");
+
+  if (res.status === 401 && url.startsWith("/api/") && !url.startsWith("/api/auth/login")) {
+    window.location.href = "/login.html";
+  }
+  return res;
+};
+
+window.cerrarSesion = async function() {
+  try {
+    await _fetchOriginal("/api/auth/logout", { method: "POST" });
+  } finally {
+    window.location.href = "/login.html";
+  }
+};
+
 
 let paisActivo = "US";
 
@@ -3351,7 +3374,7 @@ function renderCalculadoraDashboard() {
             <div class="calcx-card amarillo">
               <span>Punto de equilibrio</span>
               <strong id="calcxOutBreakEven">$0</strong>
-              <small>Lo mínimo para no perder</small>
+              <small>Precio mínimo para no perder</small>
             </div>
 
             <div class="calcx-card naranja">
@@ -3429,6 +3452,9 @@ window.syncMonedaCalculadora = function() {
 };
 
 function formatMoneyCalcx(value, currency) {
+  // Cuando los costos variables se comen todo el precio, no existe un precio posible
+  if (typeof value === "number" && !Number.isFinite(value)) return "No alcanzable";
+
   const num = Number(value || 0);
 
   if (currency === "COP") {
@@ -3502,11 +3528,29 @@ const costosTotales = subtotalCostos + impuestos;
   const utilidad = precioVentaFinal - costosTotales;
   const margen = precioVentaFinal > 0 ? (utilidad / precioVentaFinal) * 100 : 0;
 
-  const breakEven = costosTotales;
-  const precioMinimo = costosTotales / 0.90;
-  const precioIdeal = (100 - margenObjetivo) > 0
-    ? costosTotales / (1 - (margenObjetivo / 100))
-    : costosTotales;
+  // 🧮 Precios correctos: la pauta, la pasarela y las pérdidas crecen con el precio.
+  // Costos fijos por venta (no dependen del precio):
+  const costosFijos =
+    costoProducto + fleteAjustado + fulfillment + confirmacion + admin + pasarela.fijo;
+
+  // Fracción del precio que se va en costos variables:
+  const tasaVariable =
+    0.20 +                                 // pauta (CPA = 20% del precio)
+    pasarela.pct +                         // comisión pasarela
+    (cancelados / 100) * 0.25 +            // pérdida por cancelaciones
+    (devoluciones / 100) * 0.12;           // pérdida por devoluciones
+
+  const factorImp = 1 + (impuestosPct / 100);
+
+  // Precio P tal que: P - (costosFijos + tasaVariable·P)·factorImp = margen·P
+  const precioParaMargen = (margenPct) => {
+    const denom = 1 - (margenPct / 100) - (tasaVariable * factorImp);
+    return denom > 0 ? (costosFijos * factorImp) / denom : NaN;
+  };
+
+  const breakEven = precioParaMargen(0);
+  const precioMinimo = precioParaMargen(10);
+  const precioIdeal = precioParaMargen(margenObjetivo);
 
   const pautaMaxima = precioVentaFinal * 0.20;
   const roas = cpa > 0 ? precioVentaFinal / cpa : 0;
