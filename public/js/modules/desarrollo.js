@@ -29,7 +29,7 @@ const PAIS_NOMBRE = { CO: "Colombia", EC: "Ecuador" };
 
 let proyecto = null;   // proyecto abierto
 let tab = 1;           // paso que se está viendo
-let filtroGrupo = "todas";
+let av = null;         // avatar con el que se está trabajando (A o B)
 let generandoTodo = false;
 let cacheProductos = [];
 let cacheProyectos = [];
@@ -62,6 +62,43 @@ async function api(metodo, url, body) {
   if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
   return data;
 }
+
+// ---------- Trabajo de cada avatar ("rama") ----------
+const RAMA_VACIA = { paso: 3, estilosPropuestos: [], estilo: null, bloqueEstilo: "", secciones: [], guiones: [], notas: null, vendio: false };
+
+function R() {
+  return { ...RAMA_VACIA, ...((proyecto?.ramas || {})[av] || {}) };
+}
+
+function ponerRama(rama) {
+  proyecto.ramas = { ...(proyecto.ramas || {}), [av]: rama };
+  proyecto.pasosRamas = { ...(proyecto.pasosRamas || {}), [av]: rama.paso };
+}
+
+const urlRama = (sub = "") => `/api/proyectos/${proyecto._id}/rama/${av}${sub ? "/" + sub : ""}`;
+
+async function guardarRama(cambios) {
+  if (!proyecto || !av) return;
+  try {
+    const { rama } = await api("PUT", urlRama(), cambios);
+    ponerRama(rama);
+    avisar("Guardado", "ok");
+  } catch (err) {
+    avisar(err.message, "error");
+  }
+}
+
+const avatarActual = () => (proyecto?.avatares || []).find(a => a.id === av) || null;
+const resumenAvatar = (a) => String(a?.quien || "").split(/[,.]/)[0].slice(0, 40);
+
+// Paso más avanzado de un proyecto (para la lista)
+function pasoTexto(p) {
+  const pr = p.pasosRamas || {};
+  const ids = Object.keys(pr);
+  if (!ids.length) return `Paso ${Math.min(p.paso || 1, 2)}/6`;
+  return ids.sort().map(k => `${k}: paso ${pr[k]}/6`).join(" · ");
+}
+const pasoMax = (p) => Math.max(p.paso || 1, ...Object.values(p.pasosRamas || {}));
 
 async function guardar(cambios) {
   if (!proyecto) return;
@@ -206,8 +243,8 @@ async function renderLista(view) {
           ${p.vendio ? `<span class="est-chip ok">Vendió ✓</span>` : ""}
         </div>
         <strong>${esc(p.nombre)}</strong>
-        <span class="est-muted">${esc(p.estilo?.nombre || "Sin estilo")} · Paso ${p.paso || 1}/6 · ${fecha(p.actualizado)}</span>
-        <div class="est-progress"><span style="width:${((p.paso || 1) / 6) * 100}%"></span></div>
+        <span class="est-muted">${pasoTexto(p)} · ${fecha(p.actualizado)}</span>
+        <div class="est-progress"><span style="width:${(pasoMax(p) / 6) * 100}%"></span></div>
       </article>
     `).join("");
   } catch (err) {
@@ -231,7 +268,7 @@ window.estFiltrarProductos = () => {
   const opcion = (p) => {
     const pr = proyectoDe(p._id);
     const fuente = fuenteTexto(p);
-    const extra = pr ? ` — paso ${pr.paso || 1}/6` : "";
+    const extra = pr ? ` — ${pasoTexto(pr)}` : "";
     return `<option value="${esc(p._id)}">${esc(p.nombre)}${fuente ? ` · ${esc(fuente)}` : ""}${extra}</option>`;
   };
 
@@ -267,7 +304,7 @@ window.estInfoProducto = () => {
     info.innerHTML = prod ? `
       ${fuenteTexto(prod) ? `<span class="est-chip">${esc(fuenteTexto(prod))}</span>` : ""}
       <span class="est-chip">${ESTADO[prod.estado] || "Idea"}</span>
-      ${pr ? `<span class="est-chip ok">Ya tiene proyecto · paso ${pr.paso || 1}/6 — se abrirá ese</span>` : `<span class="est-muted">Al crear el proyecto, el producto pasa a "Desarrollo" en tu Base.</span>`}
+      ${pr ? `<span class="est-chip ok">Ya tiene proyecto · ${pasoTexto(pr)} — se abrirá ese</span>` : `<span class="est-muted">Al crear el proyecto, el producto pasa a "Desarrollo" en tu Base.</span>`}
     ` : "";
   }
   iconos();
@@ -290,9 +327,12 @@ window.estVolverLista = () => renderLista($("view"));
 async function abrir(id, pasoInicial = null) {
   try {
     proyecto = await api("GET", `/api/proyectos/${id}`);
-    tab = pasoInicial || Math.min(proyecto.paso || 1, PASOS.length);
-    filtroGrupo = "todas";
-    try { localStorage.setItem("est_ultimo", id); } catch {}
+    const ids = (proyecto.avatares || []).map(a => a.id);
+    let guardado = null;
+    try { guardado = localStorage.getItem(`est_av_${id}`); localStorage.setItem("est_ultimo", id); } catch {}
+    av = ids.includes(guardado) ? guardado : (ids.find(k => proyecto.ramas?.[k]) || null);
+    const pasoRama = av ? (R().paso || 3) : 0;
+    tab = pasoInicial || (av ? Math.min(Math.max(pasoRama, 3), PASOS.length) : Math.min(proyecto.paso || 1, 2));
     renderProyecto();
   } catch (err) {
     avisar(err.message, "error");
@@ -328,12 +368,26 @@ function renderProyecto() {
 
       <nav class="est-steps">
         ${PASOS.map(s => `
-          <button class="est-step ${tab === s.n ? "active" : ""} ${(p.paso || 1) >= s.n ? "done" : ""}" onclick="estIrPaso(${s.n})">
+          <button class="est-step ${tab === s.n ? "active" : ""} ${(s.n <= 2 ? (p.paso || 1) >= s.n : av && R().paso >= s.n) ? "done" : ""}" onclick="estIrPaso(${s.n})">
             <span class="est-step-n">${s.n}</span>
             <span>${s.titulo}</span>
           </button>
         `).join("")}
       </nav>
+
+      ${(p.avatares || []).length ? `
+        <div class="est-avbar">
+          <span class="est-avbar-label">Trabajando con:</span>
+          ${p.avatares.map(a => `
+            <button class="est-avbtn ${av === a.id ? "active" : ""}" onclick="estElegirAvatar('${esc(a.id)}')">
+              <b>${esc(a.id)}</b>
+              <span>${esc(resumenAvatar(a))}</span>
+              <small>${p.ramas?.[a.id] ? `paso ${p.ramas[a.id].paso || 3}/6` : "sin empezar"}</small>
+            </button>
+          `).join("")}
+          <span class="est-muted">Ficha y avatares son compartidos. Estilo, landing, guiones y notas se guardan aparte para cada avatar.</span>
+        </div>
+      ` : ""}
 
       <section id="estContenido"></section>
     </div>
@@ -345,6 +399,13 @@ function renderPaso() {
   const cont = $("estContenido");
   if (!cont) return;
   const render = { 1: pasoFicha, 2: pasoAvatares, 3: pasoEstilo, 4: pasoLanding, 5: pasoGuiones, 6: pasoNotas }[tab];
+  if (tab >= 3 && !avatarActual()) {
+    cont.innerHTML = `<div class="est-card"><div class="est-alert warn">${(proyecto.avatares || []).length
+      ? "Elige con qué avatar vas a trabajar (arriba, en \"Trabajando con\")."
+      : "Primero genera los avatares en el paso 2."}</div>${(proyecto.avatares || []).length ? "" : siguiente(2, "Ir a avatares")}</div>`;
+    iconos();
+    return;
+  }
   cont.innerHTML = render();
   iconos();
 }
@@ -356,9 +417,17 @@ window.estIrPaso = (n) => {
   $("estContenido")?.scrollIntoView({ behavior: "smooth", block: "start" });
 };
 
+window.estElegirAvatar = (id) => {
+  av = id;
+  try { localStorage.setItem(`est_av_${proyecto._id}`, id); } catch {}
+  if (tab < 3) tab = Math.min(Math.max(R().paso || 3, 3), PASOS.length);
+  renderProyecto();
+  avisar(`Trabajando con el avatar ${id}`, "ok");
+};
+
 window.estCambiarPais = async (pais) => { await guardar({ pais }); renderPaso(); };
 window.estCambiarAvatares = async (n) => {
-  if (proyecto.avatares?.length && !confirm("Cambiar la cantidad de avatares: tendrás que regenerar avatares y secciones. ¿Seguir?")) {
+  if (proyecto.avatares?.length && !confirm("Cambiar la cantidad de avatares: tendrás que regenerar los avatares. ¿Seguir?")) {
     renderProyecto(); return;
   }
   await guardar({ numAvatares: Number(n) });
@@ -568,7 +637,7 @@ function pasoAvatares() {
     <div class="est-card-row">
       <div>
         <h3>${proyecto.numAvatares === 1 ? "Avatar" : "Avatares A y B"}</h3>
-        <p class="est-muted">${proyecto.numAvatares === 1 ? "Una landing para un avatar." : "Dos landings que solo cambian en lo que le habla a cada avatar: oferta, dolor y para quién es."}</p>
+        <p class="est-muted">${proyecto.numAvatares === 1 ? "Un avatar, una landing." : "Dos avatares, cada uno con su propia landing, estilo y guiones. Elige con cuál trabajar; luego puedes hacer el otro."}</p>
       </div>
       <button id="estBtnAvatares" class="est-btn primary" onclick="estGenerarAvatares()">
         <i data-lucide="sparkles"></i> ${avs.length ? "Regenerar" : "Generar avatares"}
@@ -588,16 +657,29 @@ function pasoAvatares() {
               <textarea rows="${k === "escena" || k === "problema" ? 3 : 2}" onchange="estEditarAvatar(${i}, '${k}', this.value)">${esc(a[k])}</textarea>
             `).join("")}
           </div>
+          <button class="est-btn ${av === a.id ? "" : "primary"} est-avatar-go" onclick="estTrabajarCon('${esc(a.id)}')">
+            ${av === a.id ? "✓ Trabajando con este avatar — continuar" : proyecto.ramas?.[a.id] ? `Continuar con el avatar ${esc(a.id)} (paso ${proyecto.ramas[a.id].paso || 3}/6)` : `Trabajar con el avatar ${esc(a.id)}`}
+            <i data-lucide="arrow-right"></i>
+          </button>
         </div>
       `).join("")}
     </div>
-    ${siguiente(3, "Seguir con el estilo")}
   ` : ""}
   `;
 }
 
+window.estTrabajarCon = (id) => {
+  av = id;
+  try { localStorage.setItem(`est_av_${proyecto._id}`, id); } catch {}
+  tab = Math.min(Math.max(R().paso || 3, 3), PASOS.length);
+  renderProyecto();
+  $("estContenido")?.scrollIntoView({ behavior: "smooth", block: "start" });
+};
+
 window.estGenerarAvatares = () => conCarga("estBtnAvatares", "Creando avatares...", async () => {
-  if (proyecto.avatares?.length && !confirm("¿Reemplazar los avatares actuales?")) return;
+  if (proyecto.avatares?.length && !confirm(Object.keys(proyecto.ramas || {}).length
+    ? "¿Reemplazar los avatares? El trabajo ya hecho (estilo, landing, guiones) se conserva, pero quedará pensado para los avatares anteriores."
+    : "¿Reemplazar los avatares actuales?")) return;
   const { avatares } = await api("POST", `/api/proyectos/${proyecto._id}/ia/avatares`);
   proyecto.avatares = avatares;
   proyecto.paso = Math.max(proyecto.paso || 1, 2);
@@ -610,23 +692,25 @@ window.estEditarAvatar = (i, campo, valor) => {
 };
 
 // =============================================
-// PASO 3: ESTILO
+// PASO 3: ESTILO (del avatar elegido)
 // =============================================
 const colores = (e) => [e.fondo, e.color1, e.color2, e.acento]
   .map(v => String(v || "").match(/#[0-9a-f]{3,8}\b/i)?.[0])
   .filter(Boolean);
 
+const avTag = () => `<span class="est-chip grupo">Avatar ${esc(av)}</span>`;
+
 function pasoEstilo() {
-  const p = proyecto;
-  const props = p.estilosPropuestos || [];
-  const elegido = p.estilo;
+  const r = R();
+  const props = r.estilosPropuestos || [];
+  const elegido = r.estilo;
 
   return `
   <div class="est-card">
     <div class="est-card-row">
       <div>
-        <h3>Estilo de la landing</h3>
-        <p class="est-muted">La IA evita los estilos que ya usaste en otros productos.</p>
+        <h3>Estilo de la landing ${avTag()}</h3>
+        <p class="est-muted">Pensado para ${esc(resumenAvatar(avatarActual()))}. La IA evita los estilos que ya usaste y el del otro avatar.</p>
       </div>
       <button id="estBtnEstilos" class="est-btn primary" onclick="estProponerEstilos()">
         <i data-lucide="palette"></i> ${props.length ? "Otras 3 opciones" : "Proponer 3 estilos"}
@@ -662,11 +746,11 @@ function pasoEstilo() {
       <div class="est-card-row">
         <div>
           <h3>Bloque de estilo: ${esc(elegido.nombre)}</h3>
-          <p class="est-muted">Uno solo para las dos landings. Va primero en cada chat de Gemini. Puedes corregirlo.</p>
+          <p class="est-muted">Va primero en cada chat de Gemini. Puedes corregirlo.</p>
         </div>
         <button class="est-btn" onclick="estCopiarBloque()"><i data-lucide="copy"></i> Copiar</button>
       </div>
-      <textarea id="estBloque" class="est-code" rows="12" onchange="estGuardarBloque(this.value)">${esc(p.bloqueEstilo)}</textarea>
+      <textarea id="estBloque" class="est-code" rows="12" onchange="estGuardarBloque(this.value)">${esc(r.bloqueEstilo)}</textarea>
     </div>
     ${siguiente(4, "Seguir con la landing")}
   ` : ""}
@@ -674,47 +758,38 @@ function pasoEstilo() {
 }
 
 window.estProponerEstilos = () => conCarga("estBtnEstilos", "Pensando estilos...", async () => {
-  const { estilosPropuestos } = await api("POST", `/api/proyectos/${proyecto._id}/ia/estilos`);
-  proyecto.estilosPropuestos = estilosPropuestos;
-  proyecto.paso = Math.max(proyecto.paso || 1, 3);
-  renderPaso();
-});
-
-window.estElegirEstilo = (i, boton) => conCarga(boton, "Armando bloque...", async () => {
-  const estilo = proyecto.estilosPropuestos[i];
-  const r = await api("POST", `/api/proyectos/${proyecto._id}/estilo`, { estilo });
-  proyecto.estilo = r.estilo;
-  proyecto.bloqueEstilo = r.bloqueEstilo;
-  proyecto.paso = Math.max(proyecto.paso || 1, 4);
+  const { rama } = await api("POST", urlRama("ia/estilos"));
+  ponerRama(rama);
   renderProyecto();
 });
 
-window.estGuardarBloque = (v) => guardar({ bloqueEstilo: v });
-window.estCopiarBloque = () => copiar($("estBloque")?.value || proyecto.bloqueEstilo || "");
+window.estElegirEstilo = (i, boton) => conCarga(boton, "Armando bloque...", async () => {
+  const estilo = R().estilosPropuestos[i];
+  const { rama } = await api("POST", urlRama("estilo"), { estilo });
+  ponerRama(rama);
+  renderProyecto();
+});
+
+window.estGuardarBloque = (v) => guardarRama({ bloqueEstilo: v });
+window.estCopiarBloque = () => copiar($("estBloque")?.value || R().bloqueEstilo || "");
 
 // =============================================
-// PASO 4: LANDING
+// PASO 4: LANDING (del avatar elegido)
 // =============================================
-const nombreGrupo = (g) => g === "compartida" ? "Igual en ambas" : `Landing ${g}`;
-
 function pasoLanding() {
-  const p = proyecto;
-  if (!p.estilo) {
-    return `<div class="est-card"><div class="est-alert warn">Primero elige un estilo en el paso 3.</div>${siguiente(3, "Ir al estilo")}</div>`;
+  const r = R();
+  if (!r.estilo) {
+    return `<div class="est-card"><div class="est-alert warn">Primero elige el estilo del avatar ${esc(av)} en el paso 3.</div>${siguiente(3, "Ir al estilo")}</div>`;
   }
-  const secs = p.secciones || [];
-  const dos = p.numAvatares !== 1;
-  const visibles = secs
-    .map((s, i) => ({ s, i }))
-    .filter(({ s }) => filtroGrupo === "todas" || s.grupo === filtroGrupo || (filtroGrupo !== "compartida" && s.grupo === "compartida" && filtroGrupo !== "todas"));
-  const hechas = secs.filter(s => s.hecha).length;
-  const conPrompt = secs.filter(s => s.prompt).length;
+  const secs = r.secciones || [];
+  const hechas = secs.filter(x => x.hecha).length;
+  const conPrompt = secs.filter(x => x.prompt).length;
 
   return `
   <div class="est-card">
     <div class="est-card-row">
       <div>
-        <h3>Secciones de la landing</h3>
+        <h3>Landing ${avTag()}</h3>
         <p class="est-muted">En Gemini: chat nuevo por imagen → adjunta la foto real → pega "estilo + prompt". ${secs.length ? `${conPrompt}/${secs.length} prompts · ${hechas} imágenes hechas` : ""}</p>
       </div>
       <div class="est-actions">
@@ -722,26 +797,15 @@ function pasoLanding() {
         ${secs.length ? `<button id="estBtnTodos" class="est-btn primary" onclick="estGenerarTodos()" ${generandoTodo ? "disabled" : ""}><i data-lucide="sparkles"></i> Generar prompts faltantes</button>` : ""}
       </div>
     </div>
-
-    ${secs.length && dos ? `
-      <div class="est-tabs">
-        ${["todas", "compartida", "A", "B"].map(g => `
-          <button class="${filtroGrupo === g ? "active" : ""}" onclick="estFiltrar('${g}')">
-            ${g === "todas" ? "Todas" : g === "compartida" ? "Iguales en ambas" : `Ver landing ${g}`}
-          </button>`).join("")}
-      </div>
-      ${filtroGrupo === "A" || filtroGrupo === "B" ? `<p class="est-hint">Así queda la landing ${filtroGrupo} completa, en orden (incluye las secciones iguales).</p>` : ""}
-    ` : ""}
   </div>
 
   <div class="est-secciones">
-    ${visibles.map(({ s, i }, n) => tarjetaSeccion(s, i, n + 1)).join("")}
+    ${secs.map((x, i) => tarjetaSeccion(x, i, i + 1)).join("")}
   </div>
 
   ${secs.length ? `
     <div class="est-card est-add">
       <select id="estNuevaTipo">${Object.entries(TIPOS_SECCION).map(([k, v]) => `<option value="${k}">${v}</option>`).join("")}</select>
-      ${dos ? `<select id="estNuevaGrupo"><option value="compartida">Igual en ambas</option><option value="A">Solo landing A</option><option value="B">Solo landing B</option></select>` : ""}
       <button class="est-btn" onclick="estAgregarSeccion()"><i data-lucide="plus"></i> Agregar sección</button>
     </div>
     ${siguiente(5, "Seguir con los guiones")}
@@ -749,21 +813,18 @@ function pasoLanding() {
   `;
 }
 
-function tarjetaSeccion(s, i, numero) {
-  const avatar = (proyecto.avatares || []).find(a => a.id === s.grupo);
+function tarjetaSeccion(x, i, numero) {
   return `
-  <article class="est-sec ${s.hecha ? "hecha" : ""}" id="sec-${esc(s.id)}">
+  <article class="est-sec ${x.hecha ? "hecha" : ""}" id="sec-${esc(x.id)}">
     <div class="est-sec-head">
       <span class="est-sec-n">${numero}</span>
       <div class="est-sec-info">
-        <strong>${esc(s.titulo)}</strong>
+        <strong>${esc(x.titulo)}</strong>
         <div class="est-sec-tags">
-          <span class="est-chip ${s.grupo === "compartida" ? "" : "grupo"}">${nombreGrupo(s.grupo)}</span>
-          <span class="est-chip">${esc(s.formato || "9:16")}</span>
-          ${s.composicion ? `<span class="est-chip">${esc(s.composicion)}</span>` : ""}
+          <span class="est-chip">${esc(x.formato || "9:16")}</span>
+          ${x.composicion ? `<span class="est-chip">${esc(x.composicion)}</span>` : ""}
         </div>
-        ${s.proposito ? `<p class="est-muted">${esc(s.proposito)}</p>` : ""}
-        ${avatar ? `<p class="est-muted">Para: ${esc(avatar.quien)}</p>` : ""}
+        ${x.proposito ? `<p class="est-muted">${esc(x.proposito)}</p>` : ""}
       </div>
       <div class="est-sec-move">
         <button title="Subir" onclick="estMoverSeccion(${i}, -1)">▲</button>
@@ -771,34 +832,35 @@ function tarjetaSeccion(s, i, numero) {
       </div>
     </div>
 
-    ${s.prompt ? `
-      <textarea class="est-code" rows="10" onchange="estEditarPrompt(${i}, this.value)">${esc(s.prompt)}</textarea>
+    ${x.prompt ? `
+      <textarea class="est-code" rows="10" onchange="estEditarPrompt(${i}, this.value)">${esc(x.prompt)}</textarea>
     ` : `<div class="est-empty">Sin prompt todavía.</div>`}
 
     <div class="est-sec-actions">
-      <button class="est-btn ${s.prompt ? "" : "primary"}" id="btnSec-${esc(s.id)}" onclick="estGenerarSeccion('${esc(s.id)}')">
-        <i data-lucide="sparkles"></i> ${s.prompt ? "Regenerar" : "Generar prompt"}
+      <button class="est-btn ${x.prompt ? "" : "primary"}" id="btnSec-${esc(x.id)}" onclick="estGenerarSeccion('${esc(x.id)}')">
+        <i data-lucide="sparkles"></i> ${x.prompt ? "Regenerar" : "Generar prompt"}
       </button>
-      ${s.prompt ? `<button class="est-btn primary" onclick="estCopiarSeccion(${i})"><i data-lucide="copy"></i> Copiar estilo + prompt</button>` : ""}
-      ${s.prompt ? `<label class="est-check"><input type="checkbox" ${s.hecha ? "checked" : ""} onchange="estMarcarHecha(${i}, this.checked)"> Imagen hecha</label>` : ""}
+      ${x.prompt ? `<button class="est-btn primary" onclick="estCopiarSeccion(${i})"><i data-lucide="copy"></i> Copiar estilo + prompt</button>` : ""}
+      ${x.prompt ? `<label class="est-check"><input type="checkbox" ${x.hecha ? "checked" : ""} onchange="estMarcarHecha(${i}, this.checked)"> Imagen hecha</label>` : ""}
       <button class="est-btn ghost danger" title="Quitar sección" onclick="estQuitarSeccion(${i})"><i data-lucide="x"></i></button>
     </div>
   </article>`;
 }
 
-window.estFiltrar = (g) => { filtroGrupo = g; renderPaso(); };
-
 window.estProponerSecciones = () => conCarga("estBtnSecciones", "Armando estructura...", async () => {
-  if (proyecto.secciones?.length && !confirm("¿Reemplazar las secciones actuales y sus prompts?")) return;
-  const { secciones } = await api("POST", `/api/proyectos/${proyecto._id}/ia/secciones`);
-  proyecto.secciones = secciones;
+  if (R().secciones?.length && !confirm("¿Reemplazar las secciones de este avatar y sus prompts?")) return;
+  const { rama } = await api("POST", urlRama("ia/secciones"));
+  ponerRama(rama);
   renderPaso();
 });
 
 async function generarSeccion(id) {
-  const { seccion } = await api("POST", `/api/proyectos/${proyecto._id}/ia/seccion/${id}`);
-  const i = proyecto.secciones.findIndex(s => s.id === id);
-  if (i !== -1) proyecto.secciones[i] = seccion;
+  const avDeLaPeticion = av;
+  const { seccion } = await api("POST", urlRama(`ia/seccion/${id}`));
+  if (av !== avDeLaPeticion) return;   // cambiaste de avatar mientras se generaba
+  const r = R();
+  const secciones = r.secciones.map(x => x.id === id ? seccion : x);
+  ponerRama({ ...r, secciones });
 }
 
 window.estGenerarSeccion = (id) => conCarga(`btnSec-${id}`, "Escribiendo...", async () => {
@@ -809,12 +871,14 @@ window.estGenerarSeccion = (id) => conCarga(`btnSec-${id}`, "Escribiendo...", as
 
 window.estGenerarTodos = async () => {
   if (generandoTodo) return;
-  const faltan = proyecto.secciones.filter(s => !s.prompt).map(s => s.id);
+  const avInicio = av;
+  const faltan = R().secciones.filter(x => !x.prompt).map(x => x.id);
   if (!faltan.length) return avisar("Todas las secciones ya tienen prompt", "ok");
   generandoTodo = true;
   let hechos = 0, errores = 0;
   const boton = () => $("estBtnTodos");
   for (const id of faltan) {
+    if (av !== avInicio) break;
     if (boton()) { boton().disabled = true; boton().innerHTML = `<span class="est-spin"></span> Escribiendo ${hechos + 1} de ${faltan.length}...`; }
     try { await generarSeccion(id); hechos++; }
     catch (err) {
@@ -829,46 +893,41 @@ window.estGenerarTodos = async () => {
 };
 
 window.estCopiarSeccion = (i) => {
-  const s = proyecto.secciones[i];
-  copiar(`${proyecto.bloqueEstilo}\n\n${s.prompt}`);
+  const r = R();
+  copiar(`${r.bloqueEstilo}\n\n${r.secciones[i].prompt}`);
 };
 
-window.estEditarPrompt = (i, v) => {
-  const secciones = proyecto.secciones.map((s, j) => j === i ? { ...s, prompt: v } : s);
-  guardar({ secciones });
-};
+const cambiarSecciones = (fn) => guardarRama({ secciones: fn([...R().secciones]) });
 
-window.estMarcarHecha = (i, v) => {
-  const secciones = proyecto.secciones.map((s, j) => j === i ? { ...s, hecha: v } : s);
-  guardar({ secciones }).then(() => renderPaso());
+window.estEditarPrompt = (i, v) => cambiarSecciones(secs => secs.map((x, j) => j === i ? { ...x, prompt: v } : x));
+
+window.estMarcarHecha = async (i, v) => {
+  await cambiarSecciones(secs => secs.map((x, j) => j === i ? { ...x, hecha: v } : x));
+  renderPaso();
 };
 
 window.estMoverSeccion = async (i, dir) => {
-  const secs = [...proyecto.secciones];
   const j = i + dir;
-  if (j < 0 || j >= secs.length) return;
-  [secs[i], secs[j]] = [secs[j], secs[i]];
-  await guardar({ secciones: secs });
+  if (j < 0 || j >= R().secciones.length) return;
+  await cambiarSecciones(secs => { [secs[i], secs[j]] = [secs[j], secs[i]]; return secs; });
   renderPaso();
 };
 
 window.estQuitarSeccion = async (i) => {
-  if (!confirm(`¿Quitar "${proyecto.secciones[i].titulo}"?`)) return;
-  const secs = proyecto.secciones.filter((_, j) => j !== i);
-  await guardar({ secciones: secs });
+  if (!confirm(`¿Quitar "${R().secciones[i].titulo}"?`)) return;
+  await cambiarSecciones(secs => secs.filter((_, j) => j !== i));
   renderPaso();
 };
 
 window.estAgregarSeccion = async () => {
   const tipo = $("estNuevaTipo")?.value;
-  const grupo = $("estNuevaGrupo")?.value || "compartida";
-  const nueva = { id: Math.random().toString(36).slice(2, 10), tipo, titulo: TIPOS_SECCION[tipo], grupo, formato: "9:16", composicion: "", proposito: "", prompt: "", hecha: false };
-  await guardar({ secciones: [...proyecto.secciones, nueva] });
+  const nueva = { id: Math.random().toString(36).slice(2, 10), tipo, titulo: TIPOS_SECCION[tipo], grupo: av, formato: "9:16", composicion: "", proposito: "", prompt: "", hecha: false };
+  await cambiarSecciones(secs => [...secs, nueva]);
   renderPaso();
 };
 
 // =============================================
-// PASO 5: GUIONES (3 por avatar)
+// PASO 5: GUIONES (3 del avatar elegido)
 // =============================================
 const POR_AVATAR = 3;
 
@@ -877,46 +936,33 @@ const soloVoz = (t = "") => String(t).replace(/\[[^\]]*\]/g, " ").replace(/[ \t]
 const contarPalabras = (t = "") => (soloVoz(t).match(/[\p{L}\p{N}]+/gu) || []).length;
 const segundos = (palabras) => Math.round(palabras / 2.6);
 
-function asegurarGuiones() {
-  const ids = proyecto.numAvatares === 1 ? ["A"] : ["A", "B"];
-  const actuales = proyecto.guiones || [];
-  let cambio = false;
-  const lista = [];
-  for (const av of ids) {
-    const deEste = actuales.filter(g => g.avatar === av);
-    for (let k = 0; k < POR_AVATAR; k++) {
-      if (deEste[k]) lista.push(deEste[k]);
-      else { lista.push({ id: Math.random().toString(36).slice(2, 10), avatar: av, referencia: "", link: "", nota: "", guion: "", ganchos: [], historiaReal: false, verificar: [] }); cambio = true; }
-    }
+function guionesActuales() {
+  const actuales = R().guiones || [];
+  const lista = [...actuales];
+  while (lista.length < POR_AVATAR) {
+    lista.push({ id: Math.random().toString(36).slice(2, 10), avatar: av, referencia: "", link: "", nota: "", guion: "", ganchos: [], historiaReal: false, verificar: [] });
   }
-  proyecto.guiones = lista;
-  return cambio;
+  return lista.slice(0, POR_AVATAR);
 }
 
 function pasoGuiones() {
-  if (!(proyecto.avatares || []).length) {
-    return `<div class="est-card"><div class="est-alert warn">Primero genera los avatares en el paso 2.</div>${siguiente(2, "Ir a avatares")}</div>`;
+  const guiones = guionesActuales();
+  if ((R().guiones || []).length < POR_AVATAR) {
+    ponerRama({ ...R(), guiones });
+    guardarRama({ guiones });
   }
-  if (asegurarGuiones()) guardar({ guiones: proyecto.guiones });
-
-  const grupos = proyecto.numAvatares === 1 ? ["A"] : ["A", "B"];
-  const hechos = proyecto.guiones.filter(g => g.guion).length;
+  const hechos = guiones.filter(g => g.guion).length;
 
   return `
   <div class="est-card">
-    <h3>Guiones de voz en off</h3>
-    <p class="est-muted">${POR_AVATAR} por avatar, cada uno basado en un video de referencia distinto. Pega el texto del video (en inglés, chino o español, sin traducir) y la IA lo reescribe para tu avatar. ${hechos}/${proyecto.guiones.length} listos.</p>
+    <h3>Guiones de voz en off ${avTag()}</h3>
+    <p class="est-muted">${POR_AVATAR} guiones para ${esc(resumenAvatar(avatarActual()))}, cada uno basado en un video de referencia distinto. Pega el texto del video (en inglés, chino o español, sin traducir) y la IA lo reescribe para este avatar. ${hechos}/${POR_AVATAR} listos.</p>
     <p class="est-hint">Formato: 20 a 25 segundos · [lo que se ve] entre corchetes · gancho en los primeros 3 segundos · cierre con precio, contra entrega y llamado a la acción.</p>
   </div>
 
-  ${grupos.map(av => {
-    const avatar = proyecto.avatares.find(a => a.id === av) || {};
-    return `
-    <h3 class="est-section-title">Avatar ${av}: <span class="est-sub">${esc(avatar.quien)}</span></h3>
-    <div class="est-guiones">
-      ${proyecto.guiones.map((g, i) => g.avatar === av ? tarjetaGuion(g, i, proyecto.guiones.filter((x, j) => x.avatar === av && j <= i).length) : "").join("")}
-    </div>`;
-  }).join("")}
+  <div class="est-guiones">
+    ${guiones.map((g, i) => tarjetaGuion(g, i, i + 1)).join("")}
+  </div>
 
   ${siguiente(6, "Seguir con las notas")}
   `;
@@ -929,7 +975,7 @@ function tarjetaGuion(g, i, n) {
   return `
   <article class="est-guion" id="gui-${esc(g.id)}">
     <div class="est-card-row">
-      <strong>Guion ${g.avatar}${n}</strong>
+      <strong>Guion ${esc(av)}${n}</strong>
       ${g.guion ? `<span class="est-chip ${estado === "bien" ? "ok" : "warn"}">≈ ${seg} s · ${palabras} palabras${estado === "corto" ? " · corto" : estado === "largo" ? " · largo" : ""}</span>` : ""}
     </div>
 
@@ -967,10 +1013,13 @@ function tarjetaGuion(g, i, n) {
   </article>`;
 }
 
-window.estEditarGuion = (i, campo, valor) => {
-  proyecto.guiones = proyecto.guiones.map((g, j) => j === i ? { ...g, [campo]: valor } : g);
-  guardar({ guiones: proyecto.guiones });
+const cambiarGuiones = (fn) => {
+  const guiones = fn(guionesActuales());
+  ponerRama({ ...R(), guiones });
+  return guardarRama({ guiones });
 };
+
+window.estEditarGuion = (i, campo, valor) => cambiarGuiones(gs => gs.map((g, j) => j === i ? { ...g, [campo]: valor } : g));
 
 window.estContarGuion = (ta, id) => {
   const chip = document.querySelector(`#gui-${id} .est-chip`);
@@ -981,36 +1030,38 @@ window.estContarGuion = (ta, id) => {
 };
 
 window.estGenerarGuion = (id) => conCarga(`btnGui-${id}`, "Escribiendo guion...", async () => {
-  // guardar lo que esté escrito antes de pedir a la IA
   document.querySelectorAll(`#gui-${id} textarea, #gui-${id} input`).forEach(el => el.blur());
-  await guardar({ guiones: proyecto.guiones });
-  const { guion } = await api("POST", `/api/proyectos/${proyecto._id}/ia/guion/${id}`);
-  const i = proyecto.guiones.findIndex(g => g.id === id);
-  if (i !== -1) proyecto.guiones[i] = guion;
-  proyecto.paso = Math.max(proyecto.paso || 1, 5);
-  renderPaso();
+  await guardarRama({ guiones: guionesActuales() });
+  const avDeLaPeticion = av;
+  const { guion } = await api("POST", urlRama(`ia/guion/${id}`));
+  if (av !== avDeLaPeticion) return;
+  const r = R();
+  ponerRama({ ...r, guiones: r.guiones.map(g => g.id === id ? guion : g), paso: Math.max(r.paso || 3, 5) });
+  renderProyecto();
   $(`gui-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
 });
 
-window.estCopiarVoz = (i) => copiar(soloVoz(proyecto.guiones[i].guion));
-window.estCopiarGuion = (i) => copiar(proyecto.guiones[i].guion);
+window.estCopiarVoz = (i) => copiar(soloVoz(guionesActuales()[i].guion));
+window.estCopiarGuion = (i) => copiar(guionesActuales()[i].guion);
 
-window.estUsarGancho = (i, k) => {
-  const g = proyecto.guiones[i];
-  const gancho = g.ganchos[k];
-  // reemplaza la primera frase hablada por el gancho elegido
-  const nuevo = g.guion.replace(/^((?:\s*\[[^\]]*\]\s*)*)([^.!?\n]*[.!?]?)/, (m, escenas) => `${escenas}${gancho}`);
-  const ganchos = [...g.ganchos]; ganchos[k] = soloVoz(g.guion).split(/(?<=[.!?])\s/)[0];
-  proyecto.guiones[i] = { ...g, guion: nuevo, ganchos };
-  guardar({ guiones: proyecto.guiones });
+window.estUsarGancho = async (i, k) => {
+  await cambiarGuiones(gs => gs.map((g, j) => {
+    if (j !== i) return g;
+    const gancho = g.ganchos[k];
+    const nuevo = g.guion.replace(/^((?:\s*\[[^\]]*\]\s*)*)([^.!?\n]*[.!?]?)/, (m, escenas) => `${escenas}${gancho}`);
+    const ganchos = [...g.ganchos];
+    ganchos[k] = soloVoz(g.guion).split(/(?<=[.!?])\s/)[0];
+    return { ...g, guion: nuevo, ganchos };
+  }));
   renderPaso();
 };
 
 // =============================================
-// PASO 6: NOTAS
+// PASO 6: NOTAS (del avatar elegido)
 // =============================================
 function pasoNotas() {
-  const n = proyecto.notas;
+  const r = R();
+  const n = r.notas;
   const bloque = (titulo, items, clase = "") => items?.length ? `
     <div class="est-card ${clase}">
       <h3>${titulo}</h3>
@@ -1021,8 +1072,8 @@ function pasoNotas() {
   <div class="est-card">
     <div class="est-card-row">
       <div>
-        <h3>Notas antes de publicar</h3>
-        <p class="est-muted">Dudas, riesgos y datos por confirmar de este producto.</p>
+        <h3>Notas antes de publicar ${avTag()}</h3>
+        <p class="est-muted">Dudas, riesgos y datos por confirmar de la landing y los guiones de este avatar.</p>
       </div>
       <button id="estBtnNotas" class="est-btn primary" onclick="estGenerarNotas()"><i data-lucide="list-checks"></i> ${n ? "Actualizar notas" : "Generar notas"}</button>
     </div>
@@ -1037,21 +1088,38 @@ function pasoNotas() {
   ` : ""}
   <div class="est-card">
     <label class="est-check big">
-      <input type="checkbox" ${proyecto.vendio ? "checked" : ""} onchange="estMarcarVendio(this.checked)">
-      Esta landing vendió bien ✓ <span class="est-muted">(la usaremos como base para clonar en próximos productos)</span>
+      <input type="checkbox" ${r.vendio ? "checked" : ""} onchange="estMarcarVendio(this.checked)">
+      La landing del avatar ${esc(av)} vendió bien ✓ <span class="est-muted">(la usaremos como base para clonar en próximos productos)</span>
     </label>
   </div>
+  ${otroAvatarPendiente()}
   `;
 }
 
+// Al terminar un avatar, invitar a hacer el otro
+function otroAvatarPendiente() {
+  const otro = (proyecto.avatares || []).find(a => a.id !== av);
+  if (!otro) return "";
+  const pasoOtro = proyecto.ramas?.[otro.id]?.paso;
+  return `
+  <div class="est-card est-otro">
+    <div class="est-card-row">
+      <div>
+        <h3>Avatar ${esc(otro.id)}: ${esc(resumenAvatar(otro))}</h3>
+        <p class="est-muted">${pasoOtro ? `Va en el paso ${pasoOtro}/6.` : "Todavía no lo has empezado."}</p>
+      </div>
+      <button class="est-btn primary" onclick="estTrabajarCon('${esc(otro.id)}')">${pasoOtro ? "Continuar" : "Empezar"} con el avatar ${esc(otro.id)} <i data-lucide="arrow-right"></i></button>
+    </div>
+  </div>`;
+}
+
 window.estGenerarNotas = () => conCarga("estBtnNotas", "Revisando todo...", async () => {
-  const { notas } = await api("POST", `/api/proyectos/${proyecto._id}/ia/notas`);
-  proyecto.notas = notas;
-  proyecto.paso = 6;
+  const { rama } = await api("POST", urlRama("ia/notas"));
+  ponerRama(rama);
   renderProyecto();
 });
 
-window.estMarcarVendio = (v) => guardar({ vendio: v });
+window.estMarcarVendio = (v) => guardarRama({ vendio: v });
 
 // =============================================
 // Desde la Base de Productos (botón "Ir")

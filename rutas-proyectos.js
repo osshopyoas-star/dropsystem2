@@ -1,6 +1,8 @@
 // =============================================
 // 🧪 ESTUDIO DE LANDING (Desarrollo por pasos)
-// Un "proyecto" por producto: ficha → avatares → estilo → landing → notas
+// Un "proyecto" por producto:
+//   compartido: ficha → avatares
+//   por avatar ("rama" A y B): estilo → landing → guiones → notas
 // =============================================
 import mongoose from "mongoose";
 import {
@@ -31,6 +33,10 @@ const proyectoSchema = new mongoose.Schema({
   fotos: { type: [String], default: [] },       // fotos reales comprimidas (data URL)
   revision: { type: Mixed, default: {} },       // descripcionFisica, noTiene[], tamano, coincide, dudas[], marcas[]
   avatares: { type: [Mixed], default: [] },
+  // Trabajo de cada avatar por separado: { A: {paso, estilosPropuestos, estilo, bloqueEstilo, secciones, guiones, notas, vendio}, B: {...} }
+  ramas: { type: Mixed, default: {} },
+  pasosRamas: { type: Mixed, default: {} },     // resumen para la lista: { A: 5, B: 3 }
+  // --- campos de la versión anterior (se migran a "ramas" al abrir el proyecto) ---
   estilosPropuestos: { type: [Mixed], default: [] },
   estilo: { type: Mixed, default: null },
   bloqueEstilo: { type: String, default: "" },
@@ -44,10 +50,9 @@ const proyectoSchema = new mongoose.Schema({
 
 export const Proyecto = mongoose.model("Proyecto", proyectoSchema);
 
-const CAMPOS_EDITABLES = [
-  "nombre", "pais", "numAvatares", "paso", "ficha", "fotos", "revision", "avatares",
-  "estilosPropuestos", "estilo", "bloqueEstilo", "secciones", "guiones", "notas", "vendio"
-];
+const CAMPOS_EDITABLES = ["nombre", "pais", "numAvatares", "paso", "ficha", "fotos", "revision", "avatares"];
+const CAMPOS_RAMA = ["paso", "estilosPropuestos", "estilo", "bloqueEstilo", "secciones", "guiones", "notas", "vendio"];
+const AVATARES_VALIDOS = ["A", "B"];
 
 const MAX_FOTOS = 4;
 const MAX_FOTO_BYTES = 1_500_000; // ~1.5 MB por foto ya comprimida
@@ -76,19 +81,69 @@ function limpiarCambios(body = {}) {
     if (!Array.isArray(out.fotos)) delete out.fotos;
     else out.fotos = out.fotos.filter(fotoValida).slice(0, MAX_FOTOS);
   }
-  if (out.secciones !== undefined && !Array.isArray(out.secciones)) delete out.secciones;
   if (out.avatares !== undefined && !Array.isArray(out.avatares)) delete out.avatares;
+  return out;
+}
+
+function limpiarGuiones(lista, av) {
+  return lista.slice(0, 6).map(g => ({
+    id: String(g.id || nuevoId()), avatar: av,
+    referencia: String(g.referencia || "").slice(0, 8000), link: String(g.link || "").slice(0, 500),
+    nota: String(g.nota || "").slice(0, 500), guion: String(g.guion || "").slice(0, 3000),
+    ganchos: Array.isArray(g.ganchos) ? g.ganchos.map(String).slice(0, 5) : [],
+    historiaReal: !!g.historiaReal, verificar: Array.isArray(g.verificar) ? g.verificar.map(String).slice(0, 10) : []
+  }));
+}
+
+function limpiarRama(body = {}, av) {
+  const out = {};
+  for (const k of CAMPOS_RAMA) if (body[k] !== undefined) out[k] = body[k];
+  if (out.paso !== undefined) out.paso = Math.min(6, Math.max(3, Number(out.paso) || 3));
+  if (out.secciones !== undefined) {
+    if (!Array.isArray(out.secciones)) delete out.secciones;
+    else out.secciones = out.secciones.slice(0, 20).map(x => ({ ...x, grupo: av }));
+  }
   if (out.guiones !== undefined) {
     if (!Array.isArray(out.guiones)) delete out.guiones;
-    else out.guiones = out.guiones.slice(0, 12).map(g => ({
-      id: String(g.id || nuevoId()), avatar: g.avatar === "B" ? "B" : "A",
-      referencia: String(g.referencia || "").slice(0, 8000), link: String(g.link || "").slice(0, 500),
-      nota: String(g.nota || "").slice(0, 500), guion: String(g.guion || "").slice(0, 3000),
-      ganchos: Array.isArray(g.ganchos) ? g.ganchos.map(String).slice(0, 5) : [],
-      historiaReal: !!g.historiaReal, verificar: Array.isArray(g.verificar) ? g.verificar.map(String).slice(0, 10) : []
-    }));
+    else out.guiones = limpiarGuiones(out.guiones, av);
   }
+  if (out.estilosPropuestos !== undefined && !Array.isArray(out.estilosPropuestos)) delete out.estilosPropuestos;
+  if (out.bloqueEstilo !== undefined) out.bloqueEstilo = String(out.bloqueEstilo).slice(0, 8000);
+  if (out.vendio !== undefined) out.vendio = !!out.vendio;
   return out;
+}
+
+const ramaVacia = () => ({ paso: 3, estilosPropuestos: [], estilo: null, bloqueEstilo: "", secciones: [], guiones: [], notas: null, vendio: false });
+
+const plano = (p) => (typeof p.toObject === "function" ? p.toObject() : { ...p });
+
+// Pasa los proyectos de la versión anterior (A y B mezclados) al nuevo orden por avatar
+export function migrarProyecto(p) {
+  const tieneRamas = p.ramas && Object.keys(p.ramas).length;
+  const tieneViejo = p.estilo || (p.secciones || []).length || (p.guiones || []).length || p.notas;
+  if (tieneRamas || !tieneViejo) return false;
+
+  const ids = (p.avatares || []).map(a => a.id).filter(id => AVATARES_VALIDOS.includes(id));
+  const ramas = {};
+  for (const av of (ids.length ? ids : ["A"])) {
+    ramas[av] = {
+      paso: Math.min(6, Math.max(3, Number(p.paso) || 3)),
+      estilosPropuestos: p.estilosPropuestos || [],
+      estilo: p.estilo || null,
+      bloqueEstilo: p.bloqueEstilo || "",
+      secciones: (p.secciones || [])
+        .filter(x => x.grupo === "compartida" || x.grupo === av || !x.grupo)
+        .map(x => ({ ...x, id: (x.grupo === "compartida" && av !== "A") ? nuevoId() : x.id, grupo: av })),
+      guiones: (p.guiones || []).filter(g => g.avatar === av),
+      notas: av === "A" ? (p.notas || null) : null,
+      vendio: !!p.vendio
+    };
+  }
+  p.ramas = ramas;
+  p.pasosRamas = Object.fromEntries(Object.entries(ramas).map(([k, r]) => [k, r.paso]));
+  p.paso = Math.min(Number(p.paso) || 1, 2);
+  p.estilosPropuestos = []; p.estilo = null; p.bloqueEstilo = ""; p.secciones = []; p.guiones = []; p.notas = null;
+  return true;
 }
 
 export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Producto }) {
@@ -97,7 +152,35 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
     if (!idValido(req.params.id)) { res.status(400).json({ error: "ID inválido" }); return null; }
     const p = await Proyecto.findOne({ _id: req.params.id, owner: req.user.uid });
     if (!p) { res.status(404).json({ error: "Proyecto no encontrado" }); return null; }
+    if (migrarProyecto(p)) {
+      p.markModified("ramas"); p.markModified("pasosRamas");
+      await p.save();
+    }
     return p;
+  };
+
+  // Rama (trabajo de un avatar). Exige que el avatar exista.
+  const cargarRama = async (req, res) => {
+    const p = await cargar(req, res); if (!p) return null;
+    const av = String(req.params.av || "").toUpperCase();
+    const avatar = (p.avatares || []).find(a => a.id === av);
+    if (!AVATARES_VALIDOS.includes(av) || !avatar) {
+      res.status(400).json({ error: "Primero genera y elige un avatar" });
+      return null;
+    }
+    const ramas = p.ramas || {};
+    const r = { ...ramaVacia(), ...(ramas[av] || {}) };
+    // "vista": lo que ven los prompts = proyecto + trabajo de este avatar, como una sola landing
+    const vista = { ...plano(p), ...r, numAvatares: 1, avatares: [avatar] };
+    return { p, av, avatar, r, vista };
+  };
+
+  const guardarRama = async (p, av, r) => {
+    p.ramas = { ...(p.ramas || {}), [av]: r };
+    p.pasosRamas = { ...(p.pasosRamas || {}), [av]: r.paso };
+    p.markModified("ramas"); p.markModified("pasosRamas");
+    p.actualizado = new Date();
+    await p.save();
   };
 
   const errorIA = (res, err, que) => {
@@ -111,7 +194,7 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
       const filtro = { owner: req.user.uid };
       if (req.query.productoId && idValido(req.query.productoId)) filtro.productoId = req.query.productoId;
       const lista = await Proyecto.find(filtro)
-        .select("nombre pais paso productoId origen dropiId vendio estilo.nombre actualizado creado")
+        .select("nombre pais paso pasosRamas productoId origen dropiId vendio estilo.nombre actualizado creado")
         .sort({ actualizado: -1 })
         .limit(100);
       res.json(lista);
@@ -177,6 +260,16 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
       const p = await cargar(req, res); if (!p) return;
       const cambios = limpiarCambios(req.body);
       Object.assign(p, cambios, { actualizado: new Date() });
+      if (cambios.revision || cambios.ficha) {
+        const ramas = { ...(p.ramas || {}) };
+        for (const [av, r] of Object.entries(ramas)) {
+          const avatar = (p.avatares || []).find(a => a.id === av);
+          if (r?.estilo && avatar) {
+            ramas[av] = { ...r, bloqueEstilo: construirBloqueEstilo({ ...plano(p), ...r, avatares: [avatar] }) };
+          }
+        }
+        p.ramas = ramas; p.markModified("ramas");
+      }
       await p.save();
       res.json(p);
     } catch (err) {
@@ -236,36 +329,55 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
     } catch (err) { errorIA(res, err, "los avatares"); }
   });
 
-  // ---------- IA: 3. estilos ----------
-  app.post("/api/proyectos/:id/ia/estilos", iaLimiter, async (req, res) => {
+  // ---------- Guardar cambios del trabajo de un avatar ----------
+  app.put("/api/proyectos/:id/rama/:av", async (req, res) => {
     try {
-      const p = await cargar(req, res); if (!p) return;
-      // estilos ya usados en tus otros proyectos
-      const otros = await Proyecto.find({ owner: req.user.uid, _id: { $ne: p._id } }).select("nombre estilo");
-      const usados = otros.filter(o => o.estilo?.nombre).map(o => `${o.nombre}: ${o.estilo.nombre} (${o.estilo.fondo || ""} ${o.estilo.color2 || ""})`);
+      const x = await cargarRama(req, res); if (!x) return;
+      const r = { ...x.r, ...limpiarRama(req.body, x.av) };
+      await guardarRama(x.p, x.av, r);
+      res.json({ rama: r });
+    } catch (err) {
+      console.error("Error guardando rama:", err);
+      res.status(500).json({ error: "No se pudo guardar" });
+    }
+  });
 
-      const reply = await llamarIA({ system: SISTEMA_LANDING, prompt: promptEstilos(p, usados) });
+  // ---------- IA: 3. estilos ----------
+  app.post("/api/proyectos/:id/rama/:av/ia/estilos", iaLimiter, async (req, res) => {
+    try {
+      const x = await cargarRama(req, res); if (!x) return;
+      // estilos ya usados: tus otros productos y el otro avatar de este producto
+      const otros = await Proyecto.find({ owner: req.user.uid, _id: { $ne: x.p._id } }).select("nombre estilo ramas");
+      const usados = [];
+      for (const o of otros) {
+        if (o.estilo?.nombre) usados.push(`${o.nombre}: ${o.estilo.nombre} (${o.estilo.fondo || ""} ${o.estilo.color2 || ""})`);
+        for (const r of Object.values(o.ramas || {})) {
+          if (r?.estilo?.nombre) usados.push(`${o.nombre}: ${r.estilo.nombre} (${r.estilo.fondo || ""} ${r.estilo.color2 || ""})`);
+        }
+      }
+      for (const [av, r] of Object.entries(x.p.ramas || {})) {
+        if (av !== x.av && r?.estilo?.nombre) usados.push(`Este mismo producto, avatar ${av}: ${r.estilo.nombre}`);
+      }
+
+      const reply = await llamarIA({ system: SISTEMA_LANDING, prompt: promptEstilos(x.vista, usados) });
       const j = parsearJSON(reply);
-      p.estilosPropuestos = (j.estilos || []).slice(0, 3);
-      if (p.paso < 3) p.paso = 3;
-      p.actualizado = new Date();
-      await p.save();
-      res.json({ estilosPropuestos: p.estilosPropuestos });
+      const r = { ...x.r, estilosPropuestos: (j.estilos || []).slice(0, 3) };
+      await guardarRama(x.p, x.av, r);
+      res.json({ rama: r });
     } catch (err) { errorIA(res, err, "los estilos"); }
   });
 
   // Elegir estilo → arma el bloque de estilo con la plantilla de la guía
-  app.post("/api/proyectos/:id/estilo", async (req, res) => {
+  app.post("/api/proyectos/:id/rama/:av/estilo", async (req, res) => {
     try {
-      const p = await cargar(req, res); if (!p) return;
+      const x = await cargarRama(req, res); if (!x) return;
       const e = req.body?.estilo;
       if (!e || typeof e !== "object") return res.status(400).json({ error: "Falta el estilo" });
-      p.estilo = e;
-      p.bloqueEstilo = construirBloqueEstilo(p);
-      if (p.paso < 4) p.paso = 4;
-      p.actualizado = new Date();
-      await p.save();
-      res.json({ estilo: p.estilo, bloqueEstilo: p.bloqueEstilo });
+      const r = { ...x.r, estilo: e };
+      r.bloqueEstilo = construirBloqueEstilo({ ...x.vista, estilo: e });
+      if (r.paso < 4) r.paso = 4;
+      await guardarRama(x.p, x.av, r);
+      res.json({ rama: r });
     } catch (err) {
       console.error("Error eligiendo estilo:", err);
       res.status(500).json({ error: "No se pudo guardar el estilo" });
@@ -273,107 +385,99 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
   });
 
   // ---------- IA: 4. proponer secciones ----------
-  app.post("/api/proyectos/:id/ia/secciones", iaLimiter, async (req, res) => {
+  app.post("/api/proyectos/:id/rama/:av/ia/secciones", iaLimiter, async (req, res) => {
     try {
-      const p = await cargar(req, res); if (!p) return;
-      if (!p.estilo) return res.status(400).json({ error: "Primero elige un estilo" });
+      const x = await cargarRama(req, res); if (!x) return;
+      if (!x.r.estilo) return res.status(400).json({ error: "Primero elige un estilo" });
 
-      const reply = await llamarIA({ system: SISTEMA_LANDING, prompt: promptPropuestaSecciones(p) });
+      const reply = await llamarIA({ system: SISTEMA_LANDING, prompt: promptPropuestaSecciones(x.vista) });
       const j = parsearJSON(reply);
-      const dos = p.numAvatares !== 1;
-      const secciones = [];
-
-      for (const s of (j.secciones || []).slice(0, 12)) {
-        const tipo = CATALOGO_SECCIONES[s.tipo] ? s.tipo : "funcion_estrella";
-        const base = {
+      const secciones = (j.secciones || []).slice(0, 12).map(sx => {
+        const tipo = CATALOGO_SECCIONES[sx.tipo] ? sx.tipo : "funcion_estrella";
+        return {
+          id: nuevoId(),
           tipo,
-          titulo: String(s.titulo || CATALOGO_SECCIONES[tipo].titulo),
-          formato: ["9:16", "1:1", "16:9"].includes(s.formato) ? s.formato : "9:16",
-          composicion: String(s.composicion || ""),
-          proposito: String(s.proposito || ""),
+          titulo: String(sx.titulo || CATALOGO_SECCIONES[tipo].titulo),
+          grupo: x.av,
+          formato: ["9:16", "1:1", "16:9"].includes(sx.formato) ? sx.formato : "9:16",
+          composicion: String(sx.composicion || ""),
+          proposito: String(sx.proposito || ""),
           prompt: "",
           hecha: false
         };
-        const porAvatar = dos && /A\s*\/\s*B|^A$|^B$/i.test(String(s.grupo || ""));
-        if (porAvatar) {
-          secciones.push({ ...base, id: nuevoId(), grupo: "A" });
-          secciones.push({ ...base, id: nuevoId(), grupo: "B" });
-        } else {
-          secciones.push({ ...base, id: nuevoId(), grupo: "compartida" });
-        }
-      }
-
-      p.secciones = secciones;
-      p.actualizado = new Date();
-      await p.save();
-      res.json({ secciones: p.secciones });
+      });
+      const r = { ...x.r, secciones };
+      await guardarRama(x.p, x.av, r);
+      res.json({ rama: r });
     } catch (err) { errorIA(res, err, "las secciones"); }
   });
 
   // ---------- IA: 4b. prompt de una sección ----------
-  app.post("/api/proyectos/:id/ia/seccion/:secId", iaLimiter, async (req, res) => {
+  app.post("/api/proyectos/:id/rama/:av/ia/seccion/:secId", iaLimiter, async (req, res) => {
     try {
-      const p = await cargar(req, res); if (!p) return;
-      const idx = p.secciones.findIndex(s => s.id === req.params.secId);
+      const x = await cargarRama(req, res); if (!x) return;
+      const secs = x.r.secciones || [];
+      const idx = secs.findIndex(sx => sx.id === req.params.secId);
       if (idx === -1) return res.status(404).json({ error: "Sección no encontrada" });
-      if (!p.bloqueEstilo) p.bloqueEstilo = construirBloqueEstilo(p);
+      const bloque = x.r.bloqueEstilo || construirBloqueEstilo(x.vista);
 
-      const sec = p.secciones[idx];
-      const avatar = sec.grupo === "compartida" ? null : p.avatares.find(a => a.id === sec.grupo) || null;
-      const otras = p.secciones.filter(s => s.id !== sec.id && (s.grupo === "compartida" || s.grupo === sec.grupo));
-
-      const reply = await llamarIA({ system: SISTEMA_LANDING, prompt: promptSeccion(p, sec, avatar, otras) });
+      const sec = secs[idx];
+      const otras = secs.filter(sx => sx.id !== sec.id);
+      const reply = await llamarIA({
+        system: SISTEMA_LANDING,
+        prompt: promptSeccion({ ...x.vista, bloqueEstilo: bloque }, sec, x.avatar, otras)
+      });
       const texto = String(reply || "").replace(/^```[a-z]*\n?|```$/gim, "").trim();
       if (!texto) return res.status(502).json({ error: "La IA no devolvió el prompt" });
 
-      p.secciones[idx] = { ...sec, prompt: texto, hecha: false };
-      p.markModified("secciones");
-      p.actualizado = new Date();
-      await p.save();
-      res.json({ seccion: p.secciones[idx] });
+      const nuevas = [...secs];
+      nuevas[idx] = { ...sec, prompt: texto, hecha: false };
+      const r = { ...x.r, bloqueEstilo: bloque, secciones: nuevas };
+      await guardarRama(x.p, x.av, r);
+      res.json({ seccion: nuevas[idx] });
     } catch (err) { errorIA(res, err, "el prompt"); }
   });
 
   // ---------- IA: 5. guion de voz en off ----------
-  app.post("/api/proyectos/:id/ia/guion/:gid", iaLimiter, async (req, res) => {
+  app.post("/api/proyectos/:id/rama/:av/ia/guion/:gid", iaLimiter, async (req, res) => {
     try {
-      const p = await cargar(req, res); if (!p) return;
-      const idx = (p.guiones || []).findIndex(g => g.id === req.params.gid);
+      const x = await cargarRama(req, res); if (!x) return;
+      const guiones = x.r.guiones || [];
+      const idx = guiones.findIndex(g => g.id === req.params.gid);
       if (idx === -1) return res.status(404).json({ error: "Guion no encontrado" });
-      const g = p.guiones[idx];
-      const avatar = (p.avatares || []).find(a => a.id === g.avatar) || p.avatares?.[0] || null;
 
-      const reply = await llamarIA({ system: SISTEMA_LANDING, prompt: promptGuion(p, g, avatar) });
+      const reply = await llamarIA({ system: SISTEMA_LANDING, prompt: promptGuion(x.vista, guiones[idx], x.avatar) });
       const j = parsearJSON(reply);
       if (!j.guion) return res.status(502).json({ error: "La IA no devolvió el guion" });
 
-      p.guiones[idx] = {
-        ...g,
+      const nuevos = [...guiones];
+      nuevos[idx] = {
+        ...guiones[idx],
         guion: String(j.guion),
         ganchos: Array.isArray(j.ganchos_alternativos) ? j.ganchos_alternativos.map(String).slice(0, 3) : [],
         historiaReal: !!j.historia_real,
         verificar: Array.isArray(j.verificar) ? j.verificar.map(String) : []
       };
-      p.markModified("guiones");
-      if (p.paso < 5) p.paso = 5;
-      p.actualizado = new Date();
-      await p.save();
-      res.json({ guion: p.guiones[idx] });
+      const r = { ...x.r, guiones: nuevos, paso: Math.max(x.r.paso || 3, 5) };
+      await guardarRama(x.p, x.av, r);
+      res.json({ guion: nuevos[idx] });
     } catch (err) { errorIA(res, err, "el guion"); }
   });
 
   // ---------- IA: 6. notas antes de publicar ----------
-  app.post("/api/proyectos/:id/ia/notas", iaLimiter, async (req, res) => {
+  app.post("/api/proyectos/:id/rama/:av/ia/notas", iaLimiter, async (req, res) => {
     try {
-      const p = await cargar(req, res); if (!p) return;
-      const reply = await llamarIA({ system: SISTEMA_LANDING, prompt: promptNotas(p) });
+      const x = await cargarRama(req, res); if (!x) return;
+      const reply = await llamarIA({ system: SISTEMA_LANDING, prompt: promptNotas(x.vista) });
       const j = parsearJSON(reply);
-      const arr = (x) => Array.isArray(x) ? x.map(String) : [];
-      p.notas = { dudas: arr(j.dudas), riesgos: arr(j.riesgos), por_confirmar: arr(j.por_confirmar), revisar_en_imagenes: arr(j.revisar_en_imagenes) };
-      if (p.paso < 6) p.paso = 6;
-      p.actualizado = new Date();
-      await p.save();
-      res.json({ notas: p.notas });
+      const arr = (v) => Array.isArray(v) ? v.map(String) : [];
+      const r = {
+        ...x.r,
+        notas: { dudas: arr(j.dudas), riesgos: arr(j.riesgos), por_confirmar: arr(j.por_confirmar), revisar_en_imagenes: arr(j.revisar_en_imagenes) },
+        paso: 6
+      };
+      await guardarRama(x.p, x.av, r);
+      res.json({ rama: r });
     } catch (err) { errorIA(res, err, "las notas"); }
   });
 }
