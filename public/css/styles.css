@@ -3609,7 +3609,7 @@ aside.collapsed .submenu .sidebar-item {
 
 /* Pasos */
 .est-steps {
-  display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px;
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px;
   background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 6px;
 }
 .est-step {
@@ -3723,7 +3723,7 @@ aside.collapsed .submenu .sidebar-item {
 }
 @media (max-width: 640px) {
   .est-new, .est-row { grid-template-columns: 1fr; }
-  .est-steps { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2px; }
+  .est-steps { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 2px; }
   .est-step { flex-direction: column; gap: 4px; font-size: 11px; padding: 8px 2px; }
   .est-fotos { grid-template-columns: repeat(2, 1fr); }
   .est-card { padding: 16px; }
@@ -3810,3 +3810,27 @@ aside.collapsed .submenu .sidebar-item {
 @media (max-width: 420px) {
   .calcx-grid { grid-template-columns: 1fr !important; }
 }
+
+/* Guiones */
+.est-sub { color: #64748b; font-weight: 500; font-size: 14px; }
+.est-guiones { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.est-guion {
+  background: linear-gradient(180deg, #0f172a 0%, #131c2c 100%);
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 18px; padding: 18px; min-width: 0;
+  display: flex; flex-direction: column;
+}
+.est-guion strong { color: #fff; font-size: 16px; }
+.est-label { display: block; margin-top: 14px; font-size: 11px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: .06em; }
+.est-chip.warn { background: rgba(245,158,11,.15); color: #fcd34d; }
+.est-ganchos { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.est-ganchos li {
+  display: flex; gap: 8px; align-items: center; justify-content: space-between;
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 10px; padding: 8px 10px;
+  font-size: 13px; color: #e2e8f0;
+}
+.est-ganchos .est-btn { min-height: 30px; padding: 0 10px; font-size: 12px; width: auto; }
+a.est-btn { text-decoration: none; }
+@media (max-width: 1200px) { .est-guiones { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 768px) { .est-guiones { grid-template-columns: 1fr; } }
+.est-card > .est-hint { margin-top: 10px; }
+.est-page > .est-section-title { margin-top: 12px; }

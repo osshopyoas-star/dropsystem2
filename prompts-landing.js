@@ -117,7 +117,7 @@ ${limpio(f.descripcion, 4000) || "(sin descripción)"}
 
 DESCRIPCIÓN FÍSICA VERIFICADA: ${limpio(r.descripcionFisica, 2000) || "(aún no verificada)"}
 TAMAÑO REAL: ${limpio(f.medidas || r.tamano, 300) || "(sin medidas: pídelas en las notas)"}
-LO QUE NO TIENE: ${limpio([f.noTiene, ...(r.noTiene || [])].filter(Boolean).join("; "), 800) || "(no indicado)"}
+LO QUE NO TIENE NI TRAE: ${limpio(listaNoTiene(f.noTiene, r.noTiene).join("; "), 800) || "(no indicado)"}
 VARIANTES / TALLAS / COLORES: ${limpio(f.variantes, 300) || "(una sola versión)"}
 PRECIO: ${precio || "(sin precio)"}${antes ? ` · ANTES: ${antes}` : ""}${desc ? ` · DESCUENTO: ${desc}%` : ""}
 PAQUETES: ${limpio(f.paquetes, 500) || "(no hay paquetes)"}
@@ -224,18 +224,37 @@ Responde SOLO este JSON válido:
 }
 
 // ---------- Bloque de estilo (se arma sin IA, con la plantilla de la guía) ----------
+// Quita una palabra repetida al inicio ("Tarjetas blancas" → "blancas")
+function sinPrefijo(valor, palabra) {
+  const v = String(valor || "").trim();
+  return v.replace(new RegExp(`^${palabra}\\s+`, "i"), "");
+}
+
+// Une "lo que no tiene" de la ficha y de la revisión, sin repetir
+export function listaNoTiene(texto, lista = []) {
+  const items = [
+    ...String(texto || "").split(/[;\n]|,(?![^(]*\))/),
+    ...(Array.isArray(lista) ? lista : [])
+  ]
+    .map(x => String(x).trim().replace(/^no\s+(tiene|trae|incluye)\s+/i, "").replace(/\.$/, ""))
+    .filter(Boolean);
+  const vistos = new Set();
+  return items.filter(x => { const k = x.toLowerCase(); if (vistos.has(k)) return false; vistos.add(k); return true; });
+}
 export function construirBloqueEstilo(p) {
   const e = p.estilo || {};
   const f = p.ficha || {};
   const r = p.revision || {};
   const pais = PAISES[p.pais] || PAISES.CO;
-  const noTiene = [f.noTiene, ...(r.noTiene || [])].filter(Boolean).join("; ");
+  const noTiene = listaNoTiene(f.noTiene, r.noTiene).join("; ");
+  const tarjetas = sinPrefijo(e.tarjetas, "tarjetas");
+  const caja = sinPrefijo(e.precio_caja, "caja");
 
   return `Crea una imagen vertical 9:16 (1080x1920) para una landing page de ecommerce en ${pais.nombre}, en español.
 TIPO DE IMAGEN: FOTOGRAFÍA REAL de ${e.tipo_foto || "producto y estilo de vida"}, personas reales, luz natural. PROHIBIDO: dibujo, ilustración, caricatura, animación o 3D.
-DISEÑO GRÁFICO (encima de la foto): fondo ${e.fondo || "oscuro"}; titulares en ${e.tipografia || "sans extra bold"}, una línea en ${e.color1 || "blanco"} y otra en ${e.color2 || "color de acento"}; tarjetas ${e.tarjetas || "con bordes redondeados"}; íconos de línea en ${e.acento || e.color2 || "color de acento"}; precio grande dentro de una caja ${e.precio_caja || "de color de acento"}; sello de descuento circular.
+DISEÑO GRÁFICO (encima de la foto): fondo ${e.fondo || "oscuro"}; titulares en ${e.tipografia || "sans extra bold"}, una línea en ${e.color1 || "blanco"} y otra en ${e.color2 || "color de acento"}; tarjetas ${tarjetas || "con bordes redondeados"}; íconos de línea en ${e.acento || e.color2 || "color de acento"}; precio grande dentro de una caja ${caja || "de color de acento"}; sello de descuento circular.
 REGLA: el producto es el protagonista, grande y bien visible. Ningún texto lo tapa. Estilo de venta directa, no editorial.
-PRODUCTO: usa EXACTAMENTE el producto de la foto adjunta: ${r.descripcionFisica || f.descripcion || p.nombre}.${noTiene ? ` NO tiene: ${noTiene}.` : ""} No agregues piezas, logos ni marcas.
+PRODUCTO: usa EXACTAMENTE el producto de la foto adjunta: ${r.descripcionFisica || f.descripcion || p.nombre}.${noTiene ? ` NO tiene ni trae: ${noTiene}.` : ""} No agregues piezas, logos ni marcas.
 TAMAÑO REAL: ${f.medidas || r.tamano || "(indicar medidas)"}. Respeta esa proporción junto a una persona.
 PERSONAS: ${e.personas || `adultos de ${pais.nombre}, aspecto latino natural`}.
 TEXTO: escribe los textos exactamente como te los doy, con tildes y signos de español, sin errores ni texto extra.`;
@@ -330,4 +349,50 @@ TAREA: Escribe las NOTAS ANTES DE PUBLICAR para el dueño:
 
 Responde SOLO este JSON válido:
 { "dudas": [], "riesgos": [], "por_confirmar": [], "revisar_en_imagenes": [] }`;
+}
+
+// ---------- Paso 5: guiones de voz en off ----------
+export function promptGuion(p, guion, avatar) {
+  const pais = PAISES[p.pais] || PAISES.CO;
+  const precio = formatoPrecio(p.ficha?.precio, p.pais);
+  const ref = limpio(guion.referencia, 5000);
+  return `${contextoProducto(p)}
+
+AVATAR AL QUE LE HABLA ESTE ANUNCIO (${avatar?.id || "A"}):
+Quién es: ${avatar?.quien || ""}
+Problema/deseo: ${avatar?.problema || ""}
+Qué ha probado: ${avatar?.probado || ""}
+Frase: ${avatar?.frase || ""}
+Ángulo: ${avatar?.angulo || ""}
+Tono: ${avatar?.tono || ""}
+
+${ref ? `VIDEO DE REFERENCIA (transcripción; puede estar en inglés, chino u otro idioma):
+"""
+${ref}
+"""
+${guion.nota ? `NOTA DEL DUEÑO SOBRE EL VIDEO: ${limpio(guion.nota, 500)}` : ""}
+
+TAREA: Reescribe este video como un guion de voz en off en español para el avatar. NO lo traduzcas literal: conserva la estructura y lo que lo hace funcionar (el gancho, el ritmo, las escenas), pero con palabras naturales de ${pais.nombre} y hablándole directo al avatar.`
+: `TAREA: No hay video de referencia. Escribe un guion de voz en off original para el avatar, basado en su ángulo de venta y pensado para un video UGC sencillo de grabar.`}
+
+FORMATO OBLIGATORIO DEL GUION:
+- Duración 20 a 25 segundos: entre 50 y 65 palabras de voz (sin contar lo que va entre corchetes).
+- Entre corchetes va lo que se VE en el video, que no se lee. Ejemplo: [Primer plano de la mochila abriéndose].
+- Gancho fuerte en los primeros 3 segundos (primera frase).
+- Cierre con el precio, el pago contra entrega y un llamado a la acción. El precio escríbelo como se dice en voz alta (por ejemplo "ciento nueve mil novecientos noventa pesos" o "treinta y cinco dólares con noventa y nueve"); el precio es ${precio || "(sin precio)"}.
+- Español natural de ${pais.nombre}, frases cortas, fácil de leer en voz alta (sirve para voz de CapCut o para grabar).
+- Si el video cuenta una historia real (una persona, un animal, una noticia), pasa del relato al producto con una frase puente (por ejemplo "Pero la historia no terminó ahí") y lista los datos de la historia que el dueño debe verificar.
+
+REGLAS DE ANUNCIOS:
+- Sin promesas médicas ni resultados exagerados; sin "original" u "oficial" si la ficha no lo dice; sin inventar testimonios ni cifras de ventas.
+- No le digas a la persona que tiene una condición personal sensible (salud, peso, edad, problemas personales): habla de la situación, no de sus atributos. Meta rechaza esos anuncios.
+- Solo promesas que sean verdad según la ficha (envío gratis, garantía...).
+
+Responde SOLO este JSON válido:
+{
+  "guion": "",
+  "ganchos_alternativos": ["", "", ""],
+  "historia_real": false,
+  "verificar": []
+}`;
 }

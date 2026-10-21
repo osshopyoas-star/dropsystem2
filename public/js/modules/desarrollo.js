@@ -1,6 +1,6 @@
 // =============================================
 // 🧪 Estudio de landing (Desarrollo por pasos)
-// Ficha → Avatares → Estilo → Landing → Notas
+// Ficha → Avatares → Estilo → Landing → Guiones → Notas
 // Los prompts viven en el servidor (prompts-landing.js)
 // =============================================
 import { state } from "../state.js";
@@ -12,7 +12,8 @@ const PASOS = [
   { n: 2, titulo: "Avatares", icono: "users" },
   { n: 3, titulo: "Estilo", icono: "palette" },
   { n: 4, titulo: "Landing", icono: "images" },
-  { n: 5, titulo: "Notas", icono: "list-checks" }
+  { n: 5, titulo: "Guiones", icono: "clapperboard" },
+  { n: 6, titulo: "Notas", icono: "list-checks" }
 ];
 
 const TIPOS_SECCION = {
@@ -191,8 +192,8 @@ async function renderLista(view) {
           ${p.vendio ? `<span class="est-chip ok">Vendió ✓</span>` : ""}
         </div>
         <strong>${esc(p.nombre)}</strong>
-        <span class="est-muted">${esc(p.estilo?.nombre || "Sin estilo")} · Paso ${p.paso || 1}/5 · ${fecha(p.actualizado)}</span>
-        <div class="est-progress"><span style="width:${((p.paso || 1) / 5) * 100}%"></span></div>
+        <span class="est-muted">${esc(p.estilo?.nombre || "Sin estilo")} · Paso ${p.paso || 1}/6 · ${fecha(p.actualizado)}</span>
+        <div class="est-progress"><span style="width:${((p.paso || 1) / 6) * 100}%"></span></div>
       </article>
     `).join("");
   } catch (err) {
@@ -217,7 +218,7 @@ window.estVolverLista = () => renderLista($("view"));
 async function abrir(id, pasoInicial = null) {
   try {
     proyecto = await api("GET", `/api/proyectos/${id}`);
-    tab = pasoInicial || Math.min(proyecto.paso || 1, 5);
+    tab = pasoInicial || Math.min(proyecto.paso || 1, PASOS.length);
     filtroGrupo = "todas";
     try { localStorage.setItem("est_ultimo", id); } catch {}
     renderProyecto();
@@ -270,7 +271,7 @@ function renderProyecto() {
 function renderPaso() {
   const cont = $("estContenido");
   if (!cont) return;
-  const render = { 1: pasoFicha, 2: pasoAvatares, 3: pasoEstilo, 4: pasoLanding, 5: pasoNotas }[tab];
+  const render = { 1: pasoFicha, 2: pasoAvatares, 3: pasoEstilo, 4: pasoLanding, 5: pasoGuiones, 6: pasoNotas }[tab];
   cont.innerHTML = render();
   iconos();
 }
@@ -670,7 +671,7 @@ function pasoLanding() {
       ${dos ? `<select id="estNuevaGrupo"><option value="compartida">Igual en ambas</option><option value="A">Solo landing A</option><option value="B">Solo landing B</option></select>` : ""}
       <button class="est-btn" onclick="estAgregarSeccion()"><i data-lucide="plus"></i> Agregar sección</button>
     </div>
-    ${siguiente(5, "Seguir con las notas")}
+    ${siguiente(5, "Seguir con los guiones")}
   ` : ""}
   `;
 }
@@ -794,7 +795,146 @@ window.estAgregarSeccion = async () => {
 };
 
 // =============================================
-// PASO 5: NOTAS
+// PASO 5: GUIONES (3 por avatar)
+// =============================================
+const POR_AVATAR = 3;
+
+// Texto que se lee (sin lo que va entre corchetes)
+const soloVoz = (t = "") => String(t).replace(/\[[^\]]*\]/g, " ").replace(/[ \t]+/g, " ").replace(/\n\s*\n+/g, "\n").trim();
+const contarPalabras = (t = "") => (soloVoz(t).match(/[\p{L}\p{N}]+/gu) || []).length;
+const segundos = (palabras) => Math.round(palabras / 2.6);
+
+function asegurarGuiones() {
+  const ids = proyecto.numAvatares === 1 ? ["A"] : ["A", "B"];
+  const actuales = proyecto.guiones || [];
+  let cambio = false;
+  const lista = [];
+  for (const av of ids) {
+    const deEste = actuales.filter(g => g.avatar === av);
+    for (let k = 0; k < POR_AVATAR; k++) {
+      if (deEste[k]) lista.push(deEste[k]);
+      else { lista.push({ id: Math.random().toString(36).slice(2, 10), avatar: av, referencia: "", link: "", nota: "", guion: "", ganchos: [], historiaReal: false, verificar: [] }); cambio = true; }
+    }
+  }
+  proyecto.guiones = lista;
+  return cambio;
+}
+
+function pasoGuiones() {
+  if (!(proyecto.avatares || []).length) {
+    return `<div class="est-card"><div class="est-alert warn">Primero genera los avatares en el paso 2.</div>${siguiente(2, "Ir a avatares")}</div>`;
+  }
+  if (asegurarGuiones()) guardar({ guiones: proyecto.guiones });
+
+  const grupos = proyecto.numAvatares === 1 ? ["A"] : ["A", "B"];
+  const hechos = proyecto.guiones.filter(g => g.guion).length;
+
+  return `
+  <div class="est-card">
+    <h3>Guiones de voz en off</h3>
+    <p class="est-muted">${POR_AVATAR} por avatar, cada uno basado en un video de referencia distinto. Pega el texto del video (en inglés, chino o español, sin traducir) y la IA lo reescribe para tu avatar. ${hechos}/${proyecto.guiones.length} listos.</p>
+    <p class="est-hint">Formato: 20 a 25 segundos · [lo que se ve] entre corchetes · gancho en los primeros 3 segundos · cierre con precio, contra entrega y llamado a la acción.</p>
+  </div>
+
+  ${grupos.map(av => {
+    const avatar = proyecto.avatares.find(a => a.id === av) || {};
+    return `
+    <h3 class="est-section-title">Avatar ${av}: <span class="est-sub">${esc(avatar.quien)}</span></h3>
+    <div class="est-guiones">
+      ${proyecto.guiones.map((g, i) => g.avatar === av ? tarjetaGuion(g, i, proyecto.guiones.filter((x, j) => x.avatar === av && j <= i).length) : "").join("")}
+    </div>`;
+  }).join("")}
+
+  ${siguiente(6, "Seguir con las notas")}
+  `;
+}
+
+function tarjetaGuion(g, i, n) {
+  const palabras = contarPalabras(g.guion);
+  const seg = segundos(palabras);
+  const estado = !g.guion ? "" : seg < 18 ? "corto" : seg > 27 ? "largo" : "bien";
+  return `
+  <article class="est-guion" id="gui-${esc(g.id)}">
+    <div class="est-card-row">
+      <strong>Guion ${g.avatar}${n}</strong>
+      ${g.guion ? `<span class="est-chip ${estado === "bien" ? "ok" : "warn"}">≈ ${seg} s · ${palabras} palabras${estado === "corto" ? " · corto" : estado === "largo" ? " · largo" : ""}</span>` : ""}
+    </div>
+
+    <div class="est-form">
+      <label>Texto del video de referencia (opcional)</label>
+      <textarea rows="4" placeholder="Pega aquí la transcripción del video de ScaleBoost o PiPiAds. Si lo dejas vacío, la IA escribe uno original desde el ángulo del avatar." onchange="estEditarGuion(${i}, 'referencia', this.value)">${esc(g.referencia)}</textarea>
+      <div class="est-row">
+        <div><label>Link del video</label><input value="${esc(g.link)}" placeholder="https://..." onchange="estEditarGuion(${i}, 'link', this.value)"></div>
+        <div><label>Nota</label><input value="${esc(g.nota)}" placeholder="Ej: muestra antes y después" onchange="estEditarGuion(${i}, 'nota', this.value)"></div>
+      </div>
+    </div>
+
+    <div class="est-sec-actions">
+      <button id="btnGui-${esc(g.id)}" class="est-btn ${g.guion ? "" : "primary"}" onclick="estGenerarGuion('${esc(g.id)}')">
+        <i data-lucide="sparkles"></i> ${g.guion ? "Reescribir de nuevo" : g.referencia ? "Reescribir para el avatar" : "Escribir guion"}
+      </button>
+      ${g.link ? `<a class="est-btn ghost" href="${esc(/^https?:\/\//.test(g.link) ? g.link : "#")}" target="_blank" rel="noopener"><i data-lucide="external-link"></i> Ver video</a>` : ""}
+    </div>
+
+    ${g.guion ? `
+      <label class="est-label">Guion</label>
+      <textarea class="est-code" rows="9" oninput="estContarGuion(this, '${esc(g.id)}')" onchange="estEditarGuion(${i}, 'guion', this.value)">${esc(g.guion)}</textarea>
+      <div class="est-sec-actions">
+        <button class="est-btn primary" onclick="estCopiarVoz(${i})"><i data-lucide="mic"></i> Copiar solo voz</button>
+        <button class="est-btn" onclick="estCopiarGuion(${i})"><i data-lucide="copy"></i> Copiar con escenas</button>
+      </div>
+      ${(g.ganchos || []).length ? `
+        <label class="est-label">Ganchos alternativos para testear</label>
+        <ul class="est-ganchos">${g.ganchos.map((h, k) => `<li><span>${esc(h)}</span><button class="est-btn ghost" title="Usar este gancho" onclick="estUsarGancho(${i}, ${k})">Usar</button></li>`).join("")}</ul>
+      ` : ""}
+      ${g.historiaReal || (g.verificar || []).length ? `
+        <div class="est-alert warn"><strong>Verifica antes de publicar:</strong><ul>${(g.verificar || []).map(v => `<li>${esc(v)}</li>`).join("") || "<li>Los datos de la historia real</li>"}</ul></div>
+      ` : ""}
+    ` : ""}
+  </article>`;
+}
+
+window.estEditarGuion = (i, campo, valor) => {
+  proyecto.guiones = proyecto.guiones.map((g, j) => j === i ? { ...g, [campo]: valor } : g);
+  guardar({ guiones: proyecto.guiones });
+};
+
+window.estContarGuion = (ta, id) => {
+  const chip = document.querySelector(`#gui-${id} .est-chip`);
+  if (!chip) return;
+  const p = contarPalabras(ta.value), s = segundos(p);
+  chip.textContent = `≈ ${s} s · ${p} palabras${s < 18 ? " · corto" : s > 27 ? " · largo" : ""}`;
+  chip.className = `est-chip ${s >= 18 && s <= 27 ? "ok" : "warn"}`;
+};
+
+window.estGenerarGuion = (id) => conCarga(`btnGui-${id}`, "Escribiendo guion...", async () => {
+  // guardar lo que esté escrito antes de pedir a la IA
+  document.querySelectorAll(`#gui-${id} textarea, #gui-${id} input`).forEach(el => el.blur());
+  await guardar({ guiones: proyecto.guiones });
+  const { guion } = await api("POST", `/api/proyectos/${proyecto._id}/ia/guion/${id}`);
+  const i = proyecto.guiones.findIndex(g => g.id === id);
+  if (i !== -1) proyecto.guiones[i] = guion;
+  proyecto.paso = Math.max(proyecto.paso || 1, 5);
+  renderPaso();
+  $(`gui-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+
+window.estCopiarVoz = (i) => copiar(soloVoz(proyecto.guiones[i].guion));
+window.estCopiarGuion = (i) => copiar(proyecto.guiones[i].guion);
+
+window.estUsarGancho = (i, k) => {
+  const g = proyecto.guiones[i];
+  const gancho = g.ganchos[k];
+  // reemplaza la primera frase hablada por el gancho elegido
+  const nuevo = g.guion.replace(/^((?:\s*\[[^\]]*\]\s*)*)([^.!?\n]*[.!?]?)/, (m, escenas) => `${escenas}${gancho}`);
+  const ganchos = [...g.ganchos]; ganchos[k] = soloVoz(g.guion).split(/(?<=[.!?])\s/)[0];
+  proyecto.guiones[i] = { ...g, guion: nuevo, ganchos };
+  guardar({ guiones: proyecto.guiones });
+  renderPaso();
+};
+
+// =============================================
+// PASO 6: NOTAS
 // =============================================
 function pasoNotas() {
   const n = proyecto.notas;
@@ -834,7 +974,7 @@ function pasoNotas() {
 window.estGenerarNotas = () => conCarga("estBtnNotas", "Revisando todo...", async () => {
   const { notas } = await api("POST", `/api/proyectos/${proyecto._id}/ia/notas`);
   proyecto.notas = notas;
-  proyecto.paso = 5;
+  proyecto.paso = 6;
   renderProyecto();
 });
 

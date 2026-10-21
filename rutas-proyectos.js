@@ -12,7 +12,8 @@ import {
   construirBloqueEstilo,
   promptPropuestaSecciones,
   promptSeccion,
-  promptNotas
+  promptNotas,
+  promptGuion
 } from "./prompts-landing.js";
 
 const Mixed = mongoose.Schema.Types.Mixed;
@@ -32,6 +33,7 @@ const proyectoSchema = new mongoose.Schema({
   estilo: { type: Mixed, default: null },
   bloqueEstilo: { type: String, default: "" },
   secciones: { type: [Mixed], default: [] },    // { id, tipo, titulo, grupo, formato, composicion, proposito, prompt, hecha }
+  guiones: { type: [Mixed], default: [] },     // { id, avatar, referencia, link, nota, guion, ganchos[], historiaReal, verificar[] }
   notas: { type: Mixed, default: null },
   vendio: { type: Boolean, default: false },
   creado: { type: Date, default: Date.now },
@@ -42,7 +44,7 @@ export const Proyecto = mongoose.model("Proyecto", proyectoSchema);
 
 const CAMPOS_EDITABLES = [
   "nombre", "pais", "numAvatares", "paso", "ficha", "fotos", "revision", "avatares",
-  "estilosPropuestos", "estilo", "bloqueEstilo", "secciones", "notas", "vendio"
+  "estilosPropuestos", "estilo", "bloqueEstilo", "secciones", "guiones", "notas", "vendio"
 ];
 
 const MAX_FOTOS = 4;
@@ -74,6 +76,16 @@ function limpiarCambios(body = {}) {
   }
   if (out.secciones !== undefined && !Array.isArray(out.secciones)) delete out.secciones;
   if (out.avatares !== undefined && !Array.isArray(out.avatares)) delete out.avatares;
+  if (out.guiones !== undefined) {
+    if (!Array.isArray(out.guiones)) delete out.guiones;
+    else out.guiones = out.guiones.slice(0, 12).map(g => ({
+      id: String(g.id || nuevoId()), avatar: g.avatar === "B" ? "B" : "A",
+      referencia: String(g.referencia || "").slice(0, 8000), link: String(g.link || "").slice(0, 500),
+      nota: String(g.nota || "").slice(0, 500), guion: String(g.guion || "").slice(0, 3000),
+      ganchos: Array.isArray(g.ganchos) ? g.ganchos.map(String).slice(0, 5) : [],
+      historiaReal: !!g.historiaReal, verificar: Array.isArray(g.verificar) ? g.verificar.map(String).slice(0, 10) : []
+    }));
+  }
   return out;
 }
 
@@ -305,7 +317,35 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
     } catch (err) { errorIA(res, err, "el prompt"); }
   });
 
-  // ---------- IA: 5. notas antes de publicar ----------
+  // ---------- IA: 5. guion de voz en off ----------
+  app.post("/api/proyectos/:id/ia/guion/:gid", iaLimiter, async (req, res) => {
+    try {
+      const p = await cargar(req, res); if (!p) return;
+      const idx = (p.guiones || []).findIndex(g => g.id === req.params.gid);
+      if (idx === -1) return res.status(404).json({ error: "Guion no encontrado" });
+      const g = p.guiones[idx];
+      const avatar = (p.avatares || []).find(a => a.id === g.avatar) || p.avatares?.[0] || null;
+
+      const reply = await llamarIA({ system: SISTEMA_LANDING, prompt: promptGuion(p, g, avatar) });
+      const j = parsearJSON(reply);
+      if (!j.guion) return res.status(502).json({ error: "La IA no devolvió el guion" });
+
+      p.guiones[idx] = {
+        ...g,
+        guion: String(j.guion),
+        ganchos: Array.isArray(j.ganchos_alternativos) ? j.ganchos_alternativos.map(String).slice(0, 3) : [],
+        historiaReal: !!j.historia_real,
+        verificar: Array.isArray(j.verificar) ? j.verificar.map(String) : []
+      };
+      p.markModified("guiones");
+      if (p.paso < 5) p.paso = 5;
+      p.actualizado = new Date();
+      await p.save();
+      res.json({ guion: p.guiones[idx] });
+    } catch (err) { errorIA(res, err, "el guion"); }
+  });
+
+  // ---------- IA: 6. notas antes de publicar ----------
   app.post("/api/proyectos/:id/ia/notas", iaLimiter, async (req, res) => {
     try {
       const p = await cargar(req, res); if (!p) return;
@@ -313,7 +353,7 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
       const j = parsearJSON(reply);
       const arr = (x) => Array.isArray(x) ? x.map(String) : [];
       p.notas = { dudas: arr(j.dudas), riesgos: arr(j.riesgos), por_confirmar: arr(j.por_confirmar), revisar_en_imagenes: arr(j.revisar_en_imagenes) };
-      if (p.paso < 5) p.paso = 5;
+      if (p.paso < 6) p.paso = 6;
       p.actualizado = new Date();
       await p.save();
       res.json({ notas: p.notas });
