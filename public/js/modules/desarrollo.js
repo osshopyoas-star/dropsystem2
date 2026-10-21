@@ -1,704 +1,864 @@
 // =============================================
-// Desarrollo con IA: avatares, ángulos, guiones y creativos
+// 🧪 Estudio de landing (Desarrollo por pasos)
+// Ficha → Avatares → Estilo → Landing → Notas
+// Los prompts viven en el servidor (prompts-landing.js)
 // =============================================
 import { state } from "../state.js";
 import { registrarRuta } from "./navegacion.js";
 import { escapeHTML } from "../core/utils.js";
 
-window.previewImagenDev = function(event) {
-  const file = event.target.files?.[0];
-  if (!file) return;
+const PASOS = [
+  { n: 1, titulo: "Ficha", icono: "clipboard-list" },
+  { n: 2, titulo: "Avatares", icono: "users" },
+  { n: 3, titulo: "Estilo", icono: "palette" },
+  { n: 4, titulo: "Landing", icono: "images" },
+  { n: 5, titulo: "Notas", icono: "list-checks" }
+];
 
-  const empty = document.getElementById("devUploadEmpty");
-  const preview = document.getElementById("devUploadPreview");
-  const img = document.getElementById("devUploadImg");
-  const name = document.getElementById("devUploadName");
-
-  const url = URL.createObjectURL(file);
-
-  if (img) {
-    img.src = url;
-    img.style.display = "block";
-  }
-
-  if (name) name.textContent = file.name;
-
-  empty?.classList.add("hidden");
-  preview?.classList.remove("hidden");
+const TIPOS_SECCION = {
+  oferta: "Oferta (hero)", dolor: "Dolor o identificación", identificacion: "¿Es para ti?",
+  funcion_estrella: "La función estrella", detalles: "Detalles y calidad", que_incluye: "¿Qué incluye?",
+  tamano_variantes: "Tamaño, colores o variantes", como_se_usa: "Cómo se usa", para_quien: "Para quién es",
+  antes_despues: "Antes y después", paquetes: "Paquetes", como_funciona: "Cómo funciona tu pedido",
+  por_que_aqui: "¿Por qué comprar aquí?", resenas: "Reseñas reales (plantilla)", preguntas: "Preguntas frecuentes",
+  confianza: "Confianza y aliados", oferta_cierre: "Oferta de cierre"
 };
 
-function guardarEstadoDesarrollo() {
-  const producto = document.getElementById("inputProductoDev")?.value || "";
-  const info = document.getElementById("inputInfoDev")?.value || "";
-  const tipo = document.getElementById("tipoDesarrolloDev")?.value || "completo";
-  const resultado = document.getElementById("resultadoDesarrollo")?.innerHTML || "";
-  const claseResultado = document.getElementById("resultadoDesarrollo")?.className || "dev-result-empty";
-  const nombreImagen = document.getElementById("devUploadName")?.textContent || "";
-  const previewSrc = document.getElementById("devUploadImg")?.src || "";
+const PAIS_NOMBRE = { CO: "Colombia", EC: "Ecuador" };
 
-  localStorage.setItem("dev_producto", producto);
-  localStorage.setItem("dev_info", info);
-  localStorage.setItem("dev_tipo", tipo);
-  localStorage.setItem("dev_resultado_html", resultado);
-  localStorage.setItem("dev_resultado_class", claseResultado);
-  localStorage.setItem("dev_imagen_nombre", nombreImagen);
-  localStorage.setItem("dev_imagen_preview", previewSrc);
+let proyecto = null;   // proyecto abierto
+let tab = 1;           // paso que se está viendo
+let filtroGrupo = "todas";
+let generandoTodo = false;
+
+const $ = (id) => document.getElementById(id);
+const esc = (v) => escapeHTML(v ?? "");
+const iconos = () => { if (window.lucide) lucide.createIcons(); };
+
+// ---------- API ----------
+async function api(metodo, url, body) {
+  const res = await fetch(url, {
+    method: metodo,
+    headers: body ? { "Content-Type": "application/json" } : undefined,
+    body: body ? JSON.stringify(body) : undefined
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+  return data;
 }
 
-function restaurarEstadoDesarrollo() {
-  const producto = localStorage.getItem("dev_producto") || "";
-  const info = localStorage.getItem("dev_info") || "";
-  const tipo = localStorage.getItem("dev_tipo") || "completo";
-  const resultadoHtml = localStorage.getItem("dev_resultado_html") || "";
-  const resultadoClass = localStorage.getItem("dev_resultado_class") || "dev-result-empty";
-  const imagenNombre = localStorage.getItem("dev_imagen_nombre") || "";
-  const imagenPreview = localStorage.getItem("dev_imagen_preview") || "";
-
-  const inputProducto = document.getElementById("inputProductoDev");
-  const inputInfo = document.getElementById("inputInfoDev");
-  const inputTipo = document.getElementById("tipoDesarrolloDev");
-  const resultado = document.getElementById("resultadoDesarrollo");
-
-  if (inputProducto) inputProducto.value = producto;
-  if (inputInfo) inputInfo.value = info;
-  if (inputTipo) inputTipo.value = tipo;
-
-  if (resultado && resultadoHtml) {
-    resultado.className = resultadoClass;
-    resultado.innerHTML = resultadoHtml;
+async function guardar(cambios) {
+  if (!proyecto) return;
+  try {
+    proyecto = await api("PUT", `/api/proyectos/${proyecto._id}`, cambios);
+    avisar("Guardado", "ok");
+  } catch (err) {
+    avisar(err.message, "error");
   }
-
-  if (imagenPreview) {
-    const empty = document.getElementById("devUploadEmpty");
-    const preview = document.getElementById("devUploadPreview");
-    const img = document.getElementById("devUploadImg");
-    const name = document.getElementById("devUploadName");
-
-    if (img) img.src = imagenPreview;
-    if (name) name.textContent = imagenNombre;
-
-    empty?.classList.add("hidden");
-    preview?.classList.remove("hidden");
-  }
-
-  if (window.lucide) lucide.createIcons();
 }
 
-function fileToBase64(file) {
+function avisar(texto, tipo = "ok") {
+  let el = $("estToast");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "estToast";
+    el.className = "est-toast";
+    document.body.appendChild(el);
+  }
+  el.textContent = texto;
+  el.className = `est-toast show ${tipo}`;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove("show"), tipo === "error" ? 4000 : 1400);
+}
+
+async function conCarga(boton, textoCargando, fn) {
+  const b = typeof boton === "string" ? $(boton) : boton;
+  const original = b?.innerHTML;
+  if (b) { b.disabled = true; b.innerHTML = `<span class="est-spin"></span> ${textoCargando}`; }
+  try { return await fn(); }
+  catch (err) { avisar(err.message, "error"); }
+  finally { if (b && document.body.contains(b)) { b.disabled = false; b.innerHTML = original; iconos(); } }
+}
+
+async function copiar(texto) {
+  try {
+    await navigator.clipboard.writeText(texto);
+  } catch {
+    const t = document.createElement("textarea");
+    t.value = texto; document.body.appendChild(t); t.select();
+    document.execCommand("copy"); t.remove();
+  }
+  avisar("Copiado ✓", "ok");
+}
+
+// Comprime una foto a máximo 1280 px en JPG
+function comprimirFoto(file) {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const max = 1280;
+      const escala = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * escala);
+      c.height = Math.round(img.height * escala);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL("image/jpeg", 0.85));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("No se pudo leer la imagen")); };
+    img.src = url;
   });
 }
 
-window.generarDesarrollo = async function() {
-  const producto = document.getElementById("inputProductoDev")?.value?.trim();
-  const info = document.getElementById("inputInfoDev")?.value?.trim();
-  const tipo = document.getElementById("tipoDesarrolloDev")?.value || "completo";
-  const resultado = document.getElementById("resultadoDesarrollo");
-  const imageInput = document.getElementById("inputImagenDev");
-  const imageFile = imageInput?.files?.[0] || null;
+function formatoPrecio(valor, pais) {
+  const n = Number(valor);
+  if (!Number.isFinite(n) || n <= 0) return "";
+  return pais === "EC" ? "$" + n.toFixed(2).replace(".", ",") : "$" + Math.round(n).toLocaleString("es-CO").replace(/,/g, ".");
+}
 
-  if (!producto && !imageFile) {
-    alert("Escribe el producto o sube una imagen");
-    return;
-  }
+function fecha(iso) {
+  if (!iso) return "";
+  return new Date(iso).toLocaleDateString("es-CO", { day: "numeric", month: "short" });
+}
 
-  resultado.className = "dev-result-loading";
-  resultado.innerHTML = `
-    <div class="dev-loading-box">
-      <div class="dev-loading-spinner"></div>
-      <p>Generando estrategia de desarrollo...</p>
+// =============================================
+// LISTA DE PROYECTOS
+// =============================================
+async function renderLista(view) {
+  proyecto = null;
+  view.innerHTML = `
+    <div class="est-page">
+      <header class="est-head">
+        <div>
+          <div class="est-badge"><i data-lucide="brain"></i> Desarrollo</div>
+          <h1>Estudio de landing</h1>
+          <p>Un proyecto por producto: ficha, avatares, estilo, prompts para Gemini y notas antes de publicar.</p>
+        </div>
+      </header>
+
+      <section class="est-card">
+        <h3>Nuevo proyecto</h3>
+        <div class="est-new">
+          <select id="estNuevoProducto">
+            <option value="">Cargando productos...</option>
+          </select>
+          <input id="estNuevoNombre" placeholder="…o escribe el nombre del producto">
+          <select id="estNuevoPais">
+            <option value="CO">Colombia (COP)</option>
+            <option value="EC">Ecuador (USD)</option>
+          </select>
+          <button id="estBtnCrear" class="est-btn primary" onclick="estCrearProyecto()">
+            <i data-lucide="plus"></i> Crear
+          </button>
+        </div>
+      </section>
+
+      <section>
+        <h3 class="est-section-title">Tus proyectos</h3>
+        <div id="estLista" class="est-grid"><p class="est-muted">Cargando...</p></div>
+      </section>
     </div>
   `;
-  guardarEstadoDesarrollo();
+  iconos();
 
   try {
-    let imageBase64 = null;
+    const [productos, proyectos] = await Promise.all([
+      api("GET", "/api/productos"),
+      api("GET", "/api/proyectos")
+    ]);
 
-    if (imageFile) {
-      imageBase64 = await fileToBase64(imageFile);
+    const sel = $("estNuevoProducto");
+    if (sel) {
+      sel.innerHTML = `<option value="">Elegir de la Base de Productos</option>` +
+        productos.map(p => `<option value="${esc(p._id)}" data-pais="${esc(p.pais || "")}">${esc(p.nombre)} ${p.pais ? `(${esc(p.pais)})` : ""}</option>`).join("");
+      sel.onchange = () => {
+        const op = sel.selectedOptions[0];
+        if (op?.dataset.pais && $("estNuevoPais")) $("estNuevoPais").value = op.dataset.pais === "EC" ? "EC" : "CO";
+      };
     }
 
-   let res;
-let raw = "";
-
-try {
-  // El prompt vive en el servidor (prompts.js): aquí solo enviamos los datos
-  res = await fetch("/api/ia/desarrollo", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      producto,
-      info,
-      tipo,
-      image: imageBase64,
-      productoId: productoVinculado(producto)
-    })
-  });
-} catch (err) {
-  throw new Error("No se pudo conectar con el servidor. Revisa tu internet.");
-}
-
-raw = await res.text();
-
-let data;
-
-try {
-  data = JSON.parse(raw);
-} catch (e) {
-  throw new Error("El servidor devolvió HTML o respuesta inválida");
-}
-
-    if (!res.ok) {
-      throw new Error(data?.error || "Error generando desarrollo");
+    const lista = $("estLista");
+    if (!lista) return;
+    if (!proyectos.length) {
+      lista.innerHTML = `<p class="est-muted">Aún no tienes proyectos. Crea el primero arriba.</p>`;
+      return;
     }
+    lista.innerHTML = proyectos.map(p => `
+      <article class="est-proj" onclick="estAbrirProyecto('${esc(p._id)}')">
+        <div class="est-proj-top">
+          <span class="est-chip">${esc(p.pais)}</span>
+          ${p.vendio ? `<span class="est-chip ok">Vendió ✓</span>` : ""}
+        </div>
+        <strong>${esc(p.nombre)}</strong>
+        <span class="est-muted">${esc(p.estilo?.nombre || "Sin estilo")} · Paso ${p.paso || 1}/5 · ${fecha(p.actualizado)}</span>
+        <div class="est-progress"><span style="width:${((p.paso || 1) / 5) * 100}%"></span></div>
+      </article>
+    `).join("");
+  } catch (err) {
+    const lista = $("estLista");
+    if (lista) lista.innerHTML = `<p class="est-error">${esc(err.message)}</p>`;
+  }
+}
 
-    const reply = data && data.reply ? data.reply : "Sin respuesta del servidor";
-resultado.className = "dev-result-box";
-resultado.innerHTML = `
-  <div class="dev-result-toolbar">
-    <span class="dev-result-pill">IA lista</span>
-  </div>
-  ${renderParsedDesarrollo(reply)}
-`;
+window.estCrearProyecto = () => conCarga("estBtnCrear", "Creando...", async () => {
+  const productoId = $("estNuevoProducto")?.value || null;
+  const nombre = $("estNuevoNombre")?.value.trim() || "";
+  const pais = $("estNuevoPais")?.value || "CO";
+  if (!productoId && !nombre) throw new Error("Elige un producto o escribe el nombre");
+  const p = await api("POST", "/api/proyectos", { productoId, nombre, pais });
+  await abrir(p._id);
+});
 
-guardarEstadoDesarrollo();
-cargarHistorialDesarrollo();
+window.estAbrirProyecto = (id) => abrir(id);
 
-if (window.lucide) lucide.createIcons();
+window.estVolverLista = () => renderLista($("view"));
 
-  } catch (error) {
-  resultado.className = "dev-result-error";
-  resultado.innerHTML = `
-    <div class="dev-error-box">
-      <strong>Error</strong>
-      <p>${error.message || "Falló la conexión con la IA"}</p>
+async function abrir(id, pasoInicial = null) {
+  try {
+    proyecto = await api("GET", `/api/proyectos/${id}`);
+    tab = pasoInicial || Math.min(proyecto.paso || 1, 5);
+    filtroGrupo = "todas";
+    try { localStorage.setItem("est_ultimo", id); } catch {}
+    renderProyecto();
+  } catch (err) {
+    avisar(err.message, "error");
+  }
+}
+
+// =============================================
+// PROYECTO
+// =============================================
+function renderProyecto() {
+  const view = $("view");
+  const p = proyecto;
+  view.innerHTML = `
+    <div class="est-page">
+      <header class="est-head">
+        <div>
+          <button class="est-link" onclick="estVolverLista()"><i data-lucide="arrow-left"></i> Proyectos</button>
+          <h1>${esc(p.nombre)}</h1>
+          <div class="est-head-meta">
+            <select onchange="estCambiarPais(this.value)">
+              <option value="CO" ${p.pais === "CO" ? "selected" : ""}>Colombia (COP)</option>
+              <option value="EC" ${p.pais === "EC" ? "selected" : ""}>Ecuador (USD)</option>
+            </select>
+            <select onchange="estCambiarAvatares(this.value)">
+              <option value="2" ${p.numAvatares !== 1 ? "selected" : ""}>Testeo con 2 avatares (2 landings)</option>
+              <option value="1" ${p.numAvatares === 1 ? "selected" : ""}>1 avatar (1 landing)</option>
+            </select>
+          </div>
+        </div>
+        <button class="est-btn ghost danger" onclick="estEliminarProyecto()"><i data-lucide="trash-2"></i> Eliminar</button>
+      </header>
+
+      <nav class="est-steps">
+        ${PASOS.map(s => `
+          <button class="est-step ${tab === s.n ? "active" : ""} ${(p.paso || 1) >= s.n ? "done" : ""}" onclick="estIrPaso(${s.n})">
+            <span class="est-step-n">${s.n}</span>
+            <span>${s.titulo}</span>
+          </button>
+        `).join("")}
+      </nav>
+
+      <section id="estContenido"></section>
     </div>
   `;
-
-  guardarEstadoDesarrollo();
-  console.error("Error en generarDesarrollo:", error);
+  renderPaso();
 }
+
+function renderPaso() {
+  const cont = $("estContenido");
+  if (!cont) return;
+  const render = { 1: pasoFicha, 2: pasoAvatares, 3: pasoEstilo, 4: pasoLanding, 5: pasoNotas }[tab];
+  cont.innerHTML = render();
+  iconos();
+}
+
+window.estIrPaso = (n) => {
+  tab = n;
+  document.querySelectorAll(".est-step").forEach((b, i) => b.classList.toggle("active", i + 1 === n));
+  renderPaso();
+  $("estContenido")?.scrollIntoView({ behavior: "smooth", block: "start" });
 };
 
-function escapeHtmlDev(str = "") {
-  return String(str).replace(/[&<>"']/g, function(m) {
-    return {
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#39;"
-    }[m];
-  });
-}
-
-function splitBlocks(text) {
-  const normalized = String(text || "").replace(/\r/g, "").trim();
-
-  const patterns = [
-    { key: "avatares", regex: /(?:^|\n)(?:1[\).\-\s]*|#+\s*)\s*AVATARES\b/i },
-    { key: "angulos", regex: /(?:^|\n)(?:2[\).\-\s]*|#+\s*)\s*[ÁA]NGULOS\b/i },
-    { key: "guiones", regex: /(?:^|\n)(?:3[\).\-\s]*|#+\s*)\s*GUIONES(?:\s+DE\s+VIDEO)?\b/i },
-    { key: "creativos", regex: /(?:^|\n)(?:4[\).\-\s]*|#+\s*)\s*CREATIVOS(?:\s+DE\s+IMAGEN)?\b/i },
-    { key: "recomendacion", regex: /(?:^|\n)(?:5[\).\-\s]*|#+\s*)\s*RECOMENDACI[ÓO]N(?:\s+FINAL)?\b/i }
-  ];
-
-  const found = patterns
-    .map(p => {
-      const match = normalized.match(p.regex);
-      return match ? { key: p.key, index: match.index, match: match[0] } : null;
-    })
-    .filter(Boolean)
-    .sort((a, b) => a.index - b.index);
-
-  if (!found.length) {
-    return {
-      avatares: "",
-      angulos: "",
-      guiones: "",
-      creativos: "",
-      recomendacion: "",
-      raw: normalized
-    };
+window.estCambiarPais = async (pais) => { await guardar({ pais }); renderPaso(); };
+window.estCambiarAvatares = async (n) => {
+  if (proyecto.avatares?.length && !confirm("Cambiar la cantidad de avatares: tendrás que regenerar avatares y secciones. ¿Seguir?")) {
+    renderProyecto(); return;
   }
+  await guardar({ numAvatares: Number(n) });
+  renderProyecto();
+};
 
-  const result = {
-    avatares: "",
-    angulos: "",
-    guiones: "",
-    creativos: "",
-    recomendacion: "",
-    raw: ""
-  };
+window.estEliminarProyecto = async () => {
+  if (!confirm(`¿Eliminar el proyecto "${proyecto.nombre}"? No se puede deshacer.`)) return;
+  try {
+    await api("DELETE", `/api/proyectos/${proyecto._id}`);
+    renderLista($("view"));
+  } catch (err) { avisar(err.message, "error"); }
+};
 
-  for (let i = 0; i < found.length; i++) {
-    const current = found[i];
-    const next = found[i + 1];
-    const start = current.index;
-    const end = next ? next.index : normalized.length;
-    result[current.key] = normalized.slice(start, end).trim();
-  }
+const siguiente = (n, texto) => `
+  <div class="est-next">
+    <button class="est-btn primary" onclick="estIrPaso(${n})">${texto} <i data-lucide="arrow-right"></i></button>
+  </div>`;
 
-  return result;
-}
-
-function formatSectionHtml(text = "") {
-  if (!text) {
-    return `<div class="dev-card-empty">Sin contenido</div>`;
-  }
-
-  const safe = escapeHtmlDev(text);
-
-  const html = safe
-    .split("\n")
-    .map(line => {
-      const trimmed = line.trim();
-
-      if (!trimmed) {
-        return `<div class="dev-line-space"></div>`;
-      }
-
-      if (/^(AVATARES|ÁNGULOS|ANGULOS|GUIONES|GUIONES DE VIDEO|CREATIVOS|CREATIVOS DE IMAGEN|RECOMENDACIÓN FINAL|RECOMENDACION FINAL)\b/i.test(trimmed.replace(/^(\d+[\).\-\s]*)/, ""))) {
-        return `<h4 class="dev-section-mini-title">${trimmed}</h4>`;
-      }
-
-      if (/^[-•*]\s+/.test(trimmed) || /^\d+[\).\s-]+/.test(trimmed)) {
-        return `<div class="dev-bullet-row">${trimmed}</div>`;
-      }
-
-      if (/^[A-ZÁÉÍÓÚÑ0-9 ][A-ZÁÉÍÓÚÑ0-9 :\-]{4,}$/i.test(trimmed) && trimmed.length < 90) {
-        return `<h5 class="dev-subblock-title">${trimmed}</h5>`;
-      }
-
-      return `<p class="dev-paragraph">${trimmed}</p>`;
-    })
-    .join("");
-
-  return html;
-}
-
-function renderParsedDesarrollo(reply = "") {
-  const bloques = extraerBloquesPorAvatar(reply);
-
-  if (!bloques.length) {
-    return `
-      <div class="pro-card full">
-        <div class="pro-card-head">
-          <div class="pro-icon">📄</div>
-          <h3>Resultado completo</h3>
-        </div>
-        <div class="pro-card-body">
-          ${formatProContent(reply)}
-        </div>
-      </div>
-    `;
-  }
-
-  window._devAvatars = bloques;
+// =============================================
+// PASO 1: FICHA
+// =============================================
+function pasoFicha() {
+  const p = proyecto;
+  const f = p.ficha || {};
+  const pr = f.promesas || {};
+  const r = p.revision || {};
+  const tieneRevision = !!r.descripcionFisica;
+  const fotos = p.fotos || [];
+  const descuento = f.precioAntes > f.precio && f.precio > 0 ? Math.round((f.precioAntes - f.precio) / f.precioAntes * 100) : null;
 
   return `
-    <div class="dev-avatar-grid">
-      <div class="dev-avatar-header">
-        <h2>Resultado completo</h2>
+  <div class="est-cols">
+    <div class="est-card">
+      <h3>Fotos reales del producto</h3>
+      <p class="est-muted">Máximo 4. Son las que adjuntarás en Gemini y las que la IA revisa.</p>
+      <div class="est-fotos">
+        ${fotos.map((src, i) => `
+          <div class="est-foto"><img src="${src}" alt="Foto ${i + 1}"><button onclick="estQuitarFoto(${i})" title="Quitar">✕</button></div>
+        `).join("")}
+        ${fotos.length < 4 ? `
+          <label class="est-foto add">
+            <input type="file" accept="image/png,image/jpeg,image/webp" multiple onchange="estSubirFotos(this)" hidden>
+            <i data-lucide="image-plus"></i><span>Subir</span>
+          </label>` : ""}
       </div>
 
-      <div class="dev-avatar-cards">
-        ${bloques.map(a => `
-          <div class="dev-avatar-card">
-           <div class="dev-avatar-icon" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);border-radius:50%;width:52px;height:52px;display:flex;align-items:center;justify-content:center;">
-  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M9 11V7a3 3 0 0 1 6 0v4"/><circle cx="9" cy="16" r="1" fill="white"/><circle cx="15" cy="16" r="1" fill="white"/><path d="M12 3v2"/></svg>
-</div>
-            <button onclick="abrirAvatarModal(${a.id})" class="dev-avatar-btn">
-              AVATAR ${a.id}
-            </button>
-          </div>
-        `).join("")}
+      <h3 class="mt">Datos del producto</h3>
+      <div class="est-form">
+        <label>Descripción del proveedor</label>
+        <textarea id="fDescripcion" rows="5" placeholder="Pega aquí la descripción del proveedor">${esc(f.descripcion)}</textarea>
+
+        <div class="est-row">
+          <div><label>Precio (${p.pais === "EC" ? "USD" : "COP"})</label><input id="fPrecio" type="number" step="any" min="0" value="${esc(f.precio)}" oninput="estVerDescuento()"></div>
+          <div><label>Precio "antes"</label><input id="fPrecioAntes" type="number" step="any" min="0" value="${esc(f.precioAntes)}" oninput="estVerDescuento()"></div>
+        </div>
+        <p id="fDescuento" class="est-hint">${descuento ? `Se verá: ${formatoPrecio(f.precio, p.pais)} antes ${formatoPrecio(f.precioAntes, p.pais)} · ${descuento}% de descuento` : "Escribe el precio y el 'antes' para calcular el descuento."}</p>
+
+        <label>Medidas reales</label>
+        <input id="fMedidas" value="${esc(f.medidas)}" placeholder="Ej: 18 x 11 cm, 1.92 m de alto, 40 cm">
+        <label>Lo que NO tiene (para que la IA no lo invente)</label>
+        <input id="fNoTiene" value="${esc(f.noTiene)}" placeholder="Ej: no tiene cámara, no trae caja de marca">
+        <label>Tallas / colores / variantes</label>
+        <input id="fVariantes" value="${esc(f.variantes)}" placeholder="Ej: tallas 35 a 40; colores negro y blanco">
+        <label>Regalo</label>
+        <input id="fRegalo" value="${esc(f.regalo)}" placeholder="Ej: llavero de regalo">
+        <label>Paquetes</label>
+        <input id="fPaquetes" value="${esc(f.paquetes)}" placeholder="Ej: 1 unidad $199.990; 2 unidades $339.990; 3 unidades $449.990">
       </div>
     </div>
+
+    <div class="est-card">
+      <h3>Lo que SÍ es verdad</h3>
+      <p class="est-muted">Solo esto aparecerá en las imágenes.</p>
+      <div class="est-checks">
+        <label><input type="checkbox" id="fEnvioGratis" ${pr.envioGratis ? "checked" : ""}> Envío gratis</label>
+        <label><input type="checkbox" id="fOriginal" ${pr.original ? "checked" : ""}> Es original / licenciado</label>
+      </div>
+      <div class="est-form">
+        <label>Garantía</label>
+        <input id="fGarantia" value="${esc(pr.garantia)}" placeholder="Vacío = no hay garantía. Ej: 30 días">
+        <label>Tiempo de entrega</label>
+        <input id="fEntrega" value="${esc(pr.entrega)}" placeholder="Ej: 3 a 5 días hábiles">
+        <label>Estilo que prefieres (opcional)</label>
+        <input id="fEstiloPref" value="${esc(f.estiloPreferido)}" placeholder="Ej: estilo gym, algo femenino y elegante...">
+        <label>Notas para la IA (opcional)</label>
+        <textarea id="fNotas" rows="3" placeholder="Cualquier cosa importante del producto o del cliente">${esc(f.notas)}</textarea>
+      </div>
+
+      <div class="est-actions">
+        <button id="estBtnGuardarFicha" class="est-btn" onclick="estGuardarFicha()"><i data-lucide="save"></i> Guardar</button>
+        <button id="estBtnRevisar" class="est-btn primary" onclick="estRevisarFicha()"><i data-lucide="scan-search"></i> ${tieneRevision ? "Volver a revisar" : "Revisar con IA"}</button>
+      </div>
+
+      ${tieneRevision ? `
+        <div class="est-review">
+          <h3>Revisión de la IA</h3>
+          ${r.coincide === false ? `<div class="est-alert error">⚠️ Las fotos no parecen coincidir con la descripción. Revisa antes de seguir.</div>` : ""}
+          ${(r.marcas || []).length ? `<div class="est-alert error"><strong>Marcas o logos de terceros:</strong> ${r.marcas.map(esc).join(", ")}. Riesgo en anuncios de Meta.</div>` : ""}
+          ${(r.dudas || []).length ? `<div class="est-alert warn"><strong>Dudas:</strong><ul>${r.dudas.map(d => `<li>${esc(d)}</li>`).join("")}</ul></div>` : ""}
+          <div class="est-form">
+            <label>Descripción física (se usa en cada prompt, corrígela si algo está mal)</label>
+            <textarea id="rDescripcion" rows="5">${esc(r.descripcionFisica)}</textarea>
+            <label>Lo que NO tiene (una por línea)</label>
+            <textarea id="rNoTiene" rows="3">${esc((r.noTiene || []).join("\n"))}</textarea>
+            <label>Tamaño real estimado</label>
+            <input id="rTamano" value="${esc(r.tamano)}">
+          </div>
+          <button class="est-btn" onclick="estGuardarRevision()"><i data-lucide="save"></i> Guardar correcciones</button>
+        </div>
+      ` : ""}
+    </div>
+  </div>
+  ${tieneRevision ? siguiente(2, "Seguir con avatares") : ""}
   `;
 }
 
-function extraerBloquesPorAvatar(texto = "") {
-  const limpio = String(texto).replace(/\r/g, "").trim();
+function leerFicha() {
+  const val = (id) => $(id)?.value?.trim() ?? "";
+  const num = (id) => { const n = Number($(id)?.value); return Number.isFinite(n) && n > 0 ? n : null; };
+  return {
+    ...proyecto.ficha,
+    descripcion: val("fDescripcion"),
+    precio: num("fPrecio"),
+    precioAntes: num("fPrecioAntes"),
+    medidas: val("fMedidas"),
+    noTiene: val("fNoTiene"),
+    variantes: val("fVariantes"),
+    regalo: val("fRegalo"),
+    paquetes: val("fPaquetes"),
+    estiloPreferido: val("fEstiloPref"),
+    notas: val("fNotas"),
+    promesas: {
+      envioGratis: !!$("fEnvioGratis")?.checked,
+      original: !!$("fOriginal")?.checked,
+      garantia: val("fGarantia"),
+      entrega: val("fEntrega")
+    }
+  };
+}
 
-  // SOLO toma los títulos que empiezan al inicio de línea:
-  // AVATAR 1:
-  // AVATAR 2:
-  // AVATAR 3:
-  // y NO ÁNGULOS AVATAR 1, GUIONES AVATAR 1, etc.
-  const regex = /(?:^|\n)AVATAR\s*(\d+)\s*:\s*([\s\S]*?)(?=(?:\nAVATAR\s*\d+\s*:)|(?:\nRECOMENDACIÓN FINAL:)|(?:\nRECOMENDACION FINAL:)|$)/g;
+window.estVerDescuento = () => {
+  const a = Number($("fPrecioAntes")?.value), b = Number($("fPrecio")?.value);
+  const el = $("fDescuento");
+  if (!el) return;
+  el.textContent = a > b && b > 0
+    ? `Se verá: ${formatoPrecio(b, proyecto.pais)} antes ${formatoPrecio(a, proyecto.pais)} · ${Math.round((a - b) / a * 100)}% de descuento`
+    : "Escribe el precio y el 'antes' para calcular el descuento.";
+};
 
-  const bloques = [];
-  let match;
+window.estGuardarFicha = () => conCarga("estBtnGuardarFicha", "Guardando...", () => guardar({ ficha: leerFicha() }));
 
-  while ((match = regex.exec(limpio)) !== null) {
-    const id = Number(match[1]);
-    const bloque = match[2].trim();
+window.estRevisarFicha = () => conCarga("estBtnRevisar", "Revisando fotos...", async () => {
+  await guardar({ ficha: leerFicha() });
+  const { revision } = await api("POST", `/api/proyectos/${proyecto._id}/ia/revisar`);
+  proyecto.revision = revision;
+  renderPaso();
+});
 
-    const avatarInfo = extraerSeccion(
-      bloque,
-      /^(Nombre:|Dolor principal:|Deseo:|Objeción:|Trigger de compra:)/im,
-      /^(ÁNGULOS AVATAR|ANGULOS AVATAR)/im
-    );
+window.estGuardarRevision = async () => {
+  const revision = {
+    ...proyecto.revision,
+    descripcionFisica: $("rDescripcion")?.value.trim() || "",
+    noTiene: ($("rNoTiene")?.value || "").split("\n").map(x => x.trim()).filter(Boolean),
+    tamano: $("rTamano")?.value.trim() || ""
+  };
+  await guardar({ revision, bloqueEstilo: "" });
+};
 
-    const angulos = extraerSeccion(
-      bloque,
-      /^(ÁNGULOS AVATAR|ANGULOS AVATAR)/im,
-      /^GUIONES AVATAR/im
-    );
+window.estSubirFotos = async (input) => {
+  const archivos = [...(input.files || [])].slice(0, 4 - (proyecto.fotos || []).length);
+  if (!archivos.length) return;
+  avisar("Subiendo fotos...", "ok");
+  try {
+    const nuevas = [];
+    for (const f of archivos) nuevas.push(await comprimirFoto(f));
+    await guardar({ ficha: leerFicha(), fotos: [...(proyecto.fotos || []), ...nuevas] });
+    renderPaso();
+  } catch (err) { avisar(err.message, "error"); }
+};
 
-    const guiones = extraerSeccion(
-      bloque,
-      /^GUIONES AVATAR/im,
-      /^IDEAS AVATAR/im
-    );
+window.estQuitarFoto = async (i) => {
+  const fotos = [...(proyecto.fotos || [])];
+  fotos.splice(i, 1);
+  await guardar({ ficha: leerFicha(), fotos });
+  renderPaso();
+};
 
-    const ideas = extraerSeccion(
-      bloque,
-      /^IDEAS AVATAR/im,
-      /^(RECOMENDACIÓN FINAL:|RECOMENDACION FINAL:)/im
-    );
+// =============================================
+// PASO 2: AVATARES
+// =============================================
+const CAMPOS_AVATAR = [
+  ["quien", "Quién es (edad, sexo, ocupación)"],
+  ["problema", "Su problema o deseo principal"],
+  ["probado", "Qué ha probado y por qué no le sirvió"],
+  ["frase", "Frase que diría con sus palabras"],
+  ["angulo", "Ángulo de venta"],
+  ["titular", "Titular de la imagen 1 (línea 1 / línea 2)"],
+  ["escena", "Escena y modelo de las fotos"],
+  ["tono", "Tono"]
+];
 
-    bloques.push({
-      id,
-      avatar: avatarInfo || bloque,
-      angulos: angulos || "",
-      guiones: guiones || "",
-      ideas: ideas || ""
-    });
+function pasoAvatares() {
+  const avs = proyecto.avatares || [];
+  return `
+  <div class="est-card">
+    <div class="est-card-row">
+      <div>
+        <h3>${proyecto.numAvatares === 1 ? "Avatar" : "Avatares A y B"}</h3>
+        <p class="est-muted">${proyecto.numAvatares === 1 ? "Una landing para un avatar." : "Dos landings que solo cambian en lo que le habla a cada avatar: oferta, dolor y para quién es."}</p>
+      </div>
+      <button id="estBtnAvatares" class="est-btn primary" onclick="estGenerarAvatares()">
+        <i data-lucide="sparkles"></i> ${avs.length ? "Regenerar" : "Generar avatares"}
+      </button>
+    </div>
+    ${!proyecto.revision?.descripcionFisica ? `<div class="est-alert warn">Consejo: primero revisa la ficha con IA (paso 1) para que los avatares partan del producto real.</div>` : ""}
+  </div>
+
+  ${avs.length ? `
+    <div class="est-cols">
+      ${avs.map((a, i) => `
+        <div class="est-card est-avatar">
+          <div class="est-avatar-id">${esc(a.id)}</div>
+          <div class="est-form">
+            ${CAMPOS_AVATAR.map(([k, label]) => `
+              <label>${label}</label>
+              <textarea rows="${k === "escena" || k === "problema" ? 3 : 2}" onchange="estEditarAvatar(${i}, '${k}', this.value)">${esc(a[k])}</textarea>
+            `).join("")}
+          </div>
+        </div>
+      `).join("")}
+    </div>
+    ${siguiente(3, "Seguir con el estilo")}
+  ` : ""}
+  `;
+}
+
+window.estGenerarAvatares = () => conCarga("estBtnAvatares", "Creando avatares...", async () => {
+  if (proyecto.avatares?.length && !confirm("¿Reemplazar los avatares actuales?")) return;
+  const { avatares } = await api("POST", `/api/proyectos/${proyecto._id}/ia/avatares`);
+  proyecto.avatares = avatares;
+  proyecto.paso = Math.max(proyecto.paso || 1, 2);
+  renderProyecto();
+});
+
+window.estEditarAvatar = (i, campo, valor) => {
+  const avatares = proyecto.avatares.map((a, j) => j === i ? { ...a, [campo]: valor } : a);
+  guardar({ avatares });
+};
+
+// =============================================
+// PASO 3: ESTILO
+// =============================================
+const colores = (e) => [e.fondo, e.color1, e.color2, e.acento]
+  .map(v => String(v || "").match(/#[0-9a-f]{3,8}\b/i)?.[0])
+  .filter(Boolean);
+
+function pasoEstilo() {
+  const p = proyecto;
+  const props = p.estilosPropuestos || [];
+  const elegido = p.estilo;
+
+  return `
+  <div class="est-card">
+    <div class="est-card-row">
+      <div>
+        <h3>Estilo de la landing</h3>
+        <p class="est-muted">La IA evita los estilos que ya usaste en otros productos.</p>
+      </div>
+      <button id="estBtnEstilos" class="est-btn primary" onclick="estProponerEstilos()">
+        <i data-lucide="palette"></i> ${props.length ? "Otras 3 opciones" : "Proponer 3 estilos"}
+      </button>
+    </div>
+  </div>
+
+  ${props.length ? `
+    <div class="est-grid three">
+      ${props.map((e, i) => `
+        <div class="est-card est-estilo ${elegido?.nombre === e.nombre ? "selected" : ""}">
+          <div class="est-swatches">${colores(e).map(c => `<span style="background:${esc(c)}" title="${esc(c)}"></span>`).join("")}</div>
+          <h3>${esc(e.nombre)}</h3>
+          <p>${esc(e.idea)}</p>
+          <ul class="est-mini">
+            <li><b>Fondo:</b> ${esc(e.fondo)}</li>
+            <li><b>Colores:</b> ${esc(e.color1)} / ${esc(e.color2)}</li>
+            <li><b>Letra:</b> ${esc(e.tipografia)}</li>
+            <li><b>Foto:</b> ${esc(e.tipo_foto)}</li>
+            <li><b>Tono:</b> ${esc(e.tono)}</li>
+          </ul>
+          <p class="est-muted">${esc(e.por_que)}</p>
+          <button class="est-btn ${elegido?.nombre === e.nombre ? "" : "primary"}" onclick="estElegirEstilo(${i}, this)">
+            ${elegido?.nombre === e.nombre ? "Elegido ✓" : "Elegir este"}
+          </button>
+        </div>
+      `).join("")}
+    </div>
+  ` : ""}
+
+  ${elegido ? `
+    <div class="est-card">
+      <div class="est-card-row">
+        <div>
+          <h3>Bloque de estilo: ${esc(elegido.nombre)}</h3>
+          <p class="est-muted">Uno solo para las dos landings. Va primero en cada chat de Gemini. Puedes corregirlo.</p>
+        </div>
+        <button class="est-btn" onclick="estCopiarBloque()"><i data-lucide="copy"></i> Copiar</button>
+      </div>
+      <textarea id="estBloque" class="est-code" rows="12" onchange="estGuardarBloque(this.value)">${esc(p.bloqueEstilo)}</textarea>
+    </div>
+    ${siguiente(4, "Seguir con la landing")}
+  ` : ""}
+  `;
+}
+
+window.estProponerEstilos = () => conCarga("estBtnEstilos", "Pensando estilos...", async () => {
+  const { estilosPropuestos } = await api("POST", `/api/proyectos/${proyecto._id}/ia/estilos`);
+  proyecto.estilosPropuestos = estilosPropuestos;
+  proyecto.paso = Math.max(proyecto.paso || 1, 3);
+  renderPaso();
+});
+
+window.estElegirEstilo = (i, boton) => conCarga(boton, "Armando bloque...", async () => {
+  const estilo = proyecto.estilosPropuestos[i];
+  const r = await api("POST", `/api/proyectos/${proyecto._id}/estilo`, { estilo });
+  proyecto.estilo = r.estilo;
+  proyecto.bloqueEstilo = r.bloqueEstilo;
+  proyecto.paso = Math.max(proyecto.paso || 1, 4);
+  renderProyecto();
+});
+
+window.estGuardarBloque = (v) => guardar({ bloqueEstilo: v });
+window.estCopiarBloque = () => copiar($("estBloque")?.value || proyecto.bloqueEstilo || "");
+
+// =============================================
+// PASO 4: LANDING
+// =============================================
+const nombreGrupo = (g) => g === "compartida" ? "Igual en ambas" : `Landing ${g}`;
+
+function pasoLanding() {
+  const p = proyecto;
+  if (!p.estilo) {
+    return `<div class="est-card"><div class="est-alert warn">Primero elige un estilo en el paso 3.</div>${siguiente(3, "Ir al estilo")}</div>`;
   }
+  const secs = p.secciones || [];
+  const dos = p.numAvatares !== 1;
+  const visibles = secs
+    .map((s, i) => ({ s, i }))
+    .filter(({ s }) => filtroGrupo === "todas" || s.grupo === filtroGrupo || (filtroGrupo !== "compartida" && s.grupo === "compartida" && filtroGrupo !== "todas"));
+  const hechas = secs.filter(s => s.hecha).length;
+  const conPrompt = secs.filter(s => s.prompt).length;
 
-  return bloques;
-}
+  return `
+  <div class="est-card">
+    <div class="est-card-row">
+      <div>
+        <h3>Secciones de la landing</h3>
+        <p class="est-muted">En Gemini: chat nuevo por imagen → adjunta la foto real → pega "estilo + prompt". ${secs.length ? `${conPrompt}/${secs.length} prompts · ${hechas} imágenes hechas` : ""}</p>
+      </div>
+      <div class="est-actions">
+        <button id="estBtnSecciones" class="est-btn" onclick="estProponerSecciones()"><i data-lucide="layout-list"></i> ${secs.length ? "Volver a proponer" : "Proponer secciones"}</button>
+        ${secs.length ? `<button id="estBtnTodos" class="est-btn primary" onclick="estGenerarTodos()" ${generandoTodo ? "disabled" : ""}><i data-lucide="sparkles"></i> Generar prompts faltantes</button>` : ""}
+      </div>
+    </div>
 
-function extraerSeccion(texto, inicioRegex, finRegex) {
-  const matchInicio = texto.match(inicioRegex);
-  if (!matchInicio) return "";
+    ${secs.length && dos ? `
+      <div class="est-tabs">
+        ${["todas", "compartida", "A", "B"].map(g => `
+          <button class="${filtroGrupo === g ? "active" : ""}" onclick="estFiltrar('${g}')">
+            ${g === "todas" ? "Todas" : g === "compartida" ? "Iguales en ambas" : `Ver landing ${g}`}
+          </button>`).join("")}
+      </div>
+      ${filtroGrupo === "A" || filtroGrupo === "B" ? `<p class="est-hint">Así queda la landing ${filtroGrupo} completa, en orden (incluye las secciones iguales).</p>` : ""}
+    ` : ""}
+  </div>
 
-  const inicio = matchInicio.index;
-  const desdeInicio = texto.slice(inicio);
+  <div class="est-secciones">
+    ${visibles.map(({ s, i }, n) => tarjetaSeccion(s, i, n + 1)).join("")}
+  </div>
 
-  const matchFin = desdeInicio.slice(1).match(finRegex);
-
-  if (!matchFin) return desdeInicio.trim();
-
-  const fin = matchFin.index + 1;
-  return desdeInicio.slice(0, fin).trim();
-}
-
-window.abrirAvatarModal = function(id) {
-
-  const a = window._devAvatars.find(x => x.id === id);
-  if (!a) return;
-
-  const contenido = document.getElementById("modalAvatarContenido");
-
-  contenido.innerHTML = `
-    <h4>👤 Avatar</h4>
-    <div class="bloque">${formatProContent(a.avatar)}</div>
-
-    <h4>🎯 Ángulos</h4>
-    <div class="bloque">${formatProContent(a.angulos)}</div>
-
-    <h4>🎬 Guiones (AIDA)</h4>
-    <div class="bloque">${formatProContent(a.guiones)}</div>
-
-    <h4>🖼 Ideas Creativas</h4>
-    <div class="bloque">${formatProContent(a.ideas)}</div>
+  ${secs.length ? `
+    <div class="est-card est-add">
+      <select id="estNuevaTipo">${Object.entries(TIPOS_SECCION).map(([k, v]) => `<option value="${k}">${v}</option>`).join("")}</select>
+      ${dos ? `<select id="estNuevaGrupo"><option value="compartida">Igual en ambas</option><option value="A">Solo landing A</option><option value="B">Solo landing B</option></select>` : ""}
+      <button class="est-btn" onclick="estAgregarSeccion()"><i data-lucide="plus"></i> Agregar sección</button>
+    </div>
+    ${siguiente(5, "Seguir con las notas")}
+  ` : ""}
   `;
-
-  document.getElementById("modalAvatar").classList.remove("hidden");
-};
-
-function dividirPorNombre(texto) {
-  const partes = texto.split(/Para /i);
-  partes.shift();
-  return partes.map(p => p.trim());
 }
 
-window.cerrarAvatarModal = function() {
-  document.getElementById("modalAvatar").classList.add("hidden");
-};
+function tarjetaSeccion(s, i, numero) {
+  const avatar = (proyecto.avatares || []).find(a => a.id === s.grupo);
+  return `
+  <article class="est-sec ${s.hecha ? "hecha" : ""}" id="sec-${esc(s.id)}">
+    <div class="est-sec-head">
+      <span class="est-sec-n">${numero}</span>
+      <div class="est-sec-info">
+        <strong>${esc(s.titulo)}</strong>
+        <div class="est-sec-tags">
+          <span class="est-chip ${s.grupo === "compartida" ? "" : "grupo"}">${nombreGrupo(s.grupo)}</span>
+          <span class="est-chip">${esc(s.formato || "9:16")}</span>
+          ${s.composicion ? `<span class="est-chip">${esc(s.composicion)}</span>` : ""}
+        </div>
+        ${s.proposito ? `<p class="est-muted">${esc(s.proposito)}</p>` : ""}
+        ${avatar ? `<p class="est-muted">Para: ${esc(avatar.quien)}</p>` : ""}
+      </div>
+      <div class="est-sec-move">
+        <button title="Subir" onclick="estMoverSeccion(${i}, -1)">▲</button>
+        <button title="Bajar" onclick="estMoverSeccion(${i}, 1)">▼</button>
+      </div>
+    </div>
 
-function formatProContent(text = "") {
-  if (!text) return `<div class="empty">Sin contenido</div>`;
+    ${s.prompt ? `
+      <textarea class="est-code" rows="10" onchange="estEditarPrompt(${i}, this.value)">${esc(s.prompt)}</textarea>
+    ` : `<div class="est-empty">Sin prompt todavía.</div>`}
 
-  return text.split("\n").map(line => {
-    const l = line.trim();
-
-    if (!l) return "";
-
-    // títulos
-    if (/^(#+|\d+\.|\*\*)/.test(l)) {
-      return `<div class="pro-title">${l.replace(/\*\*/g, "")}</div>`;
-    }
-
-    // bullets
-    if (l.startsWith("-") || l.startsWith("•")) {
-      return `<div class="pro-bullet">${l}</div>`;
-    }
-
-    // AIDA
-    if (l.includes("[A:") || l.includes("[I:") || l.includes("[D:")) {
-      return `<div class="pro-highlight">${l}</div>`;
-    }
-
-    return `<div class="pro-text">${l}</div>`;
-  }).join("");
+    <div class="est-sec-actions">
+      <button class="est-btn ${s.prompt ? "" : "primary"}" id="btnSec-${esc(s.id)}" onclick="estGenerarSeccion('${esc(s.id)}')">
+        <i data-lucide="sparkles"></i> ${s.prompt ? "Regenerar" : "Generar prompt"}
+      </button>
+      ${s.prompt ? `<button class="est-btn primary" onclick="estCopiarSeccion(${i})"><i data-lucide="copy"></i> Copiar estilo + prompt</button>` : ""}
+      ${s.prompt ? `<label class="est-check"><input type="checkbox" ${s.hecha ? "checked" : ""} onchange="estMarcarHecha(${i}, this.checked)"> Imagen hecha</label>` : ""}
+      <button class="est-btn ghost danger" title="Quitar sección" onclick="estQuitarSeccion(${i})"><i data-lucide="x"></i></button>
+    </div>
+  </article>`;
 }
 
-window.irDesarrollo = function(index) {
+window.estFiltrar = (g) => { filtroGrupo = g; renderPaso(); };
 
+window.estProponerSecciones = () => conCarga("estBtnSecciones", "Armando estructura...", async () => {
+  if (proyecto.secciones?.length && !confirm("¿Reemplazar las secciones actuales y sus prompts?")) return;
+  const { secciones } = await api("POST", `/api/proyectos/${proyecto._id}/ia/secciones`);
+  proyecto.secciones = secciones;
+  renderPaso();
+});
+
+async function generarSeccion(id) {
+  const { seccion } = await api("POST", `/api/proyectos/${proyecto._id}/ia/seccion/${id}`);
+  const i = proyecto.secciones.findIndex(s => s.id === id);
+  if (i !== -1) proyecto.secciones[i] = seccion;
+}
+
+window.estGenerarSeccion = (id) => conCarga(`btnSec-${id}`, "Escribiendo...", async () => {
+  await generarSeccion(id);
+  renderPaso();
+  $(`sec-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+});
+
+window.estGenerarTodos = async () => {
+  if (generandoTodo) return;
+  const faltan = proyecto.secciones.filter(s => !s.prompt).map(s => s.id);
+  if (!faltan.length) return avisar("Todas las secciones ya tienen prompt", "ok");
+  generandoTodo = true;
+  let hechos = 0, errores = 0;
+  const boton = () => $("estBtnTodos");
+  for (const id of faltan) {
+    if (boton()) { boton().disabled = true; boton().innerHTML = `<span class="est-spin"></span> Escribiendo ${hechos + 1} de ${faltan.length}...`; }
+    try { await generarSeccion(id); hechos++; }
+    catch (err) {
+      errores++;
+      avisar(err.message, "error");
+      if (/límite/i.test(err.message)) break;
+    }
+  }
+  generandoTodo = false;
+  if (tab === 4) renderPaso();
+  avisar(errores ? `Listo con ${errores} error(es). Puedes reintentar las que faltan.` : `${hechos} prompts listos ✓`, errores ? "error" : "ok");
+};
+
+window.estCopiarSeccion = (i) => {
+  const s = proyecto.secciones[i];
+  copiar(`${proyecto.bloqueEstilo}\n\n${s.prompt}`);
+};
+
+window.estEditarPrompt = (i, v) => {
+  const secciones = proyecto.secciones.map((s, j) => j === i ? { ...s, prompt: v } : s);
+  guardar({ secciones });
+};
+
+window.estMarcarHecha = (i, v) => {
+  const secciones = proyecto.secciones.map((s, j) => j === i ? { ...s, hecha: v } : s);
+  guardar({ secciones }).then(() => renderPaso());
+};
+
+window.estMoverSeccion = async (i, dir) => {
+  const secs = [...proyecto.secciones];
+  const j = i + dir;
+  if (j < 0 || j >= secs.length) return;
+  [secs[i], secs[j]] = [secs[j], secs[i]];
+  await guardar({ secciones: secs });
+  renderPaso();
+};
+
+window.estQuitarSeccion = async (i) => {
+  if (!confirm(`¿Quitar "${proyecto.secciones[i].titulo}"?`)) return;
+  const secs = proyecto.secciones.filter((_, j) => j !== i);
+  await guardar({ secciones: secs });
+  renderPaso();
+};
+
+window.estAgregarSeccion = async () => {
+  const tipo = $("estNuevaTipo")?.value;
+  const grupo = $("estNuevaGrupo")?.value || "compartida";
+  const nueva = { id: Math.random().toString(36).slice(2, 10), tipo, titulo: TIPOS_SECCION[tipo], grupo, formato: "9:16", composicion: "", proposito: "", prompt: "", hecha: false };
+  await guardar({ secciones: [...proyecto.secciones, nueva] });
+  renderPaso();
+};
+
+// =============================================
+// PASO 5: NOTAS
+// =============================================
+function pasoNotas() {
+  const n = proyecto.notas;
+  const bloque = (titulo, items, clase = "") => items?.length ? `
+    <div class="est-card ${clase}">
+      <h3>${titulo}</h3>
+      <ul class="est-list">${items.map(x => `<li>${esc(x)}</li>`).join("")}</ul>
+    </div>` : "";
+
+  return `
+  <div class="est-card">
+    <div class="est-card-row">
+      <div>
+        <h3>Notas antes de publicar</h3>
+        <p class="est-muted">Dudas, riesgos y datos por confirmar de este producto.</p>
+      </div>
+      <button id="estBtnNotas" class="est-btn primary" onclick="estGenerarNotas()"><i data-lucide="list-checks"></i> ${n ? "Actualizar notas" : "Generar notas"}</button>
+    </div>
+  </div>
+  ${n ? `
+    <div class="est-cols">
+      ${bloque("⚠️ Riesgos", n.riesgos, "warn")}
+      ${bloque("❓ Dudas", n.dudas)}
+      ${bloque("📋 Por confirmar", n.por_confirmar)}
+      ${bloque("🔍 Revisar en las imágenes de Gemini", n.revisar_en_imagenes)}
+    </div>
+  ` : ""}
+  <div class="est-card">
+    <label class="est-check big">
+      <input type="checkbox" ${proyecto.vendio ? "checked" : ""} onchange="estMarcarVendio(this.checked)">
+      Esta landing vendió bien ✓ <span class="est-muted">(la usaremos como base para clonar en próximos productos)</span>
+    </label>
+  </div>
+  `;
+}
+
+window.estGenerarNotas = () => conCarga("estBtnNotas", "Revisando todo...", async () => {
+  const { notas } = await api("POST", `/api/proyectos/${proyecto._id}/ia/notas`);
+  proyecto.notas = notas;
+  proyecto.paso = 5;
+  renderProyecto();
+});
+
+window.estMarcarVendio = (v) => guardar({ vendio: v });
+
+// =============================================
+// Desde la Base de Productos (botón "Ir")
+// =============================================
+window.irDesarrollo = async function(index) {
   const producto = state.productos[index];
-
   if (!producto) return;
-
-  // 🔥 Guardar en localStorage
-  localStorage.setItem("dev_producto", producto.nombre || "");
-  localStorage.setItem("dev_info", producto.material || "");
-  localStorage.setItem("dev_producto_id", producto._id || "");
-  localStorage.setItem("dev_producto_id_nombre", producto.nombre || "");
-
-  // 🔥 ir a desarrollo
   goTo("desarrollo");
-};
-
-window.removeImagenDev = function(e) {
-  e.stopPropagation();
-
-  const input = document.getElementById("inputImagenDev");
-  const empty = document.getElementById("devUploadEmpty");
-  const preview = document.getElementById("devUploadPreview");
-  const img = document.getElementById("devUploadImg");
-  const name = document.getElementById("devUploadName");
-
-  if (input) input.value = "";
-  if (img) img.src = "";
-  if (name) name.textContent = "";
-
-  preview?.classList.add("hidden");
-  empty?.classList.remove("hidden");
+  try {
+    const existentes = await api("GET", `/api/proyectos?productoId=${encodeURIComponent(producto._id)}`);
+    if (existentes.length) return abrir(existentes[0]._id);
+    const p = await api("POST", "/api/proyectos", { productoId: producto._id, pais: producto.pais === "EC" ? "EC" : "CO" });
+    abrir(p._id, 1);
+  } catch (err) {
+    avisar(err.message, "error");
+  }
 };
 
 // Ruta: desarrollo
 registrarRuta("desarrollo", (view) => {
-  view.innerHTML = `
-    <div class="dev-page">
-
-      <section class="dev-layout">
-
-        <div class="dev-left">
-    <div class="dev-hero-left">
-  <div class="dev-badge">
-    <i data-lucide="brain"></i>
-      <span>Desarrollo de producto</span>
-  </div>
-</div>
-          <div class="dev-card">
-            <div class="dev-card-head">
-              <h3>Entrada estratégica</h3>
-              <p>Describe producto, problema, mecanismo, beneficios o contexto de mercado.</p>
-            </div>
-
-            <div class="dev-form">
-              <label>Producto / mecanismo / problema</label>
-              <input id="inputProductoDev" oninput="guardarEstadoDesarrollo()" placeholder="Ej: parche para dolor de rodilla, mejora movilidad y reduce inflamación">
-    <label>Imagen del producto</label>
-
-<div class="dev-upload-box" onclick="document.getElementById('inputImagenDev').click()">
-  <input id="inputImagenDev" type="file" accept="image/*" onchange="previewImagenDev(event)" hidden>
-
-  <div id="devUploadEmpty" class="dev-upload-empty">
-    <div class="dev-upload-icon">⇪</div>
-    <div class="dev-upload-title">Subir Archivo</div>
-    <div class="dev-upload-sub">PNG, JPG, WEBP</div>
-  </div>
-
-  <div id="devUploadPreview" class="dev-upload-preview hidden">
-    <button type="button" class="dev-upload-remove" onclick="removeImagenDev(event)">✕</button>
-    <img id="devUploadImg" src="" alt="preview">
-    <div id="devUploadName" class="dev-upload-name"></div>
-  </div>
-</div>              
-              <label>Información adicional</label>
-             <textarea id="inputInfoDev" oninput="guardarEstadoDesarrollo()" placeholder="Ej: público objetivo, beneficios, objeciones, promesa, competencia..."></textarea>
-              <label>Objetivo</label>
-              <select id="tipoDesarrolloDev" onchange="guardarEstadoDesarrollo()">
-                <option value="completo">Desarrollo completo</option>
-                <option value="avatar">Solo avatar</option>
-                <option value="angulos">Solo ángulos</option>
-                <option value="guiones">Solo guiones</option>
-                <option value="creativos">Solo creativos</option>
-              </select>
-
-              <button class="primary dev-main-btn" onclick="generarDesarrollo()">
-                <i data-lucide="sparkles"></i>
-                Generar desarrollo
-              </button>
-            </div>
-          </div>
-
-          <div class="dev-card dev-help-card">
-            <div class="dev-card-head">
-              <h3>Cómo usarlo</h3>
-            </div>
-
-            <ul class="dev-help-list">
-              <li>Empieza por el problema principal.</li>
-              <li>Luego define mecanismo y producto.</li>
-              <li>Después genera avatars y ángulos.</li>
-              <li>Con eso construyes landings y creativos.</li>
-            </ul>
-          </div>
-
-          <div class="dev-card dev-history-card">
-            <div class="dev-card-head">
-              <h3>Historial</h3>
-              <p>Tus desarrollos se guardan solos. Haz clic para volver a verlos.</p>
-            </div>
-            <div id="devHistorial" class="dev-history-list">
-              <p class="dev-history-empty">Cargando...</p>
-            </div>
-          </div>
-        </div>
-
-     <div class="dev-right">
-  <div class="dev-card">
-    <div class="dev-card-head" style="display:flex; justify-content:space-between; align-items:flex-start;">
-      <div>
-        <h3>Resultado IA</h3>
-        <p>Salida organizada para avatar, ángulos, guiones y creativos.</p>
-      </div>
-      <span id="iaBadge" class="dev-result-pill" style="display:none;">IA lista</span>
-    </div>
-
-    <div id="resultadoDesarrollo" class="dev-result-empty">
-      <i data-lucide="layout-dashboard"></i>
-      <p>Aquí aparecerá el desarrollo del producto.</p>
-    </div>
-  </div>
-
- <div id="modalAvatar" class="modal-overlay hidden">
-  <div class="modal-box modal-avatar-box">
-    
-    <button class="modal-close" onclick="cerrarAvatarModal()">✕</button>
-
-    <h3>Detalle Avatar</h3>
-
-      <div id="modalAvatarContenido" style="margin-top:10px;"></div>
-
-      <div style="margin-top:20px; text-align:right;">
-        <button onclick="cerrarAvatarModal()">Cerrar</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-      </section>
-    </div>
-  `;
-
   marcarMenuActivo("desarrollo");
-
- setTimeout(() => {
-  restaurarEstadoDesarrollo();
-  cargarHistorialDesarrollo();
-  if (window.lucide) lucide.createIcons();
-}, 0);
-
-  return;
+  renderLista(view);
 });
-
-
-// =============================================
-// 📚 HISTORIAL DE DESARROLLOS (guardados en Mongo)
-// =============================================
-const NOMBRES_TIPO = {
-  completo: "Completo", avatar: "Avatar", angulos: "Ángulos", guiones: "Guiones", creativos: "Creativos"
-};
-
-// Devuelve el id del producto de la Base de Productos solo si el nombre no se cambió
-function productoVinculado(nombreActual) {
-  const id = localStorage.getItem("dev_producto_id");
-  const nombre = localStorage.getItem("dev_producto_id_nombre");
-  return id && nombre && nombre === nombreActual ? id : null;
-}
-
-function formatoFecha(iso) {
-  const d = new Date(iso);
-  return d.toLocaleDateString("es-CO", { day: "numeric", month: "short" }) + " · " +
-    d.toLocaleTimeString("es-CO", { hour: "numeric", minute: "2-digit" });
-}
-
-async function cargarHistorialDesarrollo() {
-  const cont = document.getElementById("devHistorial");
-  if (!cont) return;
-
-  try {
-    const res = await fetch("/api/desarrollos?limit=20");
-    if (!res.ok) throw new Error();
-    const lista = await res.json();
-
-    if (!lista.length) {
-      cont.innerHTML = `<p class="dev-history-empty">Aún no has generado desarrollos.</p>`;
-      return;
-    }
-
-    cont.innerHTML = lista.map(d => `
-      <div class="dev-history-item" onclick="abrirDesarrolloGuardado('${d._id}')">
-        <div class="dev-history-main">
-          <strong>${escapeHTML(d.producto || "Producto desde imagen")}</strong>
-          <span>${NOMBRES_TIPO[d.tipo] || "Completo"}${d.conImagen ? " · con imagen" : ""} · ${formatoFecha(d.fecha)}</span>
-        </div>
-        <button class="dev-history-del" title="Eliminar" onclick="event.stopPropagation(); eliminarDesarrolloGuardado('${d._id}')">✕</button>
-      </div>
-    `).join("");
-  } catch {
-    cont.innerHTML = `<p class="dev-history-empty">No se pudo cargar el historial.</p>`;
-  }
-}
-
-window.abrirDesarrolloGuardado = async function(id) {
-  const resultado = document.getElementById("resultadoDesarrollo");
-  if (!resultado) return;
-
-  try {
-    const res = await fetch(`/api/desarrollos/${id}`);
-    const d = await res.json();
-    if (!res.ok) throw new Error(d.error || "No se pudo abrir");
-
-    const inputProducto = document.getElementById("inputProductoDev");
-    const inputInfo = document.getElementById("inputInfoDev");
-    const inputTipo = document.getElementById("tipoDesarrolloDev");
-    if (inputProducto) inputProducto.value = d.producto || "";
-    if (inputInfo) inputInfo.value = d.info || "";
-    if (inputTipo) inputTipo.value = d.tipo || "completo";
-
-    resultado.className = "dev-result-box";
-    resultado.innerHTML = `
-      <div class="dev-result-toolbar">
-        <span class="dev-result-pill">Guardado · ${formatoFecha(d.fecha)}</span>
-      </div>
-      ${renderParsedDesarrollo(d.resultado || "")}
-    `;
-
-    guardarEstadoDesarrollo();
-    if (window.lucide) lucide.createIcons();
-    resultado.scrollIntoView({ behavior: "smooth", block: "start" });
-  } catch (err) {
-    alert(err.message || "No se pudo abrir el desarrollo");
-  }
-};
-
-window.eliminarDesarrolloGuardado = async function(id) {
-  if (!confirm("¿Eliminar este desarrollo del historial?")) return;
-  const res = await fetch(`/api/desarrollos/${id}`, { method: "DELETE" });
-  if (!res.ok) return alert("No se pudo eliminar");
-  cargarHistorialDesarrollo();
-};

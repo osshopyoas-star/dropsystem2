@@ -20,7 +20,9 @@ window.goTo = function(route) {
     return;
   }
 
+  document.body.classList.remove("menu-abierto");   // en celular, cerrar el menú al navegar
   render(view);
+  window.scrollTo?.(0, 0);
 };
 
 window.marcarMenuActivo = function(route) {

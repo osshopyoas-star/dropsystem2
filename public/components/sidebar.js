@@ -77,6 +77,21 @@ export function renderSidebar() {
 </div>
   `;
 
+ // Botón ☰ y fondo oscuro para el menú en celular
+ if (!document.querySelector(".menu-movil")) {
+  const boton = document.createElement("button");
+  boton.className = "menu-movil";
+  boton.setAttribute("aria-label", "Abrir menú");
+  boton.textContent = "☰";
+  boton.onclick = () => document.body.classList.toggle("menu-abierto");
+
+  const fondo = document.createElement("div");
+  fondo.className = "menu-fondo";
+  fondo.onclick = () => document.body.classList.remove("menu-abierto");
+
+  document.body.append(boton, fondo);
+ }
+
  if (window.lucide) {
   lucide.createIcons();
 }

@@ -17,7 +17,8 @@ import {
   requireAdmin,
   rateLimit
 } from "./auth.js";
-import { promptDesarrollo, promptTendencia, promptKeywordsMaslow, TIPOS_DESARROLLO } from "./prompts.js";
+import { promptTendencia, promptKeywordsMaslow } from "./prompts.js";
+import { registrarRutasProyectos } from "./rutas-proyectos.js";
 
 // =============================================
 // 🗄️ MODELOS
@@ -54,19 +55,6 @@ const productoSchema = new mongoose.Schema({
 
 const Producto = mongoose.model("Producto", productoSchema);
 
-// Cada vez que generas un desarrollo con IA queda guardado aquí
-const desarrolloSchema = new mongoose.Schema({
-  owner: { type: mongoose.Schema.Types.ObjectId, ref: "Usuario", index: true },
-  productoId: { type: mongoose.Schema.Types.ObjectId, ref: "Producto", index: true },
-  producto: String,
-  info: String,
-  tipo: String,
-  conImagen: Boolean,
-  resultado: String,
-  fecha: { type: Date, default: Date.now }
-});
-
-const Desarrollo = mongoose.model("Desarrollo", desarrolloSchema);
 
 // Solo estos campos se pueden guardar/editar desde el navegador
 const CAMPOS_PRODUCTO = [
@@ -390,9 +378,11 @@ Devuelve EXACTAMENTE este JSON:
 });
 
 // Llama a Grok con un prompt (y opcionalmente una imagen) y devuelve el texto
-async function llamarIA({ prompt, image = null, system = "Eres un experto en marketing, análisis de producto y ecommerce." }) {
+async function llamarIA({ prompt, image = null, images = [], system = "Eres un experto en marketing, análisis de producto y ecommerce." }) {
   const userContent = [{ type: "text", text: prompt }];
-  if (image) userContent.push({ type: "image_url", image_url: { url: image } });
+  for (const img of [image, ...images].filter(Boolean)) {
+    userContent.push({ type: "image_url", image_url: { url: img } });
+  }
 
   const response = await fetch("https://api.x.ai/v1/chat/completions", {
     method: "POST",
@@ -426,52 +416,6 @@ async function llamarIA({ prompt, image = null, system = "Eres un experto en mar
   return data?.choices?.[0]?.message?.content || "";
 }
 
-const imagenValida = (img) =>
-  typeof img === "string" && /^data:image\/(png|jpe?g|webp|gif);base64,/.test(img);
-
-// 🧠 Desarrollo: avatares, ángulos, guiones y creativos (se guarda en Mongo)
-app.post("/api/ia/desarrollo", iaLimiter, async (req, res) => {
-  try {
-    const { producto = "", info = "", tipo = "completo", image = null, productoId = null } = req.body || {};
-
-    if (!String(producto).trim() && !image) {
-      return res.status(400).json({ error: "Escribe el producto o sube una imagen" });
-    }
-    if (image && !imagenValida(image)) {
-      return res.status(400).json({ error: "La imagen debe ser PNG, JPG, WEBP o GIF" });
-    }
-
-    const reply = await llamarIA({
-      prompt: promptDesarrollo({ producto, info, tipo }),
-      image: image || null
-    });
-
-    if (!reply) return res.status(502).json({ error: "La IA no devolvió contenido" });
-
-    // Vincular al producto solo si es tuyo
-    let vinculo = null;
-    if (productoId && idValido(productoId)) {
-      const p = await Producto.exists({ _id: productoId, owner: req.user.uid });
-      if (p) vinculo = productoId;
-    }
-
-    const guardado = await Desarrollo.create({
-      owner: req.user.uid,
-      productoId: vinculo,
-      producto: String(producto).slice(0, 500),
-      info: String(info).slice(0, 3000),
-      tipo: TIPOS_DESARROLLO.includes(tipo) ? tipo : "completo",
-      conImagen: !!image,
-      resultado: reply
-    });
-
-    res.json({ reply, desarrolloId: guardado._id });
-  } catch (err) {
-    console.error("Error /api/ia/desarrollo:", err);
-    res.status(err.status || 500).json({ error: err.message || "Error generando desarrollo" });
-  }
-});
-
 // 📈 Análisis de tendencia / oportunidad
 app.post("/api/ia/tendencia", iaLimiter, async (req, res) => {
   try {
@@ -499,48 +443,9 @@ app.post("/api/ia/keywords", iaLimiter, async (req, res) => {
 });
 
 // =============================================
-// 📚 HISTORIAL DE DESARROLLOS
+// 🧪 ESTUDIO DE LANDING (Desarrollo por pasos) — ver rutas-proyectos.js
 // =============================================
-app.get("/api/desarrollos", async (req, res) => {
-  try {
-    const filtro = { owner: req.user.uid };
-    if (req.query.productoId && idValido(req.query.productoId)) filtro.productoId = req.query.productoId;
-
-    const lista = await Desarrollo.find(filtro)
-      .select("producto tipo conImagen productoId fecha")
-      .sort({ fecha: -1 })
-      .limit(Math.min(Number(req.query.limit) || 30, 100));
-
-    res.json(lista);
-  } catch (err) {
-    console.error("Error listando desarrollos:", err);
-    res.status(500).json({ error: "No se pudo cargar el historial" });
-  }
-});
-
-app.get("/api/desarrollos/:id", async (req, res) => {
-  try {
-    if (!idValido(req.params.id)) return res.status(400).json({ error: "ID inválido" });
-    const d = await Desarrollo.findOne({ _id: req.params.id, owner: req.user.uid });
-    if (!d) return res.status(404).json({ error: "Desarrollo no encontrado" });
-    res.json(d);
-  } catch (err) {
-    console.error("Error leyendo desarrollo:", err);
-    res.status(500).json({ error: "No se pudo cargar el desarrollo" });
-  }
-});
-
-app.delete("/api/desarrollos/:id", async (req, res) => {
-  try {
-    if (!idValido(req.params.id)) return res.status(400).json({ error: "ID inválido" });
-    const r = await Desarrollo.findOneAndDelete({ _id: req.params.id, owner: req.user.uid });
-    if (!r) return res.status(404).json({ error: "Desarrollo no encontrado" });
-    res.json({ ok: true });
-  } catch (err) {
-    console.error("Error eliminando desarrollo:", err);
-    res.status(500).json({ error: "No se pudo eliminar" });
-  }
-});
+registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Producto });
 
 // =============================================
 // 📦 PRODUCTOS (cada usuario ve solo los suyos)
