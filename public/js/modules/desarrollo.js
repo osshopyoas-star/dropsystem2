@@ -223,20 +223,36 @@ window.estFiltrarProductos = () => {
   const sel = $("estNuevoProducto");
   if (!sel) return;
 
-  const delPais = cacheProductos.filter(p => (p.pais || "CO") === pais);
+  const porNombre = (a, b) => String(a.nombre || "").localeCompare(String(b.nombre || ""), "es", { sensitivity: "base" });
+  const delPais = cacheProductos.filter(p => (p.pais || "CO") === pais).sort(porNombre);
   const sinProyecto = delPais.filter(p => !proyectoDe(p._id));
   const conProyecto = delPais.filter(p => proyectoDe(p._id));
 
   const opcion = (p) => {
     const pr = proyectoDe(p._id);
     const fuente = fuenteTexto(p);
-    const estado = pr ? `✓ Ya tiene proyecto · paso ${pr.paso || 1}/6` : (ESTADO[p.estado] || "Idea");
-    return `<option value="${esc(p._id)}">${esc(p.nombre)}${fuente ? ` · ${esc(fuente)}` : ""} — ${estado}</option>`;
+    const extra = pr ? ` — paso ${pr.paso || 1}/6` : "";
+    return `<option value="${esc(p._id)}">${esc(p.nombre)}${fuente ? ` · ${esc(fuente)}` : ""}${extra}</option>`;
   };
 
-  sel.innerHTML = `<option value="">${delPais.length ? `Elegir producto de ${PAIS_NOMBRE[pais]} (${sinProyecto.length} sin proyecto)` : `No hay productos de ${PAIS_NOMBRE[pais]} en la Base`}</option>` +
-    (sinProyecto.length ? `<optgroup label="Sin proyecto">${sinProyecto.map(opcion).join("")}</optgroup>` : "") +
-    (conProyecto.length ? `<optgroup label="Ya tienen proyecto (se abre el existente)">${conProyecto.map(opcion).join("")}</optgroup>` : "");
+  // Grupos en el orden en que normalmente trabajas
+  const GRUPOS = [
+    ["idea", "💡 Idea"],
+    ["validando", "🔍 Validando"],
+    ["desarrollo", "🛠️ En desarrollo (sin proyecto)"],
+    ["lanzado", "🚀 Lanzados"]
+  ];
+  const estadoDe = (p) => ESTADO[p.estado] ? p.estado : "idea";
+
+  let html = `<option value="">${delPais.length ? `Elegir producto de ${PAIS_NOMBRE[pais]} (${sinProyecto.length} sin proyecto)` : `No hay productos de ${PAIS_NOMBRE[pais]} en la Base`}</option>`;
+  for (const [estado, titulo] of GRUPOS) {
+    const items = sinProyecto.filter(p => estadoDe(p) === estado);
+    if (items.length) html += `<optgroup label="${titulo} (${items.length})">${items.map(opcion).join("")}</optgroup>`;
+  }
+  if (conProyecto.length) {
+    html += `<optgroup label="✓ Ya tienen proyecto (${conProyecto.length}) — se abre el existente">${conProyecto.map(opcion).join("")}</optgroup>`;
+  }
+  sel.innerHTML = html;
   estInfoProducto();
 };
 
