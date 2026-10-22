@@ -178,6 +178,7 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
   const guardarRama = async (p, av, r) => {
     p.ramas = { ...(p.ramas || {}), [av]: r };
     p.pasosRamas = { ...(p.pasosRamas || {}), [av]: r.paso };
+    p.vendio = Object.values(p.ramas).some(x => x?.vendio);   // para mostrarlo en la Base de Productos
     p.markModified("ramas"); p.markModified("pasosRamas");
     p.actualizado = new Date();
     await p.save();
