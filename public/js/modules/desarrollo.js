@@ -321,6 +321,7 @@ window.estCrearProyecto = () => conCarga("estBtnCrear", "Creando...", async () =
 });
 
 window.estAbrirProyecto = (id) => abrir(id);
+window.estAbrirProyectoEn = (id, paso) => abrir(id, paso);
 
 window.estVolverLista = () => renderLista($("view"));
 
@@ -463,12 +464,12 @@ function pasoFicha() {
   <div class="est-cols">
     <div class="est-card">
       <h3>Fotos reales del producto</h3>
-      <p class="est-muted">Máximo 4. Son las que adjuntarás en Gemini y las que la IA revisa.</p>
+      <p class="est-muted">Máximo 6. Son las que adjuntarás en Gemini y las que la IA revisa.</p>
       <div class="est-fotos">
         ${fotos.map((src, i) => `
           <div class="est-foto"><img src="${src}" alt="Foto ${i + 1}"><button onclick="estQuitarFoto(${i})" title="Quitar">✕</button></div>
         `).join("")}
-        ${fotos.length < 4 ? `
+        ${fotos.length < 6 ? `
           <label class="est-foto add">
             <input type="file" accept="image/png,image/jpeg,image/webp" multiple onchange="estSubirFotos(this)" hidden>
             <i data-lucide="image-plus"></i><span>Subir</span>
@@ -484,6 +485,7 @@ function pasoFicha() {
           <div><label>Precio (${p.pais === "EC" ? "USD" : "COP"})</label><input id="fPrecio" type="number" step="any" min="0" value="${esc(f.precio)}" oninput="estVerDescuento()"></div>
           <div><label>Precio "antes"</label><input id="fPrecioAntes" type="number" step="any" min="0" value="${esc(f.precioAntes)}" oninput="estVerDescuento()"></div>
         </div>
+        <button class="est-btn est-calc-btn" onclick="estAbrirCalculadora()"><i data-lucide="calculator"></i> ${f.costeoId ? "Ver costeo en la calculadora" : "Calcular precio y paquetes en la calculadora"}</button>
         <p id="fDescuento" class="est-hint">${descuento ? `Se verá: ${formatoPrecio(f.precio, p.pais)} antes ${formatoPrecio(f.precioAntes, p.pais)} · ${descuento}% de descuento` : "Escribe el precio y el 'antes' para calcular el descuento."}</p>
 
         <label>Medidas reales</label>
@@ -569,6 +571,21 @@ function leerFicha() {
   };
 }
 
+// Ir a la calculadora con este producto; al volver con "Pasar a Desarrollo" se llenan precio y paquetes
+window.estAbrirCalculadora = async () => {
+  await guardar({ ficha: leerFicha() });
+  if (proyecto.productoId) return calAbrirConProducto(proyecto.productoId, proyecto.pais);
+  goTo("calculadora");
+  setTimeout(() => {
+    const n = document.getElementById("calNombre");
+    const sel = document.getElementById("calProducto");
+    const pais = document.getElementById("calPais");
+    if (pais) { pais.value = proyecto.pais; calCambiarPais(); }
+    if (sel) sel.value = "";
+    if (n) { n.value = proyecto.nombre; calCalcular(); }
+  }, 400);
+};
+
 window.estVerDescuento = () => {
   const a = Number($("fPrecioAntes")?.value), b = Number($("fPrecio")?.value);
   const el = $("fDescuento");
@@ -598,7 +615,7 @@ window.estGuardarRevision = async () => {
 };
 
 window.estSubirFotos = async (input) => {
-  const archivos = [...(input.files || [])].slice(0, 4 - (proyecto.fotos || []).length);
+  const archivos = [...(input.files || [])].slice(0, 6 - (proyecto.fotos || []).length);
   if (!archivos.length) return;
   avisar("Subiendo fotos...", "ok");
   try {

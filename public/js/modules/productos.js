@@ -165,8 +165,8 @@ tabla.innerHTML = state.productos.map((p, i) => `
 
     <!-- 🔥 BOTÓN DESARROLLO -->
     <div>
-      <button class="btn-dev" onclick="irDesarrollo(${i})">
-        Ir
+      <button class="btn-dev" title="Costear en la calculadora y pasar a Desarrollo" onclick="calAbrirConProducto('${p._id}', '${p.pais || ""}')">
+        Crear
       </button>
     </div>
 

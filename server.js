@@ -19,6 +19,7 @@ import {
 } from "./auth.js";
 import { promptTendencia, promptKeywordsMaslow } from "./prompts.js";
 import { registrarRutasProyectos } from "./rutas-proyectos.js";
+import { registrarRutasCosteos } from "./rutas-costeos.js";
 
 // =============================================
 // 🗄️ MODELOS
@@ -446,6 +447,7 @@ app.post("/api/ia/keywords", iaLimiter, async (req, res) => {
 // 🧪 ESTUDIO DE LANDING (Desarrollo por pasos) — ver rutas-proyectos.js
 // =============================================
 registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Producto });
+registrarRutasCosteos(app, { idValido, Producto });
 
 // =============================================
 // 📦 PRODUCTOS (cada usuario ve solo los suyos)

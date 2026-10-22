@@ -1,320 +1,469 @@
 // =============================================
-// Calculadora de precios y rentabilidad
+// 🧮 Calculadora de precio COD (contra entrega)
+// Costeo por producto → guarda → pasa precio, "antes" y paquetes a Desarrollo
+// Las fórmulas están en core/costeo.js
 // =============================================
-import { setText } from "../core/utils.js";
 import { registrarRuta } from "./navegacion.js";
+import { escapeHTML } from "../core/utils.js";
+import { PAISES_COSTEO, calcularCosteo, formatear, redondear } from "../core/costeo.js";
 
-function renderCalculadoraDashboard() {
+const $ = (id) => document.getElementById(id);
+const esc = (v) => escapeHTML(v ?? "");
+
+let productos = [];
+let costeos = [];
+let productoPendiente = null;   // producto con el que se abrió la calculadora desde la Base
+let ultimo = null;              // último resultado calculado
+
+const CAMPOS = ["proveedor", "flete", "cancelados", "devoluciones", "admin", "fulfillment", "cpa", "utilidad", "descuento", "precio"];
+
+async function api(metodo, url, body) {
+  const res = await fetch(url, {
+    method: metodo,
+    headers: body ? { "Content-Type": "application/json" } : undefined,
+    body: body ? JSON.stringify(body) : undefined
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+  return data;
+}
+
+function avisar(texto, tipo = "ok") {
+  let el = $("estToast");
+  if (!el) { el = document.createElement("div"); el.id = "estToast"; document.body.appendChild(el); }
+  el.textContent = texto;
+  el.className = `est-toast show ${tipo}`;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove("show"), tipo === "error" ? 4000 : 1600);
+}
+
+const pais = () => $("calPais")?.value === "EC" ? "EC" : "CO";
+const moneda = () => PAISES_COSTEO[pais()].moneda;
+const fmt = (v) => formatear(v, pais());
+
+// ---------- Pantalla ----------
+function render() {
   return `
-    <div class="calcx-page">
-      <section class="calcx-layout">
-
-      <div class="calcx-sidebar">
-          <div class="calcx-panel">
-            <div class="calcx-panel-head">
-              <div class="calcx-badge">
-                <i data-lucide="calculator"></i>
-                <span>Calculadora</span>
-              </div>
-              <h2>Panel de parámetros</h2>
-              <p>Configura costos, pérdidas y margen objetivo.</p>
-            </div>
-
-            <div class="calcx-form">
-              <label>Divisa</label>
-              <select id="calcxMoneda" onchange="actualizarCalculadoraDashboard()">
-                <option value="COP">COP</option>
-                <option value="USD">USD</option>
-              </select>
-
-              <label>Valor de venta deseado</label>
-              <input id="calcxPrecioVenta" type="number" value="99842" oninput="actualizarCalculadoraDashboard()">
-
-              <label>Costo del producto</label>
-              <input id="calcxPrecioProveedor" type="number" value="21000" oninput="actualizarCalculadoraDashboard()">
-
-              <label>Flete base</label>
-              <input id="calcxFleteBase" type="number" value="20000" oninput="actualizarCalculadoraDashboard()">
-
-              <label>Fulfillment</label>
-              <input id="calcxFulfillment" type="number" value="0" oninput="actualizarCalculadoraDashboard()">
-
-              <label>Confirmación logística</label>
-              <input id="calcxConfirmacion" type="number" value="0" oninput="actualizarCalculadoraDashboard()">
-
-              <label>Costos administrativos</label>
-              <input id="calcxAdmin" type="number" value="5000" oninput="actualizarCalculadoraDashboard()">
-              <label>Impuestos (%)</label>
-              <input id="calcxImpuestos" type="number" step="0.1" value="2" oninput="actualizarCalculadoraDashboard()">
-
-              <label>Plataforma de pago</label>
-              <select id="calcxPasarela" onchange="actualizarCalculadoraDashboard()">
-                <option value="none">Sin comisión</option>
-                <option value="payu">PayU</option>
-                <option value="mercadopago">Mercado Pago</option>
-                <option value="stripe">Stripe</option>
-              </select>
-
-              <label>% cancelaciones</label>
-              <input id="calcxCancelados" type="number" step="0.1" value="10" oninput="actualizarCalculadoraDashboard()">
-
-              <label>% devoluciones</label>
-              <input id="calcxDevoluciones" type="number" step="0.1" value="20" oninput="actualizarCalculadoraDashboard()">
-
-              <label>Margen objetivo</label>
-              <input id="calcxMargenObjetivo" type="number" step="0.1" value="18" oninput="actualizarCalculadoraDashboard()">
-            </div>
-          </div>
+  <div class="cal-page">
+    <header class="cal-head">
+      <div>
+        <h1><i data-lucide="calculator"></i> Calculadora de precio</h1>
+        <p>Costeo contra entrega por país. Elige el producto, ajusta los costos y pasa el precio a Desarrollo.</p>
       </div>
+      <div class="cal-head-actions">
+        <select id="calPais" onchange="calCambiarPais()">
+          <option value="CO">🇨🇴 Colombia (COP)</option>
+          <option value="EC">🇪🇨 Ecuador (USD)</option>
+        </select>
+        <button class="cal-btn ghost" onclick="calRestablecer()"><i data-lucide="rotate-ccw"></i> Restablecer</button>
+        <button class="cal-btn ghost" onclick="calVerGuardados()"><i data-lucide="folder-open"></i> Costeos guardados</button>
+        <button class="cal-btn" id="calBtnGuardar" onclick="calGuardar()"><i data-lucide="save"></i> Guardar costeo</button>
+      </div>
+    </header>
 
-        <div class="calcx-main">
-          <div class="calcx-top-grid">
-            <div class="calcx-card principal">
-              <span>Precio / utilidad / margen</span>
-              <strong id="calcxOutPrecioVenta">$0</strong>
+    <div id="calGuardados" class="cal-card cal-guardados hidden"></div>
 
-              <div class="calcx-triple">
-                <div>
-                  <small>Utilidad</small>
-                  <b id="calcxOutUtilidad">$0</b>
-                </div>
-                <div>
-                  <small>Margen</small>
-                  <b id="calcxOutMargen">0%</b>
-                </div>
-              </div>
+    <section class="cal-layout">
+      <div class="cal-card">
+        <h2>Datos del producto</h2>
+
+        <div class="cal-form">
+          <label>Producto</label>
+          <select id="calProducto" onchange="calElegirProducto()"><option value="">Cargando...</option></select>
+          <input id="calNombre" placeholder="…o escribe el nombre si no está en la Base">
+          <small id="calInfoProducto" class="cal-hint"></small>
+
+          <div class="cal-row">
+            <div>
+              <label>Precio proveedor</label>
+              <input id="calProveedor" type="number" min="0" step="any" oninput="calCalcular()">
+              <small>Lo que le pagas al proveedor por unidad</small>
             </div>
-
-            <div class="calcx-card amarillo">
-              <span>Punto de equilibrio</span>
-              <strong id="calcxOutBreakEven">$0</strong>
-              <small>Precio mínimo para no perder</small>
-            </div>
-
-            <div class="calcx-card naranja">
-              <span>Costo bruto total por venta</span>
-              <strong id="calcxOutCostosTotales">$0</strong>
-              <small>Incluye operación, pérdidas y pauta</small>
+            <div>
+              <label>Flete base</label>
+              <input id="calFlete" type="number" min="0" step="any" oninput="calCalcular()">
+              <small>Flete promedio del envío contra entrega</small>
             </div>
           </div>
 
-          <div class="calcx-grid">
-            <div class="calcx-card">
-              <span>Precio mínimo</span>
-              <strong id="calcxOutPrecioMinimo">$0</strong>
-              <small>Con margen mínimo de seguridad</small>
-            </div>
+          <div class="cal-slider">
+            <div><label>% Cancelaciones + rechazados</label><b id="calCanceladosTxt">0%</b></div>
+            <input id="calCancelados" type="range" min="0" max="60" step="1" oninput="calCalcular()">
+          </div>
+          <div class="cal-slider">
+            <div><label>% Devoluciones (sobre despachados)</label><b id="calDevolucionesTxt">0%</b></div>
+            <input id="calDevoluciones" type="range" min="0" max="60" step="1" oninput="calCalcular()">
+          </div>
+          <small class="cal-hint">Usa números algo más altos que tu promedio: es mejor que el precio aguante una semana mala.</small>
+          <small id="calEfectividad" class="cal-efect"></small>
 
-            <div class="calcx-card">
-              <span>Precio ideal</span>
-              <strong id="calcxOutPrecioIdeal">$0</strong>
-              <small>Basado en margen objetivo</small>
+          <div class="cal-row">
+            <div>
+              <label>Costos administrativos</label>
+              <input id="calAdmin" type="number" min="0" step="any" oninput="calCalcular()">
+              <small>Opcional — tienda, herramientas, etc. por venta</small>
             </div>
-
-            <div class="calcx-card">
-              <span>Pauta máxima permitida</span>
-              <strong id="calcxOutPautaMaxima">$0</strong>
-              <small>Límite recomendado</small>
+            <div>
+              <label>Fulfillment</label>
+              <input id="calFulfillment" type="number" min="0" step="any" oninput="calCalcular()">
+              <small>Opcional — bodega propia o importado</small>
             </div>
+          </div>
 
-            <div class="calcx-card">
-              <span>Inversión en pauta efectiva</span>
-              <strong id="calcxOutCPA">$0</strong>
-              <small>20% del valor de venta</small>
+          <div class="cal-row">
+            <div>
+              <label>CPA objetivo</label>
+              <input id="calCpa" type="number" min="0" step="any" oninput="calCalcular()">
+              <small>Costo por venta en el Ads Manager</small>
             </div>
-
-            <div class="calcx-card">
-              <span>Pérdida por cancelaciones</span>
-              <strong id="calcxOutPerdidaCancelados">$0</strong>
-              <small>Impacto estimado</small>
+            <div>
+              <label>% utilidad deseada</label>
+              <input id="calUtilidad" type="number" min="0" max="90" step="1" oninput="calCalcular()">
+              <small id="calUtilidadHint">Margen que quieres ganar</small>
             </div>
+          </div>
 
-            <div class="calcx-card">
-              <span>Pérdida por devoluciones</span>
-              <strong id="calcxOutPerdidaDevoluciones">$0</strong>
-              <small>Impacto estimado</small>
+          <div class="cal-row">
+            <div>
+              <label>Descuento de comparación (%)</label>
+              <input id="calDescuento" type="number" min="0" max="90" step="1" oninput="calCalcular()">
+              <small>Para el precio "antes" tachado</small>
             </div>
-
-            <div class="calcx-card">
-              <span>Proyección ROAS</span>
-              <strong id="calcxOutROAS">0.00</strong>
-              <small>Venta / pauta efectiva</small>
-            </div>
-
-            <div class="calcx-card">
-              <span>Proyección ROI</span>
-              <strong id="calcxOutROI">0%</strong>
-              <small>Utilidad / costo bruto total</small>
-            </div>
-
-            <div class="calcx-card full resumen">
-              <span>Resumen ejecutivo</span>
-              <p id="calcxResumen">Aquí verás el resumen calculado.</p>
+            <div>
+              <label>¿Ya tienes precio de venta?</label>
+              <div class="cal-inline">
+                <input id="calPrecio" type="number" min="0" step="any" placeholder="Vacío = te lo sugerimos" oninput="calCalcular()">
+                <button class="cal-mini" onclick="calBorrarPrecio()">Borrar</button>
+              </div>
+              <small>Si lo dejas vacío, te sugerimos el precio</small>
             </div>
           </div>
         </div>
+      </div>
 
-      </section>
+      <div class="cal-card cal-result" id="calResultado"></div>
+    </section>
+  </div>`;
+}
+
+function leerDatos() {
+  const v = (id) => $(id)?.value;
+  return {
+    pais: pais(),
+    proveedor: v("calProveedor"), flete: v("calFlete"),
+    cancelados: v("calCancelados"), devoluciones: v("calDevoluciones"),
+    admin: v("calAdmin"), fulfillment: v("calFulfillment"), cpa: v("calCpa"),
+    utilidad: v("calUtilidad"), descuento: v("calDescuento"), precio: v("calPrecio")
+  };
+}
+
+function ponerDatos(d = {}) {
+  const base = PAISES_COSTEO[pais()];
+  const set = (id, val) => { const el = $(id); if (el) el.value = val ?? ""; };
+  set("calProveedor", d.proveedor ?? "");
+  set("calFlete", d.flete ?? base.flete);
+  set("calCancelados", d.cancelados ?? base.cancelados);
+  set("calDevoluciones", d.devoluciones ?? base.devoluciones);
+  set("calAdmin", d.admin ?? base.admin);
+  set("calFulfillment", d.fulfillment ?? base.fulfillment);
+  set("calCpa", d.cpa ?? base.cpa);
+  set("calUtilidad", d.utilidad ?? base.utilidad);
+  set("calDescuento", d.descuento ?? base.descuento);
+  set("calPrecio", d.precio ?? "");
+}
+
+function guardarBorrador() {
+  try {
+    localStorage.setItem("cal_borrador", JSON.stringify({
+      ...leerDatos(), productoId: $("calProducto")?.value || "", nombre: $("calNombre")?.value || ""
+    }));
+  } catch {}
+}
+
+// ---------- Cálculo ----------
+window.calCalcular = function () {
+  const d = leerDatos();
+  const r = calcularCosteo(d);
+  ultimo = r;
+  guardarBorrador();
+
+  if ($("calCanceladosTxt")) $("calCanceladosTxt").textContent = `${Number(d.cancelados) || 0}%`;
+  if ($("calDevolucionesTxt")) $("calDevolucionesTxt").textContent = `${Number(d.devoluciones) || 0}%`;
+  if ($("calEfectividad")) $("calEfectividad").textContent = `Entrega sobre despachado: ${Math.round(r.entregaPct)}% · Efectividad total: ${Math.round(r.efectividadPct)}%`;
+
+  const utilidadInput = $("calUtilidad");
+  if (utilidadInput) {
+    utilidadInput.disabled = r.modo === "validar";
+    $("calUtilidadHint").textContent = r.modo === "validar"
+      ? "Desactivado mientras validas tu precio (borra el precio para ajustar la meta)"
+      : "Margen que quieres ganar";
+  }
+
+  const sinProveedor = !(Number(d.proveedor) > 0);
+  const cont = $("calResultado");
+  if (!cont) return;
+
+  cont.innerHTML = `
+    <h2>Resultado</h2>
+    ${sinProveedor ? `<div class="cal-alert info">Escribe el precio del proveedor para ver el costeo.</div>` : ""}
+
+    <h3 class="cal-sub"><i data-lucide="receipt"></i> Desglose de costos</h3>
+    <ul class="cal-desglose">
+      <li><span>Flete con devoluciones <em>pagas el flete de los que vuelven</em></span><b>${fmt(r.fleteConDevoluciones)}</b></li>
+      <li><span>CPA costeado <em>pauta de los pedidos que no se entregan</em></span><b>${fmt(r.cpaCosteado)}</b></li>
+      <li><span>Costos totales por venta</span><b>${fmt(r.costosTotales)}</b></li>
+      <li><span>Utilidad ${r.modo === "validar" ? "real" : ""} (${r.utilidadPct.toFixed(1)}%) <em>${r.modo === "validar" ? "con tu precio" : "con el precio sugerido"}</em></span><b class="${r.utilidad < 0 ? "neg" : ""}">${fmt(r.utilidad)}</b></li>
+    </ul>
+
+    <div class="cal-modo">
+      ${r.modo === "validar"
+        ? `<span>Estás validando <b>tu precio</b></span><button class="cal-link" onclick="calBorrarPrecio()">Volver al precio sugerido</button>`
+        : `<span>Precio sugerido para ganar el <b>${r.utilidadDeseada}%</b></span>`}
     </div>
+
+    <div class="cal-precio">
+      <div class="cal-precio-fila"><span>Comparación "antes"</span><s>${fmt(r.precioAntes)}</s></div>
+      <div class="cal-precio-fila grande"><span>${r.modo === "validar" ? "Tu precio de venta" : "Precio sugerido"}</span><strong>${fmt(r.precio)}</strong></div>
+      <div class="cal-precio-fila"><span>Redondeado (el que publicas)</span><b>${fmt(r.redondeado)}</b></div>
+    </div>
+
+    <div class="cal-bep">
+      <div><b>BEP — CPA máximo sin perder</b><small>utilidad + CPA objetivo. Si en tus campañas el costo por venta supera esto, pierdes.</small></div>
+      <strong>${fmt(r.bep)}</strong>
+    </div>
+
+    ${!sinProveedor ? (r.cumpleMeta
+      ? `<div class="cal-alert ok">Tu precio cubre los costos y cumple tu utilidad deseada (${r.utilidadPct.toFixed(1)}% ≥ ${r.utilidadDeseada}%).</div>`
+      : r.utilidad < 0
+        ? `<div class="cal-alert error">Con este precio <b>pierdes ${fmt(-r.utilidad)}</b> por venta. Para ganar el ${r.utilidadDeseada}%, vende desde <b>${fmt(r.precioMinimoMeta)}</b>.</div>`
+        : `<div class="cal-alert warn">Tu precio cubre los costos, pero la utilidad (${r.utilidadPct.toFixed(1)}%) queda por debajo de la deseada (${r.utilidadDeseada}%). Para llegar, vende desde <b>${fmt(r.precioMinimoMeta)}</b>.</div>`) : ""}
+
+    ${r.alertaEfectividad && !sinProveedor ? `
+      <div class="cal-alert error">${Math.round(r.efectividadPct)}% de efectividad total — la inefectividad te cuesta <b>${fmt(r.costoInefectividad)}</b> por venta (${fmt(r.fleteExtra)} en fletes de devoluciones + ${fmt(r.cpaExtra)} de CPA extra) y está inflando tu precio. Mejora tus % de cancelados y devoluciones.</div>` : ""}
+
+    <h3 class="cal-sub"><i data-lucide="package"></i> Ofertas de cantidad sugeridas</h3>
+    <div class="cal-packs">
+      ${r.paquetes.map((p, i) => `
+        <div class="cal-pack ${i === 1 ? "mejor" : ""}">
+          <span class="cal-pack-tag">${i === 0 ? "PACK" : "MEJOR PRECIO"}</span>
+          <small>${p.unidades} UNIDADES</small>
+          <strong>${fmt(p.precio)}</strong>
+          <span>Unitario: <b>${fmt(p.unitario)}</b> · Normal: <s>${fmt(p.normal)}</s></span>
+          <span class="cal-pack-pct">-${p.ahorroPct}% por unidad · tu utilidad ${p.utilidadPct.toFixed(0)}%</span>
+        </div>
+      `).join("")}
+    </div>
+
+    <button class="cal-btn grande" id="calBtnDesarrollo" onclick="calPasarADesarrollo()" ${sinProveedor ? "disabled" : ""}>
+      <i data-lucide="arrow-right-circle"></i> Guardar y pasar a Desarrollo
+    </button>
+    <small class="cal-hint centro">Lleva a la Ficha el precio redondeado, el "antes" y los paquetes.</small>
   `;
-}
-
-window.syncMonedaCalculadora = function() {
-  const pais = document.getElementById("calcxPais")?.value || "CO";
-  const moneda = document.getElementById("calcxMoneda");
-  if (!moneda) return;
-  moneda.value = pais === "CO" ? "COP" : "USD";
+  if (window.lucide) lucide.createIcons();
 };
 
-function formatMoneyCalcx(value, currency) {
-  // Cuando los costos variables se comen todo el precio, no existe un precio posible
-  if (typeof value === "number" && !Number.isFinite(value)) return "No alcanzable";
-
-  const num = Number(value || 0);
-
-  if (currency === "COP") {
-    return new Intl.NumberFormat("es-CO", {
-      style: "currency",
-      currency: "COP",
-      maximumFractionDigits: 0
-    }).format(num);
-  }
-
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }).format(num);
+// ---------- Productos ----------
+function llenarProductos(seleccion = "") {
+  const sel = $("calProducto");
+  if (!sel) return;
+  const delPais = productos
+    .filter(p => (p.pais || "CO") === pais())
+    .sort((a, b) => String(a.nombre).localeCompare(String(b.nombre), "es", { sensitivity: "base" }));
+  const conCosteo = new Set(costeos.map(c => String(c.productoId)));
+  sel.innerHTML = `<option value="">Elegir de la Base de Productos (${PAISES_COSTEO[pais()].nombre})</option>` +
+    delPais.map(p => `<option value="${esc(p._id)}" ${String(p._id) === String(seleccion) ? "selected" : ""}>${esc(p.nombre)}${p.dropiId ? ` · Dropi ${esc(p.dropiId)}` : ""}${conCosteo.has(String(p._id)) ? " — ✓ costeado" : ""}</option>`).join("");
 }
 
-function getPasarelaConfig(tipo) {
-  const map = {
-    none: { pct: 0, fijo: 0, nombre: "Sin comisión" },
-    payu: { pct: 0.044, fijo: 900, nombre: "PayU 4.4% + fijo" },
-    mercadopago: { pct: 0.035, fijo: 0, nombre: "Mercado Pago 3.5%" },
-    stripe: { pct: 0.029, fijo: 0.3, nombre: "Stripe 2.9% + fijo" }
-  };
-
-  return map[tipo] || map.none;
+function infoProducto() {
+  const id = $("calProducto")?.value;
+  const info = $("calInfoProducto");
+  const c = costeos.find(x => String(x.productoId) === String(id));
+  if (info) info.textContent = !id ? "" : c ? `Costeo guardado el ${new Date(c.actualizado).toLocaleDateString("es-CO")} — lo cargamos.` : "Sin costeo guardado todavía.";
 }
 
-window.actualizarCalculadoraDashboard = function() {
-  const moneda = document.getElementById("calcxMoneda")?.value || "COP";
-const impuestosPct = Number(document.getElementById("calcxImpuestos")?.value || 0);
-  const precioVentaFinal = Number(document.getElementById("calcxPrecioVenta")?.value || 0);
-  const costoProducto = Number(document.getElementById("calcxPrecioProveedor")?.value || 0);
-  const fleteBase = Number(document.getElementById("calcxFleteBase")?.value || 0);
-  const fulfillment = Number(document.getElementById("calcxFulfillment")?.value || 0);
-  const confirmacion = Number(document.getElementById("calcxConfirmacion")?.value || 0);
-  const admin = Number(document.getElementById("calcxAdmin")?.value || 0);
-  const cancelados = Number(document.getElementById("calcxCancelados")?.value || 0);
-  const devoluciones = Number(document.getElementById("calcxDevoluciones")?.value || 0);
-  const margenObjetivo = Number(document.getElementById("calcxMargenObjetivo")?.value || 0);
-  const pasarelaTipo = document.getElementById("calcxPasarela")?.value || "none";
-
-  const pasarela = getPasarelaConfig(pasarelaTipo);
-
-  const efectividad = 1 - ((cancelados + devoluciones) / 100);
-  const fleteAjustado = efectividad > 0 ? fleteBase / efectividad : 0;
-
-  const cpa = precioVentaFinal * 0.20;
-  const comisionPasarela = (precioVentaFinal * pasarela.pct) + pasarela.fijo;
-
-  const perdidaCancelados = precioVentaFinal * (cancelados / 100) * 0.25;
-  const perdidaDevoluciones = precioVentaFinal * (devoluciones / 100) * 0.12;
-
-const subtotalCostos =
-  costoProducto +
-  fleteAjustado +
-  fulfillment +
-  confirmacion +
-  admin +
-  comisionPasarela +
-  cpa +
-  perdidaCancelados +
-  perdidaDevoluciones;
-
-// impuestos sobre el subtotal
-const impuestos = subtotalCostos * (impuestosPct / 100);
-
-const costosTotales = subtotalCostos + impuestos;
-
-  const utilidad = precioVentaFinal - costosTotales;
-  const margen = precioVentaFinal > 0 ? (utilidad / precioVentaFinal) * 100 : 0;
-
-  // 🧮 Precios correctos: la pauta, la pasarela y las pérdidas crecen con el precio.
-  // Costos fijos por venta (no dependen del precio):
-  const costosFijos =
-    costoProducto + fleteAjustado + fulfillment + confirmacion + admin + pasarela.fijo;
-
-  // Fracción del precio que se va en costos variables:
-  const tasaVariable =
-    0.20 +                                 // pauta (CPA = 20% del precio)
-    pasarela.pct +                         // comisión pasarela
-    (cancelados / 100) * 0.25 +            // pérdida por cancelaciones
-    (devoluciones / 100) * 0.12;           // pérdida por devoluciones
-
-  const factorImp = 1 + (impuestosPct / 100);
-
-  // Precio P tal que: P - (costosFijos + tasaVariable·P)·factorImp = margen·P
-  const precioParaMargen = (margenPct) => {
-    const denom = 1 - (margenPct / 100) - (tasaVariable * factorImp);
-    return denom > 0 ? (costosFijos * factorImp) / denom : NaN;
-  };
-
-  const breakEven = precioParaMargen(0);
-  const precioMinimo = precioParaMargen(10);
-  const precioIdeal = precioParaMargen(margenObjetivo);
-
-  const pautaMaxima = precioVentaFinal * 0.20;
-  const roas = cpa > 0 ? precioVentaFinal / cpa : 0;
-  const roi = costosTotales > 0 ? (utilidad / costosTotales) * 100 : 0;
-
-  const setText = (id, value) => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = value;
-  };
-
-  setText("calcxOutPrecioVenta", formatMoneyCalcx(precioVentaFinal, moneda));
-  setText("calcxOutUtilidad", formatMoneyCalcx(utilidad, moneda));
-  setText("calcxOutMargen", `${margen.toFixed(1)}%`);
-  setText("calcxOutBreakEven", formatMoneyCalcx(breakEven, moneda));
-  setText("calcxOutCostosTotales", formatMoneyCalcx(costosTotales, moneda));
-  setText("calcxOutPrecioMinimo", formatMoneyCalcx(precioMinimo, moneda));
-  setText("calcxOutPrecioIdeal", formatMoneyCalcx(precioIdeal, moneda));
-  setText("calcxOutPautaMaxima", formatMoneyCalcx(pautaMaxima, moneda));
-  setText("calcxOutCPA", formatMoneyCalcx(cpa, moneda));
-  setText("calcxOutPerdidaCancelados", formatMoneyCalcx(perdidaCancelados, moneda));
-  setText("calcxOutPerdidaDevoluciones", formatMoneyCalcx(perdidaDevoluciones, moneda));
-  setText("calcxOutROAS", roas.toFixed(2));
-  setText("calcxOutROI", `${roi.toFixed(1)}%`);
-
-  const resumen = document.getElementById("calcxResumen");
-  if (resumen) {
-    resumen.textContent =
-      `Con un valor de venta deseado de ${formatMoneyCalcx(precioVentaFinal, moneda)}, ` +
-      `el costo bruto total por venta es ${formatMoneyCalcx(costosTotales, moneda)}. ` +
-      `La utilidad proyectada es ${formatMoneyCalcx(utilidad, moneda)} con un margen de ${margen.toFixed(1)}%. ` +
-      `El precio ideal para lograr tu margen objetivo sería ${formatMoneyCalcx(precioIdeal, moneda)}.`;
-  }
-
-  const principalCard = document.querySelector(".calcx-card.principal");
-  if (principalCard) {
-    principalCard.classList.toggle("danger", utilidad < 0);
-  }
+window.calElegirProducto = function () {
+  const id = $("calProducto")?.value;
+  if ($("calNombre")) $("calNombre").value = "";
+  const c = costeos.find(x => String(x.productoId) === String(id));
+  if (c) ponerDatos(c.datos);
+  else if (id) ponerDatos({});   // valores del país, proveedor vacío
+  infoProducto();
+  calCalcular();
+  if (id && !c) $("calProveedor")?.focus();
 };
 
-// Ruta: calculadora
-registrarRuta("calculadora", (view) => {
-  view.innerHTML = renderCalculadoraDashboard();
-  marcarMenuActivo("calculadora");
+window.calCambiarPais = function () {
+  try { localStorage.setItem("cal_pais", pais()); } catch {}
+  ponerDatos({ proveedor: $("calProveedor")?.value });
+  llenarProductos();
+  infoProducto();
+  calCalcular();
+};
 
-  setTimeout(() => {
-    actualizarCalculadoraDashboard();
-    if (window.lucide) lucide.createIcons();
-  }, 0);
+window.calRestablecer = function () {
+  if ($("calProducto")) $("calProducto").value = "";
+  if ($("calNombre")) $("calNombre").value = "";
+  ponerDatos({});
+  infoProducto();
+  calCalcular();
+};
 
-  return;
+window.calBorrarPrecio = function () {
+  if ($("calPrecio")) $("calPrecio").value = "";
+  calCalcular();
+};
+
+// ---------- Guardar ----------
+async function guardarCosteo() {
+  const productoId = $("calProducto")?.value || null;
+  const nombre = $("calNombre")?.value.trim() || "";
+  if (!productoId && !nombre) throw new Error("Elige el producto o escribe su nombre");
+  if (!ultimo || !(Number($("calProveedor")?.value) > 0)) throw new Error("Falta el precio del proveedor");
+
+  const r = ultimo;
+  const c = await api("POST", "/api/costeos", {
+    productoId, nombre, pais: pais(),
+    datos: leerDatos(),
+    resumen: {
+      precio: r.precio, redondeado: r.redondeado, precioAntes: r.precioAntes,
+      utilidad: r.utilidad, utilidadPct: r.utilidadPct, bep: r.bep, costosTotales: r.costosTotales,
+      paquetes: r.paquetes
+    }
+  });
+  const i = costeos.findIndex(x => x._id === c._id);
+  if (i >= 0) costeos[i] = c; else costeos.unshift(c);
+  return c;
+}
+
+async function conBoton(id, texto, fn) {
+  const b = $(id); const orig = b?.innerHTML;
+  if (b) { b.disabled = true; b.innerHTML = `<span class="est-spin"></span> ${texto}`; }
+  try { return await fn(); }
+  catch (err) { avisar(err.message, "error"); }
+  finally { if (b && document.body.contains(b)) { b.disabled = false; b.innerHTML = orig; if (window.lucide) lucide.createIcons(); } }
+}
+
+window.calGuardar = () => conBoton("calBtnGuardar", "Guardando...", async () => {
+  await guardarCosteo();
+  llenarProductos($("calProducto")?.value);
+  infoProducto();
+  avisar("Costeo guardado ✓");
 });
 
+window.calPasarADesarrollo = () => conBoton("calBtnDesarrollo", "Pasando a Desarrollo...", async () => {
+  const c = await guardarCosteo();
+  const r = ultimo;
+  const p = pais();
+
+  // Abre el proyecto existente del producto o crea uno nuevo
+  const proyecto = await api("POST", "/api/proyectos", c.productoId ? { productoId: c.productoId, pais: p } : { nombre: c.nombre, pais: p });
+  const actual = await api("GET", `/api/proyectos/${proyecto._id}`);
+
+  const paquetes = r.paquetes.map(x => `${x.unidades} unidades ${formatear(x.precio, p)}`).join("; ");
+  const ficha = {
+    ...(actual.ficha || {}),
+    precio: r.redondeado,
+    // "antes" calculado desde el precio que publicas, para que el % de descuento cuadre
+    precioAntes: redondear(r.redondeado / (1 - (Number($("calDescuento")?.value) || 0) / 100), p),
+    paquetes: `1 unidad ${formatear(r.redondeado, p)}; ${paquetes}`,
+    costeoId: c._id
+  };
+  await api("PUT", `/api/proyectos/${proyecto._id}`, { ficha, pais: p });
+
+  avisar("Precio y paquetes pasados a la Ficha ✓");
+  goTo("desarrollo");
+  setTimeout(() => window.estAbrirProyectoEn?.(proyecto._id, 1), 50);
+});
+
+// ---------- Costeos guardados ----------
+window.calVerGuardados = function () {
+  const box = $("calGuardados");
+  if (!box) return;
+  if (!box.classList.contains("hidden")) { box.classList.add("hidden"); return; }
+  box.classList.remove("hidden");
+  box.innerHTML = costeos.length ? `
+    <div class="cal-guardados-head"><h2>Costeos guardados</h2><button class="cal-mini" onclick="calVerGuardados()">Cerrar</button></div>
+    <ul>
+      ${costeos.map(c => `
+        <li>
+          <button class="cal-guardado" onclick="calCargarCosteo('${esc(c._id)}')">
+            <span class="cal-flag">${c.pais === "EC" ? "🇪🇨" : "🇨🇴"}</span>
+            <b>${esc(c.nombre)}</b>
+            <span>${c.resumen?.redondeado ? formatear(c.resumen.redondeado, c.pais) : "—"} · utilidad ${c.resumen?.utilidadPct != null ? Number(c.resumen.utilidadPct).toFixed(1) + "%" : "—"}</span>
+            <small>${new Date(c.actualizado).toLocaleDateString("es-CO")}</small>
+          </button>
+          <button class="cal-mini danger" title="Eliminar" onclick="calEliminarCosteo('${esc(c._id)}')">✕</button>
+        </li>`).join("")}
+    </ul>` : `<div class="cal-guardados-head"><h2>Costeos guardados</h2><button class="cal-mini" onclick="calVerGuardados()">Cerrar</button></div><p class="cal-hint">Todavía no has guardado costeos.</p>`;
+};
+
+window.calCargarCosteo = function (id) {
+  const c = costeos.find(x => x._id === id);
+  if (!c) return;
+  $("calPais").value = c.pais;
+  llenarProductos(c.productoId || "");
+  if ($("calNombre")) $("calNombre").value = c.productoId ? "" : c.nombre;
+  ponerDatos(c.datos);
+  infoProducto();
+  calCalcular();
+  $("calGuardados")?.classList.add("hidden");
+  avisar(`Costeo de ${c.nombre} cargado`);
+};
+
+window.calEliminarCosteo = async function (id) {
+  if (!confirm("¿Eliminar este costeo guardado?")) return;
+  try {
+    await api("DELETE", `/api/costeos/${id}`);
+    costeos = costeos.filter(x => x._id !== id);
+    $("calGuardados")?.classList.add("hidden");
+    calVerGuardados();
+    llenarProductos($("calProducto")?.value);
+  } catch (err) { avisar(err.message, "error"); }
+};
+
+// Abrir la calculadora con un producto ya elegido (desde Base de Productos o la Ficha)
+window.calAbrirConProducto = function (productoId, paisProducto = null) {
+  productoPendiente = { productoId, pais: paisProducto };
+  goTo("calculadora");
+};
+
+// ---------- Ruta ----------
+registrarRuta("calculadora", async (view) => {
+  view.innerHTML = render();
+  marcarMenuActivo("calculadora");
+  if (window.lucide) lucide.createIcons();
+
+  let borrador = null;
+  try { borrador = JSON.parse(localStorage.getItem("cal_borrador") || "null"); } catch {}
+  const pendiente = productoPendiente;
+  productoPendiente = null;
+
+  try {
+    [productos, costeos] = await Promise.all([api("GET", "/api/productos"), api("GET", "/api/costeos")]);
+  } catch (err) {
+    avisar(err.message, "error");
+  }
+
+  if (pendiente) {
+    const prod = productos.find(p => String(p._id) === String(pendiente.productoId));
+    $("calPais").value = (pendiente.pais || prod?.pais) === "EC" ? "EC" : "CO";
+    llenarProductos(pendiente.productoId);
+    const c = costeos.find(x => String(x.productoId) === String(pendiente.productoId));
+    ponerDatos(c ? c.datos : {});
+    infoProducto();
+    if (!c) setTimeout(() => $("calProveedor")?.focus(), 50);
+  } else if (borrador) {
+    $("calPais").value = borrador.pais === "EC" ? "EC" : "CO";
+    llenarProductos(borrador.productoId);
+    if ($("calNombre")) $("calNombre").value = borrador.nombre || "";
+    ponerDatos(borrador);
+    infoProducto();
+  } else {
+    let p = "CO";
+    try { p = localStorage.getItem("cal_pais") || "CO"; } catch {}
+    $("calPais").value = p === "EC" ? "EC" : "CO";
+    llenarProductos();
+    ponerDatos({});
+  }
+  calCalcular();
+});

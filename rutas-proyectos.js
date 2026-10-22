@@ -54,7 +54,7 @@ const CAMPOS_EDITABLES = ["nombre", "pais", "numAvatares", "paso", "ficha", "fot
 const CAMPOS_RAMA = ["paso", "estilosPropuestos", "estilo", "bloqueEstilo", "secciones", "guiones", "notas", "vendio"];
 const AVATARES_VALIDOS = ["A", "B"];
 
-const MAX_FOTOS = 4;
+const MAX_FOTOS = 6;
 const MAX_FOTO_BYTES = 1_500_000; // ~1.5 MB por foto ya comprimida
 
 const fotoValida = (f) =>
