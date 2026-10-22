@@ -25,6 +25,8 @@ import { registrarRutasMeta } from "./rutas-meta.js";
 import { registrarRutasFinanzas } from "./rutas-finanzas.js";
 import { limpiarAnalisis, limpiarRecursos } from "./public/js/core/analisis.js";
 import { registrarRutasImportar } from "./rutas-importar.js";
+import { registrarRutasShopify } from "./rutas-shopify.js";
+import { registrarRutasPublicar } from "./rutas-publicar.js";
 
 // =============================================
 // 🗄️ MODELOS
@@ -475,7 +477,9 @@ app.post("/api/ia/keywords", iaLimiter, async (req, res) => {
 // =============================================
 // 🧪 ESTUDIO DE LANDING (Desarrollo por pasos) — ver rutas-proyectos.js
 // =============================================
-registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Producto });
+const ayudasProyectos = registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Producto });
+registrarRutasShopify(app);
+registrarRutasPublicar(app, { ...ayudasProyectos, limiter: iaLimiter });
 registrarRutasCosteos(app, { idValido, Producto });
 registrarRutasPlantilla(app);
 registrarRutasMeta(app);

@@ -4849,3 +4849,64 @@ button.bp-chip { border: 0; cursor: pointer; font: inherit; font-size: 12px; fon
 .est-importado-fotos img { width: 84px; height: 84px; object-fit: cover; border-radius: 10px; flex: 0 0 auto; background: #fff; }
 @media (max-width: 640px) { .est-importar-fila { flex-direction: column; } .est-importar-fila .est-btn { width: 100%; } }
 .est-importado .est-sec-actions .est-btn { width: auto; }
+
+/* Integraciones · Shopify */
+.in-tiendas { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.in-tienda { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto auto auto auto; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 13px; }
+.in-tienda.mal { border-color: #fecaca; background: #fffafa; }
+.in-tienda .in-ini { background: #ecfccb; color: #3f6212; }
+.in-tienda select { min-height: 34px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 0 8px; font: inherit; font-size: 12px; background: #fff; width: auto; }
+.in-tienda .in-aviso { grid-column: 1 / -1; margin: 2px 0 0; font-size: 12px; font-weight: 600; }
+.in-btn.chico { min-height: 34px; padding: 0 10px; font-size: 12px; }
+.in-guia { margin-top: 14px; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 14px; background: #f8fafc; font-size: 13px; color: #334155; }
+.in-guia summary { cursor: pointer; font-weight: 700; color: #0f172a; }
+.in-guia ol { margin: 10px 0 0; padding-left: 20px; display: grid; gap: 6px; line-height: 1.5; }
+.in-guia code { background: #fff; border: 1px solid #e2e8f0; padding: 1px 5px; border-radius: 5px; font-size: 12px; color: #0f172a; word-break: break-all; }
+.in-form { display: grid; grid-template-columns: 1.2fr 1fr 1fr auto; gap: 10px; align-items: end; margin-top: 14px; }
+.in-form label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; font-weight: 700; color: #475569; }
+.in-form input { min-height: 40px; border: 1px solid #cbd5e1; border-radius: 10px; padding: 0 10px; font: inherit; font-size: 13px; width: 100%; box-sizing: border-box; }
+@media (max-width: 760px) {
+  .in-form { grid-template-columns: 1fr; }
+  .in-tienda { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .in-tienda select, .in-tienda .in-estado { grid-column: span 1; }
+}
+
+/* Desarrollo · imágenes de cada sección */
+.est-imgs { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; padding: 8px; border-radius: 14px; border: 1px dashed transparent; transition: border-color .15s, background .15s; }
+.est-imgs.soltar { border-color: #818cf8; background: rgba(99,102,241,.1); }
+.est-img { position: relative; width: 92px; height: 140px; border-radius: 10px; overflow: hidden; background: rgba(255,255,255,.06); flex: 0 0 auto; }
+.est-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.est-img button { position: absolute; top: 4px; right: 4px; width: 24px; height: 24px; border-radius: 50%; border: 0; background: rgba(15,23,42,.8); color: #fff; font-size: 12px; cursor: pointer; padding: 0; }
+.est-img.add { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; border: 1.5px dashed rgba(255,255,255,.25); background: transparent; color: #cbd5e1; font-size: 12px; font-weight: 700; text-align: center; padding: 8px; cursor: pointer; box-sizing: border-box; }
+.est-img.add:hover { border-color: #818cf8; color: #fff; background: rgba(99,102,241,.12); }
+.est-img.add svg { width: 20px; height: 20px; }
+
+/* Desarrollo · paso Publicar */
+.est-publicar { display: grid; grid-template-columns: minmax(0, 420px) minmax(0, 1fr); gap: 18px; align-items: start; }
+.est-publicar-lado { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.est-pv-card { position: sticky; top: 12px; }
+.est-phone { width: 100%; max-width: 380px; margin: 14px auto 0; border-radius: 38px; border: 10px solid #020617; background: #020617; box-shadow: 0 20px 50px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.08); overflow: hidden; }
+.est-phone-barra { height: 22px; display: flex; justify-content: center; align-items: center; }
+.est-phone-barra span { width: 90px; height: 6px; border-radius: 999px; background: #1e293b; }
+.est-phone-pantalla { background: #fff; color: #111827; height: min(70vh, 700px); overflow-y: auto; border-radius: 24px; font-size: 14px; line-height: 1.5; }
+.est-phone-pantalla .cdx-normal { padding: 12px 14px 24px; }
+.est-phone-pantalla img { max-width: 100%; }
+.est-pv-prod { padding: 0 0 12px; border-bottom: 1px solid #e5e7eb; }
+.est-pv-prod > img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
+.est-pv-mini { display: flex; gap: 6px; padding: 6px 14px 0; }
+.est-pv-mini img { width: 52px; height: 52px; object-fit: cover; border-radius: 6px; }
+.est-pv-prod h4 { margin: 10px 14px 4px; font-size: 18px; color: #111827; }
+.est-pv-precio { margin: 0 14px; font-size: 18px; font-weight: 800; color: #dc2626; }
+.est-pv-precio s { color: #9ca3af; font-weight: 500; font-size: 14px; margin-left: 6px; }
+.est-pv-comprar { margin: 12px 14px 0; padding: 12px; border-radius: 10px; background: #111827; color: #fff; text-align: center; font-weight: 800; }
+.est-pv-vacio { display: flex; align-items: center; justify-content: center; text-align: center; aspect-ratio: 1; background: #f3f4f6; color: #6b7280; font-size: 13px; padding: 20px; }
+.est-pv-vacio.alto { aspect-ratio: auto; height: 100%; }
+.est-label-claro { display: block; margin: 14px 0 6px; font-size: 13px; font-weight: 700; color: #cbd5e1; }
+#estTienda { width: 100%; min-height: 42px; border-radius: 12px; border: 1px solid rgba(255,255,255,.12); background: #0b1220; color: #f1f5f9; padding: 0 12px; font: inherit; font-size: 14px; }
+.est-pubs { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.est-pub { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: rgba(34,197,94,.08); border: 1px solid rgba(34,197,94,.25); }
+.est-pub > svg { width: 18px; height: 18px; color: #4ade80; flex: 0 0 auto; }
+.est-pub > div { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.est-pub small { color: #94a3b8; font-size: 12px; }
+.est-pub .est-btn { width: auto; text-decoration: none; }
+@media (max-width: 1100px) { .est-publicar { grid-template-columns: 1fr; } .est-pv-card { position: static; } }

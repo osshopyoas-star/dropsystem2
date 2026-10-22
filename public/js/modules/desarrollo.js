@@ -1,6 +1,6 @@
 // =============================================
 // 🧪 Estudio de landing (Desarrollo por pasos)
-// Ficha → Avatares → Estilo → Landing → Guiones → Notas
+// Ficha → Avatares → Estilo → Landing → Anuncios → Publicar (vista previa, Shopify y notas)
 // Los prompts viven en el servidor (prompts-landing.js)
 // =============================================
 import { state } from "../state.js";
@@ -9,6 +9,7 @@ import { escapeHTML } from "../core/utils.js";
 import { SECCIONES, FORMATOS, tiposDe, varianteDe, elegirVariante, formatoImagen, claveDe } from "../core/plantilla.js";
 import { ESTRUCTURAS_AD, FORMATOS_AD, ENFOQUES_COPY, MAX_ADS } from "../core/anuncios.js";
 import { dibujar } from "./plantilla.js";
+import { construirLanding } from "../core/landing-html.js";
 
 const PASOS = [
   { n: 1, titulo: "Ficha", icono: "clipboard-list" },
@@ -16,7 +17,7 @@ const PASOS = [
   { n: 3, titulo: "Estilo", icono: "palette" },
   { n: 4, titulo: "Landing", icono: "images" },
   { n: 5, titulo: "Anuncios", icono: "megaphone" },
-  { n: 6, titulo: "Notas", icono: "list-checks" }
+  { n: 6, titulo: "Publicar", icono: "rocket" }
 ];
 
 // Tipos de sección que se pueden usar en el formato del proyecto abierto
@@ -28,6 +29,9 @@ let cachePlantilla = null;   // Mi plantilla (para las secciones que agregas a m
 const PAIS_NOMBRE = { CO: "Colombia", EC: "Ecuador" };
 
 let proyecto = null;   // proyecto abierto
+let imagenes = [];     // imágenes de Gemini subidas a las secciones (solo datos; la imagen se ve en /api/imagenes/:id)
+let tiendasShopify = null;   // tiendas conectadas (se cargan al abrir el paso Publicar)
+let tiendaElegida = null;
 let tab = 1;           // paso que se está viendo
 let av = null;         // avatar con el que se está trabajando (A o B)
 let generandoTodo = false;
@@ -344,11 +348,13 @@ window.estVolverLista = () => renderLista($("view"));
 async function abrir(id, pasoInicial = null) {
   importado = null;
   try {
-    const [p, pl] = await Promise.all([
+    const [p, pl, imgs] = await Promise.all([
       api("GET", `/api/proyectos/${id}`),
-      api("GET", "/api/plantilla").catch(() => null)
+      api("GET", "/api/plantilla").catch(() => null),
+      api("GET", `/api/proyectos/${id}/imagenes`).catch(() => [])
     ]);
     proyecto = p;
+    imagenes = Array.isArray(imgs) ? imgs : [];
     cachePlantilla = pl;
     const ids = (proyecto.avatares || []).map(a => a.id);
     let guardado = null;
@@ -430,7 +436,7 @@ function renderProyecto() {
 function renderPaso() {
   const cont = $("estContenido");
   if (!cont) return;
-  const render = { 1: pasoFicha, 2: pasoAvatares, 3: pasoEstilo, 4: pasoLanding, 5: pasoAnuncios, 6: pasoNotas }[tab];
+  const render = { 1: pasoFicha, 2: pasoAvatares, 3: pasoEstilo, 4: pasoLanding, 5: pasoAnuncios, 6: pasoPublicar }[tab];
   if (tab >= 3 && !avatarActual()) {
     cont.innerHTML = `<div class="est-card"><div class="est-alert warn">${(proyecto.avatares || []).length
       ? "Elige con qué avatar vas a trabajar (arriba, en \"Trabajando con\")."
@@ -992,6 +998,7 @@ function tarjetaSeccion(x, i, numero) {
     ${x.prompt ? `
       <textarea class="est-code" rows="10" onchange="estEditarPrompt(${i}, this.value)">${esc(x.prompt)}</textarea>
     ` : `<div class="est-empty">Sin prompt todavía.</div>`}
+    ${tiraImagenes(x)}
 
     <div class="est-sec-actions">
       <button class="est-btn ${x.prompt ? "" : "primary"}" id="btnSec-${esc(x.id)}" onclick="estGenerarSeccion('${esc(x.id)}')">
@@ -1003,6 +1010,82 @@ function tarjetaSeccion(x, i, numero) {
     </div>
   </article>`;
 }
+
+// ---------- Imágenes de cada sección (las que sacas de Gemini) ----------
+const imgsDe = (idSeccion) => imagenes.filter(i => i.rama === av && i.seccion === idSeccion);
+const MAX_IMGS_SECCION = 6;
+
+function tiraImagenes(x) {
+  const imgs = imgsDe(x.id);
+  return `
+  <div class="est-imgs" ondragover="event.preventDefault(); this.classList.add('soltar')" ondragleave="this.classList.remove('soltar')" ondrop="estSoltarImagen(event, '${esc(x.id)}')">
+    ${imgs.map(im => `
+      <div class="est-img">
+        <img src="/api/imagenes/${esc(im._id)}" alt="Imagen de ${esc(x.titulo)}" loading="lazy">
+        <button title="Quitar imagen" onclick="estQuitarImagen('${esc(im._id)}')">✕</button>
+      </div>`).join("")}
+    ${imgs.length < MAX_IMGS_SECCION ? `
+      <label class="est-img add" id="imgAdd-${esc(x.id)}">
+        <input type="file" accept="image/png,image/jpeg,image/webp" multiple hidden onchange="estSubirImagen('${esc(x.id)}', this.files); this.value=''">
+        <i data-lucide="upload"></i><span>${imgs.length ? "Agregar otra" : "Subir la imagen de Gemini"}</span>
+      </label>` : ""}
+  </div>`;
+}
+
+// Comprime para la web: máximo 1920 px de lado, JPG de buena calidad
+function comprimirImagen(file, max = 1920, calidad = 0.88) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const escala = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * escala);
+      c.height = Math.round(img.height * escala);
+      const ctx = c.getContext("2d");
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height);   // PNG transparente → fondo blanco
+      ctx.drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve({ dataUrl: c.toDataURL("image/jpeg", calidad), ancho: c.width, alto: c.height });
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("No se pudo leer la imagen")); };
+    img.src = url;
+  });
+}
+
+window.estSubirImagen = async (idSeccion, files) => {
+  const libres = MAX_IMGS_SECCION - imgsDe(idSeccion).length;
+  const archivos = [...(files || [])].filter(f => /^image\//.test(f.type)).slice(0, libres);
+  if (!archivos.length) return;
+  const avInicio = av;
+  const etiqueta = $(`imgAdd-${idSeccion}`);
+  if (etiqueta) etiqueta.innerHTML = `<span class="est-spin"></span><span>Subiendo...</span>`;
+  let subidas = 0;
+  for (const f of archivos) {
+    try {
+      const { dataUrl, ancho, alto } = await comprimirImagen(f);
+      const { imagen, rama } = await api("POST", `/api/proyectos/${proyecto._id}/rama/${avInicio}/imagenes`, { seccion: idSeccion, dataUrl, ancho, alto });
+      imagenes.push(imagen);
+      if (av === avInicio) ponerRama(rama);
+      subidas++;
+    } catch (err) { avisar(err.message, "error"); break; }
+  }
+  if (subidas) avisar(subidas === 1 ? "Imagen guardada ✓" : `${subidas} imágenes guardadas ✓`);
+  if (tab === 4) renderPaso();
+};
+window.estSoltarImagen = (e, idSeccion) => {
+  e.preventDefault();
+  e.currentTarget?.classList.remove("soltar");
+  estSubirImagen(idSeccion, e.dataTransfer?.files);
+};
+window.estQuitarImagen = async (id) => {
+  if (!confirm("¿Quitar esta imagen?")) return;
+  try {
+    await api("DELETE", `/api/imagenes/${id}`);
+    imagenes = imagenes.filter(i => i._id !== id);
+    renderPaso();
+  } catch (err) { avisar(err.message, "error"); }
+};
 
 window.estProponerSecciones = () => conCarga("estBtnSecciones", "Armando estructura...", async () => {
   if (R().secciones?.length && !confirm("¿Reemplazar las secciones de este avatar y sus prompts?")) return;
@@ -1477,6 +1560,112 @@ window.estUsarGancho = async (i, k) => {
 // =============================================
 // PASO 6: NOTAS (del avatar elegido)
 // =============================================
+// =============================================
+// PASO 6: PUBLICAR (vista previa + Shopify + notas)
+// =============================================
+function landingActual() {
+  const r = R();
+  const mapa = {};
+  for (const im of imagenes) if (im.rama === av) (mapa[im.seccion] ||= []).push(`/api/imagenes/${im._id}`);
+  return construirLanding({ formato: formatoDe(proyecto), secciones: r.secciones || [], imagenes: mapa, textos: r.textos, nombre: r.textos?.titulo || proyecto.nombre });
+}
+
+function vistaPrevia(L) {
+  const r = R();
+  const f = proyecto.ficha || {};
+  const normal = formatoDe(proyecto) === "normal";
+  const cabecera = normal ? `
+    <div class="est-pv-prod">
+      ${L.galeria.length ? `<img src="${esc(L.galeria[0])}" alt="">` : `<div class="est-pv-vacio">Galería de fotos</div>`}
+      ${L.galeria.length > 1 ? `<div class="est-pv-mini">${L.galeria.slice(1, 5).map(g => `<img src="${esc(g)}" alt="">`).join("")}</div>` : ""}
+      <h4>${esc(r.textos?.titulo || proyecto.nombre)}</h4>
+      <p class="est-pv-precio">${formatoPrecio(f.precio, proyecto.pais) || "Sin precio"} ${f.precioAntes > f.precio ? `<s>${formatoPrecio(f.precioAntes, proyecto.pais)}</s>` : ""}</p>
+      <div class="est-pv-comprar">Comprar ahora</div>
+    </div>` : "";
+  const vacio = !L.totalImagenes;
+  return `
+  <div class="est-phone">
+    <div class="est-phone-barra"><span></span></div>
+    <div class="est-phone-pantalla">
+      ${cabecera}
+      ${vacio && !normal ? `<div class="est-pv-vacio alto">Sube las imágenes de Gemini en el paso 4 para ver la ban page aquí.</div>` : L.html}
+    </div>
+  </div>`;
+}
+
+function tarjetaPublicar(L) {
+  const r = R();
+  const pubs = Object.values(r.publicaciones || {});
+  if (tiendasShopify === null) {
+    api("GET", "/api/shopify/tiendas").then(d => { tiendasShopify = d.tiendas || []; if (tab === 6) renderPaso(); })
+      .catch(() => { tiendasShopify = []; if (tab === 6) renderPaso(); });
+    return `<div class="est-card"><h3>Publicar en Shopify</h3><p class="est-muted">Cargando tus tiendas...</p></div>`;
+  }
+  const tiendas = tiendasShopify.filter(t => t.conectada);
+  if (!tiendas.find(t => t._id === tiendaElegida)) {
+    tiendaElegida = (tiendas.find(t => t.pais === proyecto.pais) || tiendas[0])?._id || null;
+  }
+  const t = tiendas.find(x => x._id === tiendaElegida);
+  const ya = t ? r.publicaciones?.[t._id] : null;
+  const normal = formatoDe(proyecto) === "normal";
+  return `
+  <div class="est-card">
+    <h3>Publicar en Shopify ${avTag()}</h3>
+    ${!tiendas.length ? `
+      <p class="est-muted">Conecta tu tienda una vez y desde aquí subes la landing con un clic: imágenes, precio${normal ? ", textos" : ""} y todo en orden.</p>
+      <button class="est-btn primary" onclick="goTo('integraciones')"><i data-lucide="plug"></i> Conectar mi tienda Shopify</button>` : `
+      <p class="est-muted">Se crea el producto en <b>borrador</b> con ${L.totalImagenes} imagen(es)${normal ? ", la galería, los textos" : ""} y el precio${proyecto.ficha?.precioAntes ? " con el \"antes\" tachado" : ""}. En Shopify le pones botones y GIF, revisas y lo activas.</p>
+      <label class="est-label-claro">Tienda</label>
+      <select id="estTienda" onchange="estElegirTienda(this.value)">
+        ${tiendas.map(x => `<option value="${esc(x._id)}" ${x._id === tiendaElegida ? "selected" : ""}>${esc(x.nombre || x.shop)} · ${esc(x.moneda)}</option>`).join("")}
+      </select>
+      ${L.faltan.length ? `<div class="est-alert warn">Sin imagen: ${L.faltan.map(esc).join(", ")}. Esas secciones no se publican.</div>` : ""}
+      ${t?.faltanPermisos?.length ? `<div class="est-alert warn">A esta tienda le faltan permisos (${t.faltanPermisos.map(esc).join(", ")}). Revísala en Integraciones.</div>` : ""}
+      <div class="est-sec-actions">
+        <button id="estBtnPublicar" class="est-btn primary" onclick="estPublicar()" ${L.totalImagenes ? "" : "disabled"}><i data-lucide="${ya ? "refresh-cw" : "upload-cloud"}"></i> ${ya ? "Actualizar en Shopify" : "Publicar como borrador"}</button>
+      </div>
+      ${!L.totalImagenes ? `<p class="est-hint">Primero sube las imágenes en el paso 4 (Landing).</p>` : ""}`}
+    ${pubs.length ? `
+      <div class="est-pubs">
+        ${pubs.map(pb => `
+          <div class="est-pub">
+            <i data-lucide="check-circle-2"></i>
+            <div><b>${esc(pb.tienda)}</b><small>${pb.estado === "ACTIVE" ? "Activo" : "Borrador"} · ${esc(fecha(pb.fecha))} · ${pb.imagenes} imágenes</small></div>
+            <a class="est-btn chico" href="${esc(pb.adminUrl)}" target="_blank" rel="noopener noreferrer"><i data-lucide="external-link"></i> Abrir en Shopify</a>
+          </div>`).join("")}
+      </div>` : ""}
+  </div>`;
+}
+
+window.estElegirTienda = (id) => { tiendaElegida = id; renderPaso(); };
+window.estPublicar = () => conCarga("estBtnPublicar", "Subiendo a Shopify...", async () => {
+  const L = landingActual();
+  if (L.faltan.length && !confirm(`${L.faltan.length} sección(es) no tienen imagen y no se van a publicar. ¿Seguir?`)) return;
+  const avInicio = av;
+  const { publicacion, nuevo, rama } = await api("POST", urlRama("publicar"), { tiendaId: tiendaElegida });
+  if (av === avInicio) ponerRama(rama);
+  avisar(nuevo ? `Borrador creado en ${publicacion.tienda} ✓` : `Actualizado en ${publicacion.tienda} ✓`);
+  if (tab === 6) renderPaso();
+});
+
+function pasoPublicar() {
+  const L = landingActual();
+  return `
+  <div class="est-publicar">
+    <div class="est-card est-pv-card">
+      <div class="est-card-row">
+        <h3>Vista previa en el celular ${avTag()}</h3>
+        <span class="est-muted">${L.totalImagenes} imagen(es)</span>
+      </div>
+      ${vistaPrevia(L)}
+    </div>
+    <div class="est-publicar-lado">
+      ${tarjetaPublicar(L)}
+      ${pasoNotas()}
+    </div>
+  </div>`;
+}
+
 function pasoNotas() {
   const r = R();
   const n = r.notas;

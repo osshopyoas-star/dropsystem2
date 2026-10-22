@@ -1,0 +1,161 @@
+// =============================================
+// 🚀 IMÁGENES DE LA LANDING + PUBLICAR EN SHOPIFY
+//   · Subes la imagen que sacaste de Gemini a cada sección
+//   · Vista previa en el celular (en el navegador, con landing-html.js)
+//   · Publicar: sube las imágenes a Archivos de Shopify y crea el producto como BORRADOR
+//     (tú lo revisas, le pones botones/GIF y lo activas)
+// =============================================
+import mongoose from "mongoose";
+import { ImagenLanding, leerDataUrl, metaImagen, MAX_POR_SECCION } from "./modelo-imagenes.js";
+import { construirLanding } from "./public/js/core/landing-html.js";
+import { tiendaDe, subirImagen, guardarProducto, ErrorShopify } from "./rutas-shopify.js";
+
+const MONEDA_PAIS = { CO: "COP", EC: "USD" };
+const publicando = new Set();
+
+export function registrarRutasPublicar(app, { cargar, cargarRama, guardarRama, limiter }) {
+  const mw = limiter ? [limiter] : [];
+  const idOk = (id) => mongoose.Types.ObjectId.isValid(id);
+
+  // Lista de imágenes del proyecto (solo datos, sin la imagen)
+  app.get("/api/proyectos/:id/imagenes", async (req, res) => {
+    try {
+      const p = await cargar(req, res); if (!p) return;
+      const lista = await ImagenLanding.find({ owner: req.user.uid, proyecto: p._id })
+        .select("rama seccion ancho alto bytes creado").sort({ creado: 1 }).lean();
+      res.json(lista.map(metaImagen));
+    } catch (err) {
+      console.error("Error listando imágenes:", err);
+      res.status(500).json({ error: "No se pudieron cargar las imágenes" });
+    }
+  });
+
+  // La imagen en sí (solo para su dueño)
+  app.get("/api/imagenes/:id", async (req, res) => {
+    try {
+      if (!idOk(req.params.id)) return res.status(400).end();
+      const x = await ImagenLanding.findOne({ _id: req.params.id, owner: req.user.uid }).select("tipo datos").lean();
+      if (!x?.datos) return res.status(404).end();
+      const buf = Buffer.isBuffer(x.datos) ? x.datos : Buffer.from(x.datos.buffer || x.datos);
+      res.set({ "Content-Type": x.tipo, "Cache-Control": "private, max-age=604800, immutable", "X-Content-Type-Options": "nosniff" });
+      res.send(buf);
+    } catch (err) {
+      console.error("Error leyendo imagen:", err);
+      res.status(500).end();
+    }
+  });
+
+  // Subir una imagen a una sección (marca la sección como hecha)
+  app.post("/api/proyectos/:id/rama/:av/imagenes", async (req, res) => {
+    try {
+      const x = await cargarRama(req, res); if (!x) return;
+      const seccion = String(req.body?.seccion || "");
+      const idx = (x.r.secciones || []).findIndex(s => s.id === seccion);
+      if (idx === -1) return res.status(404).json({ error: "Sección no encontrada" });
+      const img = leerDataUrl(req.body?.dataUrl);
+      if (!img) return res.status(400).json({ error: "La imagen no es válida (JPG, PNG o WEBP de máximo 3 MB)" });
+      const ya = await ImagenLanding.countDocuments({ owner: req.user.uid, proyecto: x.p._id, rama: x.av, seccion });
+      if (ya >= MAX_POR_SECCION) return res.status(400).json({ error: `Máximo ${MAX_POR_SECCION} imágenes por sección` });
+      const medida = (v) => { const n = Math.round(Number(v)); return n > 0 && n < 20000 ? n : null; };
+      const nueva = await ImagenLanding.create({
+        owner: req.user.uid, proyecto: x.p._id, rama: x.av, seccion,
+        tipo: img.tipo, datos: img.datos, bytes: img.datos.length,
+        ancho: medida(req.body?.ancho), alto: medida(req.body?.alto)
+      });
+      let rama = x.r;
+      if (!x.r.secciones[idx].hecha) {
+        rama = { ...x.r, secciones: x.r.secciones.map((s, i) => i === idx ? { ...s, hecha: true } : s) };
+        await guardarRama(x.p, x.av, rama);
+      }
+      res.json({ imagen: metaImagen(nueva), rama });
+    } catch (err) {
+      console.error("Error subiendo imagen:", err);
+      res.status(500).json({ error: "No se pudo guardar la imagen" });
+    }
+  });
+
+  app.delete("/api/imagenes/:id", async (req, res) => {
+    try {
+      if (!idOk(req.params.id)) return res.status(400).json({ error: "ID inválido" });
+      const r = await ImagenLanding.deleteOne({ _id: req.params.id, owner: req.user.uid });
+      res.json({ ok: (r.deletedCount ?? 1) > 0 });
+    } catch (err) {
+      console.error("Error borrando imagen:", err);
+      res.status(500).json({ error: "No se pudo quitar la imagen" });
+    }
+  });
+
+  // Publicar la landing de este avatar en una tienda (crea o actualiza el BORRADOR)
+  app.post("/api/proyectos/:id/rama/:av/publicar", ...mw, async (req, res) => {
+    let llave = null;
+    try {
+      const x = await cargarRama(req, res); if (!x) return;
+      const t = await tiendaDe(req.user.uid, req.body?.tiendaId);
+      if (!t) return res.status(404).json({ error: "Elige una tienda conectada" });
+      if (!t.token) return res.status(400).json({ error: "Esa tienda no está conectada. Revísala en Integraciones." });
+
+      const esperada = MONEDA_PAIS[x.p.pais];
+      if (t.moneda && esperada && t.moneda !== esperada) {
+        return res.status(400).json({ error: `La tienda "${t.nombre || t.shop}" cobra en ${t.moneda} y este proyecto es de ${x.p.pais === "EC" ? "Ecuador (USD)" : "Colombia (COP)"}. Elige otra tienda o cambia el país del proyecto.` });
+      }
+
+      const clave = `${x.p._id}:${x.av}`;
+      if (publicando.has(clave)) return res.status(409).json({ error: "Ya se está publicando esta landing, espera un momento" });
+      publicando.add(clave);
+      llave = clave;
+
+      const secciones = x.r.secciones || [];
+      const ids = new Set(secciones.map(s => s.id));
+      const imgs = (await ImagenLanding.find({ owner: req.user.uid, proyecto: x.p._id, rama: x.av }).sort({ creado: 1 }))
+        .filter(i => ids.has(i.seccion));
+      if (!imgs.length) return res.status(400).json({ error: "Sube al menos una imagen en el paso Landing" });
+
+      const titulo = String(req.body?.titulo || x.r.textos?.titulo || x.p.nombre || "Producto").trim().slice(0, 255);
+      const tid = String(t._id);
+
+      // Subir a Shopify las que no se han subido a esta tienda (de a 3)
+      const urls = new Map();
+      const pendientes = [];
+      for (const i of imgs) {
+        if (i.subidas?.[tid]) urls.set(String(i._id), i.subidas[tid]);
+        else pendientes.push(i);
+      }
+      let k = 0;
+      const trabajador = async () => {
+        while (k < pendientes.length) {
+          const i = pendientes[k++];
+          const s = secciones.find(z => z.id === i.seccion);
+          const url = await subirImagen(t, { datos: i.datos, tipo: i.tipo, nombre: `${titulo} ${s?.titulo || ""}` });
+          urls.set(String(i._id), url);
+          await ImagenLanding.updateOne({ _id: i._id }, { $set: { [`subidas.${tid}`]: url } });
+        }
+      };
+      await Promise.all([trabajador(), trabajador(), trabajador()]);
+
+      const imagenes = {};
+      for (const i of imgs) (imagenes[i.seccion] ||= []).push(urls.get(String(i._id)));
+      const landing = construirLanding({ formato: x.p.formato, secciones, imagenes, textos: x.r.textos, nombre: titulo });
+
+      const anterior = x.r.publicaciones?.[tid];
+      const r = await guardarProducto(t, {
+        productoId: anterior?.productoId, titulo, html: landing.html, media: landing.galeria,
+        precio: Number(x.p.ficha?.precio) || null, precioAntes: Number(x.p.ficha?.precioAntes) || null
+      });
+
+      const publicacion = {
+        tiendaId: tid, tienda: t.nombre || t.shop, dominio: t.dominio || "", productoId: r.productoId,
+        handle: r.handle, adminUrl: r.adminUrl, estado: r.estado, fecha: new Date().toISOString(),
+        imagenes: imgs.length, faltan: landing.faltan
+      };
+      const rama = { ...x.r, publicaciones: { ...(x.r.publicaciones || {}), [tid]: publicacion } };
+      await guardarRama(x.p, x.av, rama);
+      res.json({ publicacion, nuevo: r.nuevo, subidas: pendientes.length, rama });
+    } catch (err) {
+      if (err instanceof ErrorShopify) return res.status(err.status).json({ error: err.message });
+      console.error("Error publicando:", err);
+      res.status(500).json({ error: "No se pudo publicar en Shopify" });
+    } finally {
+      if (llave) publicando.delete(llave);
+    }
+  });
+}

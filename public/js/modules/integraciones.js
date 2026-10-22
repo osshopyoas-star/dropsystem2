@@ -1,5 +1,5 @@
 // =============================================
-// 🔌 INTEGRACIONES — Meta Ads (solo lectura); Dropi y Shopify después
+// 🔌 INTEGRACIONES — Meta Ads (solo lectura), Shopify (publicar landings como borrador); Dropi después
 // =============================================
 import { registrarRuta } from "./navegacion.js";
 import { escapeHTML } from "../core/utils.js";
@@ -62,9 +62,10 @@ function render() {
   <div class="in-page">
     <header class="in-head">
       <h1>Integraciones</h1>
-      <p>Conecta tus herramientas para traer datos a CoDropX. Todo es de <b>solo lectura</b>: CoDropX puede ver, nunca cambiar tus campañas ni tus pedidos.</p>
+      <p>Conecta tus herramientas a CoDropX. Meta es de <b>solo lectura</b> (nunca cambia tus campañas). En Shopify, CoDropX solo crea productos en <b>borrador</b>: nada sale a tu tienda hasta que tú lo actives.</p>
     </header>
     ${tarjetaMeta()}
+    ${tarjetaShopify()}
     <section class="in-card in-pronto">
       <div class="in-card-head">
         <span class="in-logo dropi">D</span>
@@ -72,13 +73,7 @@ function render() {
         <span class="in-badge">Próximamente</span>
       </div>
     </section>
-    <section class="in-card in-pronto">
-      <div class="in-card-head">
-        <span class="in-logo shopify">S</span>
-        <div><small>SHOPIFY</small><p>Publica tus landings directo en tus tiendas.</p></div>
-        <span class="in-badge">Próximamente</span>
-      </div>
-    </section>
+
   </div>`;
   iconos();
 }
@@ -140,6 +135,93 @@ function tarjetaMeta() {
   </section>`;
 }
 
+// ---------- Shopify ----------
+let shopify = null;        // { tiendas, permisos }
+let shFormAbierto = false;
+
+function tarjetaShopify() {
+  const sh = shopify || { tiendas: [], permisos: ["write_products", "write_files"] };
+  const tiendas = sh.tiendas || [];
+  const cabeza = `
+    <div class="in-card-head">
+      <span class="in-logo shopify">S</span>
+      <div><small>SHOPIFY</small><p>Publica tus landings en tus tiendas como borrador, con las imágenes, el precio y los textos.</p></div>
+      ${tiendas.length ? `<span class="in-badge ok">${tiendas.length} tienda${tiendas.length === 1 ? "" : "s"}</span>` : ""}
+    </div>`;
+  const lista = tiendas.map(t => `
+    <div class="in-tienda ${t.conectada ? "" : "mal"}">
+      <span class="in-ini">${esc((t.nombre || t.shop).charAt(0).toUpperCase())}</span>
+      <span class="in-nombre"><b>${esc(t.nombre || t.shop)}</b><small>${esc(t.dominio || t.shop + ".myshopify.com")}</small></span>
+      <span class="in-mon">${esc(t.moneda)}</span>
+      <select title="País de esta tienda" onchange="inShPais('${esc(t._id)}', this.value)">
+        <option value="" ${!t.pais ? "selected" : ""}>País…</option>
+        <option value="CO" ${t.pais === "CO" ? "selected" : ""}>Colombia</option>
+        <option value="EC" ${t.pais === "EC" ? "selected" : ""}>Ecuador</option>
+      </select>
+      <span class="in-estado ${t.conectada && !t.faltanPermisos.length ? "ok" : ""}">${t.error ? "Con error" : t.faltanPermisos.length ? "Faltan permisos" : "Conectada"}</span>
+      <button class="in-btn claro chico" id="inShProbar-${esc(t._id)}" onclick="inShProbar('${esc(t._id)}')"><i data-lucide="refresh-cw"></i> Probar</button>
+      <button class="in-btn peligro chico" onclick="inShQuitar('${esc(t._id)}')"><i data-lucide="unplug"></i></button>
+      ${t.error ? `<p class="in-aviso">${esc(t.error)}</p>` : t.faltanPermisos.length ? `<p class="in-aviso">Faltan permisos: ${t.faltanPermisos.map(esc).join(", ")}. Agrégalos en la app del Dev Dashboard, publica una versión nueva (Release) y apruébala en la tienda; luego dale a Probar.</p>` : ""}
+    </div>`).join("");
+
+  const form = (shFormAbierto || !tiendas.length) ? `
+    <details class="in-guia" ${tiendas.length ? "" : "open"}>
+      <summary>Cómo crear la app en Shopify (5 minutos, una vez por tienda)</summary>
+      <ol>
+        <li>En tu tienda: <b>Configuración → Apps → Desarrollar apps</b> → <b>Crear apps en el Dev Dashboard</b>.</li>
+        <li><b>Create app</b> → <b>Start from Dev Dashboard</b> → nombre: <code>CoDropX</code> → Create.</li>
+        <li>En <b>Versions</b>: App URL <code>https://codropx.com</code>, "Embed app in Shopify admin" apagado. En <b>Access scopes</b> pega: <code>${sh.permisos.map(esc).join(",")}</code></li>
+        <li><b>Release</b> (publica la versión) y luego <b>Install app</b> → elige tu tienda → aprueba.</li>
+        <li>En <b>Settings</b> de la app copia el <b>Client ID</b> y el <b>Client secret</b> y pégalos aquí abajo.</li>
+      </ol>
+      <p class="in-sub">El secreto se guarda cifrado y nunca se vuelve a mostrar. CoDropX solo puede crear y editar productos y subir imágenes; los productos quedan en <b>borrador</b>.</p>
+    </details>
+    <div class="in-form">
+      <label>Tienda<input id="inShShop" placeholder="mitienda.myshopify.com" autocomplete="off"></label>
+      <label>Client ID<input id="inShId" autocomplete="off" spellcheck="false"></label>
+      <label>Client secret<input id="inShSecreto" type="password" autocomplete="new-password" spellcheck="false"></label>
+      <button id="inShConectar" class="in-btn" onclick="inShConectar()"><i data-lucide="plug"></i> Conectar tienda</button>
+    </div>` : `<div class="in-acciones"><button class="in-btn claro" onclick="inShNueva()"><i data-lucide="plus"></i> Conectar otra tienda</button></div>`;
+
+  return `<section class="in-card">${cabeza}${lista ? `<div class="in-tiendas">${lista}</div>` : ""}${form}</section>`;
+}
+
+window.inShNueva = () => { shFormAbierto = true; render(); $("inShShop")?.focus(); };
+window.inShConectar = () => conCarga("inShConectar", "Conectando...", async () => {
+  const datos = { shop: $("inShShop").value, clientId: $("inShId").value, clientSecret: $("inShSecreto").value };
+  const { tienda } = await api("POST", "/api/shopify/tiendas", datos);
+  shopify.tiendas = [...shopify.tiendas.filter(t => t._id !== tienda._id), tienda];
+  shFormAbierto = false;
+  avisar(`${tienda.nombre || tienda.shop} conectada ✓`);
+  render();
+});
+window.inShProbar = (id) => conCarga(`inShProbar-${id}`, "Probando...", async () => {
+  try {
+    const { tienda } = await api("POST", `/api/shopify/tiendas/${id}/probar`);
+    shopify.tiendas = shopify.tiendas.map(t => t._id === id ? tienda : t);
+    avisar(tienda.faltanPermisos.length ? "Conecta, pero faltan permisos" : "Conexión correcta ✓", tienda.faltanPermisos.length ? "error" : "ok");
+  } finally {
+    shopify = await api("GET", "/api/shopify/tiendas").catch(() => shopify);
+    render();
+  }
+});
+window.inShPais = async (id, pais) => {
+  try {
+    const { tienda } = await api("PUT", `/api/shopify/tiendas/${id}`, { pais });
+    shopify.tiendas = shopify.tiendas.map(t => t._id === id ? tienda : t);
+    avisar("Guardado ✓");
+  } catch (err) { avisar(err.message, "error"); }
+};
+window.inShQuitar = async (id) => {
+  const t = shopify.tiendas.find(x => x._id === id);
+  if (!confirm(`¿Quitar "${t?.nombre || t?.shop}" de CoDropX? Los productos ya publicados siguen en tu tienda. Para quitarle el acceso del todo, desinstala la app en Shopify.`)) return;
+  try {
+    await api("DELETE", `/api/shopify/tiendas/${id}`);
+    shopify.tiendas = shopify.tiendas.filter(x => x._id !== id);
+    render();
+  } catch (err) { avisar(err.message, "error"); }
+};
+
 function tablaGasto() {
   if (!gasto) return "";
   if (!gasto.cuentas.length) return `<p class="in-sub">Marca y guarda al menos una cuenta para ver su gasto.</p>`;
@@ -161,7 +243,13 @@ function tablaGasto() {
 }
 
 async function cargar() {
-  meta = await api("GET", "/api/meta/estado");
+  const [m, sh] = await Promise.all([
+    api("GET", "/api/meta/estado"),
+    api("GET", "/api/shopify/tiendas").catch(() => ({ tiendas: [], permisos: ["write_products", "write_files"] }))
+  ]);
+  meta = m;
+  shopify = sh;
+  shFormAbierto = false;
   elegidas = new Set(meta.elegidas || []);
 }
 

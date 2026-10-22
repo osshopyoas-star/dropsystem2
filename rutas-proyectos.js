@@ -23,6 +23,7 @@ import {
 } from "./prompts-landing.js";
 import { obtenerPlantilla } from "./rutas-plantilla.js";
 import { ESTRUCTURAS_AD, FORMATOS_AD, MAX_ADS } from "./public/js/core/anuncios.js";
+import { ImagenLanding } from "./modelo-imagenes.js";
 import { tiposDe, elegirVariante, formatoImagen, varianteDe, claveDe } from "./public/js/core/plantilla.js";
 
 const Mixed = mongoose.Schema.Types.Mixed;
@@ -353,6 +354,7 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
     if (!idValido(req.params.id)) return res.status(400).json({ error: "ID inválido" });
     const r = await Proyecto.findOneAndDelete({ _id: req.params.id, owner: req.user.uid });
     if (!r) return res.status(404).json({ error: "Proyecto no encontrado" });
+    await ImagenLanding.deleteMany({ owner: req.user.uid, proyecto: r._id }).catch(err => console.error("Error borrando imágenes:", err));
     res.json({ ok: true });
   });
 
@@ -627,4 +629,6 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
       res.json({ rama: r });
     } catch (err) { errorIA(res, err, "las notas"); }
   });
+
+  return { cargar, cargarRama, guardarRama };
 }
