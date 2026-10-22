@@ -20,6 +20,7 @@ import {
 import { promptTendencia, promptKeywordsMaslow } from "./prompts.js";
 import { registrarRutasProyectos } from "./rutas-proyectos.js";
 import { registrarRutasCosteos } from "./rutas-costeos.js";
+import { registrarRutasPlantilla } from "./rutas-plantilla.js";
 
 // =============================================
 // 🗄️ MODELOS
@@ -448,6 +449,7 @@ app.post("/api/ia/keywords", iaLimiter, async (req, res) => {
 // =============================================
 registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Producto });
 registrarRutasCosteos(app, { idValido, Producto });
+registrarRutasPlantilla(app);
 
 // =============================================
 // 📦 PRODUCTOS (cada usuario ve solo los suyos)

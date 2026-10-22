@@ -6,6 +6,7 @@
 import { state } from "../state.js";
 import { registrarRuta } from "./navegacion.js";
 import { escapeHTML } from "../core/utils.js";
+import { SECCIONES, FORMATOS, tiposDe, varianteDe, elegirVariante, formatoImagen } from "../core/plantilla.js";
 
 const PASOS = [
   { n: 1, titulo: "Ficha", icono: "clipboard-list" },
@@ -16,14 +17,10 @@ const PASOS = [
   { n: 6, titulo: "Notas", icono: "list-checks" }
 ];
 
-const TIPOS_SECCION = {
-  oferta: "Oferta (hero)", dolor: "Dolor o identificación", identificacion: "¿Es para ti?",
-  funcion_estrella: "La función estrella", detalles: "Detalles y calidad", que_incluye: "¿Qué incluye?",
-  tamano_variantes: "Tamaño, colores o variantes", como_se_usa: "Cómo se usa", para_quien: "Para quién es",
-  antes_despues: "Antes y después", paquetes: "Paquetes", como_funciona: "Cómo funciona tu pedido",
-  por_que_aqui: "¿Por qué comprar aquí?", resenas: "Reseñas reales (plantilla)", preguntas: "Preguntas frecuentes",
-  confianza: "Confianza y aliados", oferta_cierre: "Oferta de cierre"
-};
+// Tipos de sección que se pueden usar en el formato del proyecto abierto
+const formatoDe = (p) => (p?.formato === "normal" ? "normal" : "ban");
+const tiposSeccion = () => Object.fromEntries(tiposDe(formatoDe(proyecto)).map(k => [k, SECCIONES[k].titulo]));
+let cachePlantilla = null;   // Mi plantilla (para las secciones que agregas a mano)
 
 const PAIS_NOMBRE = { CO: "Colombia", EC: "Ecuador" };
 
@@ -188,6 +185,7 @@ async function renderLista(view) {
           <h1>Estudio de landing</h1>
           <p>Un proyecto por producto: ficha, avatares, estilo, prompts para Gemini y notas antes de publicar.</p>
         </div>
+        <button class="est-btn claro" onclick="goTo('plantilla')"><i data-lucide="layout-template"></i> Mi plantilla</button>
       </header>
 
       <section class="est-card">
@@ -201,6 +199,10 @@ async function renderLista(view) {
             <option value="">Cargando productos...</option>
           </select>
           <input id="estNuevoNombre" placeholder="…o escribe el nombre del producto">
+          <select id="estNuevoFormato" title="Formato de la landing">
+            <option value="ban">Ban page (todo en imágenes)</option>
+            <option value="normal">Landing normal (Shopify + imágenes)</option>
+          </select>
           <button id="estBtnCrear" class="est-btn primary" onclick="estCrearProyecto()">
             <i data-lucide="plus"></i> Crear
           </button>
@@ -227,6 +229,8 @@ async function renderLista(view) {
     try {
       const ultimoPais = localStorage.getItem("est_pais");
       if (ultimoPais && $("estNuevoPais")) $("estNuevoPais").value = ultimoPais;
+      const ultimoFormato = localStorage.getItem("est_formato");
+      if (ultimoFormato && $("estNuevoFormato")) $("estNuevoFormato").value = ultimoFormato;
     } catch {}
     estFiltrarProductos();
 
@@ -240,6 +244,7 @@ async function renderLista(view) {
       <article class="est-proj" onclick="estAbrirProyecto('${esc(p._id)}')">
         <div class="est-proj-top">
           <span class="est-chip">${esc(p.pais)}</span>
+          <span class="est-chip">${esc(FORMATOS[formatoDe(p)].corto)}</span>
           ${p.vendio ? `<span class="est-chip ok">Vendió ✓</span>` : ""}
         </div>
         <strong>${esc(p.nombre)}</strong>
@@ -314,8 +319,10 @@ window.estCrearProyecto = () => conCarga("estBtnCrear", "Creando...", async () =
   const productoId = $("estNuevoProducto")?.value || null;
   const nombre = $("estNuevoNombre")?.value.trim() || "";
   const pais = $("estNuevoPais")?.value || "CO";
+  const formato = $("estNuevoFormato")?.value === "normal" ? "normal" : "ban";
+  try { localStorage.setItem("est_formato", formato); } catch {}
   if (!productoId && !nombre) throw new Error("Elige un producto o escribe el nombre");
-  const p = await api("POST", "/api/proyectos", productoId ? { productoId, pais } : { nombre, pais });
+  const p = await api("POST", "/api/proyectos", productoId ? { productoId, pais, formato } : { nombre, pais, formato });
   if (p.existente) avisar("Ese producto ya tenía proyecto: lo abrimos", "ok");
   await abrir(p._id, p.existente ? null : 1);
 });
@@ -327,7 +334,12 @@ window.estVolverLista = () => renderLista($("view"));
 
 async function abrir(id, pasoInicial = null) {
   try {
-    proyecto = await api("GET", `/api/proyectos/${id}`);
+    const [p, pl] = await Promise.all([
+      api("GET", `/api/proyectos/${id}`),
+      api("GET", "/api/plantilla").catch(() => null)
+    ]);
+    proyecto = p;
+    cachePlantilla = pl;
     const ids = (proyecto.avatares || []).map(a => a.id);
     let guardado = null;
     try { guardado = localStorage.getItem(`est_av_${id}`); localStorage.setItem("est_ultimo", id); } catch {}
@@ -362,6 +374,11 @@ function renderProyecto() {
               <option value="2" ${p.numAvatares !== 1 ? "selected" : ""}>Testeo con 2 avatares (2 landings)</option>
               <option value="1" ${p.numAvatares === 1 ? "selected" : ""}>1 avatar (1 landing)</option>
             </select>
+            <select onchange="estCambiarFormato(this.value)" title="Formato de la landing">
+              <option value="ban" ${formatoDe(p) === "ban" ? "selected" : ""}>Ban page (todo en imágenes)</option>
+              <option value="normal" ${formatoDe(p) === "normal" ? "selected" : ""}>Landing normal (Shopify + imágenes)</option>
+            </select>
+            <button class="est-btn claro chico" onclick="goTo('plantilla')"><i data-lucide="layout-template"></i> Mi plantilla</button>
           </div>
         </div>
         <button class="est-btn ghost danger" onclick="estEliminarProyecto()"><i data-lucide="trash-2"></i> Eliminar</button>
@@ -427,6 +444,15 @@ window.estElegirAvatar = (id) => {
 };
 
 window.estCambiarPais = async (pais) => { await guardar({ pais }); renderPaso(); };
+window.estCambiarFormato = async (formato) => {
+  const conSecciones = Object.values(proyecto.ramas || {}).some(r => (r?.secciones || []).length);
+  if (conSecciones && !confirm(`Pasar a ${FORMATOS[formato].nombre}: las secciones que ya armaste eran para el otro formato. Después vuelve a proponer secciones en el paso Landing. ¿Seguir?`)) {
+    renderProyecto(); return;
+  }
+  await guardar({ formato });
+  renderProyecto();
+};
+
 window.estCambiarAvatares = async (n) => {
   if (proyecto.avatares?.length && !confirm("Cambiar la cantidad de avatares: tendrás que regenerar los avatares. ¿Seguir?")) {
     renderProyecto(); return;
@@ -801,13 +827,19 @@ function pasoLanding() {
   const secs = r.secciones || [];
   const hechas = secs.filter(x => x.hecha).length;
   const conPrompt = secs.filter(x => x.prompt).length;
+  const normal = formatoDe(proyecto) === "normal";
+  const tipos = tiposSeccion();
+  const fueraDeFormato = secs.filter(x => !tipos[x.tipo]).length;
 
   return `
   <div class="est-card">
     <div class="est-card-row">
       <div>
-        <h3>Landing ${avTag()}</h3>
-        <p class="est-muted">En Gemini: chat nuevo por imagen → adjunta la foto real → pega "estilo + prompt". ${secs.length ? `${conPrompt}/${secs.length} prompts · ${hechas} imágenes hechas` : ""}</p>
+        <h3>Landing ${avTag()} <span class="est-chip">${esc(FORMATOS[formatoDe(proyecto)].nombre)}</span></h3>
+        <p class="est-muted">${normal
+          ? "Landing normal: imágenes cuadradas 1:1 + textos para pegar en Shopify. En Gemini: chat nuevo por imagen → adjunta la foto real → pega \"estilo + prompt\"."
+          : "Ban page: imágenes 9:16. En Gemini: chat nuevo por imagen → adjunta la foto real → pega \"estilo + prompt\"."} ${secs.length ? `${conPrompt}/${secs.length} prompts · ${hechas} imágenes hechas` : ""}</p>
+        <p class="est-hint">El orden y el diseño de cada sección salen de <a href="#" onclick="goTo('plantilla'); return false;">Mi plantilla</a>.</p>
       </div>
       <div class="est-actions">
         <button id="estBtnSecciones" class="est-btn" onclick="estProponerSecciones()"><i data-lucide="layout-list"></i> ${secs.length ? "Volver a proponer" : "Proponer secciones"}</button>
@@ -816,13 +848,17 @@ function pasoLanding() {
     </div>
   </div>
 
+  ${fueraDeFormato ? `<div class="est-alert warn">Hay ${fueraDeFormato} sección(es) del otro formato. Dale a "Volver a proponer" para armar la landing en ${esc(FORMATOS[formatoDe(proyecto)].nombre)}.</div>` : ""}
+
+  ${normal ? tarjetaTextos(r) : ""}
+
   <div class="est-secciones">
     ${secs.map((x, i) => tarjetaSeccion(x, i, i + 1)).join("")}
   </div>
 
   ${secs.length ? `
     <div class="est-card est-add">
-      <select id="estNuevaTipo">${Object.entries(TIPOS_SECCION).map(([k, v]) => `<option value="${k}">${v}</option>`).join("")}</select>
+      <select id="estNuevaTipo">${Object.entries(tipos).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("")}</select>
       <button class="est-btn" onclick="estAgregarSeccion()"><i data-lucide="plus"></i> Agregar sección</button>
     </div>
     ${siguiente(5, "Seguir con los guiones")}
@@ -839,7 +875,11 @@ function tarjetaSeccion(x, i, numero) {
         <strong>${esc(x.titulo)}</strong>
         <div class="est-sec-tags">
           <span class="est-chip">${esc(x.formato || "9:16")}</span>
-          ${x.composicion ? `<span class="est-chip">${esc(x.composicion)}</span>` : ""}
+          ${(SECCIONES[x.tipo]?.variantes || []).length ? `
+            <select class="est-variante" title="Diseño de la sección" onchange="estCambiarVariante(${i}, this.value)">
+              ${!varianteDe(x.tipo, x.variante) ? `<option value="">${esc(x.composicion || "Diseño libre")}</option>` : ""}
+              ${SECCIONES[x.tipo].variantes.map(v => `<option value="${v.id}" ${v.id === x.variante ? "selected" : ""}>Diseño: ${esc(v.nombre)}</option>`).join("")}
+            </select>` : (x.composicion ? `<span class="est-chip">${esc(x.composicion)}</span>` : "")}
         </div>
         ${x.proposito ? `<p class="est-muted">${esc(x.proposito)}</p>` : ""}
       </div>
@@ -936,12 +976,71 @@ window.estQuitarSeccion = async (i) => {
   renderPaso();
 };
 
+window.estCambiarVariante = async (i, id) => {
+  const v = varianteDe(R().secciones[i]?.tipo, id);
+  await cambiarSecciones(secs => secs.map((x, j) => j === i ? { ...x, variante: id, composicion: v?.nombre || x.composicion } : x));
+  if (R().secciones[i]?.prompt) avisar("Diseño cambiado: dale a Regenerar para aplicarlo", "ok");
+  renderPaso();
+};
+
 window.estAgregarSeccion = async () => {
   const tipo = $("estNuevaTipo")?.value;
-  const nueva = { id: Math.random().toString(36).slice(2, 10), tipo, titulo: TIPOS_SECCION[tipo], grupo: av, formato: "9:16", composicion: "", proposito: "", prompt: "", hecha: false };
+  const formato = formatoDe(proyecto);
+  const variante = elegirVariante(tipo, cachePlantilla?.[formato]);
+  const nueva = {
+    id: Math.random().toString(36).slice(2, 10), tipo, titulo: SECCIONES[tipo]?.titulo || tipo, grupo: av,
+    formato: formatoImagen(tipo, formato), variante, composicion: varianteDe(tipo, variante)?.nombre || "",
+    proposito: "", prompt: "", hecha: false
+  };
   await cambiarSecciones(secs => [...secs, nueva]);
   renderPaso();
 };
+
+// ---------- Landing normal: textos para Shopify ----------
+function tarjetaTextos(r) {
+  const t = r.textos;
+  const fila = (campo, titulo, valor, multilinea = false) => `
+    <div class="est-texto">
+      <div class="est-texto-head"><b>${titulo}</b><button class="est-mini-btn" onclick="estCopiarTexto('${campo}')"><i data-lucide="copy"></i> Copiar</button></div>
+      ${multilinea ? `<pre>${esc(valor)}</pre>` : `<p>${esc(valor)}</p>`}
+    </div>`;
+  return `
+  <div class="est-card est-textos-card">
+    <div class="est-card-row">
+      <div>
+        <h3>Textos para Shopify ${avTag()}</h3>
+        <p class="est-muted">Lo que va en el bloque de compra y en las pestañas del producto: título, frase de oferta, beneficios con ✔, descripción, envío y preguntas frecuentes.</p>
+      </div>
+      <button id="estBtnTextos" class="est-btn ${t ? "" : "primary"}" onclick="estGenerarTextos()"><i data-lucide="type"></i> ${t ? "Volver a escribir" : "Escribir textos"}</button>
+    </div>
+    ${t ? `
+      <div class="est-textos">
+        ${fila("titulo", "Título del producto", t.titulo)}
+        ${fila("frase_oferta", "Frase encima del precio", t.frase_oferta)}
+        ${fila("beneficios", "Beneficios (con ✔)", textoCampo(t, "beneficios"), true)}
+        ${fila("descripcion", "Descripción", t.descripcion, true)}
+        ${fila("especificaciones", "Detalles y especificaciones", textoCampo(t, "especificaciones"), true)}
+        ${fila("envio", "Envío y devoluciones", t.envio, true)}
+        ${fila("preguntas", "Preguntas frecuentes", textoCampo(t, "preguntas"), true)}
+      </div>` : ""}
+  </div>`;
+}
+
+function textoCampo(t, campo) {
+  if (!t) return "";
+  if (campo === "beneficios") return (t.beneficios || []).map(b => `✔ ${b}`).join("\n");
+  if (campo === "especificaciones") return (t.especificaciones || []).map(b => `• ${b}`).join("\n");
+  if (campo === "preguntas") return (t.preguntas || []).map(q => `${q.pregunta}\n${q.respuesta}`).join("\n\n");
+  return String(t[campo] || "");
+}
+
+window.estCopiarTexto = (campo) => copiar(textoCampo(R().textos, campo));
+
+window.estGenerarTextos = () => conCarga("estBtnTextos", "Escribiendo textos...", async () => {
+  const { rama } = await api("POST", urlRama("ia/textos"));
+  ponerRama(rama);
+  renderPaso();
+});
 
 // =============================================
 // PASO 5: GUIONES (3 del avatar elegido)

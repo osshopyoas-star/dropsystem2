@@ -64,6 +64,11 @@ export function renderSidebar() {
   <span>Desarrollo</span>
 </div>
 
+<div class="sidebar-item" data-route="plantilla" onclick="goTo('plantilla')">
+  <i data-lucide="layout-template"></i>
+  <span>Mi plantilla</span>
+</div>
+
 <div class="sidebar-item" data-route="calculadora" onclick="goTo('calculadora')">
   <i data-lucide="calculator"></i>
   <span>Calculadora</span>

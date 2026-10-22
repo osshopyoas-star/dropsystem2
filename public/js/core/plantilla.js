@@ -1,0 +1,348 @@
+// =============================================
+// 🧩 MI PLANTILLA — catálogo de secciones y estilos
+// Lo usan el servidor (prompts) y el navegador (pantalla Mi plantilla).
+// Sin dependencias: funciona en los dos lados.
+// =============================================
+
+// Dos formatos de landing en Shopify
+export const FORMATOS = {
+  ban: {
+    nombre: "Ban page",
+    corto: "Ban page",
+    desc: "Toda la página son imágenes verticales 9:16, una debajo de otra. El precio va dentro de la imagen.",
+    formatoImagen: "9:16"
+  },
+  normal: {
+    nombre: "Landing normal",
+    corto: "Landing normal",
+    desc: "Página de producto de Shopify: fotos de galería, título, precio y botón de Shopify; abajo secciones de imagen con texto.",
+    formatoImagen: "1:1"
+  }
+};
+
+// Dibujos: lienzo 60 x 90. Tonos: d oscuro, g gris, m gris medio, a acento, w blanco
+// ["r", x, y, w, h, tono, radio] rectángulo · ["c", cx, cy, r, tono] círculo · ["o", cx, cy, r, tono] aro
+// ["t", x, y, ancho, tono] línea de texto · ["x", x1, y1, x2, y2, tono] línea
+const T = (y, w = 36, x = (60 - w) / 2, tono = "d") => ["t", x, y, w, tono];
+
+// ---------- Catálogo ----------
+// formatos: en cuáles se puede usar · siempre: en qué formato no se puede apagar
+export const SECCIONES = {
+  oferta: {
+    titulo: "Portada / oferta (hero)", formatos: ["ban"], siempre: ["ban"],
+    def: "Producto en uso, titular corto de 2 líneas en 2 colores, 3 beneficios, precio 'antes' tachado, precio actual grande en caja, sello de descuento, regalo si hay (con círculo para GIF), barra de confianza abajo.",
+    variantes: [
+      { id: "caja", nombre: "Precio en caja", desc: "Titular arriba, foto grande del producto en uso al centro, y abajo una caja de color con el precio grande, el 'antes' tachado y un sello circular de descuento.",
+        dibujo: [T(7), T(12, 26, 17, "a"), ["r", 6, 17, 48, 40, "g", 3], ["r", 8, 62, 34, 14, "a", 3], ["t", 11, 66, 18, "w"], ["t", 11, 71, 26, "w"], ["c", 48, 69, 7, "d"]] },
+      { id: "franja", nombre: "Franja de color", desc: "Foto grande arriba ocupando casi toda la imagen y una franja de color abajo de borde a borde con el titular, el precio y el 'antes' tachado.",
+        dibujo: [["r", 0, 0, 60, 56, "g"], ["r", 0, 56, 60, 34, "a"], ["t", 10, 62, 40, "w"], ["t", 16, 68, 28, "w"], ["r", 17, 74, 26, 9, "w", 3]] },
+      { id: "senalado", nombre: "Producto con beneficios señalados", desc: "Producto grande a un lado y 3 o 4 beneficios con íconos circulares al otro lado, unidos al producto con líneas finas que señalan cada parte; precio en caja abajo.",
+        dibujo: [T(6), ["o", 12, 20, 5, "a"], ["o", 12, 34, 5, "a"], ["o", 12, 48, 5, "a"], ["x", 17, 20, 30, 24, "m"], ["x", 17, 34, 30, 36, "m"], ["x", 17, 48, 30, 46, "m"], ["r", 30, 16, 26, 40, "g", 4], ["r", 10, 64, 40, 13, "a", 3], ["t", 16, 69, 28, "w"]] },
+      { id: "titular", nombre: "Titular primero", desc: "Titular enorme de 2 líneas arriba ocupando el primer tercio, debajo el producto grande sobre fondo limpio y un sello de precio circular grande en una esquina.",
+        dibujo: [["t", 6, 8, 48, "d"], ["t", 6, 14, 48, "a"], ["t", 12, 20, 36, "m"], ["r", 8, 26, 44, 48, "g", 4], ["c", 46, 70, 9, "a"], ["t", 41, 69, 10, "w"]] },
+      { id: "polaroid", nombre: "Polaroid", desc: "La foto del producto dentro de un marco blanco tipo polaroid, un poco inclinado, con el titular escrito en la parte blanca de abajo del marco; precio en sello al lado.",
+        dibujo: [["r", 9, 8, 42, 56, "w", 1], ["r", 12, 11, 36, 38, "g"], ["t", 15, 53, 30, "d"], ["t", 19, 58, 22, "m"], ["r", 14, 70, 32, 10, "a", 3]] }
+    ]
+  },
+  galeria: {
+    titulo: "Fotos de la galería", formatos: ["normal"], siempre: ["normal"],
+    def: "4 fotos cuadradas 1:1 para la galería del producto en Shopify: 1) producto con sus beneficios señalados, 2) producto en uso, 3) detalle de calidad, 4) qué incluye o paquetes. Poco texto, nada de precio (el precio lo pone Shopify).",
+    variantes: [
+      { id: "senalado", nombre: "Beneficios señalados", desc: "La foto 1 es el producto grande con 3 o 4 beneficios en íconos circulares unidos con líneas finas; las demás son limpias.",
+        dibujo: [["r", 6, 6, 48, 48, "d", 3], ["o", 14, 16, 4, "w"], ["o", 14, 30, 4, "w"], ["o", 14, 44, 4, "w"], ["r", 28, 14, 22, 34, "g", 3], ["r", 6, 58, 11, 11, "g", 2], ["r", 19, 58, 11, 11, "g", 2], ["r", 32, 58, 11, 11, "g", 2], ["r", 45, 58, 9, 11, "g", 2], T(76, 40)] },
+      { id: "limpia", nombre: "Estudio limpio", desc: "Fotos de estudio con fondo de un color liso, producto centrado y grande, un sello pequeño de descuento en la foto 1.",
+        dibujo: [["r", 6, 6, 48, 48, "g", 3], ["r", 18, 14, 24, 32, "w", 3], ["c", 47, 13, 5, "a"], ["r", 6, 58, 11, 11, "g", 2], ["r", 19, 58, 11, 11, "g", 2], ["r", 32, 58, 11, 11, "g", 2], ["r", 45, 58, 9, 11, "g", 2], T(76, 40)] },
+      { id: "en_uso", nombre: "En uso con titular", desc: "La foto 1 es una persona usando el producto con un titular corto de 2 líneas arriba; las demás muestran detalles y uso.",
+        dibujo: [["r", 6, 6, 48, 48, "g", 3], ["t", 12, 11, 36, "d"], ["t", 16, 16, 28, "a"], ["r", 18, 22, 24, 28, "m", 3], ["r", 6, 58, 11, 11, "g", 2], ["r", 19, 58, 11, 11, "g", 2], ["r", 32, 58, 11, 11, "g", 2], ["r", 45, 58, 9, 11, "g", 2], T(76, 40)] }
+    ]
+  },
+  dolor: {
+    titulo: "Dolor o identificación", formatos: ["ban", "normal"],
+    def: "El problema del cliente con sus palabras; puede ser antes/después o una escena del problema. Cierra con una frase puente hacia la solución.",
+    variantes: [
+      { id: "partida", nombre: "Escena partida", desc: "Imagen partida en dos: arriba la persona frustrada con el problema (tonos apagados) y abajo la misma persona aliviada con el producto (tonos vivos), con una frase puente en el medio.",
+        dibujo: [T(6), ["r", 6, 11, 48, 32, "m", 3], ["r", 14, 46, 32, 6, "a", 3], ["r", 6, 55, 48, 30, "g", 3]] },
+      { id: "primer_plano", nombre: "Primer plano con frase", desc: "Primer plano emocional de la persona viviendo el problema, con una frase grande entre comillas como si la dijera ella, y abajo una frase puente.",
+        dibujo: [["r", 0, 0, 60, 90, "g"], ["t", 8, 14, 44, "d"], ["t", 8, 20, 36, "d"], ["r", 12, 30, 36, 40, "m", 20], ["t", 12, 78, 36, "a"]] },
+      { id: "lista", nombre: "Lista de frustraciones", desc: "Titular arriba, foto de la escena del problema y una lista de 3 o 4 frustraciones con una ✗ roja cada una, cerrando con una frase puente.",
+        dibujo: [T(7), ["r", 6, 12, 48, 30, "g", 3], ["c", 10, 50, 2.5, "a"], T(50, 36, 15), ["c", 10, 58, 2.5, "a"], T(58, 36, 15), ["c", 10, 66, 2.5, "a"], T(66, 36, 15), ["t", 12, 78, 36, "a"]] }
+    ]
+  },
+  identificacion: {
+    titulo: "¿Es para ti?", formatos: ["ban", "normal"],
+    def: "Situaciones en las que el cliente se reconoce, con íconos.",
+    variantes: [
+      { id: "lista123", nombre: "Lista 1-2-3", desc: "Titular '¿Es para ti?' y 3 situaciones numeradas grandes 1, 2, 3, cada una con un ícono y una foto pequeña.",
+        dibujo: [T(7), ["c", 12, 22, 5, "a"], ["r", 20, 17, 34, 10, "g", 2], ["c", 12, 40, 5, "a"], ["r", 20, 35, 34, 10, "g", 2], ["c", 12, 58, 5, "a"], ["r", 20, 53, 34, 10, "g", 2], ["r", 14, 72, 32, 8, "d", 4]] },
+      { id: "tarjetas", nombre: "Tarjetas con foto", desc: "Cuadrícula de 4 tarjetas, cada una con una foto de una situación real y una frase corta debajo.",
+        dibujo: [T(7), ["r", 6, 14, 23, 30, "g", 3], ["r", 31, 14, 23, 30, "g", 3], ["r", 6, 47, 23, 30, "g", 3], ["r", 31, 47, 23, 30, "g", 3]] },
+      { id: "chat", nombre: "Chat de WhatsApp", desc: "Burbujas de chat estilo WhatsApp con las preguntas o quejas típicas del cliente (sin nombres ni fotos de personas reales), y una burbuja final de la tienda con la solución.",
+        dibujo: [["r", 0, 0, 60, 90, "g"], ["r", 6, 10, 34, 9, "w", 4], ["r", 6, 23, 30, 9, "w", 4], ["r", 20, 36, 34, 9, "a", 4], ["r", 6, 49, 36, 9, "w", 4], ["r", 18, 62, 36, 12, "a", 4]] }
+    ]
+  },
+  funcion_estrella: {
+    titulo: "La función estrella", formatos: ["ban", "normal"],
+    def: "Lo que más vende del producto, mostrado en uso real, con 3 o 4 beneficios en íconos.",
+    variantes: [
+      { id: "senalado", nombre: "Beneficios señalados", desc: "Producto grande al centro y 3 o 4 beneficios con íconos circulares a los lados, unidos con líneas finas a la parte del producto que explican.",
+        dibujo: [T(6), ["r", 20, 14, 22, 58, "g", 4], ["o", 10, 22, 5, "a"], ["o", 10, 44, 5, "a"], ["o", 50, 33, 5, "a"], ["o", 50, 56, 5, "a"], ["x", 15, 22, 22, 26, "m"], ["x", 15, 44, 22, 46, "m"], ["x", 45, 33, 40, 36, "m"], ["x", 45, 56, 40, 58, "m"], T(80, 30)] },
+      { id: "tarjetas", nombre: "Foto y tarjetas", desc: "Foto grande en uso arriba y abajo una fila de 3 o 4 tarjetas con ícono y beneficio corto.",
+        dibujo: [T(6), ["r", 6, 11, 48, 44, "g", 3], ["r", 6, 59, 14, 18, "w", 3], ["r", 23, 59, 14, 18, "w", 3], ["r", 40, 59, 14, 18, "w", 3], ["c", 13, 65, 3, "a"], ["c", 30, 65, 3, "a"], ["c", 47, 65, 3, "a"]] },
+      { id: "iconos_fila", nombre: "Íconos en fila", desc: "Foto a sangre de borde a borde y encima, abajo, una fila de 4 íconos circulares grandes con su beneficio debajo.",
+        dibujo: [["r", 0, 0, 60, 62, "g"], T(8, 34, 13, "w"), ["c", 10, 72, 5, "a"], ["c", 24, 72, 5, "a"], ["c", 38, 72, 5, "a"], ["c", 52, 72, 5, "a"], ["t", 5, 81, 50, "m"]] }
+    ]
+  },
+  detalles: {
+    titulo: "Detalles y calidad", formatos: ["ban", "normal"],
+    def: "Primeros planos de materiales y acabados.",
+    variantes: [
+      { id: "circulos", nombre: "Círculos de zoom", desc: "Producto al centro y 4 círculos de zoom alrededor mostrando materiales y acabados, cada uno con su rótulo.",
+        dibujo: [T(6), ["r", 18, 24, 24, 40, "g", 4], ["o", 10, 20, 7, "a"], ["o", 50, 20, 7, "a"], ["o", 10, 68, 7, "a"], ["o", 50, 68, 7, "a"]] },
+      { id: "cuadricula", nombre: "Cuadrícula 2x2", desc: "Cuadrícula de 4 primeros planos del producto, cada uno con un rótulo corto en una etiqueta.",
+        dibujo: [T(6), ["r", 6, 12, 23, 34, "g", 2], ["r", 31, 12, 23, 34, "g", 2], ["r", 6, 48, 23, 34, "g", 2], ["r", 31, 48, 23, 34, "g", 2], ["r", 8, 40, 14, 4, "a", 2], ["r", 33, 40, 14, 4, "a", 2]] },
+      { id: "tarjetas", nombre: "Tarjetas apiladas", desc: "3 tarjetas horizontales apiladas, cada una con un primer plano a un lado y el detalle explicado al otro.",
+        dibujo: [T(6), ["r", 6, 12, 48, 21, "w", 3], ["r", 6, 12, 20, 21, "g", 3], ["r", 6, 36, 48, 21, "w", 3], ["r", 34, 36, 20, 21, "g", 3], ["r", 6, 60, 48, 21, "w", 3], ["r", 6, 60, 20, 21, "g", 3]] }
+    ]
+  },
+  que_incluye: {
+    titulo: "¿Qué incluye?", formatos: ["ban", "normal"],
+    def: "Todo lo que llega en el paquete; círculo vacío para GIF si aplica.",
+    variantes: [
+      { id: "numerados", nombre: "Círculos numerados", desc: "El producto con círculos numerados señalando cada pieza que llega, y la lista numerada abajo.",
+        dibujo: [T(6), ["r", 12, 14, 36, 40, "g", 4], ["c", 10, 20, 4, "a"], ["c", 50, 30, 4, "a"], ["c", 10, 46, 4, "a"], T(62, 40), T(68, 40), T(74, 40)] },
+      { id: "flatlay", nombre: "Todo extendido (flat lay)", desc: "Vista desde arriba con todas las piezas ordenadas sobre una superficie, cada una con su nombre.",
+        dibujo: [["r", 0, 0, 60, 90, "g"], T(8), ["r", 8, 18, 18, 18, "w", 2], ["r", 34, 18, 18, 24, "w", 2], ["r", 8, 42, 22, 14, "w", 2], ["r", 36, 48, 16, 16, "w", 2], ["r", 10, 64, 20, 14, "w", 2]] },
+      { id: "caja", nombre: "Caja abierta", desc: "El paquete abierto con las piezas saliendo, y etiquetas con lo que trae.",
+        dibujo: [T(6), ["r", 12, 40, 36, 32, "m", 2], ["r", 18, 20, 10, 22, "g", 2], ["r", 31, 16, 10, 26, "g", 2], ["r", 4, 26, 12, 5, "a", 2], ["r", 44, 22, 12, 5, "a", 2]] }
+    ]
+  },
+  tamano_variantes: {
+    titulo: "Tamaño, colores o variantes", formatos: ["ban", "normal"],
+    def: "Medidas reales con referencia humana, tallas o colores disponibles completos y en orden.",
+    variantes: [
+      { id: "medidas", nombre: "Medidas con persona", desc: "El producto junto a una mano o una persona con líneas de medida y las medidas escritas.",
+        dibujo: [T(6), ["r", 14, 16, 22, 50, "g", 3], ["x", 42, 16, 42, 66, "a"], ["x", 14, 72, 36, 72, "a"], ["r", 40, 30, 14, 34, "m", 6]] },
+      { id: "muestrario", nombre: "Muestrario", desc: "Todos los colores o versiones en fila, cada uno con su nombre debajo, en orden.",
+        dibujo: [T(6), ["r", 4, 20, 16, 30, "g", 3], ["r", 22, 20, 16, 30, "m", 3], ["r", 40, 20, 16, 30, "a", 3], ["t", 6, 54, 12, "d"], ["t", 24, 54, 12, "d"], ["t", 42, 54, 12, "d"], T(70, 40)] },
+      { id: "tabla", nombre: "Tabla de tallas", desc: "Tabla clara de tallas o medidas con todas las filas completas y en orden, y una foto pequeña de cómo medir.",
+        dibujo: [T(6), ["r", 6, 12, 48, 8, "a", 1], ["r", 6, 21, 48, 7, "g", 1], ["r", 6, 29, 48, 7, "w", 1], ["r", 6, 37, 48, 7, "g", 1], ["r", 6, 45, 48, 7, "w", 1], ["r", 16, 58, 28, 24, "g", 3]] }
+    ]
+  },
+  como_se_usa: {
+    titulo: "Cómo se usa", formatos: ["ban", "normal"],
+    def: "3 o 4 pasos numerados, cada uno con su foto real del producto en uso.",
+    variantes: [
+      { id: "columna", nombre: "Pasos en columna", desc: "3 pasos uno debajo del otro, cada uno con número grande, foto a un lado y texto corto al otro.",
+        dibujo: [T(6), ["c", 9, 20, 4, "a"], ["r", 16, 13, 18, 16, "g", 2], T(19, 16, 38), ["c", 9, 42, 4, "a"], ["r", 16, 35, 18, 16, "g", 2], T(41, 16, 38), ["c", 9, 64, 4, "a"], ["r", 16, 57, 18, 16, "g", 2], T(63, 16, 38)] },
+      { id: "cuadricula", nombre: "Cuadrícula 2x2", desc: "4 fotos en cuadrícula 2x2, cada una con su número de paso en un círculo y una frase corta.",
+        dibujo: [T(6), ["r", 6, 12, 23, 32, "g", 2], ["r", 31, 12, 23, 32, "g", 2], ["r", 6, 47, 23, 32, "g", 2], ["r", 31, 47, 23, 32, "g", 2], ["c", 10, 16, 3, "a"], ["c", 35, 16, 3, "a"], ["c", 10, 51, 3, "a"], ["c", 35, 51, 3, "a"]] },
+      { id: "zigzag", nombre: "Zigzag", desc: "Pasos en zigzag: foto a la izquierda y texto a la derecha, luego al revés, unidos con una línea punteada.",
+        dibujo: [T(6), ["r", 6, 12, 26, 20, "g", 3], T(20, 18, 36), ["r", 28, 36, 26, 20, "g", 3], T(44, 18, 6), ["r", 6, 60, 26, 20, "g", 3], T(68, 18, 36)] }
+    ]
+  },
+  para_quien: {
+    titulo: "Para quién es / dónde se usa", formatos: ["ban", "normal"],
+    def: "3 o 4 escenas con personas del avatar usando el producto en distintos lugares.",
+    variantes: [
+      { id: "collage", nombre: "Collage", desc: "Collage de 3 o 4 fotos de distinto tamaño con personas usando el producto en distintos lugares, cada una con una etiqueta.",
+        dibujo: [T(6), ["r", 6, 12, 30, 36, "g", 3], ["r", 38, 12, 16, 17, "m", 3], ["r", 38, 31, 16, 17, "g", 3], ["r", 6, 50, 48, 30, "m", 3]] },
+      { id: "franjas", nombre: "Franjas", desc: "3 franjas horizontales a lo ancho, cada una con una escena distinta y su etiqueta.",
+        dibujo: [T(6), ["r", 0, 12, 60, 23, "g"], ["r", 0, 37, 60, 23, "m"], ["r", 0, 62, 60, 23, "g"], ["r", 4, 15, 16, 5, "a", 2], ["r", 4, 40, 16, 5, "a", 2], ["r", 4, 65, 16, 5, "a", 2]] },
+      { id: "circulos", nombre: "Persona y círculos", desc: "Una persona grande usando el producto y 3 círculos con los otros lugares donde sirve.",
+        dibujo: [T(6), ["r", 6, 12, 32, 70, "g", 4], ["o", 48, 24, 7, "a"], ["o", 48, 46, 7, "a"], ["o", 48, 68, 7, "a"]] }
+    ]
+  },
+  antes_despues: {
+    titulo: "Antes y después (el cambio)", formatos: ["ban", "normal"],
+    def: "La situación sin el producto vs con el producto.",
+    variantes: [
+      { id: "lado", nombre: "Lado a lado", desc: "Imagen partida en dos de izquierda a derecha: ANTES (tonos apagados) y DESPUÉS (tonos vivos), con una flecha o círculo al centro y 4 beneficios abajo.",
+        dibujo: [T(6), ["r", 6, 12, 23, 50, "m", 3], ["r", 31, 12, 23, 50, "g", 3], ["c", 30, 37, 4, "d"], T(70, 40), T(76, 30)] },
+      { id: "deslizador", nombre: "Deslizador", desc: "Dos fotos con el MISMO encuadre (antes y después) pensadas para el deslizador de Shopify, o en una sola imagen partida por una línea vertical con un botón al centro.",
+        dibujo: [T(6), ["r", 6, 12, 48, 56, "g", 3], ["r", 6, 12, 24, 56, "m", 3], ["x", 30, 12, 30, 68, "w"], ["c", 30, 40, 4, "d"], ["r", 8, 72, 20, 5, "g", 2], ["r", 32, 72, 20, 5, "g", 2]] },
+      { id: "vertical", nombre: "Una sobre otra", desc: "ANTES arriba y DESPUÉS abajo, con una flecha hacia abajo entre las dos y una frase de cambio.",
+        dibujo: [T(6), ["r", 10, 12, 40, 28, "m", 3], ["c", 30, 44, 3, "d"], ["r", 10, 49, 40, 30, "a", 3]] }
+    ]
+  },
+  paquetes: {
+    titulo: "Paquetes (compra más, ahorra más)", formatos: ["ban", "normal"],
+    def: "Ofertas de 1, 2 y 3 unidades con precio, 'antes' tachado, cuánto ahorra y la de 2 marcada 'MÁS VENDIDO'.",
+    variantes: [
+      { id: "lado_a_lado", nombre: "Tarjetas lado a lado", desc: "3 tarjetas verticales lado a lado (1, 2 y 3 unidades), la del medio más grande con la cinta 'MÁS VENDIDO'; cada una con precio, 'antes' tachado y 'Ahorras $...'.",
+        dibujo: [T(6), ["r", 4, 22, 16, 34, "w", 3], ["r", 22, 18, 16, 42, "a", 3], ["r", 40, 22, 16, 34, "w", 3], ["r", 24, 14, 12, 5, "d", 2], ["r", 10, 66, 40, 9, "d", 4]] },
+      { id: "lista", nombre: "Lista con círculo", desc: "3 filas horizontales una debajo de otra, cada una con un círculo de selección a la izquierda, la foto pequeña del pack, unidades y el precio a la derecha; la de 2 unidades con etiqueta 'MÁS VENDIDO'.",
+        dibujo: [T(6), ["r", 6, 13, 48, 13, "w", 3], ["o", 11, 19.5, 2.5, "d"], ["r", 6, 29, 48, 13, "a", 3], ["c", 11, 35.5, 2.5, "w"], ["r", 6, 45, 48, 13, "w", 3], ["o", 11, 51.5, 2.5, "d"], ["r", 38, 26, 14, 4, "d", 2], ["r", 10, 66, 40, 9, "d", 4]] },
+      { id: "resaltada", nombre: "La elegida resaltada", desc: "3 tarjetas, una de ellas rellena del color principal y más grande que las otras; las otras blancas con borde.",
+        dibujo: [T(6), ["r", 4, 22, 16, 30, "a", 3], ["r", 22, 22, 16, 30, "w", 3], ["r", 40, 22, 16, 30, "w", 3], ["r", 24, 18, 12, 5, "d", 2], ["r", 10, 62, 40, 9, "d", 4]] },
+      { id: "con_foto", nombre: "Con la foto del producto", desc: "3 filas, cada una con la foto del producto repetida 1, 2 o 3 veces según las unidades, y el precio grande al lado.",
+        dibujo: [T(6), ["r", 6, 13, 48, 14, "w", 3], ["r", 8, 15, 8, 10, "g", 1], ["r", 6, 30, 48, 14, "a", 3], ["r", 8, 32, 8, 10, "g", 1], ["r", 12, 32, 8, 10, "g", 1], ["r", 6, 47, 48, 14, "w", 3], ["r", 8, 49, 8, 10, "g", 1], ["r", 12, 49, 8, 10, "g", 1], ["r", 16, 49, 8, 10, "g", 1], ["r", 10, 68, 40, 9, "d", 4]] }
+    ]
+  },
+  como_funciona: {
+    titulo: "Cómo funciona tu pedido (cuándo te llega)", formatos: ["ban", "normal"],
+    def: "3 pasos del contra entrega: haces tu pedido, lo despachamos / confirmamos contigo, te llega y pagas en casa. Quita el miedo a comprar.",
+    variantes: [
+      { id: "linea", nombre: "Línea de tres pasos", desc: "3 círculos grandes con ícono (carrito, camión, caja) unidos por una línea, y debajo de cada uno: 'Haces tu pedido', 'Lo despachamos', 'Te llega y pagas'.",
+        dibujo: [T(8), ["x", 12, 34, 48, 34, "m"], ["c", 12, 34, 7, "a"], ["c", 30, 34, 7, "a"], ["c", 48, 34, 7, "a"], ["t", 5, 47, 14, "d"], ["t", 23, 47, 14, "d"], ["t", 41, 47, 14, "d"], ["r", 8, 60, 44, 16, "g", 3]] },
+      { id: "camion", nombre: "En camino", desc: "Una carretera o barra de progreso con un camión avanzando, y 3 puntos marcados con cada paso del pedido.",
+        dibujo: [T(8), ["r", 8, 34, 44, 3, "g", 2], ["r", 8, 34, 16, 3, "a", 2], ["r", 18, 26, 10, 7, "a", 2], ["c", 10, 35.5, 3, "a"], ["o", 30, 35.5, 3, "m"], ["o", 50, 35.5, 3, "m"], ["t", 5, 46, 14, "d"], ["t", 23, 46, 14, "d"], ["t", 41, 46, 14, "d"], ["r", 8, 60, 44, 16, "g", 3]] },
+      { id: "pastillas", nombre: "Fila de pastillas", desc: "3 tarjetas en fila tipo pastilla con ícono arriba y el paso abajo, la primera rellena del color principal y unidas por flechas pequeñas.",
+        dibujo: [T(8), ["r", 4, 24, 16, 20, "a", 4], ["r", 22, 24, 16, 20, "w", 4], ["r", 40, 24, 16, 20, "w", 4], ["r", 8, 58, 44, 18, "g", 3]] },
+      { id: "barra", nombre: "Barra de progreso", desc: "Una barra dividida en 3 tramos, el primero lleno del color principal, con el nombre de cada paso debajo.",
+        dibujo: [T(8), ["r", 4, 30, 16, 4, "a", 2], ["r", 22, 30, 16, 4, "g", 2], ["r", 40, 30, 16, 4, "g", 2], ["t", 4, 40, 12, "d"], ["t", 22, 40, 12, "d"], ["t", 40, 40, 12, "d"], ["r", 8, 56, 44, 18, "g", 3]] }
+    ]
+  },
+  por_que_aqui: {
+    titulo: "Tu producto vs otros (¿por qué aquí?)", formatos: ["ban", "normal"],
+    def: "Comparación 'Nuestra tienda' (✓) vs 'Otras opciones' (✗) y un recuadro vacío para el logo de la tienda.",
+    variantes: [
+      { id: "tabla", nombre: "Tabla", desc: "Tabla de 5 filas con dos columnas: la nuestra resaltada con ✓ y la de otros con ✗.",
+        dibujo: [T(6), ["r", 30, 12, 12, 64, "a", 3], ["t", 6, 18, 20, "d"], ["t", 6, 30, 20, "d"], ["t", 6, 42, 20, "d"], ["t", 6, 54, 20, "d"], ["t", 6, 66, 20, "d"], ["c", 36, 18, 2, "w"], ["c", 36, 30, 2, "w"], ["c", 36, 42, 2, "w"], ["o", 50, 18, 2, "m"], ["o", 50, 30, 2, "m"], ["o", 50, 42, 2, "m"]] },
+      { id: "dos_tarjetas", nombre: "Dos tarjetas", desc: "Dos tarjetas lado a lado: la nuestra de color con la lista de ✓ y la de otros gris con la lista de ✗.",
+        dibujo: [T(6), ["r", 4, 14, 25, 62, "a", 3], ["r", 31, 14, 25, 62, "g", 3], ["t", 8, 24, 16, "w"], ["t", 8, 32, 16, "w"], ["t", 8, 40, 16, "w"], ["t", 35, 24, 16, "m"], ["t", 35, 32, 16, "m"], ["t", 35, 40, 16, "m"]] },
+      { id: "lista", nombre: "Lista de ventajas", desc: "4 o 5 filas tipo tarjeta, cada una con la ventaja nuestra a la izquierda y lo de otros a la derecha.",
+        dibujo: [T(6), ["r", 6, 13, 48, 11, "w", 3], ["r", 6, 27, 48, 11, "w", 3], ["r", 6, 41, 48, 11, "w", 3], ["r", 6, 55, 48, 11, "w", 3], ["c", 11, 18.5, 2, "a"], ["c", 11, 32.5, 2, "a"], ["c", 11, 46.5, 2, "a"], ["c", 11, 60.5, 2, "a"]] },
+      { id: "versus", nombre: "Versus", desc: "Arriba el producto nuestro contra 'otros' con un 'VS' grande al centro, y abajo la lista comparada.",
+        dibujo: [["r", 6, 8, 20, 22, "a", 3], ["c", 30, 19, 5, "d"], ["r", 34, 8, 20, 22, "g", 3], T(40, 44), T(48, 44), T(56, 44), T(64, 44)] }
+    ]
+  },
+  resenas: {
+    titulo: "Reseñas reales (plantilla)", formatos: ["ban", "normal"],
+    def: "Marco con tarjetas VACÍAS para pegar capturas de reseñas reales. Sin nombres, caras ni estrellas inventadas.",
+    variantes: [
+      { id: "dos_columnas", nombre: "Tarjetas en dos columnas", desc: "Cuadrícula de 4 tarjetas vacías en dos columnas.",
+        dibujo: [T(6), ["r", 6, 13, 23, 30, "w", 3], ["r", 31, 13, 23, 30, "w", 3], ["r", 6, 46, 23, 30, "w", 3], ["r", 31, 46, 23, 30, "w", 3]] },
+      { id: "carrusel", nombre: "Carrusel", desc: "Una tarjeta vacía grande al centro y las de los lados asomando, como un carrusel.",
+        dibujo: [T(6), ["r", 0, 20, 8, 44, "w", 3], ["r", 11, 16, 38, 52, "w", 3], ["r", 52, 20, 8, 44, "w", 3], ["c", 26, 74, 1.5, "d"], ["c", 30, 74, 1.5, "m"], ["c", 34, 74, 1.5, "m"]] },
+      { id: "columna", nombre: "Citas en columna", desc: "3 tarjetas vacías anchas una debajo de otra con una barra de color a la izquierda.",
+        dibujo: [T(6), ["r", 6, 13, 48, 20, "w", 3], ["r", 6, 13, 2, 20, "a"], ["r", 6, 36, 48, 20, "w", 3], ["r", 6, 36, 2, 20, "a"], ["r", 6, 59, 48, 20, "w", 3], ["r", 6, 59, 2, 20, "a"]] },
+      { id: "destacada", nombre: "Destacada y compactas", desc: "Una tarjeta vacía grande arriba y 3 pequeñas debajo.",
+        dibujo: [T(6), ["r", 6, 13, 48, 34, "w", 3], ["r", 6, 50, 48, 9, "w", 2], ["r", 6, 62, 48, 9, "w", 2], ["r", 6, 74, 48, 9, "w", 2]] }
+    ]
+  },
+  preguntas: {
+    titulo: "Preguntas frecuentes", formatos: ["ban", "normal"],
+    def: "5 preguntas con respuesta corta; la última SIEMPRE sobre pago contra entrega.",
+    variantes: [
+      { id: "acordeon", nombre: "Lista tipo acordeón", desc: "5 filas con la pregunta en negrita, un ícono '+' a la derecha y la respuesta corta debajo.",
+        dibujo: [T(6), ["r", 6, 13, 48, 11, "w", 2], ["r", 6, 27, 48, 11, "w", 2], ["r", 6, 41, 48, 11, "w", 2], ["r", 6, 55, 48, 11, "w", 2], ["r", 6, 69, 48, 11, "a", 2]] },
+      { id: "tarjetas", nombre: "Tarjetas", desc: "Tarjetas en dos columnas, cada una con la pregunta arriba y la respuesta abajo.",
+        dibujo: [T(6), ["r", 6, 13, 23, 22, "w", 3], ["r", 31, 13, 23, 22, "w", 3], ["r", 6, 38, 23, 22, "w", 3], ["r", 31, 38, 23, 22, "w", 3], ["r", 6, 63, 48, 16, "a", 3]] },
+      { id: "chat", nombre: "Chat", desc: "Burbujas de chat: la pregunta del cliente a la izquierda y la respuesta de la tienda a la derecha.",
+        dibujo: [["r", 0, 0, 60, 90, "g"], ["r", 6, 8, 32, 8, "w", 4], ["r", 22, 19, 32, 8, "a", 4], ["r", 6, 31, 32, 8, "w", 4], ["r", 22, 42, 32, 8, "a", 4], ["r", 6, 54, 32, 8, "w", 4], ["r", 22, 65, 32, 8, "a", 4]] }
+    ]
+  },
+  confianza: {
+    titulo: "Garantía y confianza", formatos: ["ban", "normal"],
+    def: "Garantía (solo si existe), sellos de confianza y 'Nuestros aliados logísticos' con banderines vacíos para pegar logos de transportadoras.",
+    variantes: [
+      { id: "centrada", nombre: "Tarjeta centrada", desc: "Tarjeta centrada con un sello grande arriba, el título de la garantía y una lista corta de lo que cubre.",
+        dibujo: [["r", 8, 10, 44, 66, "w", 4], ["c", 30, 22, 7, "a"], T(36, 30), ["t", 14, 44, 32, "m"], ["t", 14, 50, 32, "m"], ["t", 14, 56, 32, "m"]] },
+      { id: "sello_lado", nombre: "Sello al lado", desc: "Sello circular grande a la izquierda y el texto de la garantía a la derecha; abajo íconos de confianza en fila.",
+        dibujo: [["r", 6, 16, 48, 30, "w", 4], ["c", 17, 31, 8, "a"], ["t", 28, 26, 22, "d"], ["t", 28, 33, 22, "m"], ["c", 14, 60, 4, "g"], ["c", 30, 60, 4, "g"], ["c", 46, 60, 4, "g"]] },
+      { id: "franja", nombre: "Franja de color", desc: "Bloque de color a lo ancho con el sello y el texto en blanco, y debajo los banderines para logos.",
+        dibujo: [["r", 0, 14, 60, 40, "a"], ["c", 30, 26, 6, "w"], ["t", 14, 38, 32, "w"], ["t", 18, 44, 24, "w"], ["r", 6, 62, 14, 10, "g", 2], ["r", 23, 62, 14, 10, "g", 2], ["r", 40, 62, 14, 10, "g", 2]] },
+      { id: "certificado", nombre: "Certificado", desc: "Diseño tipo certificado con borde fino, sello en una esquina y la garantía explicada.",
+        dibujo: [["r", 6, 12, 48, 62, "w", 1], ["r", 9, 15, 42, 56, "g", 1], ["r", 10, 16, 40, 54, "w", 1], T(26, 30), T(34, 34), T(40, 34), ["c", 46, 18, 6, "a"]] }
+    ]
+  },
+  oferta_cierre: {
+    titulo: "Oferta de cierre", formatos: ["ban", "normal"],
+    def: "Repite precio, regalo y beneficios clave con una frase de cierre para quien llegó al final.",
+    variantes: [
+      { id: "caja", nombre: "Precio en caja", desc: "Foto del producto, frase de cierre y el precio grande en caja de color con el 'antes' tachado.",
+        dibujo: [T(7), ["r", 10, 12, 40, 36, "g", 4], ["r", 8, 54, 44, 16, "a", 3], ["t", 14, 59, 20, "w"], ["t", 14, 64, 30, "w"], ["r", 14, 76, 32, 7, "d", 4]] },
+      { id: "resumen", nombre: "Resumen con checks", desc: "Lista de 4 beneficios con ✓, el regalo si hay, y el precio al final.",
+        dibujo: [T(7), ["c", 10, 18, 2.5, "a"], T(18, 36, 15), ["c", 10, 26, 2.5, "a"], T(26, 36, 15), ["c", 10, 34, 2.5, "a"], T(34, 36, 15), ["c", 10, 42, 2.5, "a"], T(42, 36, 15), ["r", 8, 54, 44, 16, "a", 3], ["r", 14, 76, 32, 7, "d", 4]] },
+      { id: "foto_franja", nombre: "Foto con franja", desc: "Foto a sangre del producto en uso con una franja inferior con el precio y la frase de cierre.",
+        dibujo: [["r", 0, 0, 60, 60, "g"], ["r", 0, 60, 60, 30, "a"], ["t", 10, 66, 40, "w"], ["t", 14, 72, 32, "w"], ["r", 14, 78, 32, 7, "d", 4]] }
+    ]
+  }
+};
+
+// Orden de siempre (lo que se ve sin tocar nada) y qué va prendido de entrada
+export const ORDEN_BASE = {
+  ban: [
+    ["oferta", 1], ["dolor", 1], ["identificacion", 0], ["funcion_estrella", 1], ["detalles", 1], ["que_incluye", 1],
+    ["tamano_variantes", 1], ["como_se_usa", 1], ["para_quien", 1], ["antes_despues", 0], ["paquetes", 1],
+    ["como_funciona", 1], ["por_que_aqui", 1], ["resenas", 0], ["preguntas", 1], ["confianza", 0], ["oferta_cierre", 0]
+  ],
+  normal: [
+    ["galeria", 1], ["dolor", 1], ["funcion_estrella", 1], ["antes_despues", 1], ["como_se_usa", 1], ["detalles", 1],
+    ["para_quien", 1], ["que_incluye", 0], ["tamano_variantes", 0], ["identificacion", 0], ["paquetes", 0],
+    ["como_funciona", 1], ["por_que_aqui", 1], ["resenas", 0], ["confianza", 0], ["preguntas", 0], ["oferta_cierre", 0]
+  ]
+};
+
+export const COLORES_BASE = { modo: "producto", fondo: "#111111", color1: "#ffffff", color2: "#22d3ee", acento: "#22d3ee" };
+
+const formatoValido = (f) => (f === "normal" ? "normal" : "ban");
+const hexValido = (v, def) => (/^#[0-9a-f]{6}$/i.test(String(v || "")) ? String(v).toLowerCase() : def);
+
+export const tiposDe = (formato) =>
+  Object.keys(SECCIONES).filter(k => SECCIONES[k].formatos.includes(formatoValido(formato)));
+
+export const esFija = (tipo, formato) => (SECCIONES[tipo]?.siempre || []).includes(formatoValido(formato));
+
+export function plantillaPorDefecto(formato) {
+  const f = formatoValido(formato);
+  return {
+    usarOrden: false,
+    orden: ORDEN_BASE[f].map(([tipo, visible]) => ({ tipo, visible: !!visible })),
+    estilos: {},                  // tipo → id de variante (sin valor = "Al azar")
+    colores: { ...COLORES_BASE }
+  };
+}
+
+// Limpia lo que llega del navegador o de la base de datos
+export function normalizarPlantilla(formato, raw = {}) {
+  const f = formatoValido(formato);
+  const base = plantillaPorDefecto(f);
+  const validos = tiposDe(f);
+  const r = raw && typeof raw === "object" ? raw : {};
+
+  const vistos = new Set();
+  const orden = [];
+  for (const it of Array.isArray(r.orden) ? r.orden : []) {
+    const tipo = String(it?.tipo || "");
+    if (!validos.includes(tipo) || vistos.has(tipo)) continue;
+    vistos.add(tipo);
+    orden.push({ tipo, visible: esFija(tipo, f) ? true : it.visible !== false });
+  }
+  for (const it of base.orden) if (!vistos.has(it.tipo)) orden.push(it);   // tipos nuevos al final
+
+  const estilos = {};
+  const e = r.estilos && typeof r.estilos === "object" ? r.estilos : {};
+  for (const tipo of validos) {
+    const id = String(e[tipo] || "");
+    if (SECCIONES[tipo].variantes.some(v => v.id === id)) estilos[tipo] = id;
+  }
+
+  const c = r.colores && typeof r.colores === "object" ? r.colores : {};
+  const colores = {
+    modo: c.modo === "fijos" ? "fijos" : "producto",
+    fondo: hexValido(c.fondo, COLORES_BASE.fondo),
+    color1: hexValido(c.color1, COLORES_BASE.color1),
+    color2: hexValido(c.color2, COLORES_BASE.color2),
+    acento: hexValido(c.acento, COLORES_BASE.acento)
+  };
+
+  return { usarOrden: !!r.usarOrden, orden, estilos, colores };
+}
+
+export const varianteDe = (tipo, id) => (SECCIONES[tipo]?.variantes || []).find(v => v.id === id) || null;
+
+// Variante fija de la plantilla, o una al azar (distinta cada vez)
+export function elegirVariante(tipo, plantilla, azar = Math.random) {
+  const vs = SECCIONES[tipo]?.variantes || [];
+  if (!vs.length) return "";
+  const fija = plantilla?.estilos?.[tipo];
+  if (fija && vs.some(v => v.id === fija)) return fija;
+  return vs[Math.floor(azar() * vs.length) % vs.length].id;
+}
+
+// Formato de imagen sugerido para cada sección
+export function formatoImagen(tipo, formato) {
+  if (formatoValido(formato) === "ban") return "9:16";
+  return "1:1";
+}

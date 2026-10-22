@@ -266,13 +266,15 @@ window.calCalcular = function () {
       <div class="cal-alert error">${Math.round(r.efectividadPct)}% de efectividad total — la inefectividad te cuesta <b>${fmt(r.costoInefectividad)}</b> por venta (${fmt(r.fleteExtra)} en fletes de devoluciones + ${fmt(r.cpaExtra)} de CPA extra) y está inflando tu precio. Mejora tus % de cancelados y devoluciones.</div>` : ""}
 
     <h3 class="cal-sub"><i data-lucide="package"></i> Ofertas de cantidad sugeridas</h3>
+    <label class="cal-envio"><input type="checkbox" id="calEnvioPacks" ${envioPacks() ? "checked" : ""} onchange="calEnvioPacks(this.checked)"> Los paquetes llevan envío gratis</label>
     <div class="cal-packs">
       ${r.paquetes.map((p, i) => `
-        <div class="cal-pack ${i === 1 ? "mejor" : ""}">
-          <span class="cal-pack-tag">${i === 0 ? "PACK" : "MEJOR PRECIO"}</span>
+        <div class="cal-pack ${i === 0 ? "mejor" : ""}">
+          <span class="cal-pack-tag">${i === 0 ? "MÁS VENDIDO" : "MEJOR PRECIO"}</span>
           <small>${p.unidades} UNIDADES</small>
           <strong>${fmt(p.precio)}</strong>
-          <span>Unitario: <b>${fmt(p.unitario)}</b> · Normal: <s>${fmt(p.normal)}</s></span>
+          <span>Antes: <s>${fmt(p.unidades * p.normal)}</s> · <span class="cal-pack-ahorro">Ahorras ${fmt(p.unidades * p.normal - p.precio)}</span></span>
+          <span>Unitario: <b>${fmt(p.unitario)}</b>${envioPacks() ? " · Envío gratis" : ""}</span>
           <span class="cal-pack-pct">-${p.ahorroPct}% por unidad · tu utilidad ${p.utilidadPct.toFixed(0)}%</span>
         </div>
       `).join("")}
@@ -285,6 +287,26 @@ window.calCalcular = function () {
   `;
   if (window.lucide) lucide.createIcons();
 };
+
+// ¿Los paquetes llevan envío gratis? (se recuerda en este navegador)
+function envioPacks() {
+  try { return localStorage.getItem("cal_envio_packs") !== "0"; } catch { return true; }
+}
+window.calEnvioPacks = (v) => { try { localStorage.setItem("cal_envio_packs", v ? "1" : "0"); } catch {} calCalcular(); };
+
+// Texto de paquetes para la Ficha (lo leen los prompts tal cual)
+function textoPaquetes(r, p, precioAntes) {
+  const envio = envioPacks();
+  const uno = `1 unidad ${formatear(r.redondeado, p)}${precioAntes > r.redondeado ? ` (antes ${formatear(precioAntes, p)})` : ""}`;
+  const packs = r.paquetes.map((x, i) => {
+    const antes = x.unidades * x.normal;
+    const extras = [`antes ${formatear(antes, p)}`, `ahorras ${formatear(antes - x.precio, p)}`];
+    if (envio) extras.push("envío gratis");
+    if (i === 0) extras.push("MÁS VENDIDO");
+    return `${x.unidades} unidades ${formatear(x.precio, p)} (${extras.join(", ")})`;
+  });
+  return [uno, ...packs].join("; ");
+}
 
 // ---------- Productos ----------
 function llenarProductos(seleccion = "") {
@@ -383,13 +405,13 @@ window.calPasarADesarrollo = () => conBoton("calBtnDesarrollo", "Pasando a Desar
   const proyecto = await api("POST", "/api/proyectos", c.productoId ? { productoId: c.productoId, pais: p } : { nombre: c.nombre, pais: p });
   const actual = await api("GET", `/api/proyectos/${proyecto._id}`);
 
-  const paquetes = r.paquetes.map(x => `${x.unidades} unidades ${formatear(x.precio, p)}`).join("; ");
+  // "antes" calculado desde el precio que publicas, para que el % de descuento cuadre
+  const precioAntes = redondear(r.redondeado / (1 - (Number($("calDescuento")?.value) || 0) / 100), p);
   const ficha = {
     ...(actual.ficha || {}),
     precio: r.redondeado,
-    // "antes" calculado desde el precio que publicas, para que el % de descuento cuadre
-    precioAntes: redondear(r.redondeado / (1 - (Number($("calDescuento")?.value) || 0) / 100), p),
-    paquetes: `1 unidad ${formatear(r.redondeado, p)}; ${paquetes}`,
+    precioAntes,
+    paquetes: textoPaquetes(r, p, precioAntes),
     costeoId: c._id
   };
   await api("PUT", `/api/proyectos/${proyecto._id}`, { ficha, pais: p });

@@ -5,6 +5,8 @@
 // y todas las landings nuevas la tendrán en cuenta.
 // =============================================
 
+import { SECCIONES, FORMATOS, varianteDe, tiposDe } from "./public/js/core/plantilla.js";
+
 const limpio = (v, max = 3000) => String(v ?? "").slice(0, max).trim();
 
 export const PAISES = {
@@ -68,26 +70,19 @@ export const ESTILOS_BASE_USADOS = [
   "Cinta de kinesiología x10: gym, negro con cian eléctrico"
 ];
 
-// Catálogo de tipos de sección que puede tener una landing
-export const CATALOGO_SECCIONES = {
-  oferta:            { titulo: "Oferta (hero)", def: "Producto en uso, titular corto de 2 líneas en 2 colores, 3 beneficios, precio 'antes' tachado, precio actual grande en caja, sello de descuento, regalo si hay (con círculo para GIF), barra de confianza abajo." },
-  dolor:             { titulo: "Dolor o identificación", def: "El problema del cliente con sus palabras; puede ser antes/después o una escena del problema. Cierra con una frase puente hacia la solución." },
-  identificacion:    { titulo: "¿Es para ti?", def: "Lista 1-2-3 de situaciones en las que el cliente se reconoce, con íconos." },
-  funcion_estrella:  { titulo: "La función estrella", def: "Lo que más vende del producto, mostrado en uso real, con 3 o 4 beneficios en íconos." },
-  detalles:          { titulo: "Detalles y calidad", def: "Producto al centro con 4 círculos o tarjetas de zoom en materiales y acabados." },
-  que_incluye:       { titulo: "¿Qué incluye?", def: "El producto con círculos numerados señalando cada pieza que llega, y círculo vacío para GIF." },
-  tamano_variantes:  { titulo: "Tamaño, colores o variantes", def: "Medidas reales con referencia humana, tallas o colores disponibles completos y en orden." },
-  como_se_usa:       { titulo: "Cómo se usa", def: "3 o 4 pasos numerados, cada uno con su foto real del producto en uso." },
-  para_quien:        { titulo: "Para quién es / dónde se usa", def: "Collage de 3 o 4 escenas con personas del avatar usando el producto en distintos lugares." },
-  antes_despues:     { titulo: "Antes y después", def: "Imagen partida en dos con flecha al centro: la situación sin el producto vs con el producto, con 4 beneficios abajo." },
-  paquetes:          { titulo: "Paquetes", def: "Tarjetas de 1, 2 y 3 unidades con precio, 'antes' tachado, % de descuento y la del medio marcada 'MÁS VENDIDO'." },
-  como_funciona:     { titulo: "Cómo funciona tu pedido", def: "3 pasos del contra entrega: haces tu pedido, confirmamos contigo, recibes y pagas. Quita el miedo a comprar." },
-  por_que_aqui:      { titulo: "¿Por qué comprar aquí?", def: "Tabla comparativa 'Nuestra tienda' (✓) vs 'Otras opciones' (✗) con 5 filas y un recuadro vacío para el logo de la tienda." },
-  resenas:           { titulo: "Reseñas reales (plantilla)", def: "Marco con 3 o 4 tarjetas VACÍAS para pegar capturas de reseñas reales. Sin nombres, caras ni estrellas inventadas." },
-  preguntas:         { titulo: "Preguntas frecuentes", def: "5 preguntas con respuesta corta; la última SIEMPRE sobre pago contra entrega." },
-  confianza:         { titulo: "Confianza y aliados", def: "Medallas de confianza y 'Nuestros aliados logísticos' con banderines vacíos para pegar logos de transportadoras." },
-  oferta_cierre:     { titulo: "Oferta de cierre", def: "Repite precio, regalo y beneficios clave con una frase de cierre para quien llegó al final." }
-};
+// Catálogo de tipos de sección (vive en public/js/core/plantilla.js, compartido con la pantalla Mi plantilla)
+export const CATALOGO_SECCIONES = Object.fromEntries(
+  Object.entries(SECCIONES).map(([k, v]) => [k, { titulo: v.titulo, def: v.def, formatos: v.formatos }])
+);
+
+const esNormal = (p) => p?.formato === "normal";
+
+// Cómo es la página según el formato del proyecto
+function textoFormato(p) {
+  return esNormal(p)
+    ? `LANDING NORMAL de Shopify: arriba va el bloque nativo de Shopify (galería de fotos cuadradas, título, precio con 'antes' tachado, beneficios con ✔ y botón de compra); abajo, secciones de "Imagen con texto" (una imagen cuadrada 1:1 y al lado un título y un párrafo que se escriben en Shopify). El precio lo muestra Shopify: las imágenes llevan POCO texto y no repiten el precio, salvo paquetes y oferta de cierre.`
+    : `BAN PAGE: toda la página son imágenes verticales 9:16 (1080x1920) una debajo de otra. El precio y los textos van dentro de las imágenes. Los botones de compra, los GIF y las reseñas reales los agrega el dueño en Shopify.`;
+}
 
 const lista = (arr) => arr.map(x => `- ${x}`).join("\n");
 
@@ -124,6 +119,7 @@ PAQUETES: ${limpio(f.paquetes, 500) || "(no hay paquetes)"}
 REGALO: ${limpio(f.regalo, 200) || "(no hay regalo)"}
 PROMESAS QUE SÍ SON VERDAD (no inventes otras):
 ${lista(verdades)}
+FORMATO DE LA LANDING: ${textoFormato(p)}
 PREFERENCIA DE ESTILO DEL DUEÑO: ${limpio(f.estiloPreferido, 300) || "(ninguna)"}
 NOTAS DEL DUEÑO: ${limpio(f.notas, 1000) || "(ninguna)"}
 `.trim();
@@ -131,7 +127,10 @@ NOTAS DEL DUEÑO: ${limpio(f.notas, 1000) || "(ninguna)"}
 
 const SISTEMA = `Eres el director creativo de una tienda de dropshipping con pago contra entrega en Colombia (pesos) y Ecuador (dólares).
 No generas imágenes: escribes los prompts que el dueño pega en Gemini (un chat nuevo por imagen, adjuntando la foto real del producto y pegando primero el bloque de estilo y debajo el prompt), y los textos de venta.
-La landing está hecha casi toda con imágenes verticales 9:16 (1080x1920). Los botones de compra, los GIF y las reseñas reales los agrega el dueño después en Shopify.
+Las landings se publican en Shopify en uno de dos formatos (cada producto dice cuál):
+- BAN PAGE: toda la página son imágenes verticales 9:16 (1080x1920); el precio va dentro de las imágenes.
+- LANDING NORMAL: página de producto de Shopify con galería, título, precio, beneficios y botón nativos, y abajo secciones de imagen cuadrada 1:1 con texto al lado.
+Los botones de compra, los GIF y las reseñas reales los agrega el dueño después en Shopify.
 Escribes en español neutro latino, natural para el país indicado, directo y vendedor.
 
 REGLAS APRENDIDAS (cada una viene de un error que ya pasó):
@@ -190,6 +189,15 @@ const resumenAvatares = (p) => (p.avatares || []).map(a =>
   `AVATAR ${a.id}: ${a.quien || ""} | Problema: ${a.problema || ""} | Ángulo: ${a.angulo || ""} | Escena: ${a.escena || ""} | Tono: ${a.tono || ""} | Titular imagen 1: ${a.titular || ""}`
 ).join("\n") || "(sin avatares)";
 
+// Colores de marca fijos (Mi plantilla)
+const coloresFijos = (p) => (p?.plantilla?.colores?.modo === "fijos" ? p.plantilla.colores : null);
+function coloresFijosTexto(p) {
+  const c = coloresFijos(p);
+  if (!c) return "";
+  return `
+COLORES FIJOS DE LA MARCA (obligatorios en los 3 estilos): fondo ${c.fondo}, titular línea 1 ${c.color1}, titular línea 2 ${c.color2}, acento ${c.acento}. Los 3 estilos usan esos colores; cambia solo la tipografía, las tarjetas, el tipo de foto y el tono.`;
+}
+
 // ---------- Paso 3: estilos ----------
 export function promptEstilos(p, usados = []) {
   return `${contextoProducto(p)}
@@ -203,7 +211,7 @@ ${lista([...ESTILOS_BASE_USADOS, ...usados])}
 TAREA: Propón 3 estilos visuales DISTINTOS entre sí para la landing de este producto, pensados para su cliente.
 Cada estilo es una identidad completa: colores con código hex, tipografía, tipo de tarjetas, tipo de foto y tono.
 Lo que siempre se mantiene en cualquier estilo: titular de dos líneas con dos colores, precio protagonista con el "antes" tachado, sello de descuento y barra de confianza abajo.
-Recuerda: venta directa (empuja a comprar), no editorial. El rojo vende si encaja con el producto.
+Recuerda: venta directa (empuja a comprar), no editorial. El rojo vende si encaja con el producto.${coloresFijosTexto(p)}
 
 Responde SOLO este JSON válido:
 { "estilos": [ {
@@ -249,10 +257,18 @@ export function construirBloqueEstilo(p) {
   const noTiene = listaNoTiene(f.noTiene, r.noTiene).join("; ");
   const tarjetas = sinPrefijo(e.tarjetas, "tarjetas");
   const caja = sinPrefijo(e.precio_caja, "caja");
+  const cf = coloresFijos(p);
+  const fondo = cf ? cf.fondo : e.fondo;
+  const color1 = cf ? cf.color1 : e.color1;
+  const color2 = cf ? cf.color2 : e.color2;
+  const acento = cf ? cf.acento : (e.acento || e.color2);
+  const normal = esNormal(p);
 
-  return `Crea una imagen vertical 9:16 (1080x1920) para una landing page de ecommerce en ${pais.nombre}, en español.
+  return `${normal
+    ? `Crea una imagen cuadrada 1:1 (1080x1080) para la página de producto de una tienda Shopify en ${pais.nombre}, en español. Poco texto dentro de la imagen: titular corto y etiquetas; el texto largo va al lado, en Shopify.`
+    : `Crea una imagen vertical 9:16 (1080x1920) para una landing page de ecommerce en ${pais.nombre}, en español.`}
 TIPO DE IMAGEN: FOTOGRAFÍA REAL de ${e.tipo_foto || "producto y estilo de vida"}, personas reales, luz natural. PROHIBIDO: dibujo, ilustración, caricatura, animación o 3D.
-DISEÑO GRÁFICO (encima de la foto): fondo ${e.fondo || "oscuro"}; titulares en ${e.tipografia || "sans extra bold"}, una línea en ${e.color1 || "blanco"} y otra en ${e.color2 || "color de acento"}; tarjetas ${tarjetas || "con bordes redondeados"}; íconos de línea en ${e.acento || e.color2 || "color de acento"}; precio grande dentro de una caja ${caja || "de color de acento"}; sello de descuento circular.
+DISEÑO GRÁFICO (encima de la foto): fondo ${fondo || "oscuro"}; titulares en ${e.tipografia || "sans extra bold"}, una línea en ${color1 || "blanco"} y otra en ${color2 || "color de acento"}; tarjetas ${tarjetas || "con bordes redondeados"}; íconos de línea en ${acento || "color de acento"}; ${normal ? `cuando la imagen lleve precio, va dentro de una caja ${caja || "de color de acento"}` : `precio grande dentro de una caja ${caja || "de color de acento"}; sello de descuento circular`}.
 REGLA: el producto es el protagonista, grande y bien visible. Ningún texto lo tapa. Estilo de venta directa, no editorial.
 PRODUCTO: usa EXACTAMENTE el producto de la foto adjunta: ${r.descripcionFisica || f.descripcion || p.nombre}.${noTiene ? ` NO tiene ni trae: ${noTiene}.` : ""} No agregues piezas, logos ni marcas.
 TAMAÑO REAL: ${f.medidas || r.tamano || "(indicar medidas)"}. Respeta esa proporción junto a una persona.
@@ -261,9 +277,34 @@ TEXTO: escribe los textos exactamente como te los doy, con tildes y signos de es
 }
 
 // ---------- Paso 4: proponer secciones ----------
-export function promptPropuestaSecciones(p) {
+// plantilla: Mi plantilla del formato (orden fijo si usarOrden)
+export function seccionesFijas(p, plantilla) {
+  if (!plantilla?.usarOrden) return null;
+  const tienePaquetes = !!String(p.ficha?.paquetes || "").trim();
+  return plantilla.orden
+    .filter(x => x.visible && (x.tipo !== "paquetes" || tienePaquetes))
+    .map(x => x.tipo);
+}
+
+export function promptPropuestaSecciones(p, plantilla = null) {
   const n = p.numAvatares === 1 ? 1 : 2;
-  const catalogo = Object.entries(CATALOGO_SECCIONES).map(([k, v]) => `- ${k}: ${v.titulo}. ${v.def}`).join("\n");
+  const normal = esNormal(p);
+  const validos = tiposDe(normal ? "normal" : "ban");
+  const catalogo = validos.map(k => `- ${k}: ${SECCIONES[k].titulo}. ${SECCIONES[k].def}`).join("\n");
+  const fijas = seccionesFijas(p, plantilla);
+
+  const estructura = fijas
+    ? `TAREA: La estructura YA ESTÁ DEFINIDA por el dueño (Mi plantilla). Devuelve EXACTAMENTE estas ${fijas.length} secciones, en este orden, sin agregar ni quitar: ${fijas.join(", ")}.
+Para cada una escribe un título propio para este producto, su propósito y una composición.`
+    : normal
+      ? `TAREA: Arma la estructura de la LANDING NORMAL de 6 a 8 secciones para este producto, eligiendo del catálogo.
+- La primera SIEMPRE es "galeria" (las fotos cuadradas de la galería de Shopify).
+- Orden base recomendado: galeria, dolor, funcion_estrella, antes_despues, como_se_usa, detalles, para_quien, como_funciona, por_que_aqui. Ajústalo al producto.
+- Las preguntas frecuentes van como texto en Shopify: no las pongas como imagen salvo que aporten mucho.`
+      : `TAREA: Arma la estructura de la landing de 8 a 9 secciones para este producto, eligiendo del catálogo.
+Orden base recomendado: oferta, dolor/identificación, función estrella, detalles o qué incluye, tamaño/variantes, cómo se usa, para quién es, por qué comprar aquí, preguntas frecuentes. Ajústalo al producto:
+- La última o penúltima es "preguntas".`;
+
   return `${contextoProducto(p)}
 
 AVATARES:
@@ -274,24 +315,30 @@ ESTILO ELEGIDO: ${p.estilo?.nombre || ""} — ${p.estilo?.idea || ""}
 CATÁLOGO DE TIPOS DE SECCIÓN:
 ${catalogo}
 
-TAREA: Arma la estructura de la landing de 8 a 9 secciones para este producto, eligiendo del catálogo.
-Orden base recomendado: oferta, dolor/identificación, función estrella, detalles o qué incluye, tamaño/variantes, cómo se usa, para quién es, por qué comprar aquí, preguntas frecuentes. Ajústalo al producto:
+${estructura}
 - "paquetes" solo si hay paquetes; "tamano_variantes" solo si hay tallas, colores o el tamaño importa; "que_incluye" si llegan varias piezas o hay regalo.
-- La última o penúltima es "preguntas".
-${n === 2 ? `- Hay 2 landings (A y B) que SOLO cambian en lo que le habla al avatar. Marca grupo "A/B" en: oferta, dolor (o identificación) y para_quien. Todo lo demás es grupo "compartida".` : `- Hay una sola landing: todas las secciones son grupo "compartida".`}
+${n === 2 ? `- Hay 2 landings (A y B) que SOLO cambian en lo que le habla al avatar. Marca grupo "A/B" en: ${normal ? "galeria" : "oferta"}, dolor (o identificación) y para_quien. Todo lo demás es grupo "compartida".` : `- Hay una sola landing: todas las secciones son grupo "compartida".`}
 - Asigna a cada sección una COMPOSICIÓN distinta para que no se vea plana ni repetida (diagonal, franjas, collage, cuadrícula, zigzag, primer plano, partida en dos, producto central con círculos, tarjetas apiladas...). No repitas composición en secciones seguidas.
-- formato: "9:16" casi siempre; "1:1" o "16:9" solo si la sección lo necesita (por ejemplo un antes/después cuadrado).
+- formato: ${normal ? `"1:1" siempre (imágenes cuadradas de Shopify)` : `"9:16" casi siempre; "1:1" o "16:9" solo si la sección lo necesita (por ejemplo un antes/después cuadrado)`}.
 
 Responde SOLO este JSON válido:
-{ "secciones": [ { "tipo": "", "titulo": "", "grupo": "${n === 2 ? "A/B o compartida" : "compartida"}", "formato": "9:16", "composicion": "", "proposito": "" } ] }`;
+{ "secciones": [ { "tipo": "", "titulo": "", "grupo": "${n === 2 ? "A/B o compartida" : "compartida"}", "formato": "${normal ? "1:1" : "9:16"}", "composicion": "", "proposito": "" } ] }`;
 }
 
 // ---------- Paso 4b: prompt de UNA sección ----------
+const NOMBRE_FORMATO = { "9:16": "vertical 9:16 (1080x1920)", "1:1": "cuadrada 1:1 (1080x1080)", "4:5": "vertical 4:5 (1080x1350)", "16:9": "horizontal 16:9 (1920x1080)" };
+
 export function promptSeccion(p, seccion, avatar, otras = []) {
   const tipo = CATALOGO_SECCIONES[seccion.tipo];
-  const formato = seccion.formato && seccion.formato !== "9:16"
-    ? `\nIMPORTANTE: esta imagen NO es 9:16, es ${seccion.formato === "1:1" ? "cuadrada 1:1 (1080x1080)" : "horizontal 16:9 (1920x1080)"}. Escríbelo al inicio del prompt.`
+  const normal = esNormal(p);
+  const formatoBase = normal ? "1:1" : "9:16";
+  const formato = seccion.formato && seccion.formato !== formatoBase && NOMBRE_FORMATO[seccion.formato]
+    ? `\nIMPORTANTE: esta imagen NO es ${formatoBase}, es ${NOMBRE_FORMATO[seccion.formato]}. Escríbelo al inicio del prompt.`
     : "";
+  const variante = varianteDe(seccion.tipo, seccion.variante);
+  const diseno = variante ? `\nDISEÑO OBLIGATORIO DE ESTA SECCIÓN (Mi plantilla: "${variante.nombre}"): ${variante.desc}` : "";
+  const galeria = normal && seccion.tipo === "galeria";
+  const deslizador = normal && seccion.tipo === "antes_despues";
   return `${contextoProducto(p)}
 
 ${avatar ? `ESTA IMAGEN LE HABLA AL AVATAR ${avatar.id}:
@@ -312,22 +359,70 @@ ${otras.map(o => `- ${o.titulo} (${o.composicion || "sin composición"})`).join(
 SECCIÓN A ESCRIBIR: ${seccion.titulo} [tipo: ${seccion.tipo}]
 Qué debe tener: ${tipo?.def || seccion.proposito || ""}
 Propósito: ${seccion.proposito || ""}
-Composición asignada: ${seccion.composicion || "elige una que no se repita"}${formato}
+Composición asignada: ${seccion.composicion || "elige una que no se repita"}${diseno}${formato}
 
-TAREA: Escribe el prompt de ESTA imagen con EXACTAMENTE este formato (texto plano, sin markdown, sin explicaciones antes ni después):
+${galeria ? `TAREA: Esta sección son las 4 FOTOS CUADRADAS 1:1 DE LA GALERÍA de Shopify (las primeras que ve el cliente). Escribe 4 prompts, uno por foto, cada uno con EXACTAMENTE este formato (texto plano, sin markdown, sin explicaciones):
+
+FOTO 1 — [qué muestra]
+FOTOGRAFÍA REAL (no dibujo, no animación). Imagen cuadrada 1:1.
+COMPOSICIÓN: [...]
+TEXTOS: [muy pocos textos, cada uno entre comillas y con su color; sin precio]
+
+(igual para FOTO 2, FOTO 3 y FOTO 4: 1) producto con sus beneficios, 2) en uso, 3) detalle de calidad, 4) qué incluye o paquetes)` : deslizador ? `TAREA: Esta sección va en el DESLIZADOR ANTES/DESPUÉS de Shopify: son DOS imágenes cuadradas 1:1 con EXACTAMENTE el mismo encuadre, la misma persona y el mismo lugar. Escribe los 2 prompts con este formato (texto plano, sin markdown):
+
+IMAGEN ANTES
+FOTOGRAFÍA REAL (no dibujo, no animación). Imagen cuadrada 1:1.
+COMPOSICIÓN: [...]
+TEXTOS: [una etiqueta "ANTES" y como máximo una frase corta]
+
+IMAGEN DESPUÉS
+FOTOGRAFÍA REAL (no dibujo, no animación). Imagen cuadrada 1:1, mismo encuadre que la anterior.
+COMPOSICIÓN: [...]
+TEXTOS: [una etiqueta "DESPUÉS" y como máximo una frase corta]` : `TAREA: Escribe el prompt de ESTA imagen con EXACTAMENTE este formato (texto plano, sin markdown, sin explicaciones antes ni después):
 
 FOTOGRAFÍA REAL (no dibujo, no animación).
 COMPOSICIÓN: [escena concreta, posición y tamaño del producto, encuadre, luz, personas con edad/aspecto/ropa, elementos gráficos y dónde va cada uno]
 TEXTOS:
 - Titular: "[línea 1]" (color) / "[línea 2]" (color)
-- [subtítulo, tarjetas, íconos con su texto, etiquetas, precio, sello, barra inferior: cada texto entre comillas y con su color]
-ESPACIOS VACÍOS: [círculo para GIF, recuadro para logo, tarjetas para reseñas reales o banderines para transportadoras, si aplica; si no aplica escribe "ninguno"]
+- [subtítulo, tarjetas, íconos con su texto, etiquetas${normal ? "" : ", precio, sello, barra inferior"}: cada texto entre comillas y con su color]
+ESPACIOS VACÍOS: [círculo para GIF, recuadro para logo, tarjetas para reseñas reales o banderines para transportadoras, si aplica; si no aplica escribe "ninguno"]`}
+${normal && !galeria ? `
+Al final agrega el texto que va AL LADO de la imagen en Shopify (sección "Imagen con texto"), con este formato:
+TEXTO PARA SHOPIFY
+Título: "[máximo 8 palabras]"
+Texto: "[2 o 3 frases cortas, vendedoras, sin repetir lo que ya dice la imagen]"` : ""}
 
 Reglas para esta imagen:
-- Titulares cortos (máximo 4 o 5 palabras por línea). Poco texto. El producto grande y sin tapar.
-- Usa los precios exactamente así: ${formatoPrecio(p.ficha?.precio, p.pais) || "(sin precio)"}${p.ficha?.precioAntes ? ` y antes ${formatoPrecio(p.ficha.precioAntes, p.pais)}` : ""}${porcentajeDescuento(p.ficha?.precioAntes, p.ficha?.precio) ? ` (${porcentajeDescuento(p.ficha.precioAntes, p.ficha.precio)}% de descuento)` : ""}. No inventes otros.
+- Titulares cortos (máximo 4 o 5 palabras por línea). Poco texto. El producto grande y sin tapar.${normal ? `
+- Landing normal: NO pongas el precio en la imagen, salvo en "paquetes" y "oferta_cierre".` : ""}
+- Si llevas precios, úsalos exactamente así: ${formatoPrecio(p.ficha?.precio, p.pais) || "(sin precio)"}${p.ficha?.precioAntes ? ` y antes ${formatoPrecio(p.ficha.precioAntes, p.pais)}` : ""}${porcentajeDescuento(p.ficha?.precioAntes, p.ficha?.precio) ? ` (${porcentajeDescuento(p.ficha.precioAntes, p.ficha.precio)}% de descuento)` : ""}. No inventes otros.
 - Solo promesas que sean verdad según la ficha.
 - Recuerda decir lo que el producto NO tiene si hay riesgo de que la IA lo invente en esta escena.`;
+}
+
+// ---------- Landing normal: textos del bloque de compra de Shopify ----------
+export function promptTextosShopify(p, avatar) {
+  return `${contextoProducto(p)}
+
+AVATAR AL QUE LE HABLA ESTA LANDING (${avatar?.id || "A"}):
+Quién es: ${avatar?.quien || ""}
+Problema/deseo: ${avatar?.problema || ""}
+Ángulo: ${avatar?.angulo || ""}
+Tono: ${avatar?.tono || ""}
+
+TAREA: Escribe los TEXTOS de la página de producto de Shopify (landing normal) para este avatar:
+- titulo: título del producto, gancho corto con 1 emoji al inicio (máximo 12 palabras). Si hay regalo, agrégalo ("+ ¡... GRATIS! 🎁").
+- frase_oferta: frase corta en mayúsculas sobre el precio (por ejemplo "RECIBE UN DESCUENTO EXCLUSIVO 👇"). Nada de urgencia falsa.
+- beneficios: 4 o 5 beneficios cortos en MAYÚSCULAS (máximo 5 palabras cada uno), que irán con un ✔ verde.
+- descripcion: 2 o 3 párrafos cortos para la descripción del producto (qué es, para quién, por qué ahora).
+- especificaciones: lista de datos reales del producto (medidas, material, qué incluye). Solo datos de la ficha.
+- envio: texto corto para la pestaña "Envío y devoluciones" con el pago contra entrega y SOLO las promesas verdaderas.
+- preguntas: 5 preguntas frecuentes con respuesta corta; la última SIEMPRE sobre el pago contra entrega.
+
+Solo promesas que sean verdad según la ficha. Sin promesas médicas. Sin inventar reseñas ni cifras de ventas.
+
+Responde SOLO este JSON válido:
+{ "titulo": "", "frase_oferta": "", "beneficios": [], "descripcion": "", "especificaciones": [], "envio": "", "preguntas": [ { "pregunta": "", "respuesta": "" } ] }`;
 }
 
 // ---------- Paso 5: notas antes de publicar ----------

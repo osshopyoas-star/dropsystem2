@@ -15,8 +15,12 @@ import {
   promptPropuestaSecciones,
   promptSeccion,
   promptNotas,
-  promptGuion
+  promptGuion,
+  promptTextosShopify,
+  seccionesFijas
 } from "./prompts-landing.js";
+import { obtenerPlantilla } from "./rutas-plantilla.js";
+import { tiposDe, elegirVariante, formatoImagen, varianteDe } from "./public/js/core/plantilla.js";
 
 const Mixed = mongoose.Schema.Types.Mixed;
 
@@ -27,6 +31,7 @@ const proyectoSchema = new mongoose.Schema({
   dropiId: { type: String, default: "" },
   nombre: { type: String, default: "" },
   pais: { type: String, enum: ["CO", "EC"], default: "CO" },
+  formato: { type: String, enum: ["ban", "normal"], default: "ban" },   // ban page (todo imágenes) o landing normal de Shopify
   numAvatares: { type: Number, default: 2 },
   paso: { type: Number, default: 1 },
   ficha: { type: Mixed, default: {} },          // descripcion, precio, precioAntes, regalo, paquetes, variantes, medidas, noTiene, promesas, estiloPreferido, notas
@@ -50,8 +55,8 @@ const proyectoSchema = new mongoose.Schema({
 
 export const Proyecto = mongoose.model("Proyecto", proyectoSchema);
 
-const CAMPOS_EDITABLES = ["nombre", "pais", "numAvatares", "paso", "ficha", "fotos", "revision", "avatares"];
-const CAMPOS_RAMA = ["paso", "estilosPropuestos", "estilo", "bloqueEstilo", "secciones", "guiones", "notas", "vendio"];
+const CAMPOS_EDITABLES = ["nombre", "pais", "formato", "numAvatares", "paso", "ficha", "fotos", "revision", "avatares"];
+const CAMPOS_RAMA = ["paso", "estilosPropuestos", "estilo", "bloqueEstilo", "secciones", "guiones", "notas", "vendio", "textos"];
 const AVATARES_VALIDOS = ["A", "B"];
 
 const MAX_FOTOS = 6;
@@ -76,6 +81,7 @@ function limpiarCambios(body = {}) {
   for (const k of CAMPOS_EDITABLES) if (body[k] !== undefined) out[k] = body[k];
 
   if (out.pais && !["CO", "EC"].includes(out.pais)) delete out.pais;
+  if (out.formato !== undefined) out.formato = out.formato === "normal" ? "normal" : "ban";
   if (out.numAvatares !== undefined) out.numAvatares = Number(out.numAvatares) === 1 ? 1 : 2;
   if (out.fotos !== undefined) {
     if (!Array.isArray(out.fotos)) delete out.fotos;
@@ -95,6 +101,23 @@ function limpiarGuiones(lista, av) {
   }));
 }
 
+// Textos de Shopify (landing normal)
+function limpiarTextos(t) {
+  if (!t || typeof t !== "object") return null;
+  const txt = (v, n) => String(v || "").slice(0, n);
+  const arr = (v, n, m) => (Array.isArray(v) ? v.slice(0, n).map(x => txt(x, m)) : []);
+  return {
+    titulo: txt(t.titulo, 200),
+    frase_oferta: txt(t.frase_oferta, 200),
+    beneficios: arr(t.beneficios, 6, 120),
+    descripcion: txt(t.descripcion, 3000),
+    especificaciones: arr(t.especificaciones, 12, 200),
+    envio: txt(t.envio, 1500),
+    preguntas: (Array.isArray(t.preguntas) ? t.preguntas : []).slice(0, 8)
+      .map(q => ({ pregunta: txt(q?.pregunta, 300), respuesta: txt(q?.respuesta, 800) }))
+  };
+}
+
 function limpiarRama(body = {}, av) {
   const out = {};
   for (const k of CAMPOS_RAMA) if (body[k] !== undefined) out[k] = body[k];
@@ -110,10 +133,11 @@ function limpiarRama(body = {}, av) {
   if (out.estilosPropuestos !== undefined && !Array.isArray(out.estilosPropuestos)) delete out.estilosPropuestos;
   if (out.bloqueEstilo !== undefined) out.bloqueEstilo = String(out.bloqueEstilo).slice(0, 8000);
   if (out.vendio !== undefined) out.vendio = !!out.vendio;
+  if (out.textos !== undefined) out.textos = limpiarTextos(out.textos);
   return out;
 }
 
-const ramaVacia = () => ({ paso: 3, estilosPropuestos: [], estilo: null, bloqueEstilo: "", secciones: [], guiones: [], notas: null, vendio: false });
+const ramaVacia = () => ({ paso: 3, estilosPropuestos: [], estilo: null, bloqueEstilo: "", secciones: [], guiones: [], notas: null, vendio: false, textos: null });
 
 const plano = (p) => (typeof p.toObject === "function" ? p.toObject() : { ...p });
 
@@ -170,9 +194,10 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
     }
     const ramas = p.ramas || {};
     const r = { ...ramaVacia(), ...(ramas[av] || {}) };
+    const plantilla = await obtenerPlantilla(req.user.uid, p.formato);
     // "vista": lo que ven los prompts = proyecto + trabajo de este avatar, como una sola landing
-    const vista = { ...plano(p), ...r, numAvatares: 1, avatares: [avatar] };
-    return { p, av, avatar, r, vista };
+    const vista = { ...plano(p), ...r, numAvatares: 1, avatares: [avatar], plantilla };
+    return { p, av, avatar, r, vista, plantilla };
   };
 
   const guardarRama = async (p, av, r) => {
@@ -195,7 +220,7 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
       const filtro = { owner: req.user.uid };
       if (req.query.productoId && idValido(req.query.productoId)) filtro.productoId = req.query.productoId;
       const lista = await Proyecto.find(filtro)
-        .select("nombre pais paso pasosRamas productoId origen dropiId vendio estilo.nombre actualizado creado")
+        .select("nombre pais formato paso pasosRamas productoId origen dropiId vendio estilo.nombre actualizado creado")
         .sort({ actualizado: -1 })
         .limit(100);
       res.json(lista);
@@ -235,6 +260,7 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
       if (!nombre) return res.status(400).json({ error: "Escribe el nombre del producto" });
 
       const paisFinal = (pais || prod?.pais) === "EC" ? "EC" : "CO";
+      const formato = req.body?.formato === "normal" ? "normal" : "ban";
       const p = await Proyecto.create({
         owner: req.user.uid,
         productoId: prod?._id || null,
@@ -242,6 +268,7 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
         dropiId: prod?.dropiId || "",
         nombre,
         pais: paisFinal,
+        formato,
         ficha
       });
       res.json(p);
@@ -261,12 +288,13 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
       const p = await cargar(req, res); if (!p) return;
       const cambios = limpiarCambios(req.body);
       Object.assign(p, cambios, { actualizado: new Date() });
-      if (cambios.revision || cambios.ficha) {
+      if (cambios.revision || cambios.ficha || cambios.formato) {
+        const plantilla = await obtenerPlantilla(req.user.uid, p.formato);
         const ramas = { ...(p.ramas || {}) };
         for (const [av, r] of Object.entries(ramas)) {
           const avatar = (p.avatares || []).find(a => a.id === av);
           if (r?.estilo && avatar) {
-            ramas[av] = { ...r, bloqueEstilo: construirBloqueEstilo({ ...plano(p), ...r, avatares: [avatar] }) };
+            ramas[av] = { ...r, bloqueEstilo: construirBloqueEstilo({ ...plano(p), ...r, avatares: [avatar], plantilla }) };
           }
         }
         p.ramas = ramas; p.markModified("ramas");
@@ -391,17 +419,42 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
       const x = await cargarRama(req, res); if (!x) return;
       if (!x.r.estilo) return res.status(400).json({ error: "Primero elige un estilo" });
 
-      const reply = await llamarIA({ system: SISTEMA_LANDING, prompt: promptPropuestaSecciones(x.vista) });
+      const reply = await llamarIA({ system: SISTEMA_LANDING, prompt: promptPropuestaSecciones(x.vista, x.plantilla) });
       const j = parsearJSON(reply);
-      const secciones = (j.secciones || []).slice(0, 12).map(sx => {
-        const tipo = CATALOGO_SECCIONES[sx.tipo] ? sx.tipo : "funcion_estrella";
+      const formato = x.p.formato === "normal" ? "normal" : "ban";
+      const validos = tiposDe(formato);
+      const propuestas = (Array.isArray(j.secciones) ? j.secciones : []).filter(sx => sx && typeof sx === "object");
+      const fijas = seccionesFijas(x.vista, x.plantilla);
+
+      // Con Mi plantilla: el orden es el del dueño; la IA solo pone títulos y composición
+      let base;
+      if (fijas) {
+        const usadas = new Set();
+        base = fijas.map(tipo => {
+          const i = propuestas.findIndex((sx, k) => !usadas.has(k) && sx.tipo === tipo);
+          if (i >= 0) usadas.add(i);
+          return { ...(i >= 0 ? propuestas[i] : {}), tipo };
+        });
+      } else {
+        // Tipos que no existen en este formato se descartan
+        base = propuestas.filter(sx => validos.includes(sx.tipo)).slice(0, 12);
+        const primera = formato === "normal" ? "galeria" : "oferta";
+        if (!base.some(sx => sx.tipo === primera)) base.unshift({ tipo: primera });
+      }
+
+      const secciones = base.map(sx => {
+        const tipo = sx.tipo;
+        const variante = elegirVariante(tipo, x.plantilla);
         return {
           id: nuevoId(),
           tipo,
           titulo: String(sx.titulo || CATALOGO_SECCIONES[tipo].titulo),
           grupo: x.av,
-          formato: ["9:16", "1:1", "16:9"].includes(sx.formato) ? sx.formato : "9:16",
-          composicion: String(sx.composicion || ""),
+          formato: formato === "normal"
+            ? formatoImagen(tipo, formato)
+            : (["9:16", "1:1", "16:9"].includes(sx.formato) ? sx.formato : "9:16"),
+          variante,
+          composicion: varianteDe(tipo, variante)?.nombre || String(sx.composicion || ""),
           proposito: String(sx.proposito || ""),
           prompt: "",
           hecha: false
@@ -463,6 +516,19 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
       await guardarRama(x.p, x.av, r);
       res.json({ guion: nuevos[idx] });
     } catch (err) { errorIA(res, err, "el guion"); }
+  });
+
+  // ---------- IA: textos de Shopify (landing normal) ----------
+  app.post("/api/proyectos/:id/rama/:av/ia/textos", iaLimiter, async (req, res) => {
+    try {
+      const x = await cargarRama(req, res); if (!x) return;
+      const reply = await llamarIA({ system: SISTEMA_LANDING, prompt: promptTextosShopify(x.vista, x.avatar) });
+      const textos = limpiarTextos(parsearJSON(reply));
+      if (!textos?.titulo) return res.status(502).json({ error: "La IA no devolvió los textos" });
+      const r = { ...x.r, textos };
+      await guardarRama(x.p, x.av, r);
+      res.json({ rama: r });
+    } catch (err) { errorIA(res, err, "los textos"); }
   });
 
   // ---------- IA: 6. notas antes de publicar ----------

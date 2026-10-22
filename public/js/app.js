@@ -12,6 +12,7 @@ import "./modules/tendencias.js";
 import "./modules/productos.js";
 import "./modules/desarrollo.js";
 import "./modules/calculadora.js";
+import "./modules/plantilla.js";
 
 import { renderSidebar } from "../components/sidebar.js";
 import { initModalEliminar } from "./modules/productos.js";
