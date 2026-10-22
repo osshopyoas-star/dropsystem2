@@ -7,6 +7,7 @@ import { escapeHTML } from "../core/utils.js";
 import { formatear } from "../core/costeo.js";
 import { renderProductos } from "../../views/productos.js";
 import { registrarRuta } from "./navegacion.js";
+import { GRUPOS_ANALISIS, TIPOS_RECURSO, MAX_RECURSOS, puntaje, porGrupo, veredicto } from "../core/analisis.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (v) => escapeHTML(v ?? "");
@@ -170,6 +171,9 @@ function chipsAvance(p) {
   if (pr?.vendio) chips.push(`<span class="bp-chip vendio">Vendió ✓</span>`);
   const RES = { testeando: "Testeando", winner: "Winner", perdedor: "Perdedor", inconcluso: "Inconcluso" };
   if (RES[p.resultado]) chips.push(`<span class="bp-chip res-${p.resultado}" title="Resultado en Mis testeos">${RES[p.resultado]}</span>`);
+  const pts = puntaje(p.analisis);
+  const ver = veredicto(pts);
+  if (ver) chips.push(`<button class="bp-chip an-${ver.clave}" title="Análisis de 19 criterios: ${ver.texto}" onclick="bpAbrirAnalisis('${esc(p._id)}')">${pts}/100</button>`);
   return chips.join("") || `<span class="bp-sin">Sin empezar</span>`;
 }
 
@@ -212,6 +216,7 @@ function fila(p) {
         : `<button class="bp-btn chico" title="Costear en la calculadora y pasar a Desarrollo" onclick="calAbrirConProducto('${esc(p._id)}', '${esc(p.pais || "")}')">Crear</button>`}
     </div>
     <div class="bp-acciones">
+      <button class="bp-icono ${(p.recursos || []).length || p.analisis ? "con-datos" : ""}" title="Análisis y recursos${(p.recursos || []).length ? ` (${p.recursos.length} guardados)` : ""}" onclick="bpAbrirAnalisis('${esc(p._id)}')"><i data-lucide="clipboard-check"></i></button>
       <button class="bp-icono" title="Editar" onclick="editarProducto('${esc(p._id)}')"><i data-lucide="pencil"></i></button>
       <button class="bp-icono peligro" title="Eliminar" onclick="eliminarProducto('${esc(p._id)}')"><i data-lucide="trash-2"></i></button>
     </div>
@@ -304,6 +309,148 @@ window.abrirMaterial = function(i) {
 };
 window.cerrarModalMaterial = () => $("modalMaterial")?.classList.add("hidden");
 window.abrirDropi = (id) => window.open(`https://app.dropi.co/product/${encodeURIComponent(id)}`, "_blank", "noopener");
+
+// ---------- Análisis de 19 criterios + recursos ----------
+let an = null;   // { id, analisis, recursos, cambios }
+
+function panelAnalisis() {
+  const p = state.productos.find(x => x._id === an.id);
+  const r = an.analisis.respuestas;
+  const pts = puntaje(an.analisis);
+  const ver = veredicto(pts);
+  const grupos = porGrupo(an.analisis);
+  const respondidas = Object.keys(r).length;
+  return `
+  <div class="bp-an-box" role="dialog" aria-modal="true" aria-labelledby="bpAnTitulo">
+    <header class="bp-an-head">
+      <div>
+        <small>Análisis del producto</small>
+        <h3 id="bpAnTitulo">${esc(p?.nombre || "")}</h3>
+      </div>
+      <div class="bp-an-score ${ver ? "an-" + ver.clave : ""}">
+        <strong>${pts ?? "—"}</strong><span>${ver ? ver.texto : "Sin responder"}</span>
+      </div>
+      <button class="bp-icono" title="Cerrar" onclick="bpCerrarAnalisis()"><i data-lucide="x"></i></button>
+    </header>
+    <div class="bp-an-cuerpo">
+      <p class="bp-an-ayuda">Marca <b>Sí</b> o <b>No</b> en cada punto (${respondidas}/19 respondidos). El puntaje promedia los 3 grupos: 70 o más es prometedor, 40 a 69 con reservas, menos de 40 arriesgado. Es una guía para decidir, no una garantía.</p>
+      ${GRUPOS_ANALISIS.map((g, gi) => `
+        <section class="bp-an-grupo">
+          <h4>${esc(g.nombre)} <span>${grupos[gi].si}/${grupos[gi].total}</span></h4>
+          ${g.criterios.map(([k, texto]) => `
+            <div class="bp-an-fila">
+              <span>${esc(texto)}</span>
+              <div class="bp-an-sino">
+                <button class="${r[k] === "si" ? "si" : ""}" onclick="bpMarcar('${k}','si')">Sí</button>
+                <button class="${r[k] === "no" ? "no" : ""}" onclick="bpMarcar('${k}','no')">No</button>
+              </div>
+            </div>`).join("")}
+        </section>`).join("")}
+      <label class="bp-an-label">Notas del análisis</label>
+      <textarea id="bpAnNota" rows="3" placeholder="Ej: el proveedor de Medellín tiene 400 unidades" oninput="bpNotaAnalisis(this.value)">${esc(an.analisis.nota)}</textarea>
+
+      <section class="bp-an-grupo">
+        <h4>Recursos guardados <span>${an.recursos.length}</span></h4>
+        ${an.recursos.length ? an.recursos.map((x, i) => `
+          <div class="bp-rec">
+            <span class="bp-chip">${esc(TIPOS_RECURSO[x.tipo])}</span>
+            <a href="${esc(x.url)}" target="_blank" rel="noopener noreferrer">${esc(x.nombre || x.url.replace(/^https?:\/\//, "").slice(0, 60))}</a>
+            <button class="bp-icono peligro" title="Quitar" onclick="bpQuitarRecurso(${i})"><i data-lucide="x"></i></button>
+          </div>`).join("") : `<p class="bp-an-ayuda">Guarda aquí los links de anuncios, videos de TikTok, proveedores y competencia de este producto.</p>`}
+        ${an.recursos.length < MAX_RECURSOS ? `
+        <div class="bp-rec-nuevo">
+          <select id="bpRecTipo">${Object.entries(TIPOS_RECURSO).map(([k, t]) => `<option value="${k}">${t}</option>`).join("")}</select>
+          <input id="bpRecUrl" placeholder="https://..." inputmode="url">
+          <input id="bpRecNombre" placeholder="Nombre (opcional)">
+          <button class="bp-btn chico" onclick="bpAgregarRecurso()">Agregar</button>
+        </div>` : ""}
+      </section>
+    </div>
+    <footer class="bp-an-pie">
+      <span id="bpAnEstado">${an.cambios ? "Cambios sin guardar" : "Todo guardado"}</span>
+      <button class="bp-btn" onclick="bpCerrarAnalisis()">Cerrar</button>
+      <button class="bp-btn primario" id="bpAnGuardar" onclick="bpGuardarAnalisis()" ${an.cambios ? "" : "disabled"}>Guardar</button>
+    </footer>
+  </div>`;
+}
+
+function pintarAnalisis() {
+  let cont = $("bpAnalisis");
+  if (!cont) {
+    cont = document.createElement("div");
+    cont.id = "bpAnalisis";
+    cont.className = "bp-an-overlay";
+    cont.onclick = (e) => { if (e.target === cont) bpCerrarAnalisis(); };
+    document.body.appendChild(cont);
+  }
+  const scroll = cont.querySelector(".bp-an-cuerpo")?.scrollTop || 0;
+  cont.innerHTML = panelAnalisis();
+  const cuerpo = cont.querySelector(".bp-an-cuerpo"); if (cuerpo) cuerpo.scrollTop = scroll;
+  if (window.lucide) lucide.createIcons();
+}
+
+const marcarCambio = () => {
+  an.cambios = true;
+  if ($("bpAnEstado")) $("bpAnEstado").textContent = "Cambios sin guardar";
+  if ($("bpAnGuardar")) $("bpAnGuardar").disabled = false;
+};
+
+window.bpAbrirAnalisis = (id) => {
+  const p = state.productos.find(x => x._id === id);
+  if (!p) return;
+  an = {
+    id,
+    analisis: { respuestas: { ...(p.analisis?.respuestas || {}) }, nota: p.analisis?.nota || "" },
+    recursos: (p.recursos || []).map(x => ({ ...x })),
+    cambios: false
+  };
+  pintarAnalisis();
+  document.addEventListener("keydown", escAnalisis);
+};
+function escAnalisis(e) { if (e.key === "Escape") bpCerrarAnalisis(); }
+window.bpMarcar = (k, v) => {
+  if (an.analisis.respuestas[k] === v) delete an.analisis.respuestas[k];
+  else an.analisis.respuestas[k] = v;
+  an.cambios = true;
+  pintarAnalisis();
+};
+window.bpNotaAnalisis = (v) => { an.analisis.nota = v; marcarCambio(); };
+window.bpAgregarRecurso = () => {
+  const url = $("bpRecUrl").value.trim();
+  if (!/^(https?:\/\/)?[^\s.]+\.[^\s]+$/i.test(url)) { alert("Pega un link válido"); return; }
+  an.recursos.push({ tipo: $("bpRecTipo").value, url: /^https?:\/\//i.test(url) ? url : `https://${url}`, nombre: $("bpRecNombre").value.trim() });
+  an.cambios = true;
+  pintarAnalisis();
+  $("bpRecUrl")?.focus();
+};
+window.bpQuitarRecurso = (i) => { an.recursos.splice(i, 1); an.cambios = true; pintarAnalisis(); };
+window.bpGuardarAnalisis = async () => {
+  if (!an) return;
+  const b = $("bpAnGuardar"); if (b) { b.disabled = true; b.textContent = "Guardando..."; }
+  try {
+    const res = await fetch(`/api/productos/${an.id}/ficha`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ analisis: an.analisis, recursos: an.recursos })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "No se pudo guardar");
+    const p = state.productos.find(x => x._id === an.id);
+    if (p) Object.assign(p, { analisis: data.producto.analisis, recursos: data.producto.recursos });
+    an.recursos = (data.producto.recursos || []).map(x => ({ ...x }));
+    an.cambios = false;
+    pintarAnalisis();
+    renderTablaProductos();
+  } catch (err) {
+    alert(err.message);
+    if (b) { b.disabled = false; b.textContent = "Guardar"; }
+  }
+};
+window.bpCerrarAnalisis = () => {
+  if (an?.cambios && !confirm("Tienes cambios sin guardar. ¿Cerrar sin guardar?")) return;
+  an = null;
+  $("bpAnalisis")?.remove();
+  document.removeEventListener("keydown", escAnalisis);
+};
 
 // ---------- Estado ----------
 window.cambiarEstado = async function(id, nuevoEstado) {

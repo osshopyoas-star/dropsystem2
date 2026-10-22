@@ -23,6 +23,8 @@ import { registrarRutasCosteos } from "./rutas-costeos.js";
 import { registrarRutasPlantilla } from "./rutas-plantilla.js";
 import { registrarRutasMeta } from "./rutas-meta.js";
 import { registrarRutasFinanzas } from "./rutas-finanzas.js";
+import { limpiarAnalisis, limpiarRecursos } from "./public/js/core/analisis.js";
+import { registrarRutasImportar } from "./rutas-importar.js";
 
 // =============================================
 // 🗄️ MODELOS
@@ -57,7 +59,10 @@ const productoSchema = new mongoose.Schema({
   fecha: Date,
   // Mis testeos: resultado del testeo del producto
   resultado: { type: String, default: "" },          // "" | testeando | winner | perdedor | inconcluso
-  testeo: { inicio: Date, fin: Date, avatar: String, nota: String }
+  testeo: { inicio: Date, fin: Date, avatar: String, nota: String },
+  // Análisis de 19 criterios y recursos guardados (anuncios, TikToks, proveedores, competencia)
+  analisis: { type: mongoose.Schema.Types.Mixed, default: undefined },
+  recursos: { type: [mongoose.Schema.Types.Mixed], default: [] }
 });
 
 const Producto = mongoose.model("Producto", productoSchema);
@@ -475,6 +480,7 @@ registrarRutasCosteos(app, { idValido, Producto });
 registrarRutasPlantilla(app);
 registrarRutasMeta(app);
 registrarRutasFinanzas(app, { llamarIA, iaLimiter });
+registrarRutasImportar(app, { limiter: iaLimiter });
 
 // =============================================
 // 📦 PRODUCTOS (cada usuario ve solo los suyos)
@@ -547,6 +553,23 @@ app.put("/api/productos/:id/testeo", async (req, res) => {
   } catch (err) {
     console.error("Error guardando testeo:", err);
     res.status(500).json({ error: "No se pudo guardar el testeo" });
+  }
+});
+
+// Análisis de criterios y recursos guardados
+app.put("/api/productos/:id/ficha", async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!idValido(id)) return res.status(400).json({ error: "ID inválido" });
+    const cambios = {};
+    if (req.body?.analisis !== undefined) cambios.analisis = limpiarAnalisis(req.body.analisis);
+    if (req.body?.recursos !== undefined) cambios.recursos = limpiarRecursos(req.body.recursos);
+    const producto = await Producto.findOneAndUpdate({ _id: id, owner: req.user.uid }, { $set: cambios }, { new: true });
+    if (!producto) return res.status(404).json({ error: "Producto no encontrado" });
+    res.json({ ok: true, producto });
+  } catch (err) {
+    console.error("Error guardando análisis:", err);
+    res.status(500).json({ error: "No se pudo guardar el análisis" });
   }
 });
 

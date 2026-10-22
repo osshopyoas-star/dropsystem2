@@ -5,7 +5,7 @@
 // y todas las landings nuevas la tendrán en cuenta.
 // =============================================
 
-import { SECCIONES, FORMATOS, varianteDe, tiposDe } from "./public/js/core/plantilla.js";
+import { SECCIONES, FORMATOS, varianteDe, tiposDe, claveDe } from "./public/js/core/plantilla.js";
 
 const limpio = (v, max = 3000) => String(v ?? "").slice(0, max).trim();
 
@@ -120,7 +120,8 @@ REGALO: ${limpio(f.regalo, 200) || "(no hay regalo)"}
 PROMESAS QUE SÍ SON VERDAD (no inventes otras):
 ${lista(verdades)}
 FORMATO DE LA LANDING: ${textoFormato(p)}
-PREFERENCIA DE ESTILO DEL DUEÑO: ${limpio(f.estiloPreferido, 300) || "(ninguna)"}
+${p.tipo === "moda" ? `TIPO DE PRODUCTO: MODA (ropa, calzado o accesorio). Las fotos muestran la pieza PUESTA en una persona adulta real, natural, sin poses sugestivas; la talla, el color y el corte deben ser EXACTAMENTE los de la foto adjunta. Lista de tallas y colores siempre completa y en orden. No inventes medidas.
+` : ""}PREFERENCIA DE ESTILO DEL DUEÑO: ${limpio(f.estiloPreferido, 300) || "(ninguna)"}
 NOTAS DEL DUEÑO: ${limpio(f.notas, 1000) || "(ninguna)"}
 `.trim();
 }
@@ -289,7 +290,8 @@ export function seccionesFijas(p, plantilla) {
 export function promptPropuestaSecciones(p, plantilla = null) {
   const n = p.numAvatares === 1 ? 1 : 2;
   const normal = esNormal(p);
-  const validos = tiposDe(normal ? "normal" : "ban");
+  const validos = tiposDe(claveDe(normal ? "normal" : "ban", p.tipo));
+  const moda = p.tipo === "moda";
   const catalogo = validos.map(k => `- ${k}: ${SECCIONES[k].titulo}. ${SECCIONES[k].def}`).join("\n");
   const fijas = seccionesFijas(p, plantilla);
 
@@ -299,10 +301,10 @@ Para cada una escribe un título propio para este producto, su propósito y una 
     : normal
       ? `TAREA: Arma la estructura de la LANDING NORMAL de 6 a 8 secciones para este producto, eligiendo del catálogo.
 - La primera SIEMPRE es "galeria" (las fotos cuadradas de la galería de Shopify).
-- Orden base recomendado: galeria, dolor, funcion_estrella, antes_despues, como_se_usa, detalles, para_quien, como_funciona, por_que_aqui. Ajústalo al producto.
+- Orden base recomendado: ${moda ? "galeria, moda_vistas, moda_material, moda_fuera_estudio, moda_guia_tallas, moda_por_que, moda_cambio_talla, como_funciona" : "galeria, dolor, funcion_estrella, antes_despues, como_se_usa, detalles, para_quien, como_funciona, por_que_aqui"}. Ajústalo al producto.
 - Las preguntas frecuentes van como texto en Shopify: no las pongas como imagen salvo que aporten mucho.`
       : `TAREA: Arma la estructura de la landing de 8 a 9 secciones para este producto, eligiendo del catálogo.
-Orden base recomendado: oferta, dolor/identificación, función estrella, detalles o qué incluye, tamaño/variantes, cómo se usa, para quién es, por qué comprar aquí, preguntas frecuentes. Ajústalo al producto:
+${moda ? `Es MODA. La primera SIEMPRE es "moda_portada". Orden base recomendado: moda_portada, moda_precio_tallas, moda_vistas, moda_material, moda_fuera_estudio, moda_guia_tallas, moda_por_que, moda_cambio_talla, preguntas.` : `Orden base recomendado: oferta, dolor/identificación, función estrella, detalles o qué incluye, tamaño/variantes, cómo se usa, para quién es, por qué comprar aquí, preguntas frecuentes.`} Ajústalo al producto:
 - La última o penúltima es "preguntas".`;
 
   return `${contextoProducto(p)}
@@ -317,7 +319,7 @@ ${catalogo}
 
 ${estructura}
 - "paquetes" solo si hay paquetes; "tamano_variantes" solo si hay tallas, colores o el tamaño importa; "que_incluye" si llegan varias piezas o hay regalo.
-${n === 2 ? `- Hay 2 landings (A y B) que SOLO cambian en lo que le habla al avatar. Marca grupo "A/B" en: ${normal ? "galeria" : "oferta"}, dolor (o identificación) y para_quien. Todo lo demás es grupo "compartida".` : `- Hay una sola landing: todas las secciones son grupo "compartida".`}
+${n === 2 ? `- Hay 2 landings (A y B) que SOLO cambian en lo que le habla al avatar. Marca grupo "A/B" en: ${normal ? "galeria" : (moda ? "moda_portada" : "oferta")}, dolor (o identificación) y para_quien. Todo lo demás es grupo "compartida".` : `- Hay una sola landing: todas las secciones son grupo "compartida".`}
 - Asigna a cada sección una COMPOSICIÓN distinta para que no se vea plana ni repetida (diagonal, franjas, collage, cuadrícula, zigzag, primer plano, partida en dos, producto central con círculos, tarjetas apiladas...). No repitas composición en secciones seguidas.
 - formato: ${normal ? `"1:1" siempre (imágenes cuadradas de Shopify)` : `"9:16" casi siempre; "1:1" o "16:9" solo si la sección lo necesita (por ejemplo un antes/después cuadrado)`}.
 
@@ -423,6 +425,81 @@ Solo promesas que sean verdad según la ficha. Sin promesas médicas. Sin invent
 
 Responde SOLO este JSON válido:
 { "titulo": "", "frase_oferta": "", "beneficios": [], "descripcion": "", "especificaciones": [], "envio": "", "preguntas": [ { "pregunta": "", "respuesta": "" } ] }`;
+}
+
+// ---------- Anuncios: copys para Meta y TikTok ----------
+export function promptCopys(p, avatar, opciones = {}) {
+  const pais = PAISES[p.pais] || PAISES.CO;
+  const precio = formatoPrecio(p.ficha?.precio, p.pais);
+  const mencionar = [
+    opciones.envio && p.ficha?.promesas?.envioGratis ? "envío gratis" : null,
+    opciones.contraEntrega !== false ? "pago contra entrega" : null,
+    opciones.precio && precio ? `el precio (${precio})` : null
+  ].filter(Boolean);
+  return `${contextoProducto(p)}
+
+AVATAR AL QUE LE HABLA (${avatar?.id || "A"}):
+Quién es: ${avatar?.quien || ""}
+Problema/deseo: ${avatar?.problema || ""}
+Frase: ${avatar?.frase || ""}
+Ángulo: ${avatar?.angulo || ""}
+Tono: ${avatar?.tono || ""}
+
+TAREA: Escribe los textos de anuncio para Meta Ads (Facebook e Instagram) y TikTok para este avatar en ${pais.nombre}.
+- 3 variantes para Meta, una por enfoque: "problema" (problema → solución), "beneficio" (beneficio principal) y "curiosidad" (gancho de curiosidad).
+  Cada una con:
+  - texto_principal: 3 a 6 líneas cortas, fácil de escanear, con 2 a 4 emojis bien puestos y saltos de línea. La primera línea es el gancho.
+  - titulo: máximo 40 caracteres (va debajo de la imagen).
+  - descripcion: máximo 30 caracteres.
+- tiktok: 1 frase corta (máximo 100 caracteres) para el texto del anuncio en TikTok.
+- Menciona: ${mencionar.join(", ") || "nada extra"}.${!opciones.precio ? " NO pongas el precio." : ""}
+
+REGLAS DE META (para que no rechacen el anuncio ni bloqueen la cuenta):
+- No le digas a la persona que tiene una condición o atributo personal ("¿sufres de…?", "tu sobrepeso", "tu edad"). Habla de la situación, no de la persona.
+- Sin promesas médicas ni resultados garantizados, sin antes/después exagerados, sin "original" u "oficial" si la ficha no lo dice.
+- Sin urgencia falsa ("últimas unidades", "solo hoy") ni cifras inventadas (clientes, reseñas, ventas).
+- Solo promesas verdaderas según la ficha.
+
+Responde SOLO este JSON válido:
+{ "meta": [ { "enfoque": "problema", "texto_principal": "", "titulo": "", "descripcion": "" }, { "enfoque": "beneficio", "texto_principal": "", "titulo": "", "descripcion": "" }, { "enfoque": "curiosidad", "texto_principal": "", "titulo": "", "descripcion": "" } ], "tiktok": "" }`;
+}
+
+// ---------- Anuncios: prompt de un ad estático ----------
+export function promptAd(p, ad, avatar, estructura, formatoInfo) {
+  const precio = formatoPrecio(p.ficha?.precio, p.pais);
+  const antes = formatoPrecio(p.ficha?.precioAntes, p.pais);
+  const desc = porcentajeDescuento(p.ficha?.precioAntes, p.ficha?.precio);
+  return `${contextoProducto(p)}
+
+ESTE ANUNCIO LE HABLA AL AVATAR ${avatar?.id || "A"}:
+Quién es: ${avatar?.quien || ""}
+Problema/deseo: ${avatar?.problema || ""}
+Ángulo: ${avatar?.angulo || ""}
+Escena y modelo: ${avatar?.escena || ""}
+Tono: ${avatar?.tono || ""}
+
+ESTILO DE LA MARCA (usa los mismos colores y tipografía; NO repitas este bloque):
+${p.bloqueEstilo || construirBloqueEstilo(p)}
+
+ANUNCIO A CREAR: imagen estática para Meta Ads / TikTok.
+- Estructura: "${estructura.nombre}": ${estructura.desc}
+- Formato: ${formatoInfo.nombre} (${formatoInfo.tamano}, ${formatoInfo.uso}). Escríbelo al inicio del prompt.
+- ${ad.precio && precio ? `Muestra el precio exactamente así: ${precio}${antes ? ` (antes ${antes} tachado)` : ""}${desc ? ` y un sello de -${desc}%` : ""}.` : "NO muestres el precio."}
+${ad.nota ? `- Nota del dueño: ${limpio(ad.nota, 300)}` : ""}
+
+TAREA: Escribe el prompt para Gemini con EXACTAMENTE este formato (texto plano, sin markdown, sin explicaciones):
+
+FOTOGRAFÍA REAL (no dibujo, no animación). Imagen ${formatoInfo.nombre} (${formatoInfo.tamano}) para un anuncio de redes sociales.
+COMPOSICIÓN: [escena, posición y tamaño del producto, personas con edad/aspecto/ropa, luz, elementos gráficos y dónde va cada uno]
+TEXTOS:
+- Gancho: "[máximo 6 palabras]" (color)
+- [resto de textos, cada uno entre comillas y con su color; máximo 20 palabras en total en la imagen]
+ESPACIO SEGURO: [en 9:16 deja libre el 14% de arriba y el 20% de abajo para los botones de la app; en 1:1 y 4:5 deja márgenes de 5%]
+
+Reglas:
+- El producto grande, protagonista y sin tapar. Poco texto: Meta muestra menos los anuncios con mucho texto.
+- Sin cifras inventadas (clientes, estrellas, reseñas, "+15.000 vendidos"), sin urgencia falsa, sin antes/después corporales exagerados, sin marcas ajenas.
+- No le hables a la persona de una condición personal ("¿tienes…?"); habla de la situación.`;
 }
 
 // ---------- Paso 5: notas antes de publicar ----------

@@ -29,7 +29,7 @@ const T = (y, w = 36, x = (60 - w) / 2, tono = "d") => ["t", x, y, w, tono];
 // formatos: en cuáles se puede usar · siempre: en qué formato no se puede apagar
 export const SECCIONES = {
   oferta: {
-    titulo: "Portada / oferta (hero)", formatos: ["ban"], siempre: ["ban"],
+    titulo: "Portada / oferta (hero)", formatos: ["ban"], tipos: ["producto"], siempre: ["ban"],
     def: "Producto en uso, titular corto de 2 líneas en 2 colores, 3 beneficios, precio 'antes' tachado, precio actual grande en caja, sello de descuento, regalo si hay (con círculo para GIF), barra de confianza abajo.",
     variantes: [
       { id: "caja", nombre: "Precio en caja", desc: "Titular arriba, foto grande del producto en uso al centro, y abajo una caja de color con el precio grande, el 'antes' tachado y un sello circular de descuento.",
@@ -81,7 +81,7 @@ export const SECCIONES = {
     ]
   },
   funcion_estrella: {
-    titulo: "La función estrella", formatos: ["ban", "normal"],
+    titulo: "La función estrella", formatos: ["ban", "normal"], tipos: ["producto"],
     def: "Lo que más vende del producto, mostrado en uso real, con 3 o 4 beneficios en íconos.",
     variantes: [
       { id: "senalado", nombre: "Beneficios señalados", desc: "Producto grande al centro y 3 o 4 beneficios con íconos circulares a los lados, unidos con líneas finas a la parte del producto que explican.",
@@ -93,7 +93,7 @@ export const SECCIONES = {
     ]
   },
   detalles: {
-    titulo: "Detalles y calidad", formatos: ["ban", "normal"],
+    titulo: "Detalles y calidad", formatos: ["ban", "normal"], tipos: ["producto"],
     def: "Primeros planos de materiales y acabados.",
     variantes: [
       { id: "circulos", nombre: "Círculos de zoom", desc: "Producto al centro y 4 círculos de zoom alrededor mostrando materiales y acabados, cada uno con su rótulo.",
@@ -105,7 +105,7 @@ export const SECCIONES = {
     ]
   },
   que_incluye: {
-    titulo: "¿Qué incluye?", formatos: ["ban", "normal"],
+    titulo: "¿Qué incluye?", formatos: ["ban", "normal"], tipos: ["producto"],
     def: "Todo lo que llega en el paquete; círculo vacío para GIF si aplica.",
     variantes: [
       { id: "numerados", nombre: "Círculos numerados", desc: "El producto con círculos numerados señalando cada pieza que llega, y la lista numerada abajo.",
@@ -117,7 +117,7 @@ export const SECCIONES = {
     ]
   },
   tamano_variantes: {
-    titulo: "Tamaño, colores o variantes", formatos: ["ban", "normal"],
+    titulo: "Tamaño, colores o variantes", formatos: ["ban", "normal"], tipos: ["producto"],
     def: "Medidas reales con referencia humana, tallas o colores disponibles completos y en orden.",
     variantes: [
       { id: "medidas", nombre: "Medidas con persona", desc: "El producto junto a una mano o una persona con líneas de medida y las medidas escritas.",
@@ -129,7 +129,7 @@ export const SECCIONES = {
     ]
   },
   como_se_usa: {
-    titulo: "Cómo se usa", formatos: ["ban", "normal"],
+    titulo: "Cómo se usa", formatos: ["ban", "normal"], tipos: ["producto"],
     def: "3 o 4 pasos numerados, cada uno con su foto real del producto en uso.",
     variantes: [
       { id: "columna", nombre: "Pasos en columna", desc: "3 pasos uno debajo del otro, cada uno con número grande, foto a un lado y texto corto al otro.",
@@ -153,7 +153,7 @@ export const SECCIONES = {
     ]
   },
   antes_despues: {
-    titulo: "Antes y después (el cambio)", formatos: ["ban", "normal"],
+    titulo: "Antes y después (el cambio)", formatos: ["ban", "normal"], tipos: ["producto"],
     def: "La situación sin el producto vs con el producto.",
     variantes: [
       { id: "lado", nombre: "Lado a lado", desc: "Imagen partida en dos de izquierda a derecha: ANTES (tonos apagados) y DESPUÉS (tonos vivos), con una flecha o círculo al centro y 4 beneficios abajo.",
@@ -193,7 +193,7 @@ export const SECCIONES = {
     ]
   },
   por_que_aqui: {
-    titulo: "Tu producto vs otros (¿por qué aquí?)", formatos: ["ban", "normal"],
+    titulo: "Tu producto vs otros (¿por qué aquí?)", formatos: ["ban", "normal"], tipos: ["producto"],
     def: "Comparación 'Nuestra tienda' (✓) vs 'Otras opciones' (✗) y un recuadro vacío para el logo de la tienda.",
     variantes: [
       { id: "tabla", nombre: "Tabla", desc: "Tabla de 5 filas con dos columnas: la nuestra resaltada con ✓ y la de otros con ✗.",
@@ -257,6 +257,119 @@ export const SECCIONES = {
       { id: "foto_franja", nombre: "Foto con franja", desc: "Foto a sangre del producto en uso con una franja inferior con el precio y la frase de cierre.",
         dibujo: [["r", 0, 0, 60, 60, "g"], ["r", 0, 60, 60, 30, "a"], ["t", 10, 66, 40, "w"], ["t", 14, 72, 32, "w"], ["r", 14, 78, 32, 7, "d", 4]] }
     ]
+  },
+  // ---------- Secciones de MODA (ropa, calzado, accesorios) ----------
+  moda_portada: {
+    titulo: "Portada — la pieza puesta", formatos: ["ban"], siempre: ["ban"], tipos: ["moda"],
+    def: "Modelo adulta/o luciendo la pieza completa (cuerpo entero o de cintura hacia arriba según la prenda), titular corto de 2 líneas, precio con 'antes' tachado, sello de descuento y barra de confianza (cambio de talla, pago contra entrega).",
+    variantes: [
+      { id: "cuerpo", nombre: "Cuerpo entero", desc: "Foto vertical de cuerpo entero con la pieza puesta en un lugar real, titular arriba y precio en caja abajo.",
+        dibujo: [T(7), T(12, 26, 17, "a"), ["r", 18, 16, 24, 50, "g", 12], ["r", 8, 68, 30, 12, "a", 3], ["c", 48, 74, 6, "d"]] },
+      { id: "revista", nombre: "Revista", desc: "Estilo portada de revista: modelo grande, titular elegante superpuesto y precio discreto en una esquina.",
+        dibujo: [["r", 0, 0, 60, 90, "g"], ["t", 6, 10, 48, "d"], ["t", 6, 16, 36, "a"], ["r", 14, 22, 32, 60, "m", 14], ["r", 38, 74, 18, 9, "a", 3]] },
+      { id: "mosaico", nombre: "Mosaico", desc: "Foto principal grande y dos fotos pequeñas a un lado con detalles de la pieza; precio abajo.",
+        dibujo: [T(6), ["r", 4, 12, 34, 56, "g", 3], ["r", 40, 12, 16, 27, "m", 3], ["r", 40, 41, 16, 27, "g", 3], ["r", 8, 72, 44, 11, "a", 3]] }
+    ]
+  },
+  moda_precio_tallas: {
+    titulo: "Precio, tallas y colores", formatos: ["ban", "normal"], tipos: ["moda"],
+    def: "Todos los colores disponibles en fila, la lista COMPLETA de tallas en orden, el precio y el 'antes'. Sin inventar colores ni tallas que no existan.",
+    variantes: [
+      { id: "fila", nombre: "Colores en fila", desc: "Una foto por color en fila con su nombre, y debajo las tallas en círculos y el precio.",
+        dibujo: [T(6), ["r", 4, 14, 16, 26, "g", 3], ["r", 22, 14, 16, 26, "m", 3], ["r", 40, 14, 16, 26, "a", 3], ["o", 12, 50, 4, "d"], ["o", 24, 50, 4, "d"], ["o", 36, 50, 4, "d"], ["o", 48, 50, 4, "d"], ["r", 10, 62, 40, 12, "a", 3]] },
+      { id: "tarjeta", nombre: "Tarjeta de compra", desc: "Tarjeta clara con la foto de la pieza, los colores en puntos, las tallas en cajitas y el precio grande.",
+        dibujo: [["r", 6, 8, 48, 74, "w", 4], ["r", 10, 12, 40, 30, "g", 3], ["c", 16, 48, 3, "d"], ["c", 24, 48, 3, "a"], ["c", 32, 48, 3, "m"], ["r", 10, 56, 8, 6, "g", 1], ["r", 20, 56, 8, 6, "g", 1], ["r", 30, 56, 8, 6, "g", 1], ["r", 40, 56, 8, 6, "g", 1], ["r", 10, 68, 40, 9, "a", 3]] }
+    ]
+  },
+  moda_vistas: {
+    titulo: "Vistas de la pieza", formatos: ["ban", "normal"], tipos: ["moda"],
+    def: "La misma pieza en la misma modelo vista de frente, de espalda y de lado, para que el cliente vea cómo queda.",
+    variantes: [
+      { id: "tres", nombre: "Frente, espalda y lado", desc: "Tres fotos verticales lado a lado de la misma modelo: frente, espalda y perfil, con su rótulo.",
+        dibujo: [T(6), ["r", 4, 14, 16, 56, "g", 6], ["r", 22, 14, 16, 56, "m", 6], ["r", 40, 14, 16, 56, "g", 6], ["t", 6, 76, 12, "d"], ["t", 24, 76, 12, "d"], ["t", 42, 76, 12, "d"]] },
+      { id: "giro", nombre: "Giro con flechas", desc: "Una foto grande de frente y dos pequeñas (espalda y lado) unidas con flechas de giro.",
+        dibujo: [T(6), ["r", 6, 12, 30, 66, "g", 8], ["r", 40, 14, 16, 30, "m", 6], ["r", 40, 48, 16, 30, "g", 6], ["x", 36, 30, 40, 28, "a"], ["x", 36, 60, 40, 62, "a"]] }
+    ]
+  },
+  moda_material: {
+    titulo: "El material de cerca", formatos: ["ban", "normal"], tipos: ["moda"],
+    def: "Primeros planos de la tela o material: textura, costuras, elasticidad, forro, botones o cierres. Solo lo que la pieza tiene de verdad.",
+    variantes: [
+      { id: "lupas", nombre: "Círculos de zoom", desc: "La pieza al centro y 3 o 4 círculos de zoom a la tela, costuras y detalles, con su rótulo.",
+        dibujo: [T(6), ["r", 18, 20, 24, 46, "g", 6], ["o", 9, 22, 7, "a"], ["o", 51, 30, 7, "a"], ["o", 9, 62, 7, "a"], ["o", 51, 70, 7, "a"]] },
+      { id: "macro", nombre: "Macro a sangre", desc: "Foto macro de la tela a toda la imagen con 3 etiquetas encima explicando lo que se siente.",
+        dibujo: [["r", 0, 0, 60, 90, "m"], ["r", 6, 14, 26, 7, "w", 3], ["r", 26, 40, 28, 7, "w", 3], ["r", 8, 66, 26, 7, "w", 3]] }
+    ]
+  },
+  moda_ficha: {
+    titulo: "Ficha del material", formatos: ["ban", "normal"], tipos: ["moda"],
+    def: "Composición del material, cómo lavarlo y cuidarlo, y si estira o no, con íconos. Solo datos reales de la ficha.",
+    variantes: [
+      { id: "iconos", nombre: "Íconos de cuidado", desc: "Foto pequeña de la tela arriba y abajo una cuadrícula de íconos de cuidado (lavar, planchar, secar) con su texto.",
+        dibujo: [T(6), ["r", 14, 12, 32, 22, "g", 3], ["c", 14, 46, 5, "a"], ["c", 30, 46, 5, "a"], ["c", 46, 46, 5, "a"], ["c", 14, 64, 5, "a"], ["c", 30, 64, 5, "a"], ["c", 46, 64, 5, "a"]] },
+      { id: "tabla", nombre: "Tabla", desc: "Tabla limpia de 4 o 5 filas: composición, elasticidad, forro, cuidado, origen.",
+        dibujo: [T(6), ["r", 6, 14, 48, 9, "a", 1], ["r", 6, 24, 48, 9, "g", 1], ["r", 6, 34, 48, 9, "w", 1], ["r", 6, 44, 48, 9, "g", 1], ["r", 6, 54, 48, 9, "w", 1]] }
+    ]
+  },
+  moda_fuera_estudio: {
+    titulo: "Puesta, fuera del estudio", formatos: ["ban", "normal"], tipos: ["moda"],
+    def: "La pieza puesta en la vida real del avatar (calle, oficina, salida, casa), fotos naturales tipo estilo de vida.",
+    variantes: [
+      { id: "collage", nombre: "Collage de momentos", desc: "Collage de 3 o 4 fotos en distintos lugares con una etiqueta corta en cada una.",
+        dibujo: [T(6), ["r", 4, 12, 30, 40, "g", 3], ["r", 36, 12, 20, 19, "m", 3], ["r", 36, 33, 20, 19, "g", 3], ["r", 4, 54, 52, 28, "m", 3]] },
+      { id: "historia", nombre: "Historia vertical", desc: "Tres franjas horizontales a lo ancho, cada una un momento del día con la pieza puesta.",
+        dibujo: [T(6), ["r", 0, 12, 60, 24, "g"], ["r", 0, 38, 60, 24, "m"], ["r", 0, 64, 60, 24, "g"]] }
+    ]
+  },
+  moda_guia_tallas: {
+    titulo: "Guía de tallas", formatos: ["ban", "normal"], tipos: ["moda"],
+    def: "Tabla de tallas COMPLETA y en orden con sus medidas reales, y un dibujo de dónde medir. Si faltan medidas, no las inventes: pide los datos en las notas.",
+    variantes: [
+      { id: "tabla", nombre: "Tabla y silueta", desc: "Silueta con líneas de dónde medir a un lado y la tabla de tallas al otro.",
+        dibujo: [T(6), ["r", 4, 14, 18, 56, "g", 8], ["x", 6, 30, 20, 30, "a"], ["x", 6, 46, 20, 46, "a"], ["r", 26, 14, 30, 7, "a", 1], ["r", 26, 22, 30, 7, "g", 1], ["r", 26, 30, 30, 7, "w", 1], ["r", 26, 38, 30, 7, "g", 1], ["r", 26, 46, 30, 7, "w", 1]] },
+      { id: "como_medir", nombre: "Cómo medirte", desc: "Tres pasos numerados con foto de cómo tomarse cada medida y la tabla de tallas abajo.",
+        dibujo: [T(6), ["c", 10, 18, 4, "a"], ["c", 30, 18, 4, "a"], ["c", 50, 18, 4, "a"], ["r", 4, 26, 16, 18, "g", 2], ["r", 22, 26, 16, 18, "g", 2], ["r", 40, 26, 16, 18, "g", 2], ["r", 6, 52, 48, 7, "a", 1], ["r", 6, 60, 48, 7, "g", 1], ["r", 6, 68, 48, 7, "w", 1]] }
+    ]
+  },
+  moda_tres_formas: {
+    titulo: "Tres formas de usarla", formatos: ["ban", "normal"], tipos: ["moda"],
+    def: "La misma pieza combinada de 3 maneras distintas (casual, para salir, para trabajar), cada una con su rótulo.",
+    variantes: [
+      { id: "lado", nombre: "Tres looks lado a lado", desc: "Tres fotos verticales lado a lado con el nombre del look debajo.",
+        dibujo: [T(6), ["r", 4, 14, 16, 56, "g", 6], ["r", 22, 14, 16, 56, "m", 6], ["r", 40, 14, 16, 56, "g", 6], ["r", 4, 74, 16, 6, "a", 3], ["r", 22, 74, 16, 6, "a", 3], ["r", 40, 74, 16, 6, "a", 3]] },
+      { id: "numerados", nombre: "Looks numerados", desc: "Tres tarjetas apiladas, cada una con número grande, foto del look y una frase de cuándo usarlo.",
+        dibujo: [T(6), ["r", 6, 12, 48, 22, "w", 3], ["c", 12, 23, 4, "a"], ["r", 30, 14, 22, 18, "g", 2], ["r", 6, 37, 48, 22, "w", 3], ["c", 12, 48, 4, "a"], ["r", 30, 39, 22, 18, "g", 2], ["r", 6, 62, 48, 22, "w", 3], ["c", 12, 73, 4, "a"], ["r", 30, 64, 22, 18, "g", 2]] }
+    ]
+  },
+  moda_chats: {
+    titulo: "Conversaciones de WhatsApp (plantilla)", formatos: ["ban", "normal"], tipos: ["moda"],
+    def: "Marco tipo pantalla de chat con burbujas VACÍAS para pegar capturas reales de clientes (con permiso). Sin nombres, fotos ni mensajes inventados.",
+    variantes: [
+      { id: "telefono", nombre: "Dentro de un celular", desc: "Un celular dibujado con 3 o 4 burbujas vacías y el título 'Lo que nos escriben'.",
+        dibujo: [T(6), ["r", 14, 12, 32, 70, "d", 6], ["r", 17, 18, 26, 62, "g", 3], ["r", 19, 22, 18, 7, "w", 3], ["r", 23, 33, 18, 7, "w", 3], ["r", 19, 44, 18, 7, "w", 3], ["r", 23, 55, 18, 7, "w", 3]] },
+      { id: "burbujas", nombre: "Burbujas sueltas", desc: "Cuatro burbujas de chat grandes y vacías, alternando izquierda y derecha, sobre fondo suave.",
+        dibujo: [["r", 0, 0, 60, 90, "g"], T(8), ["r", 6, 16, 34, 12, "w", 5], ["r", 20, 32, 34, 12, "w", 5], ["r", 6, 48, 34, 12, "w", 5], ["r", 20, 64, 34, 12, "w", 5]] }
+    ]
+  },
+  moda_por_que: {
+    titulo: "Por qué esta y no otra", formatos: ["ban", "normal"], tipos: ["moda"],
+    def: "Comparación honesta 'Esta pieza' (✓) vs 'Las que se consiguen por ahí' (✗): material, costuras, horma, cambio de talla, pago contra entrega. Sin nombrar marcas.",
+    variantes: [
+      { id: "tabla", nombre: "Tabla", desc: "Tabla de 5 filas con dos columnas, la nuestra resaltada con ✓.",
+        dibujo: [T(6), ["r", 30, 12, 12, 64, "a", 3], ["t", 6, 18, 20, "d"], ["t", 6, 30, 20, "d"], ["t", 6, 42, 20, "d"], ["t", 6, 54, 20, "d"], ["t", 6, 66, 20, "d"]] },
+      { id: "versus", nombre: "Versus", desc: "La pieza nuestra contra 'otras' con un VS al centro y la lista abajo.",
+        dibujo: [["r", 6, 8, 20, 28, "a", 3], ["c", 30, 22, 5, "d"], ["r", 34, 8, 20, 28, "g", 3], T(44, 44), T(52, 44), T(60, 44), T(68, 44)] }
+    ]
+  },
+  moda_cambio_talla: {
+    titulo: "Cambio de talla y garantía", formatos: ["ban", "normal"], tipos: ["moda"],
+    def: "Cómo funciona el cambio de talla y la garantía (SOLO si la ficha dice que existen), pago contra entrega y envío. Quita el miedo a pedir la talla equivocada.",
+    variantes: [
+      { id: "centrada", nombre: "Tarjeta centrada", desc: "Sello grande arriba, el título del cambio de talla y 3 pasos cortos de cómo pedirlo.",
+        dibujo: [["r", 8, 10, 44, 66, "w", 4], ["c", 30, 22, 7, "a"], T(36, 30), ["t", 14, 46, 32, "m"], ["t", 14, 54, 32, "m"], ["t", 14, 62, 32, "m"]] },
+      { id: "certificado", nombre: "Certificado", desc: "Diseño tipo certificado con borde, sello en una esquina y las condiciones explicadas.",
+        dibujo: [["r", 6, 12, 48, 62, "w", 1], ["r", 9, 15, 42, 56, "g", 1], ["r", 10, 16, 40, 54, "w", 1], T(26, 30), T(34, 34), T(40, 34), ["c", 46, 18, 6, "a"]] }
+    ]
   }
 };
 
@@ -271,21 +384,48 @@ export const ORDEN_BASE = {
     ["galeria", 1], ["dolor", 1], ["funcion_estrella", 1], ["antes_despues", 1], ["como_se_usa", 1], ["detalles", 1],
     ["para_quien", 1], ["que_incluye", 0], ["tamano_variantes", 0], ["identificacion", 0], ["paquetes", 0],
     ["como_funciona", 1], ["por_que_aqui", 1], ["resenas", 0], ["confianza", 0], ["preguntas", 0], ["oferta_cierre", 0]
+  ],
+  moda_ban: [
+    ["moda_portada", 1], ["moda_precio_tallas", 1], ["moda_vistas", 1], ["moda_material", 1], ["moda_ficha", 0],
+    ["moda_fuera_estudio", 1], ["moda_tres_formas", 0], ["moda_guia_tallas", 1], ["moda_chats", 0], ["moda_por_que", 1],
+    ["moda_cambio_talla", 1], ["dolor", 0], ["identificacion", 0], ["para_quien", 0], ["paquetes", 0], ["como_funciona", 1],
+    ["resenas", 0], ["preguntas", 1], ["confianza", 0], ["oferta_cierre", 0]
+  ],
+  moda_normal: [
+    ["galeria", 1], ["moda_vistas", 1], ["moda_material", 1], ["moda_fuera_estudio", 1], ["moda_guia_tallas", 1],
+    ["moda_precio_tallas", 0], ["moda_ficha", 0], ["moda_tres_formas", 0], ["moda_chats", 0], ["moda_por_que", 1],
+    ["moda_cambio_talla", 1], ["dolor", 0], ["identificacion", 0], ["para_quien", 0], ["paquetes", 0], ["como_funciona", 1],
+    ["resenas", 0], ["preguntas", 0], ["confianza", 0], ["oferta_cierre", 0]
   ]
 };
 
+// Tipo de producto: general o moda (ropa, calzado, accesorios)
+export const TIPOS_PRODUCTO = {
+  producto: { nombre: "Producto", desc: "Gadgets, hogar, belleza, salud, mascotas… cualquier producto que no sea ropa." },
+  moda: { nombre: "Moda", desc: "Ropa, calzado y accesorios: la pieza puesta, tallas, colores y material." }
+};
+
+// Clave de la plantilla: ban · normal · moda_ban · moda_normal
+export const CLAVES = ["ban", "normal", "moda_ban", "moda_normal"];
+export const claveDe = (formato, tipo) => `${tipo === "moda" ? "moda_" : ""}${formato === "normal" ? "normal" : "ban"}`;
+const claveValida = (c) => (CLAVES.includes(c) ? c : c === "normal" ? "normal" : "ban");
+const tipoDeClave = (c) => (String(c).startsWith("moda_") ? "moda" : "producto");
+
 export const COLORES_BASE = { modo: "producto", fondo: "#111111", color1: "#ffffff", color2: "#22d3ee", acento: "#22d3ee" };
 
-const formatoValido = (f) => (f === "normal" ? "normal" : "ban");
+const formatoValido = (f) => (String(f).endsWith("normal") ? "normal" : "ban");
 const hexValido = (v, def) => (/^#[0-9a-f]{6}$/i.test(String(v || "")) ? String(v).toLowerCase() : def);
 
-export const tiposDe = (formato) =>
-  Object.keys(SECCIONES).filter(k => SECCIONES[k].formatos.includes(formatoValido(formato)));
+// Secciones que se pueden usar en una clave (ban, normal, moda_ban, moda_normal)
+export const tiposDe = (clave) => {
+  const f = formatoValido(clave), t = tipoDeClave(clave);
+  return Object.keys(SECCIONES).filter(k => SECCIONES[k].formatos.includes(f) && (SECCIONES[k].tipos || ["producto", "moda"]).includes(t));
+};
 
 export const esFija = (tipo, formato) => (SECCIONES[tipo]?.siempre || []).includes(formatoValido(formato));
 
-export function plantillaPorDefecto(formato) {
-  const f = formatoValido(formato);
+export function plantillaPorDefecto(clave) {
+  const f = claveValida(clave);
   return {
     usarOrden: false,
     orden: ORDEN_BASE[f].map(([tipo, visible]) => ({ tipo, visible: !!visible })),
@@ -295,8 +435,8 @@ export function plantillaPorDefecto(formato) {
 }
 
 // Limpia lo que llega del navegador o de la base de datos
-export function normalizarPlantilla(formato, raw = {}) {
-  const f = formatoValido(formato);
+export function normalizarPlantilla(clave, raw = {}) {
+  const f = claveValida(clave);
   const base = plantillaPorDefecto(f);
   const validos = tiposDe(f);
   const r = raw && typeof raw === "object" ? raw : {};

@@ -3,7 +3,7 @@
 // Una plantilla por usuario, con una parte para cada formato (ban page y landing normal)
 // =============================================
 import mongoose from "mongoose";
-import { normalizarPlantilla } from "./public/js/core/plantilla.js";
+import { normalizarPlantilla, CLAVES, claveDe } from "./public/js/core/plantilla.js";
 
 const Mixed = mongoose.Schema.Types.Mixed;
 
@@ -11,16 +11,18 @@ const plantillaSchema = new mongoose.Schema({
   owner: { type: mongoose.Schema.Types.ObjectId, ref: "Usuario", index: true, unique: true },
   ban: { type: Mixed, default: {} },
   normal: { type: Mixed, default: {} },
+  moda_ban: { type: Mixed, default: {} },
+  moda_normal: { type: Mixed, default: {} },
   actualizado: { type: Date, default: Date.now }
 });
 
 export const Plantilla = mongoose.model("Plantilla", plantillaSchema);
 
-const FORMATOS = ["ban", "normal"];
+const FORMATOS = CLAVES;   // ban, normal, moda_ban, moda_normal
 
 // Plantilla lista para usar en los prompts (con los valores de siempre si no hay nada guardado)
-export async function obtenerPlantilla(owner, formato) {
-  const f = formato === "normal" ? "normal" : "ban";
+export async function obtenerPlantilla(owner, formato, tipo = "producto") {
+  const f = claveDe(formato, tipo);
   try {
     const doc = await Plantilla.findOne({ owner }).lean();
     return normalizarPlantilla(f, doc?.[f]);
@@ -34,11 +36,9 @@ export function registrarRutasPlantilla(app) {
   app.get("/api/plantilla", async (req, res) => {
     try {
       const doc = await Plantilla.findOne({ owner: req.user.uid }).lean();
-      res.json({
-        ban: normalizarPlantilla("ban", doc?.ban),
-        normal: normalizarPlantilla("normal", doc?.normal),
-        actualizado: doc?.actualizado || null
-      });
+      const out = { actualizado: doc?.actualizado || null };
+      for (const c of CLAVES) out[c] = normalizarPlantilla(c, doc?.[c]);
+      res.json(out);
     } catch (err) {
       console.error("Error cargando plantilla:", err);
       res.status(500).json({ error: "No se pudo cargar la plantilla" });

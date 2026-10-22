@@ -5,7 +5,7 @@
 // =============================================
 import { registrarRuta } from "./navegacion.js";
 import { escapeHTML } from "../core/utils.js";
-import { SECCIONES, FORMATOS, esFija, plantillaPorDefecto, normalizarPlantilla } from "../core/plantilla.js";
+import { SECCIONES, FORMATOS, esFija, plantillaPorDefecto, normalizarPlantilla, CLAVES, claveDe, TIPOS_PRODUCTO } from "../core/plantilla.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (v) => escapeHTML(v ?? "");
@@ -15,7 +15,9 @@ const CLAVE_BORRADOR = "pl_borrador";
 
 let guardada = null;     // { ban, normal } como está en el servidor
 let borrador = null;     // lo que estás editando
-let formato = "ban";
+let formato = "ban";     // clave: ban · normal · moda_ban · moda_normal
+const base = () => (formato.endsWith("normal") ? "normal" : "ban");
+const tipoProd = () => (formato.startsWith("moda_") ? "moda" : "producto");
 let recuperado = false;
 
 async function api(metodo, url, body) {
@@ -42,7 +44,7 @@ const sucio = (f) => guardada && borrador && JSON.stringify(guardada[f]) !== JSO
 
 function guardarBorrador() {
   try {
-    if (sucio("ban") || sucio("normal")) sessionStorage.setItem(CLAVE_BORRADOR, JSON.stringify(borrador));
+    if (CLAVES.some(sucio)) sessionStorage.setItem(CLAVE_BORRADOR, JSON.stringify(borrador));
     else sessionStorage.removeItem(CLAVE_BORRADOR);
   } catch {}
 }
@@ -50,7 +52,7 @@ function guardarBorrador() {
 // ---------- Dibujos ----------
 const TONOS = { d: "#1f2937", g: "#e5e7eb", m: "#9ca3af", w: "#ffffff" };
 
-function dibujar(dibujo, acento = "#14b8a6", clase = "") {
+export function dibujar(dibujo, acento = "#14b8a6", clase = "") {
   const color = (t) => (t === "a" ? acento : TONOS[t] || TONOS.g);
   const partes = (dibujo || []).map(el => {
     const [k, ...v] = el;
@@ -87,13 +89,22 @@ function render() {
       </div>
     </header>
 
-    <div class="pl-tabs">
-      ${Object.entries(FORMATOS).map(([k, f]) => `
-        <button class="${k === formato ? "activa" : ""}" onclick="plFormato('${k}')">
-          ${esc(f.nombre)} ${sucio(k) ? `<span class="pl-punto" title="Cambios sin guardar"></span>` : ""}
+    <div class="pl-tipos">
+      ${Object.entries(TIPOS_PRODUCTO).map(([k, t]) => `
+        <button class="${k === tipoProd() ? "activo" : ""}" onclick="plTipo('${k}')" title="${esc(t.desc)}">
+          <i data-lucide="${k === "moda" ? "shirt" : "package"}"></i> ${esc(t.nombre)}
+          ${[claveDe("ban", k), claveDe("normal", k)].some(sucio) ? `<span class="pl-punto"></span>` : ""}
         </button>`).join("")}
     </div>
-    <p class="pl-formato-desc">${esc(FORMATOS[formato].desc)}</p>
+    <div class="pl-tabs">
+      ${Object.entries(FORMATOS).map(([k, f]) => {
+        const c = claveDe(k, tipoProd());
+        return `<button class="${c === formato ? "activa" : ""}" onclick="plFormato('${k}')">
+          ${esc(f.nombre)} ${sucio(c) ? `<span class="pl-punto" title="Cambios sin guardar"></span>` : ""}
+        </button>`;
+      }).join("")}
+    </div>
+    <p class="pl-formato-desc">${tipoProd() === "moda" ? "<b>Moda:</b> " : ""}${esc(FORMATOS[base()].desc)}</p>
 
     <div class="pl-cols">
       <div class="pl-main">
@@ -102,7 +113,7 @@ function render() {
           <div class="pl-card-head">
             <div>
               <h2>Orden y secciones visibles</h2>
-              <p>Sube, baja y apaga con el ojo las secciones que no quieres. La ${formato === "ban" ? "portada" : "galería"} siempre se ve.</p>
+              <p>Sube, baja y apaga con el ojo las secciones que no quieres. La ${base() === "ban" ? "portada" : "galería"} siempre se ve.</p>
             </div>
           </div>
           <label class="pl-switch">
@@ -162,7 +173,7 @@ function render() {
           <div class="pl-card-head">
             <div>
               <h2>Colores</h2>
-              <p>Si los fijas, todas tus landings nuevas de ${esc(FORMATOS[formato].nombre)} usan estos colores (por ejemplo, los de tu marca). Si no, salen del estilo que elijas para cada producto, como hasta ahora.</p>
+              <p>Si los fijas, todas tus landings nuevas de ${esc(FORMATOS[base()].nombre)} usan estos colores (por ejemplo, los de tu marca). Si no, salen del estilo que elijas para cada producto, como hasta ahora.</p>
             </div>
           </div>
           <div class="pl-radios">
@@ -230,7 +241,8 @@ function cambio(fn) {
 }
 
 // ---------- Acciones ----------
-window.plFormato = (f) => { formato = f === "normal" ? "normal" : "ban"; try { localStorage.setItem("pl_formato", formato); } catch {} render(); };
+window.plFormato = (f) => { formato = claveDe(f, tipoProd()); try { localStorage.setItem("pl_formato", formato); } catch {} render(); };
+window.plTipo = (t) => { formato = claveDe(base(), t); try { localStorage.setItem("pl_formato", formato); } catch {} render(); };
 window.plUsarOrden = (v) => cambio(p => { p.usarOrden = !!v; });
 window.plMover = (i, dir) => cambio(p => {
   const j = i + dir;
@@ -264,7 +276,7 @@ window.plDescartar = () => {
 };
 
 window.plRestablecer = () => {
-  if (!confirm(`¿Volver ${FORMATOS[formato].nombre} a lo de siempre? (la IA elige, todo al azar y colores de cada producto). Después dale a Guardar.`)) return;
+  if (!confirm(`¿Volver ${FORMATOS[base()].nombre} a lo de siempre? (la IA elige, todo al azar y colores de cada producto). Después dale a Guardar.`)) return;
   borrador[formato] = plantillaPorDefecto(formato);
   guardarBorrador();
   render();
@@ -291,17 +303,17 @@ registrarRuta("plantilla", async (view) => {
   view.innerHTML = `<div class="pl-page"><p class="est-muted">Cargando tu plantilla...</p></div>`;
   try {
     const r = await api("GET", "/api/plantilla");
-    guardada = { ban: r.ban, normal: r.normal };
+    guardada = Object.fromEntries(CLAVES.map(c => [c, r[c]]));
     borrador = copia(guardada);
     recuperado = false;
     try {
       const b = JSON.parse(sessionStorage.getItem(CLAVE_BORRADOR) || "null");
       if (b && b.ban && b.normal) {
-        borrador = { ban: normalizarPlantilla("ban", b.ban), normal: normalizarPlantilla("normal", b.normal) };
-        recuperado = sucio("ban") || sucio("normal");
+        borrador = Object.fromEntries(CLAVES.map(c => [c, normalizarPlantilla(c, b[c] || guardada[c])]));
+        recuperado = CLAVES.some(sucio);
       }
       const f = localStorage.getItem("pl_formato");
-      if (f === "normal" || f === "ban") formato = f;
+      if (CLAVES.includes(f)) formato = f;
     } catch {}
     render();
   } catch (err) {

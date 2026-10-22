@@ -17,10 +17,13 @@ import {
   promptNotas,
   promptGuion,
   promptTextosShopify,
+  promptCopys,
+  promptAd,
   seccionesFijas
 } from "./prompts-landing.js";
 import { obtenerPlantilla } from "./rutas-plantilla.js";
-import { tiposDe, elegirVariante, formatoImagen, varianteDe } from "./public/js/core/plantilla.js";
+import { ESTRUCTURAS_AD, FORMATOS_AD, MAX_ADS } from "./public/js/core/anuncios.js";
+import { tiposDe, elegirVariante, formatoImagen, varianteDe, claveDe } from "./public/js/core/plantilla.js";
 
 const Mixed = mongoose.Schema.Types.Mixed;
 
@@ -31,7 +34,8 @@ const proyectoSchema = new mongoose.Schema({
   dropiId: { type: String, default: "" },
   nombre: { type: String, default: "" },
   pais: { type: String, enum: ["CO", "EC"], default: "CO" },
-  formato: { type: String, enum: ["ban", "normal"], default: "ban" },   // ban page (todo imágenes) o landing normal de Shopify
+  formato: { type: String, enum: ["ban", "normal"], default: "ban" },
+  tipo: { type: String, enum: ["producto", "moda"], default: "producto" },    // moda: ropa, calzado, accesorios   // ban page (todo imágenes) o landing normal de Shopify
   numAvatares: { type: Number, default: 2 },
   paso: { type: Number, default: 1 },
   ficha: { type: Mixed, default: {} },          // descripcion, precio, precioAntes, regalo, paquetes, variantes, medidas, noTiene, promesas, estiloPreferido, notas
@@ -55,8 +59,8 @@ const proyectoSchema = new mongoose.Schema({
 
 export const Proyecto = mongoose.model("Proyecto", proyectoSchema);
 
-const CAMPOS_EDITABLES = ["nombre", "pais", "formato", "numAvatares", "paso", "ficha", "fotos", "revision", "avatares"];
-const CAMPOS_RAMA = ["paso", "estilosPropuestos", "estilo", "bloqueEstilo", "secciones", "guiones", "notas", "vendio", "textos"];
+const CAMPOS_EDITABLES = ["nombre", "pais", "formato", "tipo", "numAvatares", "paso", "ficha", "fotos", "revision", "avatares"];
+const CAMPOS_RAMA = ["paso", "estilosPropuestos", "estilo", "bloqueEstilo", "secciones", "guiones", "notas", "vendio", "textos", "copys", "ads"];
 const AVATARES_VALIDOS = ["A", "B"];
 
 const MAX_FOTOS = 6;
@@ -82,6 +86,7 @@ function limpiarCambios(body = {}) {
 
   if (out.pais && !["CO", "EC"].includes(out.pais)) delete out.pais;
   if (out.formato !== undefined) out.formato = out.formato === "normal" ? "normal" : "ban";
+  if (out.tipo !== undefined) out.tipo = out.tipo === "moda" ? "moda" : "producto";
   if (out.numAvatares !== undefined) out.numAvatares = Number(out.numAvatares) === 1 ? 1 : 2;
   if (out.fotos !== undefined) {
     if (!Array.isArray(out.fotos)) delete out.fotos;
@@ -98,6 +103,39 @@ function limpiarGuiones(lista, av) {
     nota: String(g.nota || "").slice(0, 500), guion: String(g.guion || "").slice(0, 3000),
     ganchos: Array.isArray(g.ganchos) ? g.ganchos.map(String).slice(0, 5) : [],
     historiaReal: !!g.historiaReal, verificar: Array.isArray(g.verificar) ? g.verificar.map(String).slice(0, 10) : []
+  }));
+}
+
+// Copys de anuncios
+function limpiarCopys(c) {
+  if (!c || typeof c !== "object") return null;
+  const txt = (v, n) => String(v || "").slice(0, n);
+  const enfoques = ["problema", "beneficio", "curiosidad"];
+  return {
+    meta: (Array.isArray(c.meta) ? c.meta : []).slice(0, 3).map((v, i) => ({
+      enfoque: enfoques.includes(v?.enfoque) ? v.enfoque : enfoques[i] || "problema",
+      texto_principal: txt(v?.texto_principal, 1500),
+      titulo: txt(v?.titulo, 80),
+      descripcion: txt(v?.descripcion, 60)
+    })),
+    tiktok: txt(c.tiktok, 200),
+    opciones: {
+      envio: !!c.opciones?.envio, contraEntrega: c.opciones?.contraEntrega !== false, precio: !!c.opciones?.precio
+    }
+  };
+}
+
+// Ads estáticos: { id, estructura, formato, precio, nota, prompt, hecha }
+function limpiarAds(lista) {
+  if (!Array.isArray(lista)) return [];
+  return lista.slice(0, MAX_ADS).filter(a => a && ESTRUCTURAS_AD[a.estructura]).map(a => ({
+    id: String(a.id || nuevoId()).slice(0, 20),
+    estructura: a.estructura,
+    formato: FORMATOS_AD[a.formato] ? a.formato : "4:5",
+    precio: a.precio !== false,
+    nota: String(a.nota || "").slice(0, 300),
+    prompt: String(a.prompt || "").slice(0, 6000),
+    hecha: !!a.hecha
   }));
 }
 
@@ -134,10 +172,12 @@ function limpiarRama(body = {}, av) {
   if (out.bloqueEstilo !== undefined) out.bloqueEstilo = String(out.bloqueEstilo).slice(0, 8000);
   if (out.vendio !== undefined) out.vendio = !!out.vendio;
   if (out.textos !== undefined) out.textos = limpiarTextos(out.textos);
+  if (out.copys !== undefined) out.copys = limpiarCopys(out.copys);
+  if (out.ads !== undefined) out.ads = limpiarAds(out.ads);
   return out;
 }
 
-const ramaVacia = () => ({ paso: 3, estilosPropuestos: [], estilo: null, bloqueEstilo: "", secciones: [], guiones: [], notas: null, vendio: false, textos: null });
+const ramaVacia = () => ({ paso: 3, estilosPropuestos: [], estilo: null, bloqueEstilo: "", secciones: [], guiones: [], notas: null, vendio: false, textos: null, copys: null, ads: [] });
 
 const plano = (p) => (typeof p.toObject === "function" ? p.toObject() : { ...p });
 
@@ -194,7 +234,7 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
     }
     const ramas = p.ramas || {};
     const r = { ...ramaVacia(), ...(ramas[av] || {}) };
-    const plantilla = await obtenerPlantilla(req.user.uid, p.formato);
+    const plantilla = await obtenerPlantilla(req.user.uid, p.formato, p.tipo);
     // "vista": lo que ven los prompts = proyecto + trabajo de este avatar, como una sola landing
     const vista = { ...plano(p), ...r, numAvatares: 1, avatares: [avatar], plantilla };
     return { p, av, avatar, r, vista, plantilla };
@@ -220,7 +260,7 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
       const filtro = { owner: req.user.uid };
       if (req.query.productoId && idValido(req.query.productoId)) filtro.productoId = req.query.productoId;
       const lista = await Proyecto.find(filtro)
-        .select("nombre pais formato paso pasosRamas productoId origen dropiId vendio estilo.nombre actualizado creado")
+        .select("nombre pais formato tipo paso pasosRamas productoId origen dropiId vendio estilo.nombre actualizado creado")
         .sort({ actualizado: -1 })
         .limit(100);
       res.json(lista);
@@ -261,6 +301,7 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
 
       const paisFinal = (pais || prod?.pais) === "EC" ? "EC" : "CO";
       const formato = req.body?.formato === "normal" ? "normal" : "ban";
+      const tipo = req.body?.tipo === "moda" ? "moda" : "producto";
       const p = await Proyecto.create({
         owner: req.user.uid,
         productoId: prod?._id || null,
@@ -269,6 +310,7 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
         nombre,
         pais: paisFinal,
         formato,
+        tipo,
         ficha
       });
       res.json(p);
@@ -288,8 +330,8 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
       const p = await cargar(req, res); if (!p) return;
       const cambios = limpiarCambios(req.body);
       Object.assign(p, cambios, { actualizado: new Date() });
-      if (cambios.revision || cambios.ficha || cambios.formato) {
-        const plantilla = await obtenerPlantilla(req.user.uid, p.formato);
+      if (cambios.revision || cambios.ficha || cambios.formato || cambios.tipo) {
+        const plantilla = await obtenerPlantilla(req.user.uid, p.formato, p.tipo);
         const ramas = { ...(p.ramas || {}) };
         for (const [av, r] of Object.entries(ramas)) {
           const avatar = (p.avatares || []).find(a => a.id === av);
@@ -422,7 +464,7 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
       const reply = await llamarIA({ system: SISTEMA_LANDING, prompt: promptPropuestaSecciones(x.vista, x.plantilla) });
       const j = parsearJSON(reply);
       const formato = x.p.formato === "normal" ? "normal" : "ban";
-      const validos = tiposDe(formato);
+      const validos = tiposDe(claveDe(formato, x.p.tipo));
       const propuestas = (Array.isArray(j.secciones) ? j.secciones : []).filter(sx => sx && typeof sx === "object");
       const fijas = seccionesFijas(x.vista, x.plantilla);
 
@@ -438,7 +480,7 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
       } else {
         // Tipos que no existen en este formato se descartan
         base = propuestas.filter(sx => validos.includes(sx.tipo)).slice(0, 12);
-        const primera = formato === "normal" ? "galeria" : "oferta";
+        const primera = formato === "normal" ? "galeria" : (x.p.tipo === "moda" ? "moda_portada" : "oferta");
         if (!base.some(sx => sx.tipo === primera)) base.unshift({ tipo: primera });
       }
 
@@ -529,6 +571,44 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
       await guardarRama(x.p, x.av, r);
       res.json({ rama: r });
     } catch (err) { errorIA(res, err, "los textos"); }
+  });
+
+  // ---------- IA: anuncios · copys para Meta y TikTok ----------
+  app.post("/api/proyectos/:id/rama/:av/ia/copys", iaLimiter, async (req, res) => {
+    try {
+      const x = await cargarRama(req, res); if (!x) return;
+      const b = req.body || {};
+      const opciones = { envio: !!b.envio, contraEntrega: b.contraEntrega !== false, precio: !!b.precio };
+      const reply = await llamarIA({ system: SISTEMA_LANDING, prompt: promptCopys(x.vista, x.avatar, opciones) });
+      const copys = limpiarCopys({ ...parsearJSON(reply), opciones });
+      if (!copys.meta.length) return res.status(502).json({ error: "La IA no devolvió los textos" });
+      const r = { ...x.r, copys };
+      await guardarRama(x.p, x.av, r);
+      res.json({ rama: r });
+    } catch (err) { errorIA(res, err, "los copys"); }
+  });
+
+  // ---------- IA: anuncios · prompt de un ad estático ----------
+  app.post("/api/proyectos/:id/rama/:av/ia/ad/:adId", iaLimiter, async (req, res) => {
+    try {
+      const x = await cargarRama(req, res); if (!x) return;
+      const ads = x.r.ads || [];
+      const idx = ads.findIndex(a => a.id === req.params.adId);
+      if (idx === -1) return res.status(404).json({ error: "Anuncio no encontrado" });
+      const ad = ads[idx];
+      const bloque = x.r.bloqueEstilo || (x.r.estilo ? construirBloqueEstilo(x.vista) : "");
+      const reply = await llamarIA({
+        system: SISTEMA_LANDING,
+        prompt: promptAd({ ...x.vista, bloqueEstilo: bloque }, ad, x.avatar, ESTRUCTURAS_AD[ad.estructura], FORMATOS_AD[ad.formato])
+      });
+      const texto = String(reply || "").replace(/^```[a-z]*\n?|```$/gim, "").trim();
+      if (!texto) return res.status(502).json({ error: "La IA no devolvió el prompt" });
+      const nuevos = [...ads];
+      nuevos[idx] = { ...ad, prompt: texto.slice(0, 6000), hecha: false };
+      const r = { ...x.r, ads: nuevos };
+      await guardarRama(x.p, x.av, r);
+      res.json({ ad: nuevos[idx] });
+    } catch (err) { errorIA(res, err, "el anuncio"); }
   });
 
   // ---------- IA: 6. notas antes de publicar ----------

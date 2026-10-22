@@ -6,20 +6,23 @@
 import { state } from "../state.js";
 import { registrarRuta } from "./navegacion.js";
 import { escapeHTML } from "../core/utils.js";
-import { SECCIONES, FORMATOS, tiposDe, varianteDe, elegirVariante, formatoImagen } from "../core/plantilla.js";
+import { SECCIONES, FORMATOS, tiposDe, varianteDe, elegirVariante, formatoImagen, claveDe } from "../core/plantilla.js";
+import { ESTRUCTURAS_AD, FORMATOS_AD, ENFOQUES_COPY, MAX_ADS } from "../core/anuncios.js";
+import { dibujar } from "./plantilla.js";
 
 const PASOS = [
   { n: 1, titulo: "Ficha", icono: "clipboard-list" },
   { n: 2, titulo: "Avatares", icono: "users" },
   { n: 3, titulo: "Estilo", icono: "palette" },
   { n: 4, titulo: "Landing", icono: "images" },
-  { n: 5, titulo: "Guiones", icono: "clapperboard" },
+  { n: 5, titulo: "Anuncios", icono: "megaphone" },
   { n: 6, titulo: "Notas", icono: "list-checks" }
 ];
 
 // Tipos de sección que se pueden usar en el formato del proyecto abierto
 const formatoDe = (p) => (p?.formato === "normal" ? "normal" : "ban");
-const tiposSeccion = () => Object.fromEntries(tiposDe(formatoDe(proyecto)).map(k => [k, SECCIONES[k].titulo]));
+const claveProyecto = (p = proyecto) => claveDe(formatoDe(p), p?.tipo);
+const tiposSeccion = () => Object.fromEntries(tiposDe(claveProyecto()).map(k => [k, SECCIONES[k].titulo]));
 let cachePlantilla = null;   // Mi plantilla (para las secciones que agregas a mano)
 
 const PAIS_NOMBRE = { CO: "Colombia", EC: "Ecuador" };
@@ -199,6 +202,10 @@ async function renderLista(view) {
             <option value="">Cargando productos...</option>
           </select>
           <input id="estNuevoNombre" placeholder="…o escribe el nombre del producto">
+          <select id="estNuevoTipo" title="Tipo de producto">
+            <option value="producto">Producto</option>
+            <option value="moda">Moda (ropa, calzado, accesorios)</option>
+          </select>
           <select id="estNuevoFormato" title="Formato de la landing">
             <option value="ban">Ban page (todo en imágenes)</option>
             <option value="normal">Landing normal (Shopify + imágenes)</option>
@@ -245,6 +252,7 @@ async function renderLista(view) {
         <div class="est-proj-top">
           <span class="est-chip">${esc(p.pais)}</span>
           <span class="est-chip">${esc(FORMATOS[formatoDe(p)].corto)}</span>
+          ${p.tipo === "moda" ? `<span class="est-chip">Moda</span>` : ""}
           ${p.vendio ? `<span class="est-chip ok">Vendió ✓</span>` : ""}
         </div>
         <strong>${esc(p.nombre)}</strong>
@@ -320,9 +328,10 @@ window.estCrearProyecto = () => conCarga("estBtnCrear", "Creando...", async () =
   const nombre = $("estNuevoNombre")?.value.trim() || "";
   const pais = $("estNuevoPais")?.value || "CO";
   const formato = $("estNuevoFormato")?.value === "normal" ? "normal" : "ban";
+  const tipo = $("estNuevoTipo")?.value === "moda" ? "moda" : "producto";
   try { localStorage.setItem("est_formato", formato); } catch {}
   if (!productoId && !nombre) throw new Error("Elige un producto o escribe el nombre");
-  const p = await api("POST", "/api/proyectos", productoId ? { productoId, pais, formato } : { nombre, pais, formato });
+  const p = await api("POST", "/api/proyectos", productoId ? { productoId, pais, formato, tipo } : { nombre, pais, formato, tipo });
   if (p.existente) avisar("Ese producto ya tenía proyecto: lo abrimos", "ok");
   await abrir(p._id, p.existente ? null : 1);
 });
@@ -333,6 +342,7 @@ window.estAbrirProyectoEn = (id, paso) => abrir(id, paso);
 window.estVolverLista = () => renderLista($("view"));
 
 async function abrir(id, pasoInicial = null) {
+  importado = null;
   try {
     const [p, pl] = await Promise.all([
       api("GET", `/api/proyectos/${id}`),
@@ -378,6 +388,10 @@ function renderProyecto() {
               <option value="ban" ${formatoDe(p) === "ban" ? "selected" : ""}>Ban page (todo en imágenes)</option>
               <option value="normal" ${formatoDe(p) === "normal" ? "selected" : ""}>Landing normal (Shopify + imágenes)</option>
             </select>
+            <select onchange="estCambiarTipo(this.value)" title="Tipo de producto">
+              <option value="producto" ${p.tipo !== "moda" ? "selected" : ""}>Producto</option>
+              <option value="moda" ${p.tipo === "moda" ? "selected" : ""}>Moda (ropa, calzado)</option>
+            </select>
             <button class="est-btn claro chico" onclick="goTo('plantilla')"><i data-lucide="layout-template"></i> Mi plantilla</button>
           </div>
         </div>
@@ -416,7 +430,7 @@ function renderProyecto() {
 function renderPaso() {
   const cont = $("estContenido");
   if (!cont) return;
-  const render = { 1: pasoFicha, 2: pasoAvatares, 3: pasoEstilo, 4: pasoLanding, 5: pasoGuiones, 6: pasoNotas }[tab];
+  const render = { 1: pasoFicha, 2: pasoAvatares, 3: pasoEstilo, 4: pasoLanding, 5: pasoAnuncios, 6: pasoNotas }[tab];
   if (tab >= 3 && !avatarActual()) {
     cont.innerHTML = `<div class="est-card"><div class="est-alert warn">${(proyecto.avatares || []).length
       ? "Elige con qué avatar vas a trabajar (arriba, en \"Trabajando con\")."
@@ -450,6 +464,15 @@ window.estCambiarFormato = async (formato) => {
     renderProyecto(); return;
   }
   await guardar({ formato });
+  renderProyecto();
+};
+
+window.estCambiarTipo = async (tipo) => {
+  const conSecciones = Object.values(proyecto.ramas || {}).some(r => (r?.secciones || []).length);
+  if (conSecciones && !confirm("Cambiar el tipo de producto cambia las secciones disponibles. Después vuelve a proponer secciones en el paso Landing. ¿Seguir?")) {
+    renderProyecto(); return;
+  }
+  await guardar({ tipo });
   renderProyecto();
 };
 
@@ -487,6 +510,7 @@ function pasoFicha() {
   const descuento = f.precioAntes > f.precio && f.precio > 0 ? Math.round((f.precioAntes - f.precio) / f.precioAntes * 100) : null;
 
   return `
+  ${tarjetaImportar()}
   <div class="est-cols">
     <div class="est-card">
       <h3>Fotos reales del producto</h3>
@@ -572,6 +596,82 @@ function pasoFicha() {
   ${tieneRevision ? siguiente(2, "Seguir con avatares") : ""}
   `;
 }
+
+// ---------- Importar ficha desde un link ----------
+let importado = null;   // respuesta de /api/importar-url mientras el usuario decide qué usar
+
+function tarjetaImportar() {
+  const i = importado;
+  const libres = 6 - (proyecto.fotos || []).length;
+  return `
+  <div class="est-card est-importar">
+    <div class="est-card-row">
+      <div>
+        <h3>Importar desde un link</h3>
+        <p class="est-muted">Pega el link del producto en tu tienda Shopify o en la página del proveedor: CoDropX trae la descripción, el precio, las variantes y las fotos. Usa solo fotos que tengas permiso de usar.</p>
+      </div>
+    </div>
+    <div class="est-importar-fila">
+      <input id="estUrlImportar" class="est-url" type="url" inputmode="url" placeholder="https://mitienda.com/products/..." value="${esc(i?.url || "")}" onkeydown="if(event.key==='Enter') estImportarUrl()">
+      <button id="estBtnImportar" class="est-btn primary" onclick="estImportarUrl()"><i data-lucide="link"></i> Leer link</button>
+    </div>
+    ${i ? `
+    <div class="est-importado">
+      <p><b>${esc(i.nombre || "Producto sin nombre")}</b> · ${i.origen === "shopify" ? "Tienda Shopify" : "Página web"}</p>
+      <div class="est-checks">
+        ${i.descripcion ? `<label><input type="checkbox" id="impDesc" checked> Descripción (${i.descripcion.length} letras)</label>` : ""}
+        ${i.variantes ? `<label><input type="checkbox" id="impVar" checked> Variantes: ${esc(i.variantes.slice(0, 80))}</label>` : ""}
+        ${i.precio ? `<label><input type="checkbox" id="impPrecio" ${proyecto.ficha?.precio ? "" : "checked"}> Precio ${formatoPrecio(i.precio, proyecto.pais)}${i.precioAntes ? ` (antes ${formatoPrecio(i.precioAntes, proyecto.pais)})` : ""}${i.moneda ? ` ${esc(i.moneda)}` : ""}</label>` : ""}
+        ${i.fotos.length ? `<label><input type="checkbox" id="impFotos" ${libres > 0 ? "checked" : "disabled"}> ${Math.min(i.fotos.length, Math.max(libres, 0))} de ${i.fotos.length} fotos${libres <= 0 ? " (ya tienes 6)" : ""}</label>` : `<span class="est-hint">No se pudieron traer fotos${i.fotosEncontradas ? ` (había ${i.fotosEncontradas})` : ""}.</span>`}
+      </div>
+      ${i.fotos.length ? `<div class="est-importado-fotos">${i.fotos.map(src => `<img src="${src}" alt="">`).join("")}</div>` : ""}
+      <div class="est-sec-actions">
+        <button id="estBtnAplicarImport" class="est-btn primary" onclick="estAplicarImportado()"><i data-lucide="check"></i> Usar en la ficha</button>
+        <button class="est-btn ghost" onclick="estDescartarImportado()">Descartar</button>
+      </div>
+    </div>` : ""}
+  </div>`;
+}
+
+window.estImportarUrl = () => conCarga("estBtnImportar", "Leyendo...", async () => {
+  const url = $("estUrlImportar")?.value.trim();
+  if (!url) { avisar("Pega el link del producto", "error"); return; }
+  importado = await api("POST", "/api/importar-url", { url });
+  renderPaso();
+});
+window.estDescartarImportado = () => { importado = null; renderPaso(); };
+
+function dataUrlABlob(dataUrl) {
+  const [cab, datos] = dataUrl.split(",");
+  const tipo = (cab.match(/data:([^;]+)/) || [])[1] || "image/jpeg";
+  const bin = atob(datos);
+  const arr = new Uint8Array(bin.length);
+  for (let k = 0; k < bin.length; k++) arr[k] = bin.charCodeAt(k);
+  return new Blob([arr], { type: tipo });
+}
+
+window.estAplicarImportado = () => conCarga("estBtnAplicarImport", "Guardando...", async () => {
+  const i = importado; if (!i) return;
+  const ficha = leerFicha();
+  if ($("impDesc")?.checked) {
+    if (ficha.descripcion && ficha.descripcion !== i.descripcion && !confirm("Ya hay una descripción. ¿Reemplazarla por la del link?")) { /* deja la actual */ }
+    else ficha.descripcion = i.descripcion;
+  }
+  if ($("impVar")?.checked) ficha.variantes = i.variantes;
+  if ($("impPrecio")?.checked) { ficha.precio = i.precio; if (i.precioAntes) ficha.precioAntes = i.precioAntes; }
+  let fotos = proyecto.fotos || [];
+  if ($("impFotos")?.checked) {
+    const nuevas = [];
+    for (const src of i.fotos.slice(0, Math.max(0, 6 - fotos.length))) {
+      try { nuevas.push(await comprimirFoto(dataUrlABlob(src))); } catch { /* foto que el navegador no lee */ }
+    }
+    fotos = [...fotos, ...nuevas];
+  }
+  await guardar({ ficha, fotos });
+  importado = null;
+  renderPaso();
+  avisar("Ficha actualizada desde el link ✓");
+});
 
 function leerFicha() {
   const val = (id) => $(id)?.value?.trim() ?? "";
@@ -861,7 +961,7 @@ function pasoLanding() {
       <select id="estNuevaTipo">${Object.entries(tipos).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("")}</select>
       <button class="est-btn" onclick="estAgregarSeccion()"><i data-lucide="plus"></i> Agregar sección</button>
     </div>
-    ${siguiente(5, "Seguir con los guiones")}
+    ${siguiente(5, "Seguir con los anuncios")}
   ` : ""}
   `;
 }
@@ -986,7 +1086,7 @@ window.estCambiarVariante = async (i, id) => {
 window.estAgregarSeccion = async () => {
   const tipo = $("estNuevaTipo")?.value;
   const formato = formatoDe(proyecto);
-  const variante = elegirVariante(tipo, cachePlantilla?.[formato]);
+  const variante = elegirVariante(tipo, cachePlantilla?.[claveProyecto()]);
   const nueva = {
     id: Math.random().toString(36).slice(2, 10), tipo, titulo: SECCIONES[tipo]?.titulo || tipo, grupo: av,
     formato: formatoImagen(tipo, formato), variante, composicion: varianteDe(tipo, variante)?.nombre || "",
@@ -1043,7 +1143,209 @@ window.estGenerarTextos = () => conCarga("estBtnTextos", "Escribiendo textos..."
 });
 
 // =============================================
-// PASO 5: GUIONES (3 del avatar elegido)
+// PASO 5: ANUNCIOS (copys, ads estáticos y guiones)
+// =============================================
+let subAnuncio = (() => { try { return localStorage.getItem("est_sub_anuncio") || "copys"; } catch { return "copys"; } })();
+let adSel = new Set();
+let adFormato = "4:5";
+let adPrecio = true;
+
+function pasoAnuncios() {
+  const r = R();
+  const subs = [
+    ["copys", "Copys", "type", r.copys?.meta?.length ? "✓" : ""],
+    ["ads", "Ads estáticos", "image", (r.ads || []).length ? String((r.ads || []).length) : ""],
+    ["guiones", "Guiones de video", "clapperboard", (r.guiones || []).filter(g => g.guion).length ? String((r.guiones || []).filter(g => g.guion).length) : ""]
+  ];
+  const cuerpo = subAnuncio === "ads" ? pasoAds() : subAnuncio === "guiones" ? pasoGuiones() : pasoCopys();
+  return `
+  <nav class="est-subtabs">
+    ${subs.map(([k, t, i, n]) => `<button class="${subAnuncio === k ? "activa" : ""}" onclick="estSubAnuncio('${k}')"><i data-lucide="${i}"></i> ${t}${n ? ` <em>${n}</em>` : ""}</button>`).join("")}
+  </nav>
+  ${cuerpo}`;
+}
+
+window.estSubAnuncio = (k) => {
+  subAnuncio = ["copys", "ads", "guiones"].includes(k) ? k : "copys";
+  try { localStorage.setItem("est_sub_anuncio", subAnuncio); } catch {}
+  renderPaso();
+};
+
+// ---------- Copys ----------
+function pasoCopys() {
+  const r = R();
+  const c = r.copys;
+  const op = c?.opciones || { contraEntrega: true, envio: !!proyecto.ficha?.promesas?.envioGratis, precio: false };
+  const envioReal = !!proyecto.ficha?.promesas?.envioGratis;
+  return `
+  <div class="est-card">
+    <div class="est-card-row">
+      <div>
+        <h3>Copys para Meta y TikTok ${avTag()}</h3>
+        <p class="est-muted">3 textos para Meta Ads (problema, beneficio y curiosidad) y una frase para TikTok, hablándole a ${esc(resumenAvatar(avatarActual()))}. Escritos para que Meta no los rechace.</p>
+      </div>
+      <button id="estBtnCopys" class="est-btn ${c ? "" : "primary"}" onclick="estGenerarCopys()"><i data-lucide="sparkles"></i> ${c ? "Escribir otros" : "Escribir copys"}</button>
+    </div>
+    <div class="est-checks inline">
+      <label><input type="checkbox" id="cpContra" ${op.contraEntrega !== false ? "checked" : ""}> Mencionar pago contra entrega</label>
+      <label title="${envioReal ? "" : "Marca 'Envío gratis' en la Ficha si es verdad"}"><input type="checkbox" id="cpEnvio" ${op.envio && envioReal ? "checked" : ""} ${envioReal ? "" : "disabled"}> Envío gratis${envioReal ? "" : " (no está en la ficha)"}</label>
+      <label><input type="checkbox" id="cpPrecio" ${op.precio ? "checked" : ""}> Poner el precio</label>
+    </div>
+  </div>
+  ${c ? `
+    <div class="est-copys">
+      ${c.meta.map((v, i) => `
+        <article class="est-copy">
+          <span class="est-chip">${esc(ENFOQUES_COPY[v.enfoque] || v.enfoque)}</span>
+          <label class="est-label">Texto principal <button class="est-mini-btn" onclick="estCopiarCopy(${i}, 'texto_principal')"><i data-lucide="copy"></i> Copiar</button></label>
+          <textarea class="est-code" rows="7" onchange="estEditarCopy(${i}, 'texto_principal', this.value)">${esc(v.texto_principal)}</textarea>
+          <label class="est-label">Título <small>${(v.titulo || "").length}/40</small> <button class="est-mini-btn" onclick="estCopiarCopy(${i}, 'titulo')"><i data-lucide="copy"></i></button></label>
+          <input class="est-input" value="${esc(v.titulo)}" maxlength="80" onchange="estEditarCopy(${i}, 'titulo', this.value)">
+          <label class="est-label">Descripción <small>${(v.descripcion || "").length}/30</small> <button class="est-mini-btn" onclick="estCopiarCopy(${i}, 'descripcion')"><i data-lucide="copy"></i></button></label>
+          <input class="est-input" value="${esc(v.descripcion)}" maxlength="60" onchange="estEditarCopy(${i}, 'descripcion', this.value)">
+        </article>`).join("")}
+    </div>
+    <div class="est-card">
+      <div class="est-card-row"><h3>TikTok</h3><button class="est-mini-btn" onclick="estCopiarTiktok()"><i data-lucide="copy"></i> Copiar</button></div>
+      <input class="est-input" value="${esc(c.tiktok)}" maxlength="200" onchange="estEditarTiktok(this.value)">
+    </div>` : ""}
+  <div class="est-next"><button class="est-btn primary" onclick="estSubAnuncio('ads')">Seguir con los ads estáticos <i data-lucide="arrow-right"></i></button></div>`;
+}
+
+window.estCopiarTiktok = () => copiar(R().copys?.tiktok || "");
+window.estGenerarCopys = () => conCarga("estBtnCopys", "Escribiendo...", async () => {
+  const { rama } = await api("POST", urlRama("ia/copys"), {
+    contraEntrega: !!$("cpContra")?.checked, envio: !!$("cpEnvio")?.checked, precio: !!$("cpPrecio")?.checked
+  });
+  ponerRama(rama);
+  renderPaso();
+});
+window.estCopiarCopy = (i, campo) => copiar(R().copys?.meta?.[i]?.[campo] || "");
+window.estEditarCopy = (i, campo, v) => {
+  const c = R().copys; if (!c) return;
+  guardarRama({ copys: { ...c, meta: c.meta.map((x, j) => j === i ? { ...x, [campo]: v } : x) } });
+};
+window.estEditarTiktok = (v) => { const c = R().copys; if (c) guardarRama({ copys: { ...c, tiktok: v } }); };
+
+// ---------- Ads estáticos ----------
+function pasoAds() {
+  const r = R();
+  const ads = r.ads || [];
+  const acento = r.estilo?.color2 && /^#[0-9a-f]{3,8}$/i.test(r.estilo.color2) ? r.estilo.color2 : "#6366f1";
+  const libres = Math.max(0, MAX_ADS - ads.length);
+  const conPrompt = ads.filter(a => a.prompt).length;
+  return `
+  <div class="est-card">
+    <h3>Ads estáticos ${avTag()}</h3>
+    <p class="est-muted">Marca las estructuras que quieres probar (hasta ${Math.min(5, libres)} a la vez), elige el formato y CoDropX escribe el prompt de cada anuncio con el estilo de esta landing. Se hacen en Gemini igual que las secciones.</p>
+    ${!r.estilo ? `<div class="est-alert warn">Sin estilo elegido (paso 3) los anuncios no tendrán tus colores de marca.</div>` : ""}
+    <div class="est-ad-grid">
+      ${Object.entries(ESTRUCTURAS_AD).map(([k, e]) => `
+        <button class="est-ad-op ${adSel.has(k) ? "sel" : ""}" title="${esc(e.desc)}" onclick="estAdSel('${k}')">
+          ${dibujar(e.dibujo, acento, "est-ad-dib")}
+          <span>${esc(e.nombre)}</span>
+        </button>`).join("")}
+    </div>
+    <div class="est-ad-ops">
+      <span class="est-muted">Formato:</span>
+      ${Object.entries(FORMATOS_AD).map(([k, f]) => `<button class="est-chip-btn ${adFormato === k ? "activo" : ""}" onclick="estAdFormato('${k}')"><b>${k}</b> ${f.uso}</button>`).join("")}
+      <label class="est-check"><input type="checkbox" ${adPrecio ? "checked" : ""} onchange="estAdPrecio(this.checked)"> Mostrar precio</label>
+      <button id="estBtnAds" class="est-btn primary" onclick="estCrearAds()" ${adSel.size && libres ? "" : "disabled"}><i data-lucide="sparkles"></i> Crear ${adSel.size || ""} anuncio${adSel.size === 1 ? "" : "s"}</button>
+    </div>
+    ${!libres ? `<p class="est-hint">Llegaste a ${MAX_ADS} anuncios: quita alguno para crear más.</p>` : ""}
+  </div>
+
+  ${ads.length ? `
+    <div class="est-card-row" style="margin:4px 0">
+      <p class="est-muted">${conPrompt}/${ads.length} prompts · ${ads.filter(a => a.hecha).length} imágenes hechas</p>
+      ${ads.some(a => !a.prompt) ? `<button id="estBtnAdsFaltan" class="est-btn" onclick="estGenerarAdsFaltantes()"><i data-lucide="sparkles"></i> Escribir los que faltan</button>` : ""}
+    </div>
+    <div class="est-ads">
+      ${ads.map((a, i) => tarjetaAd(a, i, acento)).join("")}
+    </div>` : ""}
+  <div class="est-next"><button class="est-btn primary" onclick="estSubAnuncio('guiones')">Seguir con los guiones de video <i data-lucide="arrow-right"></i></button></div>`;
+}
+
+function tarjetaAd(a, i, acento) {
+  const e = ESTRUCTURAS_AD[a.estructura];
+  return `
+  <article class="est-sec est-ad ${a.hecha ? "hecha" : ""}" id="ad-${esc(a.id)}">
+    <div class="est-sec-head">
+      ${dibujar(e?.dibujo, acento, "est-ad-mini")}
+      <div class="est-sec-info">
+        <strong>${esc(e?.nombre || a.estructura)}</strong>
+        <div class="est-sec-tags"><span class="est-chip">${esc(a.formato)} · ${esc(FORMATOS_AD[a.formato]?.uso || "")}</span><span class="est-chip">${a.precio ? "Con precio" : "Sin precio"}</span></div>
+        <input class="est-input chico" value="${esc(a.nota)}" placeholder="Nota opcional (ej: usar la foto en la cocina)" onchange="estEditarAd(${i}, 'nota', this.value)">
+      </div>
+    </div>
+    ${a.prompt ? `<textarea class="est-code" rows="9" onchange="estEditarAd(${i}, 'prompt', this.value)">${esc(a.prompt)}</textarea>` : `<div class="est-empty">Sin prompt todavía.</div>`}
+    <div class="est-sec-actions">
+      <button class="est-btn ${a.prompt ? "" : "primary"}" id="btnAd-${esc(a.id)}" onclick="estGenerarAd('${esc(a.id)}')"><i data-lucide="sparkles"></i> ${a.prompt ? "Regenerar" : "Escribir prompt"}</button>
+      ${a.prompt ? `<button class="est-btn primary" onclick="estCopiarAd(${i})"><i data-lucide="copy"></i> Copiar estilo + prompt</button>
+      <label class="est-check"><input type="checkbox" ${a.hecha ? "checked" : ""} onchange="estEditarAd(${i}, 'hecha', this.checked, true)"> Imagen hecha</label>` : ""}
+      <button class="est-btn ghost danger" title="Quitar anuncio" onclick="estQuitarAd(${i})"><i data-lucide="x"></i></button>
+    </div>
+  </article>`;
+}
+
+window.estAdSel = (k) => {
+  if (adSel.has(k)) adSel.delete(k);
+  else if (adSel.size < 5) adSel.add(k);
+  else avisar("Máximo 5 estructuras a la vez", "error");
+  renderPaso();
+};
+window.estAdFormato = (f) => { adFormato = FORMATOS_AD[f] ? f : "4:5"; renderPaso(); };
+window.estAdPrecio = (v) => { adPrecio = !!v; };
+
+async function generarAd(id) {
+  const avDeLaPeticion = av;
+  const { ad } = await api("POST", urlRama(`ia/ad/${id}`));
+  if (av !== avDeLaPeticion) return;
+  const r = R();
+  ponerRama({ ...r, ads: (r.ads || []).map(a => a.id === id ? ad : a) });
+}
+
+async function generarVarios(ids, botonId) {
+  let hechos = 0;
+  for (const id of ids) {
+    const b = $(botonId);
+    if (b) { b.disabled = true; b.innerHTML = `<span class="est-spin"></span> Escribiendo ${hechos + 1} de ${ids.length}...`; }
+    try { await generarAd(id); hechos++; }
+    catch (err) { avisar(err.message, "error"); if (/límite/i.test(err.message)) break; }
+    if (tab === 5 && subAnuncio === "ads") renderPaso();
+  }
+  avisar(`${hechos} anuncio(s) listos ✓`);
+  if (tab === 5) renderPaso();
+}
+
+window.estCrearAds = async () => {
+  const r = R();
+  const libres = MAX_ADS - (r.ads || []).length;
+  const nuevos = [...adSel].slice(0, libres).map(estructura => ({
+    id: Math.random().toString(36).slice(2, 10), estructura, formato: adFormato, precio: adPrecio, nota: "", prompt: "", hecha: false
+  }));
+  if (!nuevos.length) return;
+  await guardarRama({ ads: [...(r.ads || []), ...nuevos] });
+  adSel = new Set();
+  renderPaso();
+  await generarVarios(nuevos.map(a => a.id), "estBtnAdsFaltan");
+};
+window.estGenerarAdsFaltantes = () => generarVarios((R().ads || []).filter(a => !a.prompt).map(a => a.id), "estBtnAdsFaltan");
+window.estGenerarAd = (id) => conCarga(`btnAd-${id}`, "Escribiendo...", async () => { await generarAd(id); renderPaso(); });
+window.estCopiarAd = (i) => { const r = R(); copiar(`${r.bloqueEstilo || ""}\n\n${r.ads[i].prompt}`.trim()); };
+window.estEditarAd = async (i, campo, v, repintar) => {
+  await guardarRama({ ads: (R().ads || []).map((a, j) => j === i ? { ...a, [campo]: v } : a) });
+  if (repintar) renderPaso();
+};
+window.estQuitarAd = async (i) => {
+  const a = R().ads?.[i]; if (!a) return;
+  if (!confirm(`¿Quitar el anuncio "${ESTRUCTURAS_AD[a.estructura]?.nombre || ""}"?`)) return;
+  await guardarRama({ ads: R().ads.filter((_, j) => j !== i) });
+  renderPaso();
+};
+
+// =============================================
+// PASO 5c: GUIONES (3 del avatar elegido)
 // =============================================
 const POR_AVATAR = 3;
 
