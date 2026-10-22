@@ -117,11 +117,15 @@ async function todas(ruta, params, tope = 300) {
 const ESTADOS_CUENTA = { 1: "Activa", 2: "Deshabilitada", 3: "Pago pendiente", 7: "En revisión", 8: "Pago pendiente", 9: "En periodo de gracia", 100: "Cerrada", 101: "Cerrada" };
 
 async function traerCuentas(token) {
-  const lista = await todas("me/adaccounts", {
-    access_token: token,
-    fields: "name,account_id,currency,account_status,business{name}",
-    limit: 100
-  });
+  const pedir = (fields) => todas("me/adaccounts", { access_token: token, fields, limit: 100 });
+  let lista;
+  try {
+    lista = await pedir("name,account_id,currency,account_status,business{name}");
+  } catch (e) {
+    if (e.codigo === 190) throw e;
+    // Solo con ads_read, Meta a veces no deja ver el negocio: se pide sin ese dato
+    lista = await pedir("name,account_id,currency,account_status");
+  }
   return lista.map(a => ({
     id: String(a.id || ""),
     account_id: String(a.account_id || ""),

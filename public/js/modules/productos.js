@@ -168,6 +168,8 @@ function chipsAvance(p) {
     chips.push(`<span class="bp-chip proyecto" title="Avance en Desarrollo">${pasos || `paso ${Math.min(pr.paso || 1, 2)}/6`}</span>`);
   }
   if (pr?.vendio) chips.push(`<span class="bp-chip vendio">Vendió ✓</span>`);
+  const RES = { testeando: "Testeando", winner: "Winner", perdedor: "Perdedor", inconcluso: "Inconcluso" };
+  if (RES[p.resultado]) chips.push(`<span class="bp-chip res-${p.resultado}" title="Resultado en Mis testeos">${RES[p.resultado]}</span>`);
   return chips.join("") || `<span class="bp-sin">Sin empezar</span>`;
 }
 
@@ -312,8 +314,9 @@ window.cambiarEstado = async function(id, nuevoEstado) {
       body: JSON.stringify({ estado: nuevoEstado })
     });
     if (!res.ok) { alert("No se pudo actualizar el estado"); return; }
+    const data = await res.json().catch(() => ({}));
     const p = state.productos.find(x => x._id === id);
-    if (p) p.estado = nuevoEstado;
+    if (p) Object.assign(p, data.producto || { estado: nuevoEstado });
     renderTablaProductos();
   } catch (err) {
     console.error("Error cambiando estado:", err);

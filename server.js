@@ -53,10 +53,31 @@ const productoSchema = new mongoose.Schema({
     creativos: Boolean,
     landing: Boolean
   },
-  fecha: Date
+  fecha: Date,
+  // Mis testeos: resultado del testeo del producto
+  resultado: { type: String, default: "" },          // "" | testeando | winner | perdedor | inconcluso
+  testeo: { inicio: Date, fin: Date, avatar: String, nota: String }
 });
 
 const Producto = mongoose.model("Producto", productoSchema);
+
+const RESULTADOS = ["", "testeando", "winner", "perdedor", "inconcluso"];
+const AVATARES_TESTEO = ["", "A", "B", "AB"];
+
+// Datos del testeo que llegan del navegador
+function limpiarTesteo(body = {}, actual = {}) {
+  const fecha = (v) => { if (!v) return null; const d = new Date(v); return isNaN(d) ? null : d; };
+  if (typeof actual.toObject === "function") actual = actual.toObject();
+  const resultado = RESULTADOS.includes(body.resultado) ? body.resultado : (actual.resultado || "");
+  const t = { ...(actual.testeo || {}) };
+  if (body.inicio !== undefined) t.inicio = fecha(body.inicio);
+  if (body.avatar !== undefined) t.avatar = AVATARES_TESTEO.includes(body.avatar) ? body.avatar : "";
+  if (body.nota !== undefined) t.nota = String(body.nota || "").slice(0, 1000);
+  if (resultado && !t.inicio) t.inicio = new Date();                       // empieza hoy si no tiene fecha
+  if (["winner", "perdedor", "inconcluso"].includes(resultado)) t.fin = t.fin || new Date();
+  else t.fin = null;
+  return { resultado, testeo: t };
+}
 
 
 // Solo estos campos se pueden guardar/editar desde el navegador
@@ -490,9 +511,16 @@ app.put("/api/productos/:id/estado", async (req, res) => {
     const { id } = req.params;
     if (!idValido(id)) return res.status(400).json({ error: "ID inválido" });
 
+    const estado = String(req.body?.estado || "");
+    const cambios = { estado };
+    // Al lanzarlo, queda "testeando" en Mis testeos (si aún no tenía resultado)
+    if (estado === "lanzado") {
+      const actual = await Producto.findOne({ _id: id, owner: req.user.uid });
+      if (actual && !actual.resultado) Object.assign(cambios, limpiarTesteo({ resultado: "testeando" }, actual));
+    }
     const productoActualizado = await Producto.findOneAndUpdate(
       { _id: id, owner: req.user.uid },
-      { estado: String(req.body?.estado || "") },
+      cambios,
       { new: true }
     );
 
@@ -501,6 +529,22 @@ app.put("/api/productos/:id/estado", async (req, res) => {
   } catch (err) {
     console.error("Error actualizando estado:", err);
     res.status(500).json({ error: "No se pudo actualizar el estado" });
+  }
+});
+
+// Mis testeos: resultado, fecha de inicio, avatar ganador y nota
+app.put("/api/productos/:id/testeo", async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!idValido(id)) return res.status(400).json({ error: "ID inválido" });
+    const actual = await Producto.findOne({ _id: id, owner: req.user.uid });
+    if (!actual) return res.status(404).json({ error: "Producto no encontrado" });
+    const cambios = limpiarTesteo(req.body || {}, actual);
+    const producto = await Producto.findOneAndUpdate({ _id: id, owner: req.user.uid }, cambios, { new: true });
+    res.json({ ok: true, producto });
+  } catch (err) {
+    console.error("Error guardando testeo:", err);
+    res.status(500).json({ error: "No se pudo guardar el testeo" });
   }
 });
 

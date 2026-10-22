@@ -59,6 +59,11 @@ export function renderSidebar() {
 
 </div>
 
+<div class="sidebar-item" data-route="testeos" onclick="goTo('testeos')">
+  <i data-lucide="flask-conical"></i>
+  <span>Mis testeos</span>
+</div>
+
 <div class="sidebar-item" data-route="desarrollo" onclick="goTo('desarrollo')">
   <i data-lucide="brain"></i>
   <span>Desarrollo</span>

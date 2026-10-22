@@ -4340,3 +4340,85 @@ main:has(.pl-page) { overflow-x: clip; overflow-y: visible; }
   .in-id, .in-estado { display: none; }
   .in-head h1 { font-size: 24px; }
 }
+
+/* =========================================================
+   MIS TESTEOS (ts-)
+========================================================= */
+.bp-chip.res-testeando { background: #e0f2fe; color: #0369a1; }
+.bp-chip.res-winner { background: #dcfce7; color: #15803d; }
+.bp-chip.res-perdedor { background: #fee2e2; color: #b91c1c; }
+.bp-chip.res-inconcluso { background: #fef3c7; color: #92400e; }
+
+.ts-page { width: 100%; max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; color: #0f172a; }
+.ts-head h1 { margin: 0 0 6px; font-size: 30px; font-weight: 800; display: flex; align-items: center; gap: 10px; }
+.ts-head h1 svg { width: 26px; height: 26px; }
+.ts-head p { margin: 0; color: #64748b; font-size: 14px; line-height: 1.5; max-width: 860px; }
+.ts-tarjetas { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.ts-tarjeta {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 14px 16px; border-radius: 14px;
+  background: #fff; border: 1.5px solid #e2e8f0; cursor: pointer; font: inherit; color: #0f172a; text-align: left;
+}
+.ts-tarjeta:hover { background: #f8fafc; }
+.ts-tarjeta b { font-size: 26px; font-weight: 800; }
+.ts-tarjeta span { font-size: 11px; font-weight: 800; letter-spacing: .08em; }
+.ts-tarjeta small { font-size: 11px; color: #64748b; }
+.ts-tarjeta.testeando span { color: #0369a1; }
+.ts-tarjeta.winner span { color: #15803d; }
+.ts-tarjeta.perdedor span { color: #b91c1c; }
+.ts-tarjeta.inconcluso span { color: #92400e; }
+.ts-tarjeta.activa { border-color: #0f766e; box-shadow: 0 0 0 2px rgba(15,118,110,.15); background: #f8fafc; }
+.ts-barra { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.ts-barra input, .ts-barra select {
+  min-height: 40px; border: 1px solid #cbd5e1; border-radius: 10px; padding: 0 12px; font: inherit; font-size: 13px; background: #fff; color: #0f172a; width: auto;
+}
+.ts-barra input { flex: 1 1 220px; min-width: 0; }
+.ts-barra #tsAgregar { max-width: 320px; }
+.ts-espacio { flex: 1 1 0; }
+.ts-btn {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border-radius: 10px; border: 0;
+  background: #0f172a; color: #fff; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.ts-btn:hover { background: #1e293b; }
+.ts-btn svg { width: 15px; height: 15px; }
+.ts-limpiar { background: none; border: 0; color: #0f766e; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; padding: 0 6px; }
+.ts-limpiar:hover { background: none; text-decoration: underline; }
+.ts-tabla { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; overflow: hidden; }
+.ts-fila { display: grid; grid-template-columns: minmax(0, 2.4fr) 70px 110px 130px 140px 130px 110px; gap: 10px; align-items: center; padding: 10px 14px; border-top: 1px solid #f1f5f9; font-size: 13px; }
+.ts-fila:first-child { border-top: 0; }
+.ts-enc { background: #f8fafc; color: #64748b; font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+.ts-nombre { display: flex; flex-direction: column; min-width: 0; gap: 2px; }
+.ts-nombre strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ts-nombre small { color: #94a3b8; font-size: 11px; }
+.ts-nota-fila { color: #64748b !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ts-vendio { color: #15803d; font-weight: 700; }
+.ts-sel { width: 100%; min-height: 32px; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0 6px; font: inherit; font-size: 12px; background: #fff; color: #0f172a; }
+.ts-res { font-weight: 800; letter-spacing: .03em; }
+.ts-res.testeando { color: #0369a1; border-color: #7dd3fc; }
+.ts-res.winner { color: #15803d; border-color: #86efac; }
+.ts-res.perdedor { color: #b91c1c; border-color: #fca5a5; }
+.ts-res.inconcluso { color: #92400e; border-color: #fcd34d; }
+.ts-fecha { display: flex; flex-direction: column; gap: 2px; }
+.ts-fecha input { min-height: 32px; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0 6px; font: inherit; font-size: 12px; width: 100%; }
+.ts-fecha small, .ts-precio small { color: #94a3b8; font-size: 11px; }
+.ts-precio { display: flex; flex-direction: column; font-weight: 700; }
+.ts-acciones { display: flex; gap: 6px; justify-content: flex-end; }
+.ts-icono {
+  width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0;
+  border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; color: #334155; cursor: pointer;
+}
+.ts-icono:hover { background: #f1f5f9; }
+.ts-icono.peligro { color: #b91c1c; }
+.ts-icono.peligro:hover { background: #fef2f2; }
+.ts-icono svg { width: 15px; height: 15px; }
+.ts-vacio { padding: 24px; text-align: center; color: #64748b; font-size: 14px; }
+.ts-nota { margin: 0; font-size: 12px; color: #64748b; }
+@media (max-width: 1000px) {
+  .ts-tarjetas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ts-enc { display: none; }
+  .ts-fila { grid-template-columns: 1fr 1fr; padding: 12px; }
+  .ts-nombre { grid-column: 1 / -1; }
+  .ts-pais { grid-column: 1 / -1; }
+  .ts-acciones { grid-column: 1 / -1; justify-content: flex-start; }
+  .ts-barra #tsAgregar { max-width: none; flex: 1 1 100%; }
+  .ts-espacio { display: none; }
+}
