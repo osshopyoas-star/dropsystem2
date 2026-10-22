@@ -16,6 +16,7 @@ import "./modules/plantilla.js";
 import "./modules/integraciones.js";
 import "./modules/testeos.js";
 import "./modules/finanzas.js";
+import "./modules/inicio.js";
 
 import { renderSidebar } from "../components/sidebar.js";
 import { initModalEliminar } from "./modules/productos.js";

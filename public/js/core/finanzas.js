@@ -433,3 +433,61 @@ export function logistica(lineas, { desde, hasta, grupos = [], ahora = new Date(
     })).sort((a, b) => (b.horasSinMovimiento ?? 0) - (a.horasSinMovimiento ?? 0))
   };
 }
+
+// =============================================
+// TESTEOS: cómo le va a un producto en un rango (pedidos de Dropi + pauta)
+// =============================================
+const normal = (s) => sinTildes(s).replace(/[^A-Z0-9]+/g, " ").trim();
+
+/** Busca la clave (p:ID o g:grupo) de un producto de la Base en los pedidos de Dropi */
+export function claveDeProducto(prod, lineas, grupos = []) {
+  if (!prod) return null;
+  const id = txt(prod.dropiId);
+  if (id && lineas.some(l => String(l.productoId) === id)) return claveProducto(id, grupos);
+  const n = normal(prod.nombre);
+  if (n.length < 4) return id ? claveProducto(id, grupos) : null;
+  const l = lineas.find(x => normal(x.producto) === n) || lineas.find(x => { const m = normal(x.producto); return m.includes(n) || n.includes(m); });
+  return l ? claveProducto(l.productoId, grupos) : (id ? claveProducto(id, grupos) : null);
+}
+
+/** Métricas de un producto entre dos fechas */
+export function metricasProducto(lineas, { clave, desde, hasta, pauta = {}, grupos = [], devPct = 25 }) {
+  if (!clave) return null;
+  const filas = controlDiario(lineas, { desde, hasta, grupos, pauta, devPct }).filter(f => f.clave === clave);
+  const t = totalesControl(filas);
+  const eq = t.efectivas > 0 ? filas.reduce((s, f) => s + f.equilibrio * f.efectivas, 0) / t.efectivas
+    : (filas.filter(f => f.pedidos).length ? prom(filas.filter(f => f.pedidos).map(f => f.equilibrio)) : null);
+  const sel = lineas.filter(l => claveProducto(l.productoId, grupos) === clave && (!desde || l.fecha >= desde) && (!hasta || l.fecha <= hasta));
+  const ords = porOrden(sel);
+  const desp = ords.filter(o => !["cancelado", "pendiente"].includes(o.grupo));
+  const ent = ords.filter(o => o.grupo === "entregado").length;
+  const dev = ords.filter(o => o.grupo === "devolucion").length;
+  return {
+    dias: new Set(filas.map(f => f.fecha)).size,
+    pedidos: t.pedidos, efectivas: t.efectivas, gasto: t.gasto, cpa: t.cpa, equilibrio: eq, utilidad: t.utilidad, roi: t.roi,
+    entregados: ent, devoluciones: dev, despachados: desp.length, tasaEntrega: desp.length ? ent / desp.length * 100 : null,
+    cerrados: ent + dev
+  };
+}
+
+/**
+ * Sugerencia de resultado (no decide sola: tú confirmas)
+ * equilibrioRef: CPA de equilibrio del costeo si no hay pedidos todavía
+ */
+export function sugerirResultado(m, equilibrioRef = null) {
+  if (!m) return { resultado: null, motivo: "No encontramos pedidos de este producto en tus Excel de Dropi." };
+  const eq = m.equilibrio || equilibrioRef;
+  if (!m.gasto && !m.pedidos) return { resultado: null, motivo: "Sin pedidos ni pauta registrada todavía." };
+  if (!m.gasto) return { resultado: null, motivo: "Tiene pedidos pero falta registrar la pauta en el Control Diario." };
+  if (m.efectivas >= 3 && m.utilidad > 0) {
+    return { resultado: "winner", motivo: `Gana: CPA ${m.cpa ? Math.round(m.cpa).toLocaleString("es-CO") : "—"} por debajo del equilibrio${eq ? ` (${Math.round(eq).toLocaleString("es-CO")})` : ""} con ${m.pedidos} pedidos.` };
+  }
+  if (eq && m.gasto >= 2 * eq && m.utilidad < 0) {
+    return { resultado: "perdedor", motivo: `Gastó ${(m.gasto / eq).toFixed(1)} veces el CPA de equilibrio y va perdiendo.` };
+  }
+  if (eq) {
+    const falta = Math.max(0, 2 * eq - m.gasto);
+    return { resultado: "testeando", motivo: m.utilidad >= 0 ? `Va bien, pero aún son pocos pedidos para decidir.` : `Aún no hay suficiente gasto para decidir${falta ? `: dale hasta ${Math.round(falta).toLocaleString("es-CO")} más` : ""}.` };
+  }
+  return { resultado: "inconcluso", motivo: "Sin costeo ni pedidos para saber su CPA de equilibrio. Cuéstalo en la calculadora." };
+}
