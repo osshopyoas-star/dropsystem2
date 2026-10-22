@@ -180,6 +180,30 @@ function guardarBorrador() {
   } catch {}
 }
 
+// ---------- Color de los % de cancelación y devolución ----------
+// hasta 15% morado (bien) · 16% a 30% naranja (cuidado) · 31% o más rojo (alto)
+function colorPorcentaje(valor) {
+  const v = Number(valor) || 0;
+  if (v <= 15) return "#4f46e5";
+  if (v <= 30) return "#ea580c";
+  return "#dc2626";
+}
+
+function pintarPorcentaje(id, valor) {
+  const color = colorPorcentaje(valor);
+  const v = Number(valor) || 0;
+  const barra = $(id);
+  const texto = $(`${id}Txt`);
+  if (texto) { texto.textContent = `${v}%`; texto.style.color = color; }
+  if (barra) {
+    barra.style.accentColor = color;
+    barra.style.color = color;   // borde del círculo
+    // parte llena de la barra del mismo color (Chrome/Edge)
+    const pct = (v / Number(barra.max || 100)) * 100;
+    barra.style.background = `linear-gradient(to right, ${color} ${pct}%, #e2e8f0 ${pct}%)`;
+  }
+}
+
 // ---------- Cálculo ----------
 window.calCalcular = function () {
   const d = leerDatos();
@@ -187,8 +211,8 @@ window.calCalcular = function () {
   ultimo = r;
   guardarBorrador();
 
-  if ($("calCanceladosTxt")) $("calCanceladosTxt").textContent = `${Number(d.cancelados) || 0}%`;
-  if ($("calDevolucionesTxt")) $("calDevolucionesTxt").textContent = `${Number(d.devoluciones) || 0}%`;
+  pintarPorcentaje("calCancelados", d.cancelados);
+  pintarPorcentaje("calDevoluciones", d.devoluciones);
   if ($("calEfectividad")) $("calEfectividad").textContent = `Entrega sobre despachado: ${Math.round(r.entregaPct)}% · Efectividad total: ${Math.round(r.efectividadPct)}%`;
 
   const utilidadInput = $("calUtilidad");
