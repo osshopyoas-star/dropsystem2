@@ -22,6 +22,7 @@ import { registrarRutasProyectos } from "./rutas-proyectos.js";
 import { registrarRutasCosteos } from "./rutas-costeos.js";
 import { registrarRutasPlantilla } from "./rutas-plantilla.js";
 import { registrarRutasMeta } from "./rutas-meta.js";
+import { registrarRutasFinanzas } from "./rutas-finanzas.js";
 
 // =============================================
 // 🗄️ MODELOS
@@ -473,6 +474,7 @@ registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Producto });
 registrarRutasCosteos(app, { idValido, Producto });
 registrarRutasPlantilla(app);
 registrarRutasMeta(app);
+registrarRutasFinanzas(app, { llamarIA, iaLimiter });
 
 // =============================================
 // 📦 PRODUCTOS (cada usuario ve solo los suyos)

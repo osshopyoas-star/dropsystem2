@@ -74,6 +74,27 @@ export function renderSidebar() {
   <span>Mi plantilla</span>
 </div>
 
+<div class="sidebar-item" onclick="toggleFinanzasMenu()">
+  <i data-lucide="wallet"></i>
+  <span>Finanzas</span>
+  <i id="finanzas-arrow" data-lucide="chevron-right" style="margin-left:auto;"></i>
+</div>
+
+<div id="finanzas-submenu" class="submenu">
+<div class="sidebar-item" data-route="control-diario" onclick="goTo('control-diario')">
+  <i data-lucide="calendar-check"></i>
+  <span>Control Diario</span>
+</div>
+<div class="sidebar-item" data-route="reporte-financiero" onclick="goTo('reporte-financiero')">
+  <i data-lucide="bar-chart-3"></i>
+  <span>Reporte Financiero</span>
+</div>
+<div class="sidebar-item" data-route="logistica" onclick="goTo('logistica')">
+  <i data-lucide="truck"></i>
+  <span>Logística</span>
+</div>
+</div>
+
 <div class="sidebar-item" data-route="calculadora" onclick="goTo('calculadora')">
   <i data-lucide="calculator"></i>
   <span>Calculadora</span>
