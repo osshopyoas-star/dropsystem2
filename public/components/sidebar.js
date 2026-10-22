@@ -74,6 +74,11 @@ export function renderSidebar() {
   <span>Calculadora</span>
 </div>
 
+<div class="sidebar-item" data-route="integraciones" onclick="goTo('integraciones')">
+  <i data-lucide="plug"></i>
+  <span>Integraciones</span>
+</div>
+
 <div class="sidebar-item sidebar-logout" onclick="cerrarSesion()">
   <i data-lucide="log-out"></i>
   <span>Cerrar sesión</span>

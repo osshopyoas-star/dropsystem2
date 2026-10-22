@@ -13,14 +13,23 @@ import "./modules/productos.js";
 import "./modules/desarrollo.js";
 import "./modules/calculadora.js";
 import "./modules/plantilla.js";
+import "./modules/integraciones.js";
 
 import { renderSidebar } from "../components/sidebar.js";
 import { initModalEliminar } from "./modules/productos.js";
 
 window.addEventListener("DOMContentLoaded", () => {
   renderSidebar();
-  goTo("inicio");
-  marcarMenuActivo("inicio");
+  // Al volver de conectar Meta, abrir Integraciones con el resultado
+  const meta = new URLSearchParams(location.search).get("meta");
+  if (meta) {
+    history.replaceState(null, "", location.pathname);
+    window.__metaResultado = meta;
+    goTo("integraciones");
+  } else {
+    goTo("inicio");
+    marcarMenuActivo("inicio");
+  }
   initModalEliminar();
 
   setTimeout(() => {
