@@ -1,3 +1,4 @@
+import { limpiarFuentes } from "./public/js/core/fuentes.js";
 // =============================================
 // 🖼️ PROMPTS DEL ESTUDIO DE LANDING (Desarrollo)
 // Basados en la "Guía de trabajo: landings y creativos con IA".
@@ -5,7 +6,7 @@
 // y todas las landings nuevas la tendrán en cuenta.
 // =============================================
 
-import { SECCIONES, FORMATOS, varianteDe, tiposDe, claveDe } from "./public/js/core/plantilla.js";
+import { SECCIONES, FORMATOS, varianteDe, tiposDe, claveDe, ACABADOS } from "./public/js/core/plantilla.js";
 
 const limpio = (v, max = 3000) => String(v ?? "").slice(0, max).trim();
 
@@ -39,17 +40,18 @@ export const REGLAS_APRENDIDAS = [
   "Si es un pack o kit, muéstralo completo y en grande en la imagen de oferta, con el precio por unidad si aplica.",
   "El producto nunca queda tapado: titulares compactos, el producto es el protagonista y se ve grande.",
   "Estilo de VENTA DIRECTA que invita a comprar por impulso, no estilo editorial ni de revista.",
-  "Para un GIF, pide un círculo vacío 'negro y liso por dentro', con un pequeño rótulo arriba.",
+  "NUNCA pidas recuadros, marcos ni círculos vacíos para GIF, logo, botones o transportadoras: la IA los dibuja como cajas feas. Si el dueño va a pegar algo después, deja esa zona con el MISMO fondo de la imagen, lisa y sin bordes. Única excepción: las secciones de reseñas y de chats, que llevan tarjetas o burbujas blancas lisas (sin borde doble ni líneas por dentro).",
   "No pidas pegar ropa o piezas de otra foto: pide 'recolorea' o describe la prenda.",
   "Para lencería o productos sensibles: genera una modelo adulta nueva, sin poses sugestivas ni desnudez.",
-  "Logos de transportadoras, logo de la tienda y reseñas: deja recuadros vacíos para pegarlos después en Canva.",
+  "Nombres de tipografías (Bebas Neue, Montserrat, etc.) y nombres de colores o códigos hex son instrucciones de diseño: NUNCA aparecen escritos en la imagen. En la imagen solo va el texto que está entre comillas.",
+  "En comparaciones 'nosotros vs otros': la columna de los otros lleva SOLO desventajas con ✗; nunca repitas allí lo que incluye tu producto.",
   "Todos los textos entre comillas, con tildes y signos de español, sin errores. Nada de texto de plantilla visible (por ejemplo 'SECCIÓN 7').",
   "Mantén EXACTAMENTE el mismo modelo, color y diseño del producto en todas las imágenes.",
   "Listas de tallas o números: escríbelas completas y en orden, sin repetir."
 ];
 
 export const LIMITES = [
-  "Reseñas y testimonios: NUNCA inventes rostros, nombres, ciudades, calificaciones ('4.8/5'), cantidades de comentarios ni 'compra verificada'. Si hay sección de reseñas, deja tarjetas vacías para pegar reseñas reales (capturas de WhatsApp o fotos de clientes).",
+  "Reseñas y testimonios: NUNCA inventes rostros, nombres, ciudades, calificaciones ('4.8/5'), cantidades de comentarios ni 'compra verificada'. Si hay sección de reseñas, solo el título y una zona de fondo liso (sin tarjetas ni marcos) donde el dueño pega capturas reales.",
   "Producto real: la imagen muestra exactamente lo que llega. No agregues detalles, piezas, logos ni empaques de marca que no existan.",
   "Promesas médicas: prohibido 'cura', 'elimina', 'reduce el dolor', 'indoloro' o porcentajes sin prueba. Usa 'soporte', 'molestias', 'calor leve', 'apoyo' y menciona para quién no es si aplica.",
   "Marcas ajenas: no escribas nombres de otras marcas (Nike, IKEA, etc.) ni digas que es el producto original u oficial de una marca, salvo que la ficha diga que es original o licenciado. Pide logos de terceros borrosos o sin logo.",
@@ -191,6 +193,9 @@ const resumenAvatares = (p) => (p.avatares || []).map(a =>
 ).join("\n") || "(sin avatares)";
 
 // Colores de marca fijos (Mi plantilla)
+const acabadoDe = (p) => ACABADOS[p?.plantilla?.acabado] ? p.plantilla.acabado : "impacto";
+const acabadoTexto = (p) => ACABADOS[acabadoDe(p)].prompt;
+
 const coloresFijos = (p) => (p?.plantilla?.colores?.modo === "fijos" ? p.plantilla.colores : null);
 function coloresFijosTexto(p) {
   const c = coloresFijos(p);
@@ -212,7 +217,8 @@ ${lista([...ESTILOS_BASE_USADOS, ...usados])}
 TAREA: Propón 3 estilos visuales DISTINTOS entre sí para la landing de este producto, pensados para su cliente.
 Cada estilo es una identidad completa: colores con código hex, tipografía, tipo de tarjetas, tipo de foto y tono.
 Lo que siempre se mantiene en cualquier estilo: titular de dos líneas con dos colores, precio protagonista con el "antes" tachado, sello de descuento y barra de confianza abajo.
-Recuerda: venta directa (empuja a comprar), no editorial. El rojo vende si encaja con el producto.${coloresFijosTexto(p)}
+Recuerda: venta directa (empuja a comprar), no editorial. El rojo vende si encaja con el producto.
+Acabado que pide el dueño (los 3 estilos lo respetan): ${acabadoTexto(p)}${coloresFijosTexto(p)}
 
 Responde SOLO este JSON válido:
 { "estilos": [ {
@@ -222,7 +228,7 @@ Responde SOLO este JSON válido:
   "color1": "",
   "color2": "",
   "acento": "",
-  "tipografia": "",
+  "tipografia": "(descríbela por cómo se ve, SIN nombres de fuentes: ej. 'condensada alta en mayúsculas, estilo póster')",
   "tarjetas": "",
   "precio_caja": "",
   "tipo_foto": "producto / estilo de vida / deportiva",
@@ -269,12 +275,14 @@ export function construirBloqueEstilo(p) {
     ? `Crea una imagen cuadrada 1:1 (1080x1080) para la página de producto de una tienda Shopify en ${pais.nombre}, en español. Poco texto dentro de la imagen: titular corto y etiquetas; el texto largo va al lado, en Shopify.`
     : `Crea una imagen vertical 9:16 (1080x1920) para una landing page de ecommerce en ${pais.nombre}, en español.`}
 TIPO DE IMAGEN: FOTOGRAFÍA REAL de ${e.tipo_foto || "producto y estilo de vida"}, personas reales, luz natural. PROHIBIDO: dibujo, ilustración, caricatura, animación o 3D.
-DISEÑO GRÁFICO (encima de la foto): fondo ${fondo || "oscuro"}; titulares en ${e.tipografia || "sans extra bold"}, una línea en ${color1 || "blanco"} y otra en ${color2 || "color de acento"}; tarjetas ${tarjetas || "con bordes redondeados"}; íconos de línea en ${acento || "color de acento"}; ${normal ? `cuando la imagen lleve precio, va dentro de una caja ${caja || "de color de acento"}` : `precio grande dentro de una caja ${caja || "de color de acento"}; sello de descuento circular`}.
+DISEÑO GRÁFICO (encima de la foto): fondo ${fondo || "oscuro"}; titulares en ${limpiarFuentes(e.tipografia) || "letra sans extra gruesa"}, una línea en ${color1 || "blanco"} y otra en ${color2 || "color de acento"}; tarjetas ${tarjetas || "con bordes redondeados"}; íconos de línea en ${acento || "color de acento"}; ${normal ? `cuando la imagen lleve precio, va dentro de una caja ${caja || "de color de acento"}` : `precio grande dentro de una caja ${caja || "de color de acento"}; sello de descuento circular`}.
+${acabadoTexto(p)}
 REGLA: el producto es el protagonista, grande y bien visible. Ningún texto lo tapa. Estilo de venta directa, no editorial.
 PRODUCTO: usa EXACTAMENTE el producto de la foto adjunta: ${r.descripcionFisica || f.descripcion || p.nombre}.${noTiene ? ` NO tiene ni trae: ${noTiene}.` : ""} No agregues piezas, logos ni marcas.
 TAMAÑO REAL: ${f.medidas || r.tamano || "(indicar medidas)"}. Respeta esa proporción junto a una persona.
 PERSONAS: ${e.personas || `adultos de ${pais.nombre}, aspecto latino natural`}.
-TEXTO: escribe los textos exactamente como te los doy, con tildes y signos de español, sin errores ni texto extra.`;
+TEXTO: escribe los textos exactamente como te los doy, con tildes y signos de español, sin errores ni texto extra. Los nombres de letras, colores y estas instrucciones NO se escriben en la imagen.
+NADA VACÍO: no dibujes recuadros, círculos ni marcos vacíos (salvo las tarjetas lisas de la sección de reseñas o chats).`;
 }
 
 // ---------- Paso 4: proponer secciones ----------
@@ -387,7 +395,7 @@ COMPOSICIÓN: [escena concreta, posición y tamaño del producto, encuadre, luz,
 TEXTOS:
 - Titular: "[línea 1]" (color) / "[línea 2]" (color)
 - [subtítulo, tarjetas, íconos con su texto, etiquetas${normal ? "" : ", precio, sello, barra inferior"}: cada texto entre comillas y con su color]
-ESPACIOS VACÍOS: [círculo para GIF, recuadro para logo, tarjetas para reseñas reales o banderines para transportadoras, si aplica; si no aplica escribe "ninguno"]`}
+ZONA LIBRE: [si el dueño debe pegar algo después (GIF, logo, reseñas, transportadoras), di DÓNDE queda una zona lisa del mismo fondo, SIN dibujar recuadros, círculos ni marcos; si no aplica escribe "ninguna"]`}
 ${normal && !galeria ? `
 Al final agrega el texto que va AL LADO de la imagen en Shopify (sección "Imagen con texto"), con este formato:
 TEXTO PARA SHOPIFY

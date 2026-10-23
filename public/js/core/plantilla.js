@@ -30,7 +30,7 @@ const T = (y, w = 36, x = (60 - w) / 2, tono = "d") => ["t", x, y, w, tono];
 export const SECCIONES = {
   oferta: {
     titulo: "Portada / oferta (hero)", formatos: ["ban"], tipos: ["producto"], siempre: ["ban"],
-    def: "Producto en uso, titular corto de 2 líneas en 2 colores, 3 beneficios, precio 'antes' tachado, precio actual grande en caja, sello de descuento, regalo si hay (con círculo para GIF), barra de confianza abajo.",
+    def: "Producto en uso, titular corto de 2 líneas en 2 colores, 3 beneficios, precio 'antes' tachado, precio actual grande en caja, sello de descuento, regalo si hay (con zona lisa del fondo para pegar el GIF, sin círculo ni marco), barra de confianza abajo.",
     variantes: [
       { id: "caja", nombre: "Precio en caja", desc: "Titular arriba, foto grande del producto en uso al centro, y abajo una caja de color con el precio grande, el 'antes' tachado y un sello circular de descuento.",
         dibujo: [T(7), T(12, 26, 17, "a"), ["r", 6, 17, 48, 40, "g", 3], ["r", 8, 62, 34, 14, "a", 3], ["t", 11, 66, 18, "w"], ["t", 11, 71, 26, "w"], ["c", 48, 69, 7, "d"]] },
@@ -106,7 +106,7 @@ export const SECCIONES = {
   },
   que_incluye: {
     titulo: "¿Qué incluye?", formatos: ["ban", "normal"], tipos: ["producto"],
-    def: "Todo lo que llega en el paquete; círculo vacío para GIF si aplica.",
+    def: "Todo lo que llega en el paquete, cada pieza señalada con su nombre.",
     variantes: [
       { id: "numerados", nombre: "Círculos numerados", desc: "El producto con círculos numerados señalando cada pieza que llega, y la lista numerada abajo.",
         dibujo: [T(6), ["r", 12, 14, 36, 40, "g", 4], ["c", 10, 20, 4, "a"], ["c", 50, 30, 4, "a"], ["c", 10, 46, 4, "a"], T(62, 40), T(68, 40), T(74, 40)] },
@@ -194,7 +194,7 @@ export const SECCIONES = {
   },
   por_que_aqui: {
     titulo: "Tu producto vs otros (¿por qué aquí?)", formatos: ["ban", "normal"], tipos: ["producto"],
-    def: "Comparación 'Nuestra tienda' (✓) vs 'Otras opciones' (✗) y un recuadro vacío para el logo de la tienda.",
+    def: "Comparación 'Nuestra tienda' (✓ ventajas) vs 'Otras opciones' (✗ solo desventajas). Sin recuadros vacíos.",
     variantes: [
       { id: "tabla", nombre: "Tabla", desc: "Tabla de 5 filas con dos columnas: la nuestra resaltada con ✓ y la de otros con ✗.",
         dibujo: [T(6), ["r", 30, 12, 12, 64, "a", 3], ["t", 6, 18, 20, "d"], ["t", 6, 30, 20, "d"], ["t", 6, 42, 20, "d"], ["t", 6, 54, 20, "d"], ["t", 6, 66, 20, "d"], ["c", 36, 18, 2, "w"], ["c", 36, 30, 2, "w"], ["c", 36, 42, 2, "w"], ["o", 50, 18, 2, "m"], ["o", 50, 30, 2, "m"], ["o", 50, 42, 2, "m"]] },
@@ -208,15 +208,15 @@ export const SECCIONES = {
   },
   resenas: {
     titulo: "Reseñas reales (plantilla)", formatos: ["ban", "normal"],
-    def: "Marco con tarjetas VACÍAS para pegar capturas de reseñas reales. Sin nombres, caras ni estrellas inventadas.",
+    def: "Título y tarjetas blancas LISAS con sombra suave (sin borde doble, sin líneas ni nada adentro) donde el dueño pega capturas de reseñas reales. Sin nombres, caras ni estrellas inventadas.",
     variantes: [
-      { id: "dos_columnas", nombre: "Tarjetas en dos columnas", desc: "Cuadrícula de 4 tarjetas vacías en dos columnas.",
+      { id: "dos_columnas", nombre: "Tarjetas en dos columnas", desc: "Cuadrícula de 4 tarjetas blancas lisas en dos columnas.",
         dibujo: [T(6), ["r", 6, 13, 23, 30, "w", 3], ["r", 31, 13, 23, 30, "w", 3], ["r", 6, 46, 23, 30, "w", 3], ["r", 31, 46, 23, 30, "w", 3]] },
-      { id: "carrusel", nombre: "Carrusel", desc: "Una tarjeta vacía grande al centro y las de los lados asomando, como un carrusel.",
+      { id: "carrusel", nombre: "Carrusel", desc: "Una tarjeta blanca lisa grande al centro y las de los lados asomando, como un carrusel.",
         dibujo: [T(6), ["r", 0, 20, 8, 44, "w", 3], ["r", 11, 16, 38, 52, "w", 3], ["r", 52, 20, 8, 44, "w", 3], ["c", 26, 74, 1.5, "d"], ["c", 30, 74, 1.5, "m"], ["c", 34, 74, 1.5, "m"]] },
-      { id: "columna", nombre: "Citas en columna", desc: "3 tarjetas vacías anchas una debajo de otra con una barra de color a la izquierda.",
+      { id: "columna", nombre: "Citas en columna", desc: "3 tarjetas blancas lisas anchas una debajo de otra con una barra de color a la izquierda.",
         dibujo: [T(6), ["r", 6, 13, 48, 20, "w", 3], ["r", 6, 13, 2, 20, "a"], ["r", 6, 36, 48, 20, "w", 3], ["r", 6, 36, 2, 20, "a"], ["r", 6, 59, 48, 20, "w", 3], ["r", 6, 59, 2, 20, "a"]] },
-      { id: "destacada", nombre: "Destacada y compactas", desc: "Una tarjeta vacía grande arriba y 3 pequeñas debajo.",
+      { id: "destacada", nombre: "Destacada y compactas", desc: "Una tarjeta blanca lisa grande arriba y 3 pequeñas debajo.",
         dibujo: [T(6), ["r", 6, 13, 48, 34, "w", 3], ["r", 6, 50, 48, 9, "w", 2], ["r", 6, 62, 48, 9, "w", 2], ["r", 6, 74, 48, 9, "w", 2]] }
     ]
   },
@@ -234,7 +234,7 @@ export const SECCIONES = {
   },
   confianza: {
     titulo: "Garantía y confianza", formatos: ["ban", "normal"],
-    def: "Garantía (solo si existe), sellos de confianza y 'Nuestros aliados logísticos' con banderines vacíos para pegar logos de transportadoras.",
+    def: "Garantía (solo si existe), sellos de confianza y 'Envío con transportadoras nacionales' y una franja lisa donde el dueño pega los logos de las transportadoras (sin banderines ni recuadros vacíos).",
     variantes: [
       { id: "centrada", nombre: "Tarjeta centrada", desc: "Tarjeta centrada con un sello grande arriba, el título de la garantía y una lista corta de lo que cubre.",
         dibujo: [["r", 8, 10, 44, 66, "w", 4], ["c", 30, 22, 7, "a"], T(36, 30), ["t", 14, 44, 32, "m"], ["t", 14, 50, 32, "m"], ["t", 14, 56, 32, "m"]] },
@@ -343,11 +343,11 @@ export const SECCIONES = {
   },
   moda_chats: {
     titulo: "Conversaciones de WhatsApp (plantilla)", formatos: ["ban", "normal"], tipos: ["moda"],
-    def: "Marco tipo pantalla de chat con burbujas VACÍAS para pegar capturas reales de clientes (con permiso). Sin nombres, fotos ni mensajes inventados.",
+    def: "Título y burbujas blancas LISAS (sin borde doble ni nada adentro) donde el dueño pega capturas reales de chats con clientes (con permiso). Sin nombres, fotos ni mensajes inventados.",
     variantes: [
-      { id: "telefono", nombre: "Dentro de un celular", desc: "Un celular dibujado con 3 o 4 burbujas vacías y el título 'Lo que nos escriben'.",
+      { id: "telefono", nombre: "Dentro de un celular", desc: "Un celular dibujado con 3 o 4 burbujas blancas lisas y el título 'Lo que nos escriben'.",
         dibujo: [T(6), ["r", 14, 12, 32, 70, "d", 6], ["r", 17, 18, 26, 62, "g", 3], ["r", 19, 22, 18, 7, "w", 3], ["r", 23, 33, 18, 7, "w", 3], ["r", 19, 44, 18, 7, "w", 3], ["r", 23, 55, 18, 7, "w", 3]] },
-      { id: "burbujas", nombre: "Burbujas sueltas", desc: "Cuatro burbujas de chat grandes y vacías, alternando izquierda y derecha, sobre fondo suave.",
+      { id: "burbujas", nombre: "Burbujas sueltas", desc: "Cuatro burbujas de chat blancas, grandes y lisas, alternando izquierda y derecha, sobre fondo suave.",
         dibujo: [["r", 0, 0, 60, 90, "g"], T(8), ["r", 6, 16, 34, 12, "w", 5], ["r", 20, 32, 34, 12, "w", 5], ["r", 6, 48, 34, 12, "w", 5], ["r", 20, 64, 34, 12, "w", 5]] }
     ]
   },
@@ -424,13 +424,28 @@ export const tiposDe = (clave) => {
 
 export const esFija = (tipo, formato) => (SECCIONES[tipo]?.siempre || []).includes(formatoValido(formato));
 
+// Acabado del diseño: cómo se "siente" la imagen (lo que la hace verse comprable)
+export const ACABADOS = {
+  impacto: {
+    nombre: "Alto impacto",
+    desc: "Como un anuncio premium: escena con atmósfera, luz de cine, titulares enormes con efecto 3D o brillo, precio gigante con resplandor.",
+    prompt: "ACABADO PUBLICITARIO DE ALTO IMPACTO (un anuncio premium que da ganas de comprar ya, NO una foto de catálogo ni un diseño plano): fondo con atmósfera y profundidad (escena real con luz de ambiente, desenfoque y luces del color de acento), iluminación cinematográfica con contraste fuerte y un resplandor del color de acento detrás del producto; titulares ENORMES y gruesos con efecto 3D o metálico y sombra, con la palabra clave resaltada en el color de acento (trazo de brocha o brillo); precio GIGANTE con resplandor y el 'antes' tachado en rojo; íconos de línea dentro de tarjetas con borde fino luminoso; barra de confianza abajo con íconos; jerarquía clara: titular → producto → precio → beneficios. Todo nítido, rico en detalle y bien terminado."
+  },
+  limpio: {
+    nombre: "Limpio",
+    desc: "Fondo claro y sencillo, foto luminosa, letras gruesas sin efectos y mucho espacio. Bueno para moda o productos delicados.",
+    prompt: "ACABADO LIMPIO: fondo claro y sencillo, foto luminosa, titulares gruesos sin efectos, tarjetas planas, mucho espacio y orden. Aun así de venta directa: producto grande y precio bien visible."
+  }
+};
+
 export function plantillaPorDefecto(clave) {
   const f = claveValida(clave);
   return {
     usarOrden: false,
     orden: ORDEN_BASE[f].map(([tipo, visible]) => ({ tipo, visible: !!visible })),
     estilos: {},                  // tipo → id de variante (sin valor = "Al azar")
-    colores: { ...COLORES_BASE }
+    colores: { ...COLORES_BASE },
+    acabado: "impacto"            // impacto (anuncio premium, oscuro, brillo, 3D) | limpio (claro y sencillo)
   };
 }
 
@@ -467,7 +482,7 @@ export function normalizarPlantilla(clave, raw = {}) {
     acento: hexValido(c.acento, COLORES_BASE.acento)
   };
 
-  return { usarOrden: !!r.usarOrden, orden, estilos, colores };
+  return { usarOrden: !!r.usarOrden, orden, estilos, colores, acabado: ACABADOS[r.acabado] ? r.acabado : "impacto" };
 }
 
 export const varianteDe = (tipo, id) => (SECCIONES[tipo]?.variantes || []).find(v => v.id === id) || null;

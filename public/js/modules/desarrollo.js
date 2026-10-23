@@ -10,6 +10,7 @@ import { SECCIONES, FORMATOS, tiposDe, varianteDe, elegirVariante, formatoImagen
 import { ESTRUCTURAS_AD, FORMATOS_AD, ENFOQUES_COPY, MAX_ADS } from "../core/anuncios.js";
 import { dibujar } from "./plantilla.js";
 import { construirLanding } from "../core/landing-html.js";
+import { limpiarFuentes } from "../core/fuentes.js";
 
 const PASOS = [
   { n: 1, titulo: "Ficha", icono: "clipboard-list" },
@@ -922,7 +923,7 @@ window.estElegirEstilo = (i, boton) => conCarga(boton, "Armando bloque...", asyn
 });
 
 window.estGuardarBloque = (v) => guardarRama({ bloqueEstilo: v });
-window.estCopiarBloque = () => copiar($("estBloque")?.value || R().bloqueEstilo || "");
+window.estCopiarBloque = () => copiar(limpiarFuentes($("estBloque")?.value || R().bloqueEstilo || ""));
 
 // =============================================
 // PASO 4: LANDING (del avatar elegido)
@@ -1218,7 +1219,7 @@ window.estGenerarTodos = async () => {
 
 window.estCopiarSeccion = (i) => {
   const r = R();
-  copiar(`${r.bloqueEstilo}\n\n${r.secciones[i].prompt}`);
+  copiar(limpiarFuentes(`${r.bloqueEstilo}\n\n${r.secciones[i].prompt}`));
 };
 
 const cambiarSecciones = (fn) => guardarRama({ secciones: fn([...R().secciones]) });
@@ -1499,7 +1500,7 @@ window.estCrearAds = async () => {
 };
 window.estGenerarAdsFaltantes = () => generarVarios((R().ads || []).filter(a => !a.prompt).map(a => a.id), "estBtnAdsFaltan");
 window.estGenerarAd = (id) => conCarga(`btnAd-${id}`, "Escribiendo...", async () => { await generarAd(id); renderPaso(); });
-window.estCopiarAd = (i) => { const r = R(); copiar(`${r.bloqueEstilo || ""}\n\n${r.ads[i].prompt}`.trim()); };
+window.estCopiarAd = (i) => { const r = R(); copiar(limpiarFuentes(`${r.bloqueEstilo || ""}\n\n${r.ads[i].prompt}`.trim())); };
 window.estEditarAd = async (i, campo, v, repintar) => {
   await guardarRama({ ads: (R().ads || []).map((a, j) => j === i ? { ...a, [campo]: v } : a) });
   if (repintar) renderPaso();

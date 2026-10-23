@@ -5,7 +5,7 @@
 // =============================================
 import { registrarRuta } from "./navegacion.js";
 import { escapeHTML } from "../core/utils.js";
-import { SECCIONES, FORMATOS, esFija, plantillaPorDefecto, normalizarPlantilla, CLAVES, claveDe, TIPOS_PRODUCTO } from "../core/plantilla.js";
+import { SECCIONES, FORMATOS, esFija, plantillaPorDefecto, normalizarPlantilla, CLAVES, claveDe, TIPOS_PRODUCTO, ACABADOS } from "../core/plantilla.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (v) => escapeHTML(v ?? "");
@@ -172,6 +172,23 @@ function render() {
         <section class="pl-card">
           <div class="pl-card-head">
             <div>
+              <h2>Acabado del diseño</h2>
+              <p>Cómo se ven las imágenes. "Alto impacto" es el estilo de anuncio premium (como tus letreros neón y los tenis La Titular).</p>
+            </div>
+          </div>
+          <div class="pl-acabados">
+            ${Object.entries(ACABADOS).map(([k, a]) => `
+              <button class="pl-acabado ${p.acabado === k ? "elegido" : ""} ${k}" onclick="plAcabado('${k}')">
+                <span class="pl-acabado-muestra ${k}"><b>TITULAR</b><i>$99.900</i></span>
+                <strong>${esc(a.nombre)}</strong>
+                <small>${esc(a.desc)}</small>
+              </button>`).join("")}
+          </div>
+        </section>
+
+        <section class="pl-card">
+          <div class="pl-card-head">
+            <div>
               <h2>Colores</h2>
               <p>Si los fijas, todas tus landings nuevas de ${esc(FORMATOS[base()].nombre)} usan estos colores (por ejemplo, los de tu marca). Si no, salen del estilo que elijas para cada producto, como hasta ahora.</p>
             </div>
@@ -257,6 +274,7 @@ window.plEstilo = (tipo, id) => {
   const bloque = pantalla?.querySelector(`[data-tipo="${tipo}"]`);
   if (pantalla && bloque) pantalla.scrollTop = bloque.offsetTop - pantalla.offsetTop - 8;
 };
+window.plAcabado = (k) => cambio(p => { p.acabado = ACABADOS[k] ? k : "impacto"; });
 window.plModoColores = (modo) => cambio(p => { p.colores.modo = modo; });
 
 // El color se actualiza sin redibujar todo (para que el selector no se cierre)

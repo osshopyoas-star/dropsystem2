@@ -4929,3 +4929,21 @@ button.bp-chip { border: 0; cursor: pointer; font: inherit; font-size: 12px; fon
 .est-refs-ia button img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .est-refs-ia button.sel { border-color: #a78bfa; opacity: 1; }
 .est-refs-ia button.sel::after { content: "✓"; position: absolute; top: 2px; right: 4px; color: #7c3aed; font-weight: 900; font-size: 12px; text-shadow: 0 0 3px #fff; }
+
+/* Mi plantilla · acabado */
+.pl-acabados { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.pl-acabado { display: flex; flex-direction: column; gap: 6px; text-align: left; padding: 12px; border-radius: 14px; border: 2px solid #e2e8f0; background: #fff; color: #0f172a; font: inherit; cursor: pointer; }
+.pl-acabado:hover { border-color: #a5b4fc; background: #fff; color: #0f172a; }
+.pl-acabado.elegido { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.15); }
+.pl-acabado strong { font-size: 14px; }
+.pl-acabado small { color: #64748b; font-size: 12px; line-height: 1.4; }
+.pl-acabado-muestra { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; height: 92px; border-radius: 10px; }
+.pl-acabado-muestra b { font-size: 20px; font-weight: 900; letter-spacing: .02em; }
+.pl-acabado-muestra i { font-style: normal; font-weight: 900; font-size: 16px; padding: 2px 10px; border-radius: 6px; }
+.pl-acabado-muestra.impacto { background: radial-gradient(circle at 50% 60%, #14532d 0%, #020617 70%); }
+.pl-acabado-muestra.impacto b { color: #fff; text-shadow: 0 2px 0 #64748b, 0 4px 10px rgba(0,0,0,.6), 0 0 18px rgba(34,197,94,.6); }
+.pl-acabado-muestra.impacto i { color: #052e16; background: #4ade80; box-shadow: 0 0 16px rgba(74,222,128,.8); }
+.pl-acabado-muestra.limpio { background: #f8f5f0; }
+.pl-acabado-muestra.limpio b { color: #3f2a1d; }
+.pl-acabado-muestra.limpio i { color: #fff; background: #111827; }
+@media (max-width: 640px) { .pl-acabados { grid-template-columns: 1fr; } }

@@ -6,6 +6,7 @@
 // El gasto es un ESTIMADO con los precios publicados; el cobro real lo ves en console.x.ai.
 // =============================================
 import mongoose from "mongoose";
+import { limpiarFuentes } from "./public/js/core/fuentes.js";
 import { ImagenLanding, metaImagen, MAX_POR_SECCION, tipoDeBytes } from "./modelo-imagenes.js";
 
 const MODELO = () => process.env.XAI_IMAGE_MODEL || "grok-imagine-image-2.0";
@@ -68,7 +69,7 @@ export function armarPrompt({ bloqueEstilo, prompt, referencias, descripcion = "
   const cola = referencias ? `\n\nRECUERDA: el producto de la imagen debe verse exactamente igual al de ${etiquetas}.` : "";
   const cuerpo = `${String(bloqueEstilo || "").trim()}\n\n${String(prompt || "").trim()}`.trim();
   const espacio = MAX_PROMPT - cabeza.length - cola.length;
-  return cabeza + cuerpo.slice(0, Math.max(500, espacio)) + cola;
+  return limpiarFuentes(cabeza + cuerpo.slice(0, Math.max(500, espacio)) + cola);
 }
 
 async function pedirImagen({ prompt, fotos, aspecto }) {
