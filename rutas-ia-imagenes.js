@@ -66,7 +66,8 @@ export function armarPrompt({ bloqueEstilo, prompt, referencias, descripcion = "
   const cabeza = referencias
     ? `PRODUCTO REAL QUE SE VENDE: es el que aparece en ${etiquetas}. Cópialo IDÉNTICO: misma forma, tamaño relativo, colores, materiales, botones, piezas, logos y proporciones. NO inventes otro producto parecido, NO lo rediseñes, NO le agregues ni quites partes, NO dupliques piezas (si se está usando, lleva un solo accesorio puesto). Solo cambia la escena, las personas, la luz y los textos alrededor.${descripcion ? `\nCómo es el producto: ${descripcion}` : ""}${noTiene ? `\nEl producto NO tiene: ${noTiene}` : ""}\n\n`
     : "";
-  const cola = referencias ? `\n\nRECUERDA: el producto de la imagen debe verse exactamente igual al de ${etiquetas}.` : "";
+  const cola = "\n\nTEXTOS: escribe SOLO los textos que están entre comillas, letra por letra y bien escritos. Si un texto pequeño no te queda legible, NO lo pongas: nunca letras inventadas ni palabras sin sentido. Los precios y porcentajes van EXACTOS como están escritos."
+    + (referencias ? `\n\nRECUERDA: el producto de la imagen debe verse exactamente igual al de ${etiquetas}.` : "");
   const cuerpo = `${String(bloqueEstilo || "").trim()}\n\n${String(prompt || "").trim()}`.trim();
   const espacio = MAX_PROMPT - cabeza.length - cola.length;
   return limpiarFuentes(cabeza + cuerpo.slice(0, Math.max(500, espacio)) + cola);
