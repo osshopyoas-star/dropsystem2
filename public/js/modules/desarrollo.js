@@ -885,7 +885,8 @@ function pasoEstilo() {
             <li><b>Fondo:</b> ${esc(e.fondo)}</li>
             <li><b>Colores:</b> ${esc(e.color1)} / ${esc(e.color2)}</li>
             <li><b>Letra:</b> ${esc(e.tipografia)}</li>
-            <li><b>Foto:</b> ${esc(e.tipo_foto)}</li>
+            ${e.mundo ? `<li><b>Mundo:</b> ${esc(e.mundo)}</li>` : `<li><b>Foto:</b> ${esc(e.tipo_foto)}</li>`}
+            ${e.recursos ? `<li><b>Recursos:</b> ${esc(e.recursos)}</li>` : ""}
             <li><b>Tono:</b> ${esc(e.tono)}</li>
           </ul>
           <p class="est-muted">${esc(e.por_que)}</p>

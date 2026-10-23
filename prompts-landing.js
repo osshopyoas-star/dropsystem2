@@ -215,7 +215,8 @@ ESTILOS YA USADOS (NO los repitas ni hagas uno parecido):
 ${lista([...ESTILOS_BASE_USADOS, ...usados])}
 
 TAREA: Propón 3 estilos visuales DISTINTOS entre sí para la landing de este producto, pensados para su cliente.
-Cada estilo es una identidad completa: colores con código hex, tipografía, tipo de tarjetas, tipo de foto y tono.
+Cada estilo es una identidad completa de CAMPAÑA: el mundo donde pasan las fotos (lugar, ambiente y luz, como una campaña de marca grande), colores con código hex, tipografía, recursos gráficos que la hacen reconocible, tipo de tarjetas, personas y tono.
+Ejemplo del nivel que quiero (otro producto, no lo copies): mundo = "campaña de marca de gimnasio: deportistas reales con piel con textura y un poco de sudor, luz dramática de gimnasio o de estadio de noche"; recursos = "líneas diagonales de velocidad en cian, titulares ligeramente inclinados, leve brillo cian en los acentos".
 Lo que siempre se mantiene en cualquier estilo: titular de dos líneas con dos colores, precio protagonista con el "antes" tachado, sello de descuento y barra de confianza abajo.
 Recuerda: venta directa (empuja a comprar), no editorial. El rojo vende si encaja con el producto.
 Acabado que pide el dueño (los 3 estilos lo respetan): ${acabadoTexto(p)}${coloresFijosTexto(p)}
@@ -229,6 +230,9 @@ Responde SOLO este JSON válido:
   "color2": "",
   "acento": "",
   "tipografia": "(descríbela por cómo se ve, SIN nombres de fuentes: ej. 'condensada alta en mayúsculas, estilo póster')",
+  "mundo": "(el lugar, ambiente y luz de la campaña: concreto y con emoción)",
+  "recursos": "(2 o 3 recursos gráficos que se repiten en todas las imágenes)",
+  "producto_en_uso": "(cómo se ve el producto puesto o usándose: en qué parte del cuerpo o del lugar, en qué posición; y qué colores/variantes existen)",
   "tarjetas": "",
   "precio_caja": "",
   "tipo_foto": "producto / estilo de vida / deportiva",
@@ -274,11 +278,11 @@ export function construirBloqueEstilo(p) {
   return `${normal
     ? `Crea una imagen cuadrada 1:1 (1080x1080) para la página de producto de una tienda Shopify en ${pais.nombre}, en español. Poco texto dentro de la imagen: titular corto y etiquetas; el texto largo va al lado, en Shopify.`
     : `Crea una imagen vertical 9:16 (1080x1920) para una landing page de ecommerce en ${pais.nombre}, en español.`}
-TIPO DE IMAGEN: FOTOGRAFÍA REAL de ${e.tipo_foto || "producto y estilo de vida"}, personas reales, luz natural. PROHIBIDO: dibujo, ilustración, caricatura, animación o 3D.
-DISEÑO GRÁFICO (encima de la foto): fondo ${fondo || "oscuro"}; titulares en ${limpiarFuentes(e.tipografia) || "letra sans extra gruesa"}, una línea en ${color1 || "blanco"} y otra en ${color2 || "color de acento"}; tarjetas ${tarjetas || "con bordes redondeados"}; íconos de línea en ${acento || "color de acento"}; ${normal ? `cuando la imagen lleve precio, va dentro de una caja ${caja || "de color de acento"}` : `precio grande dentro de una caja ${caja || "de color de acento"}; sello de descuento circular`}.
+TIPO DE IMAGEN: FOTOGRAFÍA REAL ${e.mundo ? `como de ${limpio(e.mundo, 400)}` : `de ${e.tipo_foto || "producto y estilo de vida"}, como de campaña publicitaria de una marca grande`}: personas reales, piel con textura real, luz con intención (no plana). PROHIBIDO: dibujo, ilustración, caricatura, animación o 3D.
+DISEÑO GRÁFICO (encima de la foto): fondo ${fondo || "oscuro"}; titulares en ${limpiarFuentes(e.tipografia) || "letra sans extra gruesa"}, una línea en ${color1 || "blanco"} y otra en ${color2 || "color de acento"}; tarjetas ${tarjetas || "con bordes redondeados"}; íconos de línea en ${acento || "color de acento"}; ${normal ? `cuando la imagen lleve precio, va dentro de una caja ${caja || "de color de acento"}` : `precio grande dentro de una caja ${caja || "de color de acento"}; sello de descuento circular`}${e.recursos ? `; recursos que se repiten en todas las imágenes: ${limpio(e.recursos, 300)}` : ""}.
 ${acabadoTexto(p)}
 REGLA: el producto es el protagonista, grande y bien visible. Ningún texto lo tapa. Estilo de venta directa, no editorial.
-PRODUCTO: usa EXACTAMENTE el producto de la foto adjunta: ${r.descripcionFisica || f.descripcion || p.nombre}.${noTiene ? ` NO tiene ni trae: ${noTiene}.` : ""} No agregues piezas, logos ni marcas.
+PRODUCTO: usa EXACTAMENTE el producto de la foto adjunta: ${r.descripcionFisica || f.descripcion || p.nombre}.${e.producto_en_uso ? ` En uso: ${limpio(e.producto_en_uso, 500)}.` : ""}${f.variantes ? ` Variantes que existen: ${limpio(f.variantes, 200)}.` : ""}${noTiene ? ` NO tiene ni trae: ${noTiene}.` : ""} No agregues piezas, logos ni marcas.
 TAMAÑO REAL: ${f.medidas || r.tamano || "(indicar medidas)"}. Respeta esa proporción junto a una persona.
 PERSONAS: ${e.personas || `adultos de ${pais.nombre}, aspecto latino natural`}.
 TEXTO: escribe los textos exactamente como te los doy, con tildes y signos de español, sin errores ni texto extra. Los nombres de letras, colores y estas instrucciones NO se escriben en la imagen.
@@ -366,10 +370,13 @@ ${p.bloqueEstilo || construirBloqueEstilo(p)}
 OTRAS SECCIONES DE ESTA LANDING (no repitas sus titulares ni su composición):
 ${otras.map(o => `- ${o.titulo} (${o.composicion || "sin composición"})`).join("\n") || "(ninguna)"}
 
+${EJEMPLO_NIVEL}
+
 SECCIÓN A ESCRIBIR: ${seccion.titulo} [tipo: ${seccion.tipo}]
 Qué debe tener: ${tipo?.def || seccion.proposito || ""}
 Propósito: ${seccion.proposito || ""}
-Composición asignada: ${seccion.composicion || "elige una que no se repita"}${diseno}${formato}
+Composición asignada: ${seccion.composicion || "elige una que no se repita"}${diseno}${formato}${diseno ? `
+(El diseño de Mi plantilla define DÓNDE van los bloques; la imagen sigue siendo una escena de foto real con vida, no un catálogo plano.)` : ""}
 
 ${galeria ? `TAREA: Esta sección son las 4 FOTOS CUADRADAS 1:1 DE LA GALERÍA de Shopify (las primeras que ve el cliente). Escribe 4 prompts, uno por foto, cada uno con EXACTAMENTE este formato (texto plano, sin markdown, sin explicaciones):
 
@@ -390,11 +397,12 @@ FOTOGRAFÍA REAL (no dibujo, no animación). Imagen cuadrada 1:1, mismo encuadre
 COMPOSICIÓN: [...]
 TEXTOS: [una etiqueta "DESPUÉS" y como máximo una frase corta]` : `TAREA: Escribe el prompt de ESTA imagen con EXACTAMENTE este formato (texto plano, sin markdown, sin explicaciones antes ni después):
 
+IDEA: [una frase: el momento o la historia que cuenta esta imagen]
 FOTOGRAFÍA REAL (no dibujo, no animación).
-COMPOSICIÓN: [escena concreta, posición y tamaño del producto, encuadre, luz, personas con edad/aspecto/ropa, elementos gráficos y dónde va cada uno]
+COMPOSICIÓN: [una ESCENA concreta: quién (edad, aspecto, ropa), haciendo qué acción exacta, en qué lugar, desde qué ángulo de cámara, con qué luz y qué emoción. El producto PUESTO o EN USO, grande y bien visible, y di de qué color/variante es en esta imagen. Luego los elementos gráficos y dónde va cada uno (arriba, a la izquierda, abajo…)]
 TEXTOS:
-- Titular: "[línea 1]" (color) / "[línea 2]" (color)
-- [subtítulo, tarjetas, íconos con su texto, etiquetas${normal ? "" : ", precio, sello, barra inferior"}: cada texto entre comillas y con su color]
+- Titular: "[línea 1]" (color, tamaño) / "[línea 2]" (color, tamaño: di cuál es lo más grande de la imagen)
+- [subtítulo, tarjetas o chips con ícono, etiquetas${normal ? "" : ", precio (con 'antes' tachado y, si es pack, el precio por unidad), sello, barra inferior"}: cada texto entre comillas, con su color, tamaño y posición]
 ZONA LIBRE: [si el dueño debe pegar algo después (GIF, logo, reseñas, transportadoras), di DÓNDE queda una zona lisa del mismo fondo, SIN dibujar recuadros, círculos ni marcos; si no aplica escribe "ninguna"]`}
 ${normal && !galeria ? `
 Al final agrega el texto que va AL LADO de la imagen en Shopify (sección "Imagen con texto"), con este formato:
@@ -409,6 +417,19 @@ Reglas para esta imagen:
 - Solo promesas que sean verdad según la ficha.
 - Recuerda decir lo que el producto NO tiene si hay riesgo de que la IA lo invente en esta escena.`;
 }
+
+// Ejemplo real de un prompt que funcionó (cinta de kinesiología). Le muestra a la IA el NIVEL de detalle.
+const EJEMPLO_NIVEL = `EJEMPLO DEL NIVEL QUE QUIERO (es de OTRO producto: copia el nivel de detalle y de escena, NO su contenido, colores ni textos):
+IDEA: un corredor en pleno salto, visto desde abajo, con la cinta en la rodilla bien visible.
+FOTOGRAFÍA REAL (no dibujo, no animación).
+COMPOSICIÓN: un deportista latino corriendo en una pista de atletismo de noche bajo reflectores, captado en pleno salto desde un ángulo bajo, con la pierna adelantada flexionada. En su rodilla lleva el parche en T color AZUL, grande y bien visible en el centro de la imagen. Sudor y luz dramática. Líneas diagonales cian de velocidad detrás de él. A la izquierda, tres chips negros con borde cian e ícono. Abajo a la izquierda, el precio; junto al precio, un abanico de 10 parches reales en sus 4 colores con un círculo cian que diga "x10".
+TEXTOS:
+- Titular inclinado en tres líneas: "PACK" (blanco, pequeño) / "10 PARCHES" (cian, muy grande, lo más grande de la imagen) / "PARA TU RODILLA" (blanco)
+- Subtítulo: "Cinta de kinesiología precortada para rodilla. Lista para pegar."
+- Chips: "Soporte y estabilidad" · "Resiste sudor y agua" · "Sin tijeras"
+- Precio: "ANTES $152.990" (gris tachado con línea roja) / "LOS 10 POR SOLO" (blanco pequeño) / "$99.990" (muy grande, negro dentro de caja cian) / "Sale a $9.999 cada parche" (blanco)
+- Sello circular blanco: "-35%"
+- Barra inferior negra: "Envío a toda Colombia · Pago contra entrega · Compra segura"`;
 
 // ---------- Landing normal: textos del bloque de compra de Shopify ----------
 export function promptTextosShopify(p, avatar) {
