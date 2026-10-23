@@ -22,7 +22,7 @@ export function registrarRutasPublicar(app, { cargar, cargarRama, guardarRama, l
     try {
       const p = await cargar(req, res); if (!p) return;
       const lista = await ImagenLanding.find({ owner: req.user.uid, proyecto: p._id })
-        .select("rama seccion ancho alto bytes creado").sort({ creado: 1 }).lean();
+        .select("rama seccion ancho alto bytes origen creado").sort({ creado: 1 }).lean();
       res.json(lista.map(metaImagen));
     } catch (err) {
       console.error("Error listando imágenes:", err);

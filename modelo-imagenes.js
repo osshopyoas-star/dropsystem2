@@ -14,6 +14,7 @@ const imagenSchema = new mongoose.Schema({
   bytes: Number,
   ancho: Number,
   alto: Number,
+  origen: { type: String, default: "subida" },    // subida (Gemini, a mano) | ia (generada en CoDropX)
   subidas: { type: mongoose.Schema.Types.Mixed, default: {} },   // { [tiendaId]: url en el CDN de Shopify }
   creado: { type: Date, default: Date.now }
 });
@@ -29,14 +30,19 @@ export function leerDataUrl(dataUrl) {
   if (!m) return null;
   const buf = Buffer.from(m[2], "base64");
   if (buf.length < 100 || buf.length > MAX_IMAGEN_BYTES) return null;
-  const esJpg = buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff;
-  const esPng = buf.slice(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
-  const esWebp = buf.slice(0, 4).toString("ascii") === "RIFF" && buf.slice(8, 12).toString("ascii") === "WEBP";
-  const tipo = esJpg ? "image/jpeg" : esPng ? "image/png" : esWebp ? "image/webp" : null;
+  const tipo = tipoDeBytes(buf);
   if (!tipo) return null;
   return { tipo, datos: buf };
 }
 
+export function tipoDeBytes(buf) {
+  if (!buf || buf.length < 100) return null;
+  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return "image/jpeg";
+  if (buf.slice(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return "image/png";
+  if (buf.slice(0, 4).toString("ascii") === "RIFF" && buf.slice(8, 12).toString("ascii") === "WEBP") return "image/webp";
+  return null;
+}
+
 export const metaImagen = (x) => ({
-  _id: String(x._id), rama: x.rama, seccion: x.seccion, ancho: x.ancho || null, alto: x.alto || null, bytes: x.bytes || 0, creado: x.creado
+  _id: String(x._id), rama: x.rama, seccion: x.seccion, origen: x.origen || "subida", ancho: x.ancho || null, alto: x.alto || null, bytes: x.bytes || 0, creado: x.creado
 });

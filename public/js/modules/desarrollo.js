@@ -32,6 +32,8 @@ let proyecto = null;   // proyecto abierto
 let imagenes = [];     // imágenes de Gemini subidas a las secciones (solo datos; la imagen se ve en /api/imagenes/:id)
 let tiendasShopify = null;   // tiendas conectadas (se cargan al abrir el paso Publicar)
 let tiendaElegida = null;
+let gastoIA = null;          // { usd, limite, queda, imagenes, precioImagen, precioReferencia }
+const generandoIA = new Set();
 let tab = 1;           // paso que se está viendo
 let av = null;         // avatar con el que se está trabajando (A o B)
 let generandoTodo = false;
@@ -946,6 +948,7 @@ function pasoLanding() {
           ? "Landing normal: imágenes cuadradas 1:1 + textos para pegar en Shopify. En Gemini: chat nuevo por imagen → adjunta la foto real → pega \"estilo + prompt\"."
           : "Ban page: imágenes 9:16. En Gemini: chat nuevo por imagen → adjunta la foto real → pega \"estilo + prompt\"."} ${secs.length ? `${conPrompt}/${secs.length} prompts · ${hechas} imágenes hechas` : ""}</p>
         <p class="est-hint">El orden y el diseño de cada sección salen de <a href="#" onclick="goTo('plantilla'); return false;">Mi plantilla</a>.</p>
+        ${lineaGastoIA()}
       </div>
       <div class="est-actions">
         <button id="estBtnSecciones" class="est-btn" onclick="estProponerSecciones()"><i data-lucide="layout-list"></i> ${secs.length ? "Volver a proponer" : "Proponer secciones"}</button>
@@ -1021,14 +1024,20 @@ function tiraImagenes(x) {
   <div class="est-imgs" ondragover="event.preventDefault(); this.classList.add('soltar')" ondragleave="this.classList.remove('soltar')" ondrop="estSoltarImagen(event, '${esc(x.id)}')">
     ${imgs.map(im => `
       <div class="est-img">
-        <img src="/api/imagenes/${esc(im._id)}" alt="Imagen de ${esc(x.titulo)}" loading="lazy">
+        <a href="/api/imagenes/${esc(im._id)}" target="_blank" rel="noopener" title="Ver en grande"><img src="/api/imagenes/${esc(im._id)}" alt="Imagen de ${esc(x.titulo)}" loading="lazy"></a>
+        ${im.origen === "ia" ? `<span class="est-img-ia">IA</span>` : ""}
         <button title="Quitar imagen" onclick="estQuitarImagen('${esc(im._id)}')">✕</button>
       </div>`).join("")}
     ${imgs.length < MAX_IMGS_SECCION ? `
       <label class="est-img add" id="imgAdd-${esc(x.id)}">
         <input type="file" accept="image/png,image/jpeg,image/webp" multiple hidden onchange="estSubirImagen('${esc(x.id)}', this.files); this.value=''">
         <i data-lucide="upload"></i><span>${imgs.length ? "Agregar otra" : "Subir la imagen de Gemini"}</span>
-      </label>` : ""}
+      </label>
+      ${x.prompt ? (generandoIA.has(x.id)
+        ? `<div class="est-img add ia ocupado"><span class="est-spin"></span><span>Creando con IA... (hasta 1 min)</span></div>`
+        : `<button class="est-img add ia" id="imgIA-${esc(x.id)}" title="Crea la imagen con Grok Imagine usando el estilo, este prompt y tus fotos reales" onclick="estGenerarImagenIA('${esc(x.id)}')">
+            <i data-lucide="wand-sparkles"></i><span>Generar con IA</span><small>~$${costoIA().toFixed(2)} USD</small>
+          </button>`) : ""}` : ""}
   </div>`;
 }
 
@@ -1073,6 +1082,60 @@ window.estSubirImagen = async (idSeccion, files) => {
   if (subidas) avisar(subidas === 1 ? "Imagen guardada ✓" : `${subidas} imágenes guardadas ✓`);
   if (tab === 4) renderPaso();
 };
+// ---------- Generar con IA (Grok Imagine) ----------
+const costoIA = () => {
+  const g = gastoIA || { precioImagen: 0.04, precioReferencia: 0.01 };
+  return g.precioImagen + g.precioReferencia * Math.min(3, (proyecto?.fotos || []).length);
+};
+
+function lineaGastoIA() {
+  if (gastoIA === null) {
+    gastoIA = undefined;
+    api("GET", "/api/ia/gasto").then(g => { gastoIA = g; if (tab === 4) renderPaso(); }).catch(() => { gastoIA = null; });
+    return "";
+  }
+  if (!gastoIA) return "";
+  const pct = gastoIA.limite > 0 ? Math.min(100, gastoIA.usd / gastoIA.limite * 100) : 100;
+  return `
+  <div class="est-gasto-ia">
+    <i data-lucide="wand-sparkles"></i>
+    <span>Imágenes con IA este mes: <b>$${gastoIA.usd.toFixed(2)}</b> de $${gastoIA.limite.toFixed(2)} USD · ${gastoIA.imagenes} imagen(es)</span>
+    <span class="est-gasto-barra"><i style="width:${pct.toFixed(0)}%"></i></span>
+    <button class="est-link" onclick="estLimiteIA()">Cambiar límite</button>
+  </div>`;
+}
+
+window.estLimiteIA = async () => {
+  const v = prompt("Límite de gasto mensual para imágenes con IA (USD). 0 = apagado.", String(gastoIA?.limite ?? 5));
+  if (v === null) return;
+  try {
+    gastoIA = await api("PUT", "/api/ia/gasto", { limite: Number(String(v).replace(",", ".")) });
+    avisar("Límite guardado ✓");
+    renderPaso();
+  } catch (err) { avisar(err.message, "error"); }
+};
+
+window.estGenerarImagenIA = async (idSeccion) => {
+  if (generandoIA.has(idSeccion)) return;
+  if (!(proyecto.fotos || []).length && !confirm("No hay fotos reales del producto en la Ficha: la IA va a inventar cómo se ve. ¿Generar igual?")) return;
+  const avInicio = av;
+  generandoIA.add(idSeccion);
+  renderPaso();
+  try {
+    const { imagen, rama, gasto } = await api("POST", `/api/proyectos/${proyecto._id}/rama/${avInicio}/ia/imagen/${idSeccion}`);
+    imagenes.push(imagen);
+    if (av === avInicio) ponerRama(rama);
+    gastoIA = gasto;
+    avisar("Imagen creada ✓ Revísala: si no te gusta, quítala y genera otra.");
+  } catch (err) {
+    avisar(err.message, "error");
+    api("GET", "/api/ia/gasto").then(g => { gastoIA = g; }).catch(() => {});
+  } finally {
+    generandoIA.delete(idSeccion);
+    if (tab === 4) renderPaso();
+  }
+};
+
 window.estSoltarImagen = (e, idSeccion) => {
   e.preventDefault();
   e.currentTarget?.classList.remove("soltar");
