@@ -4955,3 +4955,4 @@ button.bp-chip { border: 0; cursor: pointer; font: inherit; font-size: 12px; fon
 .ts-btn.chico { min-height: 30px; padding: 0 10px; font-size: 12px; margin-top: 4px; }
 .est-label-claro small { font-weight: 500; color: #94a3b8; }
 .est-alert a { color: inherit; text-decoration: underline; font-weight: 700; }
+.est-label-claro .est-link { float: right; font-size: 12px; font-weight: 600; }

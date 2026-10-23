@@ -353,6 +353,7 @@ window.estVolverLista = () => renderLista($("view"));
 
 async function abrir(id, pasoInicial = null) {
   importado = null;
+  plantillaPub = null;
   try {
     const [p, pl, imgs] = await Promise.all([
       api("GET", `/api/proyectos/${id}`),
@@ -1739,7 +1740,8 @@ function opcionesTema(t) {
   }
   const d = info && info !== "cargando" ? info : null;
   const formato = formatoDe(proyecto);
-  if (plantillaPub === null && d) plantillaPub = d.elegida?.[formato] ?? "";
+  // Por defecto: la plantilla con la que ya se publicó ESTE proyecto en esta tienda; si no, la última que usaste
+  if (plantillaPub === null && d) plantillaPub = R().publicaciones?.[t._id]?.plantilla ?? d.elegida?.[formato] ?? "";
   const lista = d?.plantillas || [];
   return `
     <label class="est-label-claro">Dónde van las imágenes</label>
@@ -1748,7 +1750,8 @@ function opcionesTema(t) {
       <option value="descripcion" ${destinoPub === "descripcion" ? "selected" : ""}>En la descripción del producto</option>
     </select>
     ${destinoPub === "tema" ? `
-      <label class="est-label-claro">Plantilla de producto ${d?.tema ? `<small>(tema "${esc(d.tema)}")</small>` : ""}</label>
+      <label class="est-label-claro">Plantilla de producto ${d?.tema ? `<small>(tema "${esc(d.tema)}")</small>` : ""}
+        <button class="est-link" onclick="estRecargarPlantillas('${esc(t._id)}')" title="Si creaste una plantilla nueva en Shopify">↻ Recargar lista</button></label>
       ${!d ? `<p class="est-hint">Leyendo las plantillas de tu tema...</p>`
         : d.sinPermiso || d.error ? `
           <input id="estPlantilla" class="est-input" placeholder="Nombre de la plantilla (ej: ban-page). Vacío = predeterminada" value="${esc(plantillaPub || "")}" onchange="estPlantilla(this.value.trim())">
@@ -1760,6 +1763,7 @@ function opcionesTema(t) {
       ${d && d.seccion === false ? `<div class="est-alert warn">Tu tema todavía no tiene la sección <b>CoDropX landing</b>: instálala una vez desde <a href="#" onclick="goTo('integraciones'); return false;">Integraciones → Shopify</a> y agrégala a esa plantilla. Sin ella, las imágenes quedan guardadas en el producto pero no se ven.</div>` : ""}
     ` : `<p class="est-hint">Las imágenes van una debajo de otra dentro de la descripción.</p>`}`;
 }
+window.estRecargarPlantillas = (id) => { delete temaTiendas[id]; plantillaPub = null; renderPaso(); };
 window.estDestino = (v) => { destinoPub = v === "descripcion" ? "descripcion" : "tema"; try { localStorage.setItem("est_destino_pub", destinoPub); } catch {} renderPaso(); };
 window.estPlantilla = (v) => { plantillaPub = String(v || ""); };
 window.estPublicar = () => conCarga("estBtnPublicar", "Subiendo a Shopify...", async () => {
