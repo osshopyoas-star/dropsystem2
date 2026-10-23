@@ -241,13 +241,28 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
     return { p, av, avatar, r, vista, plantilla };
   };
 
+  // Guarda SOLO el trabajo de este avatar (no pisa al otro avatar si se está trabajando en los dos a la vez)
   const guardarRama = async (p, av, r) => {
+    const ahora = new Date();
+    await Proyecto.updateOne({ _id: p._id }, { $set: { [`ramas.${av}`]: r, [`pasosRamas.${av}`]: r.paso, actualizado: ahora } });
     p.ramas = { ...(p.ramas || {}), [av]: r };
     p.pasosRamas = { ...(p.pasosRamas || {}), [av]: r.paso };
-    p.vendio = Object.values(p.ramas).some(x => x?.vendio);   // para mostrarlo en la Base de Productos
-    p.markModified("ramas"); p.markModified("pasosRamas");
-    p.actualizado = new Date();
-    await p.save();
+    p.actualizado = ahora;
+    // "Vendió" del proyecto (para la Base de Productos) con lo que hay guardado ahora
+    const fresco = await Proyecto.findOne({ _id: p._id }).select("ramas vendio").lean();
+    const vendio = Object.values(fresco?.ramas || {}).some(x => x?.vendio);
+    if (fresco && !!fresco.vendio !== vendio) await Proyecto.updateOne({ _id: p._id }, { $set: { vendio } });
+    p.vendio = vendio;
+  };
+
+  // Vuelve a leer este avatar justo antes de guardar y aplica solo el cambio (la IA tarda y mientras tanto pudo cambiar)
+  const actualizarRama = async (p, av, cambio) => {
+    const fresco = await Proyecto.findOne({ _id: p._id }).select("ramas").lean();
+    const actual = { ...ramaVacia(), ...((fresco?.ramas || {})[av] || {}) };
+    const r = cambio(actual);
+    if (!r) return null;
+    await guardarRama(p, av, r);
+    return r;
   };
 
   const errorIA = (res, err, que) => {
@@ -333,16 +348,20 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
       Object.assign(p, cambios, { actualizado: new Date() });
       if (cambios.revision || cambios.ficha || cambios.formato || cambios.tipo) {
         const plantilla = await obtenerPlantilla(req.user.uid, p.formato, p.tipo);
-        const ramas = { ...(p.ramas || {}) };
-        for (const [av, r] of Object.entries(ramas)) {
+        // Solo se actualiza el bloque de estilo de cada avatar (sin pisar lo demás de la rama)
+        const bloques = {};
+        for (const [av, r] of Object.entries(p.ramas || {})) {
           const avatar = (p.avatares || []).find(a => a.id === av);
-          if (r?.estilo && avatar) {
-            ramas[av] = { ...r, bloqueEstilo: construirBloqueEstilo({ ...plano(p), ...r, avatares: [avatar], plantilla }) };
-          }
+          if (r?.estilo && avatar) bloques[`ramas.${av}.bloqueEstilo`] = construirBloqueEstilo({ ...plano(p), ...r, avatares: [avatar], plantilla });
         }
-        p.ramas = ramas; p.markModified("ramas");
+        await p.save();
+        if (Object.keys(bloques).length) {
+          await Proyecto.updateOne({ _id: p._id }, { $set: bloques });
+          for (const [k, v] of Object.entries(bloques)) { const av = k.split(".")[1]; p.ramas = { ...p.ramas, [av]: { ...p.ramas[av], bloqueEstilo: v } }; }
+        }
+      } else {
+        await p.save();
       }
-      await p.save();
       res.json(p);
     } catch (err) {
       console.error("Error guardando proyecto:", err);
@@ -528,11 +547,16 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
       const texto = String(reply || "").replace(/^```[a-z]*\n?|```$/gim, "").trim();
       if (!texto) return res.status(502).json({ error: "La IA no devolvió el prompt" });
 
-      const nuevas = [...secs];
-      nuevas[idx] = { ...sec, prompt: texto, hecha: false };
-      const r = { ...x.r, bloqueEstilo: bloque, secciones: nuevas };
-      await guardarRama(x.p, x.av, r);
-      res.json({ seccion: nuevas[idx] });
+      let lista = null;
+      const r = await actualizarRama(x.p, x.av, (actual) => {
+        const i = (actual.secciones || []).findIndex(sx => sx.id === sec.id);
+        if (i === -1) return null;   // la quitaron mientras se escribía
+        lista = [...actual.secciones];
+        lista[i] = { ...lista[i], prompt: texto, hecha: false };
+        return { ...actual, bloqueEstilo: actual.bloqueEstilo || bloque, secciones: lista };
+      });
+      if (!r) return res.status(409).json({ error: "Esa sección ya no existe (cambiaron las secciones mientras se escribía)" });
+      res.json({ seccion: lista.find(sx => sx.id === sec.id) });
     } catch (err) { errorIA(res, err, "el prompt"); }
   });
 
@@ -630,5 +654,5 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
     } catch (err) { errorIA(res, err, "las notas"); }
   });
 
-  return { cargar, cargarRama, guardarRama };
+  return { cargar, cargarRama, guardarRama, actualizarRama };
 }

@@ -115,7 +115,7 @@ async function pedirImagen({ prompt, fotos, aspecto }) {
 
 const enProceso = new Set();
 
-export function registrarRutasIAImagenes(app, { cargarRama, guardarRama, limiter }) {
+export function registrarRutasIAImagenes(app, { cargarRama, guardarRama, actualizarRama, limiter }) {
   const mw = limiter ? [limiter] : [];
 
   app.get("/api/ia/gasto", async (req, res) => {
@@ -177,11 +177,9 @@ export function registrarRutasIAImagenes(app, { cargarRama, guardarRama, limiter
         owner: req.user.uid, proyecto: x.p._id, rama: x.av, seccion: sec.id,
         tipo: r.tipo, datos: r.datos, bytes: r.datos.length, origen: "ia"
       });
-      let rama = x.r;
-      if (!sec.hecha) {
-        rama = { ...x.r, secciones: x.r.secciones.map((s, i) => i === idx ? { ...s, hecha: true } : s) };
-        await guardarRama(x.p, x.av, rama);
-      }
+      const rama = (await actualizarRama(x.p, x.av, (actual) => ({
+        ...actual, secciones: (actual.secciones || []).map(s => s.id === sec.id ? { ...s, hecha: true } : s)
+      }))) || x.r;
       res.json({ imagen: metaImagen(nueva), rama, gasto: await estadoGasto(req.user.uid) });
     } catch (err) {
       console.error("Error generando imagen IA:", err.message);

@@ -24,7 +24,7 @@ export function textoShopify(prompt) {
 const subidaDe = (v) => (v && typeof v === "object" && v.id && v.url ? v : null);   // las viejas solo tenían la URL
 const publicando = new Set();
 
-export function registrarRutasPublicar(app, { cargar, cargarRama, guardarRama, limiter }) {
+export function registrarRutasPublicar(app, { cargar, cargarRama, guardarRama, actualizarRama, limiter }) {
   const mw = limiter ? [limiter] : [];
   const idOk = (id) => mongoose.Types.ObjectId.isValid(id);
 
@@ -73,11 +73,9 @@ export function registrarRutasPublicar(app, { cargar, cargarRama, guardarRama, l
         tipo: img.tipo, datos: img.datos, bytes: img.datos.length,
         ancho: medida(req.body?.ancho), alto: medida(req.body?.alto)
       });
-      let rama = x.r;
-      if (!x.r.secciones[idx].hecha) {
-        rama = { ...x.r, secciones: x.r.secciones.map((s, i) => i === idx ? { ...s, hecha: true } : s) };
-        await guardarRama(x.p, x.av, rama);
-      }
+      const rama = (await actualizarRama(x.p, x.av, (actual) => ({
+        ...actual, secciones: (actual.secciones || []).map(s => s.id === seccion ? { ...s, hecha: true } : s)
+      }))) || x.r;
       res.json({ imagen: metaImagen(nueva), rama });
     } catch (err) {
       console.error("Error subiendo imagen:", err);
@@ -191,8 +189,9 @@ export function registrarRutasPublicar(app, { cargar, cargarRama, guardarRama, l
         handle: r.handle, adminUrl: r.adminUrl, estado: r.estado, fecha: new Date().toISOString(),
         imagenes: imgs.length, faltan: landing.faltan, destino, plantilla: plantilla ?? anterior?.plantilla ?? ""
       };
-      const rama = { ...x.r, publicaciones: { ...(x.r.publicaciones || {}), [tid]: publicacion } };
-      await guardarRama(x.p, x.av, rama);
+      const rama = await actualizarRama(x.p, x.av, (actual) => ({
+        ...actual, publicaciones: { ...(actual.publicaciones || {}), [tid]: publicacion }
+      }));
 
       // El producto de la Base queda "Listo para testear" en Mis testeos (si aún no estaba en testeo)
       let listo = false;
