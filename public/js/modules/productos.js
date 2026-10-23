@@ -178,7 +178,9 @@ function chipsAvance(p) {
 }
 
 function fuente(p) {
-  if (p.origen === "dropi") return p.dropiId ? `Dropi ${esc(p.dropiId)}` : "Dropi · sin ID";
+  if (p.origen === "dropi") return p.dropiId
+    ? `<button class="bp-dropi" title="Abrir el buscador de Dropi ${p.pais === "EC" ? "Ecuador" : "Colombia"} (el ID queda copiado: pégalo con Ctrl+V)" onclick="abrirDropi('${esc(p.dropiId)}', '${esc(p.pais || "CO")}')">Dropi ${esc(p.dropiId)} <i data-lucide="external-link"></i></button>`
+    : "Dropi · sin ID";
   if (p.origen === "importacion") return "Importación";
   if (p.origen === "laboratorio") return "Laboratorio";
   return "";
@@ -308,7 +310,26 @@ window.abrirMaterial = function(i) {
   $("modalMaterial")?.classList.remove("hidden");
 };
 window.cerrarModalMaterial = () => $("modalMaterial")?.classList.add("hidden");
-window.abrirDropi = (id) => window.open(`https://app.dropi.co/product/${encodeURIComponent(id)}`, "_blank", "noopener");
+// Dropi no tiene link directo al producto: abre su buscador (CO o EC) y deja el ID copiado para pegarlo
+const DROPI_BUSCAR = { CO: "https://app.dropi.co/dashboard/search", EC: "https://app.dropi.ec/dashboard/search?search_type=simple" };
+window.abrirDropi = async (id, pais = "CO") => {
+  const w = window.open(DROPI_BUSCAR[pais] || DROPI_BUSCAR.CO, "_blank", "noopener");
+  try { await navigator.clipboard.writeText(String(id)); }
+  catch {
+    const t = document.createElement("textarea"); t.value = String(id); document.body.appendChild(t); t.select();
+    try { document.execCommand("copy"); } catch {} t.remove();
+  }
+  avisarBp(`ID ${id} copiado: en Dropi pégalo en el buscador con Ctrl+V`);
+  return w;
+};
+function avisarBp(texto) {
+  let el = document.getElementById("estToast");
+  if (!el) { el = document.createElement("div"); el.id = "estToast"; document.body.appendChild(el); }
+  el.textContent = texto;
+  el.className = "est-toast show ok";
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove("show"), 3500);
+}
 
 // ---------- Análisis de 19 criterios + recursos ----------
 let an = null;   // { id, analisis, recursos, cambios }
