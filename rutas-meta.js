@@ -79,7 +79,7 @@ const leerCookie = (req, nombre) => {
 };
 
 // ---------- Llamadas a la API de Meta ----------
-class ErrorMeta extends Error {
+export class ErrorMeta extends Error {
   constructor(mensaje, codigo, status = 502) { super(mensaje); this.codigo = codigo; this.status = status; }
 }
 
@@ -135,6 +135,39 @@ async function traerCuentas(token) {
     activa: a.account_status === 1,
     business: String(a.business?.name || "")
   }));
+}
+
+const comprasDe = (acts = []) => Number((acts.find(a => ["purchase", "offsite_conversion.fb_pixel_purchase", "omni_purchase"].includes(a.action_type)) || {}).value || 0);
+
+// Gasto por campaña y por día de varias cuentas (para el Control Diario)
+// → { cuentas: [{ account_id, name, currency, error? }], filas: [{ fecha, campanaId, campana, account_id, moneda, gasto, compras }] }
+export async function gastoCampanas(owner, accountIds, desde, hasta) {
+  const doc = await MetaConexion.findOne({ owner }).lean();
+  if (!doc) throw new ErrorMeta("Meta no está conectado. Conéctalo en Integraciones.", 0, 400);
+  const token = descifrar(doc.token);
+  const pedidas = new Set((accountIds || []).map(String));
+  const cuentas = (doc.cuentas || []).filter(c => pedidas.has(c.account_id)).slice(0, 25);
+  const filas = [], estado = [];
+  for (const cta of cuentas) {
+    try {
+      const datos = await todas(`act_${cta.account_id}/insights`, {
+        access_token: token, level: "campaign",
+        fields: "campaign_id,campaign_name,spend,actions",
+        time_range: JSON.stringify({ since: desde, until: hasta }),
+        time_increment: 1, limit: 500
+      }, 5000);
+      for (const d of datos) {
+        const gasto = Number(d.spend || 0);
+        if (!(gasto > 0)) continue;
+        filas.push({ fecha: d.date_start, campanaId: String(d.campaign_id || ""), campana: String(d.campaign_name || ""), account_id: cta.account_id, moneda: cta.currency, gasto, compras: comprasDe(d.actions) });
+      }
+      estado.push({ account_id: cta.account_id, name: cta.name, currency: cta.currency });
+    } catch (e) {
+      if (e.codigo === 190) throw e;
+      estado.push({ account_id: cta.account_id, name: cta.name, currency: cta.currency, error: e.message });
+    }
+  }
+  return { cuentas: estado, filas };
 }
 
 const publico = (doc) => doc ? {

@@ -16,10 +16,14 @@ const $ = (id) => document.getElementById(id);
 const esc = (v) => escapeHTML(v ?? "");
 const iconos = () => { if (window.lucide) lucide.createIcons(); };
 const PAIS_NOMBRE = { CO: "Colombia", EC: "Ecuador" };
+const MONEDA_PAIS = { CO: "COP", EC: "USD" };
 
 // ---------- Estado ----------
 const st = {
   pais: (() => { try { return localStorage.getItem("fz_pais") || "CO"; } catch { return "CO"; } })(),
+  // Origen elegido en el selector (vacío = aún no lo eliges)
+  origen: (() => { try { return localStorage.getItem("fz_origen") || ""; } catch { return ""; } })(),
+  meta: { estado: null, sync: null, cargando: false, error: "", abierto: false, rango: null },
   lineas: [], config: null, pauta: {}, cargadoPais: null,
   dia: null,
   rango: { modo: "7d", desde: "", hasta: "", clave: "", porProducto: false },
@@ -81,6 +85,8 @@ async function cargar(forzar = false) {
   ]);
   st.config = config;
   st.lineas = lineas;
+  st.meta.sync = null; st.meta.rango = null; st.meta.error = "";
+  if (!st.meta.estado) st.meta.estado = await api("GET", "/api/meta/estado").catch(() => ({ conectado: false }));
   st.pauta = Object.fromEntries(pauta.map(p => [`${p.fecha}|${p.clave}`, p]));
   st.cargadoPais = st.pais;
   if (!st.dia || !config.dias.includes(st.dia)) {
@@ -104,9 +110,49 @@ function gastoRango(desde, hasta, clave = "") {
   return { meta, tiktok };
 }
 
-// ---------- Cabecera común: país y Excel ----------
+// ---------- Cabecera común: origen de los datos (Dropi) + cuentas publicitarias (Meta) ----------
+function selectorCuentas() {
+  const m = st.meta.estado;
+  if (!m) return `<div class="fz-cta-caja cargando"><span class="fz-cta-ico"><i data-lucide="loader"></i></span><span class="fz-cta-txt">Cargando…</span></div>`;
+  if (!m.conectado) return `<a class="fz-cta-caja" href="#/integraciones" onclick="goTo('integraciones');return false"><span class="fz-cta-ico">∞</span><span class="fz-cta-txt">Conecta Meta en Integraciones</span><i data-lucide="chevron-right"></i></a>`;
+  const elegidas = new Set(st.config?.metaCuentas || []);
+  const cuentas = [...(m.cuentas || [])].sort((x, y) => (elegidas.has(y.account_id) - elegidas.has(x.account_id)) || (y.activa - x.activa) || x.name.localeCompare(y.name, "es"));
+  const nombres = cuentas.filter(c => elegidas.has(c.account_id)).map(c => c.name);
+  const texto = !nombres.length ? `<span class="fz-placeholder">Elige cuenta(s)...</span>` : nombres.length <= 2 ? esc(nombres.join(" + ")) : `${esc(nombres[0])} <b>+${nombres.length - 1}</b>`;
+  return `
+    <div class="fz-cta ${st.meta.abierto ? "abierto" : ""}">
+      <button type="button" class="fz-cta-caja" onclick="fzCuentasAbrir()"><span class="fz-cta-ico">∞</span><span class="fz-cta-txt">${texto}</span><i data-lucide="chevron-down"></i></button>
+      ${st.meta.abierto ? `
+      <div class="fz-cta-lista">
+        ${cuentas.map(c => `
+          <label class="${c.activa ? "" : "inactiva"}">
+            <input type="checkbox" value="${esc(c.account_id)}" ${elegidas.has(c.account_id) ? "checked" : ""} onchange="fzCuenta(this.value, this.checked)">
+            <span><b>${esc(c.name)}</b><small>${esc(c.currency)} · ${esc(c.account_id)}${c.activa ? "" : ` · ${esc(c.status)}`}</small></span>
+            ${c.currency && c.currency !== MONEDA_PAIS[st.pais] ? `<em title="Se convierte con la TRM">${esc(c.currency)}→${MONEDA_PAIS[st.pais]}</em>` : ""}
+          </label>`).join("") || `<p class="fz-sin">No hay cuentas. Dale "Actualizar cuentas" en Integraciones.</p>`}
+        <button type="button" class="fz-btn chico" onclick="fzCuentasAbrir(false)">Listo</button>
+      </div>` : ""}
+    </div>`;
+}
+
+function estadoMeta() {
+  const elegidas = st.config?.metaCuentas || [];
+  if (!st.meta.estado?.conectado) return `<small class="fz-cta-ayuda">Sin Meta conectado la pauta la llenas a mano.</small>`;
+  if (!elegidas.length) return `<small class="fz-cta-ayuda">Elige al menos una; el gasto se suma.</small>`;
+  const s = st.meta.sync;
+  const cuentas = st.meta.estado.cuentas || [];
+  const otra = cuentas.some(c => elegidas.includes(c.account_id) && c.currency && c.currency !== MONEDA_PAIS[st.pais]);
+  const errores = (s?.cuentas || []).filter(c => c.error);
+  return `<small class="fz-cta-ayuda">
+      ${st.meta.cargando ? `<i data-lucide="loader" class="gira"></i> Trayendo el gasto de Meta…` : st.meta.error ? `<span class="rojo">${esc(st.meta.error)}</span>` : s ? `<span class="fz-ok">●</span> Gasto de Meta al día · ${hace(s.actualizado)} <button type="button" class="fz-link" onclick="fzMetaSync(true)">Actualizar</button>` : "Elige al menos una; el gasto se suma."}
+      ${errores.length ? `<br><span class="rojo">No se pudo leer: ${errores.map(e => esc(e.name)).join(", ")}</span>` : ""}
+    </small>
+    ${otra ? `<label class="fz-trm">1 USD = <input type="number" min="1" step="1" value="${Number(st.config?.trm) || 4000}" onchange="fzTrm(this.value)"> COP <small>(cuentas en otra moneda)</small></label>` : ""}`;
+}
+
 function cabecera(titulo, desc, icono) {
   const c = st.config || {};
+  const origen = st.origen;
   return `
   <header class="fz-head">
     <div>
@@ -114,31 +160,133 @@ function cabecera(titulo, desc, icono) {
       <p>${desc}</p>
     </div>
   </header>
-  <section class="fz-card fz-origen">
-    <div class="fz-origen-fila">
-      <label>País / cuenta Dropi
-        <select onchange="fzPais(this.value)">
-          <option value="CO" ${st.pais === "CO" ? "selected" : ""}>🇨🇴 Colombia${st.pais === "CO" && c.cuenta ? ` · ${esc(c.cuenta)}` : ""}</option>
-          <option value="EC" ${st.pais === "EC" ? "selected" : ""}>🇪🇨 Ecuador${st.pais === "EC" && c.cuenta ? ` · ${esc(c.cuenta)}` : ""}</option>
-        </select>
-      </label>
-      <div class="fz-origen-info">
-        ${c.desde
-          ? `<span class="fz-ok">● ${st.lineas.length ? new Set(st.lineas.map(l => l.ordenId)).size : 0} pedidos del ${fechaCorta(c.desde)} al ${fechaCorta(c.hasta)}</span><small>Última carga ${hace(c.ultimaImportacion)}</small>`
-          : `<span class="fz-vacio-txt">Aún no hay pedidos de ${PAIS_NOMBRE[st.pais]}. Sube el Excel de Dropi.</span>`}
+  <section class="fz-card fz-fuente">
+    <p class="fz-fuente-intro">Conecta <b>Dropi</b> y <b>Meta</b> en <a href="#/integraciones" onclick="goTo('integraciones');return false">Integraciones</a>, elige tu cuenta de Dropi y de Meta a continuación para que los datos se llenen automáticamente.</p>
+    <div class="fz-fuente-grid">
+      <div class="fz-fuente-col">
+        <span class="fz-fuente-tit">ORIGEN DE LOS DATOS</span>
+        <label class="fz-sel-caja">
+          <span class="fz-sel-ico"><i data-lucide="database"></i></span>
+          <select onchange="fzOrigen(this.value)">
+            <option value="" ${origen ? "" : "selected"} disabled>Elige un origen...</option>
+            <option value="CO" ${origen === "CO" ? "selected" : ""}>🇨🇴 Reporte Dropi (Excel) · Colombia${origen === "CO" && c.cuenta ? ` · ${esc(c.cuenta)}` : ""}</option>
+            <option value="EC" ${origen === "EC" ? "selected" : ""}>🇪🇨 Reporte Dropi (Excel) · Ecuador${origen === "EC" && c.cuenta ? ` · ${esc(c.cuenta)}` : ""}</option>
+            <option value="api" disabled>🔌 Cuenta Dropi conectada · pronto</option>
+          </select>
+          <i data-lucide="chevron-down"></i>
+        </label>
+        ${origen ? `
+        <div class="fz-origen-fila">
+          <div class="fz-origen-info">
+            ${c.desde
+              ? `<span class="fz-ok">● ${st.lineas.length ? new Set(st.lineas.map(l => l.ordenId)).size : 0} pedidos del ${fechaCorta(c.desde)} al ${fechaCorta(c.hasta)}</span><small>Última carga ${hace(c.ultimaImportacion)}</small>`
+              : `<span class="fz-vacio-txt">Aún no hay pedidos de ${PAIS_NOMBRE[st.pais]}. Sube el Excel de Dropi.</span>`}
+          </div>
+          <label class="fz-btn ${c.desde ? "claro" : ""} chico">
+            <i data-lucide="upload"></i> ${c.desde ? "Actualizar Excel" : "Subir Excel de Dropi"}
+            <input type="file" accept=".xlsx" hidden onchange="fzSubirExcel(this)">
+          </label>
+        </div>` : ""}
       </div>
-      <label class="fz-btn ${c.desde ? "claro" : ""}">
-        <i data-lucide="upload"></i> ${c.desde ? "Actualizar con Excel" : "Subir Excel de Dropi"}
-        <input type="file" accept=".xlsx" hidden onchange="fzSubirExcel(this)">
-      </label>
+      <div class="fz-fuente-col">
+        <span class="fz-fuente-tit"><span class="fz-meta-logo">∞</span> CUENTAS PUBLICITARIAS <small>de aquí sale el gasto de Meta</small></span>
+        ${origen ? selectorCuentas() : `<div class="fz-cta-caja apagada"><span class="fz-cta-ico">∞</span><span class="fz-cta-txt fz-placeholder">Elige cuenta(s)...</span><i data-lucide="chevron-down"></i></div>`}
+        ${origen ? estadoMeta() : `<small class="fz-cta-ayuda">Elige al menos una; el gasto se suma.</small>`}
+      </div>
     </div>
+    ${origen ? `
     <details class="fz-ayuda">
       <summary>¿Qué Excel subo?</summary>
       <p>En Dropi → <b>Mis pedidos</b> → descarga el reporte <b>"órdenes con productos"</b> del rango que quieras (por ejemplo el mes). Puedes subirlo las veces que quieras: los pedidos se <b>actualizan</b> (cambian de estado), no se duplican.
       Los datos de tus clientes (nombre, teléfono, documento, dirección) <b>no se suben</b>: el Excel se lee aquí en tu navegador y solo se envían las columnas de pedidos.
       Cuando Dropi active la integración CoDropX, esto se llenará solo.</p>
-    </details>
+    </details>` : `
+    <div class="fz-elige">
+      <b>ELIGE UN ORIGEN ARRIBA PARA CONTINUAR</b>
+      <p>Reporte mensual Dropi (tu Excel) o una cuenta Dropi.<br>Elige una cuenta publicitaria para llenar su gasto automáticamente, de lo contrario llena la pauta manualmente.</p>
+    </div>`}
   </section>`;
+}
+
+window.fzOrigen = async (v) => {
+  if (v !== "CO" && v !== "EC") return;
+  st.origen = v;
+  try { localStorage.setItem("fz_origen", v); } catch {}
+  await window.fzPais(v);
+};
+
+window.fzCuentasAbrir = (abrir) => {
+  st.meta.abierto = abrir === undefined ? !st.meta.abierto : !!abrir;
+  rePintar();
+  if (!st.meta.abierto && st.meta.pendiente) { st.meta.pendiente = false; fzMetaSync(true); }
+};
+
+window.fzCuenta = async (id, marcada) => {
+  const set = new Set(st.config?.metaCuentas || []);
+  if (marcada) set.add(id); else set.delete(id);
+  try {
+    const r = await api("PUT", "/api/finanzas/config", { pais: st.pais, metaCuentas: [...set] });
+    st.config.metaCuentas = r.metaCuentas;
+    st.meta.sync = null;
+    st.meta.pendiente = true;   // se trae el gasto al cerrar la lista
+    rePintar();
+  } catch (err) { avisar(err.message, "error"); }
+};
+
+window.fzTrm = async (v) => {
+  try {
+    const r = await api("PUT", "/api/finanzas/config", { pais: st.pais, trm: Number(v) });
+    st.config.trm = r.trm;
+    await fzMetaSync(false);
+  } catch (err) { avisar(err.message, "error"); }
+};
+
+// Rango a traer de Meta: lo que se está viendo (día elegido + vista por rango), hasta hoy
+function rangoMeta() {
+  const hoy = hoyISO();
+  const fechas = [sumarDias(hoy, -30), st.dia || hoy, rangoFechas()[0]].filter(Boolean).sort();
+  return { desde: fechas[0], hasta: hoy };
+}
+
+async function metaSync(forzar = false) {
+  if (!st.origen || !st.meta.estado?.conectado || !(st.config?.metaCuentas || []).length) { st.meta.sync = null; return; }
+  const { desde, hasta } = rangoMeta();
+  const pais = st.pais;
+  st.meta.cargando = true; st.meta.error = "";
+  rePintar();
+  try {
+    const r = await api("POST", "/api/finanzas/meta/sincronizar", { pais: st.pais, desde, hasta, forzar });
+    if (pais !== st.pais) return;
+    // La pauta de ese rango se reemplaza por la que quedó guardada
+    for (const k of Object.keys(st.pauta)) { const f = k.slice(0, 10); if (f >= r.desde && f <= r.hasta) delete st.pauta[k]; }
+    for (const p of r.pauta || []) st.pauta[`${p.fecha}|${p.clave}`] = p;
+    st.meta.sync = r; st.meta.rango = { desde: r.desde, hasta: r.hasta };
+  } catch (err) {
+    st.meta.error = err.message;
+  } finally {
+    st.meta.cargando = false;
+    rePintar();
+  }
+}
+window.fzMetaSync = (forzar) => metaSync(!!forzar);
+
+// Si te vas a un día más viejo de lo que ya se trajo, se trae
+function metaAlDia() {
+  const r = st.meta.rango;
+  if (!st.meta.cargando && st.meta.sync && r && st.dia && st.dia < r.desde) metaSync(false);
+}
+
+function sinOrigen(view, titulo, icono) {
+  view.innerHTML = `<div class="fz-page">${cabecera(titulo, "Elige de dónde salen tus pedidos y tu gasto en publicidad.", icono)}</div>`;
+  iconos();
+}
+
+function rePintar() {
+  const view = $("view");
+  if (!view || !st.pagina) return;
+  const y = window.scrollY;
+  PAGINAS[st.pagina](view);
+  window.scrollTo(0, y);
 }
 
 window.fzPais = async (p) => {
@@ -172,8 +320,10 @@ async function refrescar(forzar = false) {
   const view = $("view");
   if (!view || !st.pagina) return;
   try {
+    if (st.origen && st.pais !== st.origen) st.pais = st.origen;
     await cargar(forzar);
     PAGINAS[st.pagina](view);
+    if (st.origen && !st.meta.sync && !st.meta.cargando) metaSync(false);
   } catch (err) {
     view.innerHTML = `<div class="fz-page"><p class="est-error">${esc(err.message)}</p></div>`;
   }
@@ -205,6 +355,7 @@ function renderControl(view) {
   const t = totalesControl(filas);
   const canc = cancelacion30();
 
+  if (!st.origen) return sinOrigen(view, "Control Diario", "calendar-check");
   view.innerHTML = `
   <div class="fz-page">
     ${cabecera("Control Diario", "Tu <b>utilidad real diaria</b> por producto: cruza tus pedidos, cancelaciones y devoluciones de Dropi con lo que gastaste en pauta.", "calendar-check")}
@@ -219,7 +370,7 @@ function renderControl(view) {
         </label>
         <button class="fz-flecha" onclick="fzDia(1)" title="Día siguiente con datos"><i data-lucide="chevron-right"></i></button>
       </div>
-      <p class="fz-mini">${c.dias.includes(st.dia) ? `Pedidos de este día traídos del Excel de Dropi.` : `Este día no tiene pedidos en tus Excel.`} La pauta la escribes en la lista (cuando Meta esté conectado, se trae sola).</p>
+      <p class="fz-mini">${c.dias.includes(st.dia) ? `Pedidos de este día traídos del Excel de Dropi.` : `Este día no tiene pedidos en tus Excel.`} ${(c.metaCuentas || []).length && st.meta.estado?.conectado ? `El gasto de Meta se trae solo de tus cuentas publicitarias.` : `La pauta la escribes en la lista (o elige tus cuentas publicitarias arriba y se trae sola).`}</p>
     </section>
 
     <div class="fz-acciones">
@@ -250,7 +401,7 @@ function renderControl(view) {
                 <td class="n">${f.pedidos}</td>
                 <td class="n">${f.uds}</td>
                 <td class="n"><span class="fz-input"><input type="number" min="0" max="95" step="0.5" value="${f.devPct}" onchange="fzPauta(${i}, 'devPct', this.value)">%</span></td>
-                <td class="n"><span class="fz-input">$<input type="number" min="0" step="any" value="${f.meta || ""}" placeholder="0" onchange="fzPauta(${i}, 'meta', this.value)"></span></td>
+                <td class="n">${celdaMeta(f, i)}</td>
                 <td class="n"><span class="fz-input">$<input type="number" min="0" step="any" value="${f.tiktok || ""}" placeholder="0" onchange="fzPauta(${i}, 'tiktok', this.value)"></span></td>
                 <td>${f.fallido ? `<button class="fz-icono peligro" title="Quitar" onclick="fzQuitarFallido(${i})"><i data-lucide="trash-2"></i></button>` : ""}</td>
               </tr>`).join("") || `<tr><td colspan="8" class="fz-sin">Sin pedidos este día.</td></tr>`}
@@ -262,6 +413,8 @@ function renderControl(view) {
         <button class="fz-btn claro chico" onclick="fzAgregarFallido()">Agregar</button>
       </div>
     </section>
+
+    ${campanasDelDia()}
 
     ${filas.length ? `
     <section class="fz-utilidad ${t.utilidad < 0 ? "pierde" : ""}">
@@ -275,6 +428,66 @@ function renderControl(view) {
   </div>`;
   iconos();
 }
+
+// Celda Meta: si viene de Meta Ads se marca; si la escribiste tú, puedes volver a lo de Meta
+function celdaMeta(f, i) {
+  const p = st.pauta[`${st.dia}|${f.clave}`] || {};
+  const conMeta = (st.config?.metaCuentas || []).length && st.meta.estado?.conectado;
+  return `<span class="fz-input ${p.metaAuto ? "auto" : ""}" title="${p.metaAuto ? "Traído de Meta Ads. Si lo cambias, queda el tuyo." : ""}">$<input type="number" min="0" step="any" value="${f.meta || ""}" placeholder="0" onchange="fzPauta(${i}, 'meta', this.value)">${p.metaAuto ? `<em class="fz-meta-tag">∞</em>` : ""}</span>${conMeta && p.metaManual ? `<button class="fz-icono" title="Volver al gasto de Meta" onclick="fzVolverMeta(${i})"><i data-lucide="rotate-ccw"></i></button>` : ""}`;
+}
+
+window.fzVolverMeta = async (i) => {
+  const fila = filasDelDia()[i];
+  if (!fila) return;
+  try {
+    await guardarPauta(fila, { metaAuto: true });
+    await metaSync(false);
+  } catch (err) { avisar(err.message, "error"); }
+};
+
+// Campañas de Meta que gastaron este día y de qué producto son
+function campanasDelDia() {
+  const s = st.meta.sync;
+  if (!s || !s.campanas) return "";
+  const hoy = s.campanas.filter(c => (c.dias || {})[st.dia] > 0).sort((a, b) => b.dias[st.dia] - a.dias[st.dia]);
+  if (!hoy.length) return (st.dia >= s.desde && st.dia <= s.hasta) ? `<section class="fz-card fz-campanas"><div class="fz-card-head"><h3><span class="fz-meta-logo">∞</span> Campañas de Meta del ${fechaCorta(st.dia)}</h3><small>sin gasto este día en las cuentas elegidas</small></div></section>` : "";
+  const sinProducto = hoy.filter(c => !c.clave && c.origen !== "ignorada");
+  const sinGasto = sinProducto.reduce((a, c) => a + c.dias[st.dia], 0);
+  const total = hoy.reduce((a, c) => a + c.dias[st.dia], 0);
+  const cuentas = Object.fromEntries((st.meta.estado?.cuentas || []).map(c => [c.account_id, c.name]));
+  const prods = (s.productos || []).slice().sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+  return `
+  <section class="fz-card fz-campanas">
+    <div class="fz-card-head"><h3><span class="fz-meta-logo">∞</span> Campañas de Meta del ${fechaCorta(st.dia)}</h3><small>${hoy.length} con gasto · ${$$(total)} en total · elige de qué producto es cada una</small></div>
+    ${sinGasto > 0 ? `<p class="fz-aviso"><i data-lucide="alert-triangle"></i> <b>${$$(sinGasto)}</b> de Meta no tienen producto este día y no cuentan en la utilidad. Asígnalas abajo.</p>` : ""}
+    <div class="fz-scroll"><table class="fz-tabla">
+      <thead><tr><th>Campaña</th><th>Cuenta</th><th class="n">Gasto del día</th><th>Producto</th></tr></thead>
+      <tbody>
+        ${hoy.map(c => `<tr class="${!c.clave && c.origen !== "ignorada" ? "fz-sinprod" : ""}">
+          <td><b>${esc(c.nombre)}</b></td>
+          <td class="gris">${esc(cuentas[c.account_id] || c.account_id)}${c.moneda !== s.moneda ? ` <small>(${esc(c.moneda)})</small>` : ""}</td>
+          <td class="n">${$$(c.dias[st.dia])}</td>
+          <td>
+            <select class="fz-campana-sel" onchange="fzCampana('${esc(c.id)}', this.value)">
+              <option value="" ${!c.clave && c.origen !== "ignorada" ? "selected" : ""}>${c.origen === "auto" ? "↺ Automático por nombre" : "— Elige el producto —"}</option>
+              ${prods.map(p => `<option value="${esc(p.clave)}" ${c.clave === p.clave ? "selected" : ""}>${esc(p.nombre)}${c.clave === p.clave && c.origen === "auto" ? " · automático" : ""}</option>`).join("")}
+              <option value="x" ${c.origen === "ignorada" ? "selected" : ""}>No es de ningún producto</option>
+            </select>
+          </td>
+        </tr>`).join("")}
+      </tbody>
+    </table></div>
+    <p class="fz-mini">CoDropX une cada campaña con el producto cuyo nombre aparece en ella (ej. "TRAPEADOR CO 23/10"). Lo que eliges aquí queda guardado para todos los días.</p>
+  </section>`;
+}
+
+window.fzCampana = async (id, clave) => {
+  try {
+    await api("PUT", "/api/finanzas/meta/campana", { pais: st.pais, campanaId: id, clave });
+    await metaSync(false);
+    avisar("Campaña asignada ✓");
+  } catch (err) { avisar(err.message, "error"); }
+};
 
 function tablaControl(filas, t, conFecha) {
   return `<div class="fz-scroll"><table class="fz-tabla">
@@ -371,18 +584,20 @@ function rangoHTML() {
   </section>`;
 }
 
-window.fzRango = (m) => { st.rango.modo = m; renderControl($("view")); };
-window.fzRangoFecha = (k, v) => { st.rango[k] = v; renderControl($("view")); };
+window.fzRango = (m) => { st.rango.modo = m; renderControl($("view")); metaRango(); };
+window.fzRangoFecha = (k, v) => { st.rango[k] = v; renderControl($("view")); metaRango(); };
+function metaRango() { const r = st.meta.rango; if (!st.meta.cargando && st.meta.sync && r && rangoFechas()[0] < r.desde) metaSync(false); }
 window.fzRangoProducto = (v) => { st.rango.clave = v; renderControl($("view")); };
 window.fzRangoTotal = (v) => { st.rango.porProducto = v; renderControl($("view")); };
 
 // ---------- Día ----------
-window.fzIrDia = (v) => { if (/^\d{4}-\d{2}-\d{2}$/.test(v)) { st.dia = v; renderControl($("view")); } };
+window.fzIrDia = (v) => { if (/^\d{4}-\d{2}-\d{2}$/.test(v)) { st.dia = v; renderControl($("view")); metaAlDia(); } };
 window.fzDia = (dir) => {
   const dias = st.config?.dias || [];
   const sig = dir > 0 ? dias.find(d => d > st.dia) : [...dias].reverse().find(d => d < st.dia);
   st.dia = sig || sumarDias(st.dia, dir);
   renderControl($("view"));
+  metaAlDia();
 };
 
 // ---------- Pauta ----------
@@ -552,6 +767,7 @@ function renderReporte(view) {
   const salud = !r ? "" : r.margenNeto >= 30 ? ["ok", "MARGEN SALUDABLE"] : r.margenNeto >= 10 ? ["warn", "MARGEN AJUSTADO"] : ["mal", "MARGEN EN RIESGO"];
   const maxDia = r ? Math.max(1, ...r.porDia.map(([, v]) => v)) : 1;
 
+  if (!st.origen) return sinOrigen(view, "Reporte Financiero", "bar-chart-3");
   view.innerHTML = `
   <div class="fz-page">
     ${cabecera(R.clave ? `Resumen: ${esc(nombreDe(R.clave))}` : "Reporte Financiero", "Lo que de verdad entra a tu wallet de Dropi por lo entregado, menos devoluciones y publicidad.", "bar-chart-3")}
@@ -698,6 +914,7 @@ function renderLogistica(view) {
   const ahora = new Date(c?.ultimaImportacion || Date.now());
   const r = c?.desde ? logistica(st.lineas, { desde, hasta, grupos: grupos(), ahora, metaEntrega: c.metaEntrega }) : null;
 
+  if (!st.origen) return sinOrigen(view, "Logística", "truck");
   view.innerHTML = `
   <div class="fz-page">
     ${cabecera("Logística", "Cómo van tus envíos: entregas, novedades, devoluciones, transportadoras y ciudades.", "truck")}
@@ -914,3 +1131,8 @@ window.toggleFinanzasMenu = function () {
 // Para pruebas
 window.__fz = st;
 void claveProducto;
+
+// Cerrar la lista de cuentas al hacer clic afuera
+document.addEventListener("click", (e) => {
+  if (st.meta.abierto && !e.target.closest?.(".fz-cta")) window.fzCuentasAbrir(false);
+});

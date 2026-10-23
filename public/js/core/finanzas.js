@@ -491,3 +491,31 @@ export function sugerirResultado(m, equilibrioRef = null) {
   }
   return { resultado: "inconcluso", motivo: "Sin costeo ni pedidos para saber su CPA de equilibrio. Cuéstalo en la calculadora." };
 }
+
+// =============================================
+// META → PRODUCTO: qué producto es cada campaña, por su nombre
+// "TRAPEADOR CO 23/10" → el producto de Dropi "TRAPEADOR PULVERIZADOR SPRAY 360"
+// Cuenta las palabras del producto (de 4+ letras, sin las de relleno) que aparecen en la campaña.
+// Si dos productos empatan arriba, no adivina (la eliges tú).
+// =============================================
+const RELLENO = new Set(("para con los las del una uno unos unas por que sin mas muy tipo kit set pack combo unidad unidades und uds " +
+  "color colores negro blanco azul rojo rosado gris verde mujer hombre nino nina ninos unisex premium original nuevo nueva " +
+  "producto productos promo oferta gratis envio talla tallas grande pequeno mediano mini super pro max plus").split(" "));
+export const normalizarNombre = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+const palabrasClave = (s) => [...new Set(normalizarNombre(s).split(" ").filter(w => w.length >= 4 && !RELLENO.has(w) && !/^\d+$/.test(w)))];
+
+export function emparejarCampana(nombreCampana, productos) {
+  const enCampana = normalizarNombre(nombreCampana).split(" ").filter(Boolean);
+  const tiene = (w) => enCampana.some(c => c === w || (w.length >= 5 && c.length >= 5 && (c.startsWith(w.slice(0, 5)) && w.startsWith(c.slice(0, 5)))));
+  let mejor = null, empate = false;
+  for (const p of productos || []) {
+    const claves = palabrasClave(p.nombre);
+    if (!claves.length) continue;
+    const aciertos = claves.filter(tiene).length;
+    if (!aciertos) continue;
+    const puntos = aciertos * 10 + (aciertos === claves.length ? 5 : 0);   // más palabras gana; empate = no adivina
+    if (!mejor || puntos > mejor.puntos) { mejor = { clave: p.clave, puntos }; empate = false; }
+    else if (puntos === mejor.puntos && p.clave !== mejor.clave) empate = true;
+  }
+  return mejor && !empate ? mejor.clave : null;
+}
