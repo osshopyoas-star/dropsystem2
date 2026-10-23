@@ -197,10 +197,18 @@ async function asegurarDefiniciones(t) {
 
 // Plantillas de producto del tema publicado (necesita read_themes) y si ya tiene la sección de CoDropX
 export async function plantillasTema(t) {
-  const d = await gql(t, `{ themes(first: 1, roles: [MAIN]) { nodes { id name files(filenames: ["templates/product*.json", "templates/product*.liquid", "sections/codropx-landing.liquid"], first: 100) { nodes { filename } } } } }`);
+  // Los temas pueden tener cientos de plantillas: se leen todas, de a 250 (antes solo salían las primeras 100)
+  const filtro = `filenames: ["templates/product*.json", "templates/product*.liquid", "sections/codropx-landing.liquid"]`;
+  const d = await gql(t, `{ themes(first: 1, roles: [MAIN]) { nodes { id name files(${filtro}, first: 250) { nodes { filename } pageInfo { hasNextPage endCursor } } } } }`);
   const tema = d.themes?.nodes?.[0];
   if (!tema) return { tema: null, plantillas: [], seccion: false };
   const archivos = (tema.files?.nodes || []).map(f => f.filename);
+  let pagina = tema.files?.pageInfo;
+  for (let n = 0; pagina?.hasNextPage && pagina.endCursor && n < 20; n++) {
+    const m = await gql(t, `query($id: ID!, $after: String) { theme(id: $id) { files(${filtro}, first: 250, after: $after) { nodes { filename } pageInfo { hasNextPage endCursor } } } }`, { id: tema.id, after: pagina.endCursor });
+    archivos.push(...(m.theme?.files?.nodes || []).map(f => f.filename));
+    pagina = m.theme?.files?.pageInfo;
+  }
   const plantillas = archivos
     .map(f => (f.match(/^templates\/product(?:\.([^/]+))?\.(json|liquid)$/) || []))
     .filter(m => m.length)
