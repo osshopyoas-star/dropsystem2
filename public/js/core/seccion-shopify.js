@@ -91,7 +91,6 @@ export const SECCION_LIQUID = `{%- comment -%} CoDropX landing · imágenes publ
   "name": "CoDropX landing",
   "tag": "section",
   "class": "cdx-seccion",
-  "disabled_on": { "groups": ["header", "footer"] },
   "settings": [
     { "type": "range", "id": "ancho", "label": "Ancho máximo en computador", "min": 320, "max": 1200, "step": 20, "unit": "px", "default": 600 },
     { "type": "checkbox", "id": "ocultar_encabezado", "label": "Ocultar el encabezado de la tienda (ban page)", "default": true },
