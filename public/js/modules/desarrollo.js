@@ -1083,9 +1083,25 @@ window.estSubirImagen = async (idSeccion, files) => {
   if (tab === 4) renderPaso();
 };
 // ---------- Generar con IA (Grok Imagine) ----------
+// Fotos de la Ficha que la IA usa como referencia (máx 3), recordadas por proyecto en este navegador
+function refsIA() {
+  const n = (proyecto?.fotos || []).length;
+  let r = null;
+  try { r = JSON.parse(localStorage.getItem(`est_refs_${proyecto._id}`) || "null"); } catch {}
+  r = Array.isArray(r) ? r.filter(i => Number.isInteger(i) && i >= 0 && i < n).slice(0, 3) : [];
+  return r.length ? r : Array.from({ length: Math.min(3, n) }, (_, i) => i);
+}
+window.estRefIA = (i) => {
+  let r = refsIA();
+  if (r.includes(i)) { if (r.length === 1) return avisar("Deja al menos una foto de referencia", "error"); r = r.filter(x => x !== i); }
+  else { if (r.length >= 3) return avisar("Máximo 3 fotos de referencia", "error"); r = [...r, i].sort((a, b) => a - b); }
+  try { localStorage.setItem(`est_refs_${proyecto._id}`, JSON.stringify(r)); } catch {}
+  renderPaso();
+};
+
 const costoIA = () => {
   const g = gastoIA || { precioImagen: 0.04, precioReferencia: 0.01 };
-  return g.precioImagen + g.precioReferencia * Math.min(3, (proyecto?.fotos || []).length);
+  return g.precioImagen + g.precioReferencia * refsIA().length;
 };
 
 function lineaGastoIA() {
@@ -1102,7 +1118,12 @@ function lineaGastoIA() {
     <span>Imágenes con IA este mes: <b>$${gastoIA.usd.toFixed(2)}</b> de $${gastoIA.limite.toFixed(2)} USD · ${gastoIA.imagenes} imagen(es)</span>
     <span class="est-gasto-barra"><i style="width:${pct.toFixed(0)}%"></i></span>
     <button class="est-link" onclick="estLimiteIA()">Cambiar límite</button>
-  </div>`;
+  </div>
+  ${(proyecto.fotos || []).length ? `
+  <div class="est-refs-ia">
+    <span>Fotos que la IA copia (toca para elegir, máx 3). Funcionan mejor las del producto solo, nítido y con fondo limpio:</span>
+    <div>${proyecto.fotos.map((src, i) => `<button class="${refsIA().includes(i) ? "sel" : ""}" onclick="estRefIA(${i})" title="Foto ${i + 1}"><img src="${src}" alt="Foto ${i + 1}"></button>`).join("")}</div>
+  </div>` : `<p class="est-hint">Para generar con IA sube primero fotos reales del producto en la Ficha.</p>`}`;
 }
 
 window.estLimiteIA = async () => {
@@ -1117,12 +1138,12 @@ window.estLimiteIA = async () => {
 
 window.estGenerarImagenIA = async (idSeccion) => {
   if (generandoIA.has(idSeccion)) return;
-  if (!(proyecto.fotos || []).length && !confirm("No hay fotos reales del producto en la Ficha: la IA va a inventar cómo se ve. ¿Generar igual?")) return;
+  if (!(proyecto.fotos || []).length) { avisar("Primero sube fotos reales del producto en la Ficha (paso 1). Sin fotos la IA inventa otro producto.", "error"); return; }
   const avInicio = av;
   generandoIA.add(idSeccion);
   renderPaso();
   try {
-    const { imagen, rama, gasto } = await api("POST", `/api/proyectos/${proyecto._id}/rama/${avInicio}/ia/imagen/${idSeccion}`);
+    const { imagen, rama, gasto } = await api("POST", `/api/proyectos/${proyecto._id}/rama/${avInicio}/ia/imagen/${idSeccion}`, { refs: refsIA() });
     imagenes.push(imagen);
     if (av === avInicio) ponerRama(rama);
     gastoIA = gasto;

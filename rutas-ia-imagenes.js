@@ -59,12 +59,16 @@ export const aspectoDe = (formato) => {
   return "9:16";
 };
 
-export function armarPrompt({ bloqueEstilo, prompt, referencias }) {
-  const ref = referencias === 0 ? "" : referencias === 1
-    ? "PRODUCTO: usa EXACTAMENTE el producto de la foto de referencia (misma forma, colores, materiales, logos y proporciones). No lo cambies ni lo redibujes; solo cambia la escena, la luz y la composición.\n\n"
-    : `PRODUCTO: usa EXACTAMENTE el producto de las fotos de referencia (${Array.from({ length: referencias }, (_, i) => `<IMAGE_${i}>`).join(", ")}): misma forma, colores, materiales, logos y proporciones. No lo cambies ni lo redibujes.\n\n`;
+// El producto va primero y al final: la IA tiende a obedecer lo que más se repite
+export function armarPrompt({ bloqueEstilo, prompt, referencias, descripcion = "", noTiene = "" }) {
+  const etiquetas = referencias > 1 ? Array.from({ length: referencias }, (_, i) => `<IMAGE_${i}>`).join(", ") : "la foto de referencia";
+  const cabeza = referencias
+    ? `PRODUCTO REAL QUE SE VENDE: es el que aparece en ${etiquetas}. Cópialo IDÉNTICO: misma forma, tamaño relativo, colores, materiales, botones, piezas, logos y proporciones. NO inventes otro producto parecido, NO lo rediseñes, NO le agregues ni quites partes. Solo cambia la escena, las personas, la luz y los textos alrededor.${descripcion ? `\nCómo es el producto: ${descripcion}` : ""}${noTiene ? `\nEl producto NO tiene: ${noTiene}` : ""}\n\n`
+    : "";
+  const cola = referencias ? `\n\nRECUERDA: el producto de la imagen debe verse exactamente igual al de ${etiquetas}.` : "";
   const cuerpo = `${String(bloqueEstilo || "").trim()}\n\n${String(prompt || "").trim()}`.trim();
-  return (ref + cuerpo).slice(0, MAX_PROMPT);
+  const espacio = MAX_PROMPT - cabeza.length - cola.length;
+  return cabeza + cuerpo.slice(0, Math.max(500, espacio)) + cola;
 }
 
 async function pedirImagen({ prompt, fotos, aspecto }) {
@@ -141,7 +145,10 @@ export function registrarRutasIAImagenes(app, { cargarRama, guardarRama, limiter
       const ya = await ImagenLanding.countDocuments({ owner: req.user.uid, proyecto: x.p._id, rama: x.av, seccion: sec.id });
       if (ya >= MAX_POR_SECCION) return res.status(400).json({ error: `Máximo ${MAX_POR_SECCION} imágenes por sección. Quita alguna.` });
 
-      const fotos = (x.p.fotos || []).filter(f => /^data:image\/(jpeg|png|webp);base64,/.test(f)).slice(0, MAX_REFERENCIAS);
+      const todas = (x.p.fotos || []).filter(f => /^data:image\/(jpeg|png|webp);base64,/.test(f));
+      if (!todas.length) return res.status(400).json({ error: "Sube fotos reales del producto en la Ficha (paso 1). Sin fotos la IA inventa otro producto." });
+      const pedidas = Array.isArray(req.body?.refs) ? [...new Set(req.body.refs.map(Number))].filter(i => Number.isInteger(i) && i >= 0 && i < todas.length) : [];
+      const fotos = (pedidas.length ? pedidas.map(i => todas[i]) : todas).slice(0, MAX_REFERENCIAS);
       const estimado = PRECIO_IMAGEN + PRECIO_REFERENCIA * fotos.length;
       const g = await estadoGasto(req.user.uid);
       if (g.usd + estimado > g.limite + 1e-9) {
@@ -153,7 +160,11 @@ export function registrarRutasIAImagenes(app, { cargarRama, guardarRama, limiter
       enProceso.add(clave); llave = clave;
 
       const bloque = x.r.bloqueEstilo || "";
-      const r = await pedirImagen({ prompt: armarPrompt({ bloqueEstilo: bloque, prompt: sec.prompt, referencias: fotos.length }), fotos, aspecto: aspectoDe(sec.formato) });
+      const r = await pedirImagen({ prompt: armarPrompt({
+        bloqueEstilo: bloque, prompt: sec.prompt, referencias: fotos.length,
+        descripcion: String(x.p.revision?.descripcionFisica || "").slice(0, 600) + (x.p.ficha?.medidas ? ` Medidas: ${String(x.p.ficha.medidas).slice(0, 120)}.` : ""),
+        noTiene: [...(Array.isArray(x.p.revision?.noTiene) ? x.p.revision.noTiene : []), x.p.ficha?.noTiene].filter(Boolean).join("; ").slice(0, 300)
+      }), fotos, aspecto: aspectoDe(sec.formato) });
 
       await GastoIA.findOneAndUpdate(
         { owner: req.user.uid, mes: mesActual() },

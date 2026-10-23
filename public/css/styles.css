@@ -4923,3 +4923,9 @@ button.bp-chip { border: 0; cursor: pointer; font: inherit; font-size: 12px; fon
 .est-gasto-barra { width: 120px; height: 6px; border-radius: 999px; background: rgba(255,255,255,.1); overflow: hidden; }
 .est-gasto-barra i { display: block; height: 100%; background: linear-gradient(90deg, #8b5cf6, #ec4899); }
 .est-gasto-ia .est-link { font-size: 12px; }
+.est-refs-ia { margin-top: 8px; font-size: 12px; color: #94a3b8; }
+.est-refs-ia > div { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.est-refs-ia button { width: 54px; height: 54px; padding: 0; border-radius: 10px; border: 2px solid transparent; background: #fff; overflow: hidden; cursor: pointer; opacity: .45; position: relative; }
+.est-refs-ia button img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.est-refs-ia button.sel { border-color: #a78bfa; opacity: 1; }
+.est-refs-ia button.sel::after { content: "✓"; position: absolute; top: 2px; right: 4px; color: #7c3aed; font-weight: 900; font-size: 12px; text-shadow: 0 0 3px #fff; }
