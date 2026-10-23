@@ -117,8 +117,9 @@ function selectorCuentas() {
   if (!m.conectado) return `<a class="fz-cta-caja" href="#/integraciones" onclick="goTo('integraciones');return false"><span class="fz-cta-ico">∞</span><span class="fz-cta-txt">Conecta Meta en Integraciones</span><i data-lucide="chevron-right"></i></a>`;
   const elegidas = new Set(st.config?.metaCuentas || []);
   const cuentas = [...(m.cuentas || [])].sort((x, y) => (elegidas.has(y.account_id) - elegidas.has(x.account_id)) || (y.activa - x.activa) || x.name.localeCompare(y.name, "es"));
-  const nombres = cuentas.filter(c => elegidas.has(c.account_id)).map(c => c.name);
-  const texto = !nombres.length ? `<span class="fz-placeholder">Elige cuenta(s)...</span>` : nombres.length <= 2 ? esc(nombres.join(" + ")) : `${esc(nombres[0])} <b>+${nombres.length - 1}</b>`;
+  const sel = cuentas.filter(c => elegidas.has(c.account_id));
+  const texto = !sel.length ? `<span class="fz-placeholder">Elige cuenta(s)...</span>`
+    : `<span class="fz-chips-cta">${sel.slice(0, 3).map(c => `<span class="fz-chip-cta">${esc(c.name)} <small>${esc(c.currency)}</small></span>`).join("")}${sel.length > 3 ? `<span class="fz-chip-cta mas">+${sel.length - 3}</span>` : ""}</span>`;
   return `
     <div class="fz-cta ${st.meta.abierto ? "abierto" : ""}">
       <button type="button" class="fz-cta-caja" onclick="fzCuentasAbrir()"><span class="fz-cta-ico">∞</span><span class="fz-cta-txt">${texto}</span><i data-lucide="chevron-down"></i></button>
@@ -127,8 +128,8 @@ function selectorCuentas() {
         ${cuentas.map(c => `
           <label class="${c.activa ? "" : "inactiva"}">
             <input type="checkbox" value="${esc(c.account_id)}" ${elegidas.has(c.account_id) ? "checked" : ""} onchange="fzCuenta(this.value, this.checked)">
-            <span><b>${esc(c.name)}</b><small>${esc(c.currency)} · ${esc(c.account_id)}${c.activa ? "" : ` · ${esc(c.status)}`}</small></span>
-            ${c.currency && c.currency !== MONEDA_PAIS[st.pais] ? `<em title="Se convierte con la TRM">${esc(c.currency)}→${MONEDA_PAIS[st.pais]}</em>` : ""}
+            <span><b>${esc(c.name)}</b><small>${esc(c.account_id)}${c.activa ? "" : ` · ${esc(c.status)}`}</small></span>
+            <em class="${c.currency && c.currency !== MONEDA_PAIS[st.pais] ? "otra" : ""}" title="${c.currency !== MONEDA_PAIS[st.pais] ? "Se convierte con la TRM" : ""}">${esc(c.currency)}</em>
           </label>`).join("") || `<p class="fz-sin">No hay cuentas. Dale "Actualizar cuentas" en Integraciones.</p>`}
         <button type="button" class="fz-btn chico" onclick="fzCuentasAbrir(false)">Listo</button>
       </div>` : ""}
@@ -147,7 +148,7 @@ function estadoMeta() {
       ${st.meta.cargando ? `<i data-lucide="loader" class="gira"></i> Trayendo el gasto de Meta…` : st.meta.error ? `<span class="rojo">${esc(st.meta.error)}</span>` : s ? `<span class="fz-ok">●</span> Gasto de Meta al día · ${hace(s.actualizado)} <button type="button" class="fz-link" onclick="fzMetaSync(true)">Actualizar</button>` : "Elige al menos una; el gasto se suma."}
       ${errores.length ? `<br><span class="rojo">No se pudo leer: ${errores.map(e => esc(e.name)).join(", ")}</span>` : ""}
     </small>
-    ${otra ? `<label class="fz-trm">1 USD = <input type="number" min="1" step="1" value="${Number(st.config?.trm) || 4000}" onchange="fzTrm(this.value)"> COP <small>(cuentas en otra moneda)</small></label>` : ""}`;
+    ${otra ? `<label class="fz-trm">1 USD = <input type="number" min="100" step="0.5" value="${st.config?.trm || ""}" placeholder="${s?.trm || "TRM"}" onchange="fzTrm(this.value)"> COP <small>${st.config?.trm ? "tu TRM · borra para usar la del día" : s?.trmFuente ? `TRM ${esc(s.trmFuente)}` : "TRM del día"}</small></label>` : ""}`;
 }
 
 function cabecera(titulo, desc, icono) {
@@ -359,6 +360,7 @@ function renderControl(view) {
   view.innerHTML = `
   <div class="fz-page">
     ${cabecera("Control Diario", "Tu <b>utilidad real diaria</b> por producto: cruza tus pedidos, cancelaciones y devoluciones de Dropi con lo que gastaste en pauta.", "calendar-check")}
+    ${guiaControl()}
     ${!c?.desde ? vacio() : `
     <section class="fz-card fz-dia">
       <small>ELIGE EL DÍA</small>
@@ -376,6 +378,7 @@ function renderControl(view) {
     <div class="fz-acciones">
       <h2>${nombreDia(st.dia)} <span>${fechaCorta(st.dia)}</span></h2>
       <div>
+        ${(c.metaCuentas || []).length && st.meta.estado?.conectado ? `<span class="fz-tip" data-tip="Revisa el gasto de Meta del ${fechaCorta(st.dia)} antes de que entre a tus números"><button class="fz-btn claro fz-btn-meta" onclick="fzRevisar()" ${st.meta.cargando ? "disabled" : ""}><span class="fz-meta-logo">∞</span> Actualizar Pauta</button></span>` : ""}
         <button class="fz-btn claro" onclick="fzAbrirGrupos()"><i data-lucide="combine"></i> Agrupar productos ${grupos().length ? `<em>${grupos().length}</em>` : ""}</button>
         <button class="fz-btn claro" onclick="fzExportarDia()"><i data-lucide="download"></i> Exportar</button>
       </div>
@@ -414,7 +417,7 @@ function renderControl(view) {
       </div>
     </section>
 
-    ${campanasDelDia()}
+    ${avisoMetaDia()}
 
     ${filas.length ? `
     <section class="fz-utilidad ${t.utilidad < 0 ? "pierde" : ""}">
@@ -445,49 +448,217 @@ window.fzVolverMeta = async (i) => {
   } catch (err) { avisar(err.message, "error"); }
 };
 
-// Campañas de Meta que gastaron este día y de qué producto son
-function campanasDelDia() {
-  const s = st.meta.sync;
-  if (!s || !s.campanas) return "";
-  const hoy = s.campanas.filter(c => (c.dias || {})[st.dia] > 0).sort((a, b) => b.dias[st.dia] - a.dias[st.dia]);
-  if (!hoy.length) return (st.dia >= s.desde && st.dia <= s.hasta) ? `<section class="fz-card fz-campanas"><div class="fz-card-head"><h3><span class="fz-meta-logo">∞</span> Campañas de Meta del ${fechaCorta(st.dia)}</h3><small>sin gasto este día en las cuentas elegidas</small></div></section>` : "";
-  const sinProducto = hoy.filter(c => !c.clave && c.origen !== "ignorada");
-  const sinGasto = sinProducto.reduce((a, c) => a + c.dias[st.dia], 0);
-  const total = hoy.reduce((a, c) => a + c.dias[st.dia], 0);
-  const cuentas = Object.fromEntries((st.meta.estado?.cuentas || []).map(c => [c.account_id, c.name]));
-  const prods = (s.productos || []).slice().sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+// ---------- Guía ----------
+function guiaControl() {
+  let abierta = true;
+  try { abierta = localStorage.getItem("fz_guia") !== "0"; } catch {}
   return `
-  <section class="fz-card fz-campanas">
-    <div class="fz-card-head"><h3><span class="fz-meta-logo">∞</span> Campañas de Meta del ${fechaCorta(st.dia)}</h3><small>${hoy.length} con gasto · ${$$(total)} en total · elige de qué producto es cada una</small></div>
-    ${sinGasto > 0 ? `<p class="fz-aviso"><i data-lucide="alert-triangle"></i> <b>${$$(sinGasto)}</b> de Meta no tienen producto este día y no cuentan en la utilidad. Asígnalas abajo.</p>` : ""}
-    <div class="fz-scroll"><table class="fz-tabla">
-      <thead><tr><th>Campaña</th><th>Cuenta</th><th class="n">Gasto del día</th><th>Producto</th></tr></thead>
-      <tbody>
-        ${hoy.map(c => `<tr class="${!c.clave && c.origen !== "ignorada" ? "fz-sinprod" : ""}">
-          <td><b>${esc(c.nombre)}</b></td>
-          <td class="gris">${esc(cuentas[c.account_id] || c.account_id)}${c.moneda !== s.moneda ? ` <small>(${esc(c.moneda)})</small>` : ""}</td>
-          <td class="n">${$$(c.dias[st.dia])}</td>
-          <td>
-            <select class="fz-campana-sel" onchange="fzCampana('${esc(c.id)}', this.value)">
-              <option value="" ${!c.clave && c.origen !== "ignorada" ? "selected" : ""}>${c.origen === "auto" ? "↺ Automático por nombre" : "— Elige el producto —"}</option>
-              ${prods.map(p => `<option value="${esc(p.clave)}" ${c.clave === p.clave ? "selected" : ""}>${esc(p.nombre)}${c.clave === p.clave && c.origen === "auto" ? " · automático" : ""}</option>`).join("")}
-              <option value="x" ${c.origen === "ignorada" ? "selected" : ""}>No es de ningún producto</option>
-            </select>
-          </td>
-        </tr>`).join("")}
-      </tbody>
-    </table></div>
-    <p class="fz-mini">CoDropX une cada campaña con el producto cuyo nombre aparece en ella (ej. "TRAPEADOR CO 23/10"). Lo que eliges aquí queda guardado para todos los días.</p>
-  </section>`;
+  <details class="fz-card fz-guiacd" ${abierta ? "open" : ""} ontoggle="try{localStorage.setItem('fz_guia', this.open ? '1' : '0')}catch{}">
+    <summary><i data-lucide="help-circle"></i> ¿Cómo llenar mi control diario? <span class="fz-guia-tag">guía rápida</span></summary>
+    <ol class="fz-guia-pasos">
+      <li><b>Elige de dónde salen tus pedidos</b>: tu reporte de Dropi en Excel (Colombia o Ecuador). Súbelo cuando quieras: los pedidos se actualizan, no se duplican.</li>
+      <li><b>Elige tus cuentas publicitarias y pulsa «Actualizar Pauta»</b>: revisa campaña por campaña a qué producto va (CoDropX te sugiere por el nombre y el link del anuncio). Pulsa <b>«Guardar pauta»</b>: nada entra a tus números antes.</li>
+      <li><b>Llena a mano el gasto de TikTok</b> en su casilla de la lista de productos. La tabla de control diario se llena sola.</li>
+    </ol>
+    <div class="fz-guia-tips">
+      <p><i data-lucide="combine"></i><span>Si vendes el mismo producto de <b>varios proveedores</b>, Dropi lo guarda con nombres distintos. Únelos en <b>Agrupar productos</b> y cuentan como uno solo.</span></p>
+      <p><i data-lucide="repeat"></i><span>Las campañas que asignas quedan guardadas: los <b>demás días se llenan solos</b> con esa misma asignación. Las nuevas te esperan en «Actualizar Pauta».</span></p>
+    </div>
+  </details>`;
 }
 
-window.fzCampana = async (id, clave) => {
-  try {
-    await api("PUT", "/api/finanzas/meta/campana", { pais: st.pais, campanaId: id, clave });
-    await metaSync(false);
-    avisar("Campaña asignada ✓");
-  } catch (err) { avisar(err.message, "error"); }
+// ---------- Aviso del día: lo de Meta que falta revisar ----------
+function avisoMetaDia() {
+  const s = st.meta.sync;
+  if (!s?.campanas || st.dia < s.desde || st.dia > s.hasta) return "";
+  const hoy = s.campanas.filter(c => (c.dias || {})[st.dia] > 0);
+  if (!hoy.length) return "";
+  const pendiente = hoy.filter(c => c.origen !== "manual" && c.origen !== "ignorada");
+  const total = hoy.reduce((a, c) => a + c.dias[st.dia], 0);
+  const falta = pendiente.reduce((a, c) => a + c.dias[st.dia], 0);
+  if (!pendiente.length) return `<p class="fz-meta-ok"><span class="fz-meta-logo">∞</span> Pauta de Meta del ${fechaCorta(st.dia)} revisada: ${$$(total)} en ${hoy.length} campaña${hoy.length === 1 ? "" : "s"}. <button class="fz-link" onclick="fzRevisar()">Ver</button></p>`;
+  return `<button class="fz-meta-pend" onclick="fzRevisar()"><span class="fz-meta-logo">∞</span> <span><b>${$$(falta)}</b> de Meta del ${fechaCorta(st.dia)} sin revisar (${pendiente.length} campaña${pendiente.length === 1 ? "" : "s"}) · aún no cuentan en tu utilidad</span> <b class="fz-meta-pend-cta">Actualizar Pauta →</b></button>`;
+}
+
+// =============================================
+// VENTANA "REVISA EL GASTO DE META" (un día)
+// Nada entra a tus números hasta "Guardar pauta"
+// =============================================
+const rev = { abierta: false };
+
+window.fzRevisar = async () => {
+  if (!st.meta.sync || st.dia < (st.meta.rango?.desde || "") || st.dia > (st.meta.rango?.hasta || "")) await metaSync(false);
+  const s = st.meta.sync;
+  if (!s) return avisar(st.meta.error || "No se pudo traer el gasto de Meta", "error");
+  const cuentas = Object.fromEntries((st.meta.estado?.cuentas || []).map(c => [c.account_id, c.name]));
+  rev.fecha = st.dia;
+  rev.monedaPais = s.moneda; rev.ver = s.moneda; rev.trm = s.trm; rev.trmFuente = s.trmFuente;
+  rev.filas = s.campanas.filter(c => (c.dias || {})[st.dia] > 0).map(c => {
+    const clave = c.origen === "ignorada" ? "x" : (c.clave || "");
+    return { id: c.id, nombre: c.nombre, cuenta: cuentas[c.account_id] || c.account_id, moneda: c.moneda, link: c.link || "", linkProducto: c.linkProducto,
+      original: (c.diasOriginal || {})[st.dia] || 0, meta: c.dias[st.dia], gasto: c.dias[st.dia], editado: false,
+      clave, claveInicial: clave, origen: c.origen };
+  }).sort((a, b) => b.gasto - a.gasto);
+  rev.productos = (s.productos || []).slice().sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+  rev.tab = rev.filas.some(f => !f.clave) ? "sin" : "asig";
+  rev.buscar = ""; rev.sel = new Set(); rev.producto = "";
+  rev.abierta = true;
+  pintarRev(true);
 };
+
+const nombreProd = (clave) => rev.productos.find(p => p.clave === clave)?.nombre || nombreDe(clave);
+const verMonto = (v) => rev.ver === rev.monedaPais ? v : rev.ver === "USD" ? v / rev.trm : v * rev.trm;
+const deVer = (v) => rev.ver === rev.monedaPais ? v : rev.ver === "USD" ? v * rev.trm : v / rev.trm;
+const fmtVer = (v) => rev.ver === "USD" ? `$${(Number(v) || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `$${Math.round(Number(v) || 0).toLocaleString("es-CO")}`;
+const tabDe = (f) => (!f.clave ? "sin" : f.clave === "x" ? "otras" : "asig");
+
+function pintarRev(entero = false) {
+  let el = $("fzRev");
+  if (!rev.abierta) { el?.remove(); document.body.classList.remove("fz-sin-scroll"); return; }
+  if (!el || entero) {
+    el?.remove();
+    el = document.createElement("div");
+    el.id = "fzRev"; el.className = "fz-rev-fondo";
+    el.onclick = (e) => { if (e.target === el) fzRevCerrar(); };
+    el.innerHTML = `
+    <div class="fz-rev" role="dialog" aria-modal="true" aria-label="Revisa el gasto de Meta">
+      <header class="fz-rev-head">
+        <div><h2>Revisa el gasto de Meta</h2><p>Cada campaña va a un producto. Nada entra a tus números hasta que guardes. <b>${fechaCorta(rev.fecha)}</b></p></div>
+        <div class="fz-rev-moneda" id="fzRevMoneda"></div>
+        <button class="fz-rev-x" onclick="fzRevCerrar()" title="Cerrar"><i data-lucide="x"></i></button>
+      </header>
+      <div class="fz-rev-kpis" id="fzRevKpis"></div>
+      <div class="fz-rev-cuerpo">
+        <section class="fz-rev-camp">
+          <div class="fz-rev-camp-head"><b>CAMPAÑAS DE META</b><label class="fz-rev-buscar"><i data-lucide="search"></i><input type="search" placeholder="Buscar campaña..." oninput="fzRevBuscar(this.value)"></label></div>
+          <div class="fz-rev-tabs" id="fzRevTabs"></div>
+          <div class="fz-rev-masivo" id="fzRevMasivo"></div>
+          <div class="fz-rev-lista" id="fzRevLista"></div>
+        </section>
+        <aside class="fz-rev-prod"><div class="fz-rev-prod-head"><b>TUS PRODUCTOS</b><small>pulsa uno para ver lo suyo · arrastra campañas aquí</small></div><div id="fzRevProd"></div></aside>
+      </div>
+      <footer class="fz-rev-pie">
+        <button class="fz-btn claro fz-rev-volver" onclick="fzRevVolver()"><i data-lucide="rotate-ccw"></i> Volver a los datos de Meta</button>
+        <span></span>
+        <button class="fz-btn claro" onclick="fzRevCerrar()">Cancelar</button>
+        <button class="fz-btn" id="fzRevGuardar" onclick="fzRevGuardar()"><i data-lucide="check"></i> Guardar pauta</button>
+      </footer>
+    </div>`;
+    document.body.appendChild(el);
+    document.body.classList.add("fz-sin-scroll");
+  }
+  // Moneda
+  $("fzRevMoneda").innerHTML = rev.monedaPais === "COP" || rev.filas.some(f => f.moneda !== rev.monedaPais)
+    ? `<div class="fz-seg">${["COP", "USD"].map(m => `<button class="${rev.ver === m ? "on" : ""}" onclick="fzRevMonedaVer('${m}')">${m}</button>`).join("")}</div><small>1 USD = ${Number(rev.trm).toLocaleString("es-CO", { maximumFractionDigits: 2 })} COP${rev.trmFuente ? ` · ${esc(rev.trmFuente)}` : ""}</small>` : "";
+  // KPIs
+  const suma = (arr) => arr.reduce((a, f) => a + f.gasto, 0);
+  const asignada = suma(rev.filas.filter(f => tabDe(f) === "asig")), sinAsig = suma(rev.filas.filter(f => tabDe(f) === "sin"));
+  $("fzRevKpis").innerHTML = `
+    <div><small>CAMPAÑAS</small><b>${rev.filas.length}</b></div>
+    <div><small>PAUTA TOTAL</small><b>${fmtVer(verMonto(suma(rev.filas)))}</b></div>
+    <div class="verde"><small>ASIGNADA</small><b>${fmtVer(verMonto(asignada))}</b></div>
+    <div class="${sinAsig > 0 ? "alerta" : ""}"><small>SIN ASIGNAR</small><b>${fmtVer(verMonto(sinAsig))}</b></div>`;
+  // Pestañas
+  const q = normalizar(rev.buscar);
+  const visibles = rev.filas.filter(f => (!q || normalizar(f.nombre).includes(q)) && (!rev.producto || f.clave === rev.producto));
+  const cuenta = (t) => visibles.filter(f => tabDe(f) === t).length;
+  $("fzRevTabs").innerHTML = [["sin", "Sin asignar"], ["asig", "Ya asignadas"], ["otras", "Otras"]].map(([k, tx]) =>
+    `<button class="${rev.tab === k ? "on" : ""} ${k}" onclick="fzRevTab('${k}')">${tx} <em>${cuenta(k)}</em></button>`).join("")
+    + (rev.producto ? `<span class="fz-rev-filtro">${esc(nombreProd(rev.producto))} <button onclick="fzRevProducto('')" title="Quitar filtro">×</button></span>` : "");
+  // Lista
+  const filas = visibles.filter(f => tabDe(f) === rev.tab);
+  const opciones = (f) => `<option value="" ${!f.clave ? "selected" : ""}>Sin asignar...</option>${rev.productos.map(p => `<option value="${esc(p.clave)}" ${f.clave === p.clave ? "selected" : ""}>${esc(p.nombre)}</option>`).join("")}<option value="x" ${f.clave === "x" ? "selected" : ""}>Otras (no es de un producto)</option>`;
+  $("fzRevLista").innerHTML = filas.map(f => {
+    const i = rev.filas.indexOf(f);
+    return `
+    <div class="fz-rev-fila ${rev.sel.has(i) ? "sel" : ""}" draggable="true" ondragstart="fzRevArrastrar(event, ${i})">
+      <input type="checkbox" ${rev.sel.has(i) ? "checked" : ""} onchange="fzRevSel(${i}, this.checked)" aria-label="Seleccionar">
+      <span class="fz-rev-asa" title="Arrastra a un producto"><i data-lucide="grip-vertical"></i></span>
+      <div class="fz-rev-nombre">
+        <b>${esc(f.nombre)}</b>
+        <span class="fz-rev-tags">
+          ${f.linkProducto === false ? `<span class="fz-rtag rojo" title="${esc(f.link)}"><i data-lucide="ban"></i> Link sin producto</span>` : f.linkProducto ? `<span class="fz-rtag azul" title="${esc(f.link)}"><i data-lucide="link"></i> Link a producto</span>` : ""}
+          ${f.clave && f.clave !== "x" && f.origen === "auto" && f.clave === f.claveInicial ? `<span class="fz-rtag sug">sugerida</span>` : ""}
+          ${f.editado ? `<span class="fz-rtag edit">editado</span>` : ""}
+          <small>${esc(f.cuenta)}${f.moneda !== rev.monedaPais ? ` · ${esc(f.moneda)} ${f.moneda === "USD" ? "$" + f.original.toFixed(2) : Math.round(f.original).toLocaleString("es-CO")}` : ""}</small>
+        </span>
+      </div>
+      <label class="fz-rev-monto">$<input type="number" min="0" step="any" value="${rev.ver === "USD" ? verMonto(f.gasto).toFixed(2) : Math.round(verMonto(f.gasto))}" onchange="fzRevMonto(${i}, this.value)"></label>
+      <select onchange="fzRevAsignar(${i}, this.value)">${opciones(f)}</select>
+      ${f.clave === "x" ? `<button class="fz-rev-quitar" title="Volver a sin asignar" onclick="fzRevAsignar(${i}, '')"><i data-lucide="undo-2"></i></button>`
+        : `<button class="fz-rev-quitar" title="Mandar a Otras" onclick="fzRevAsignar(${i}, 'x')"><i data-lucide="x"></i></button>`}
+    </div>`;
+  }).join("") || `<p class="fz-rev-vacio">${rev.tab === "sin" ? (rev.filas.length ? "¡Todo asignado! 🎉" : "Meta no tiene gasto este día en tus cuentas elegidas.") : rev.tab === "asig" ? "Aún no hay campañas asignadas." : "Aquí van las campañas que no son de un producto (marca, pruebas, etc.)."}</p>`;
+  // Masivo
+  $("fzRevMasivo").innerHTML = rev.sel.size ? `<b>${rev.sel.size} seleccionada${rev.sel.size === 1 ? "" : "s"}</b> → <select onchange="fzRevAsignarSel(this.value)"><option value="">Asignar a...</option>${rev.productos.map(p => `<option value="${esc(p.clave)}">${esc(p.nombre)}</option>`).join("")}<option value="x">Otras</option></select> <button class="fz-link" onclick="fzRevSelTodo(false)">Quitar selección</button>`
+    : filas.length > 1 ? `<button class="fz-link" onclick="fzRevSelTodo(true)">Seleccionar las ${filas.length}</button>` : "";
+  // Productos: los que vendieron ese día + los que ya tienen campañas
+  const delDia = new Set(controlDiario(st.lineas, { desde: rev.fecha, hasta: rev.fecha, grupos: grupos(), devPct: 0 }).filter(f => f.pedidos).map(f => f.clave));
+  rev.filas.forEach(f => { if (f.clave && f.clave !== "x") delDia.add(f.clave); });
+  const prods = [...delDia].map(clave => ({ clave, nombre: nombreProd(clave), gasto: suma(rev.filas.filter(f => f.clave === clave)), n: rev.filas.filter(f => f.clave === clave).length }))
+    .sort((a, b) => b.gasto - a.gasto || a.nombre.localeCompare(b.nombre, "es"));
+  $("fzRevProd").innerHTML = prods.length ? prods.map(p => `
+    <button class="fz-rev-p ${rev.producto === p.clave ? "on" : ""} ${p.n ? "" : "sin"}" onclick="fzRevProducto('${esc(p.clave)}')"
+      ondragover="event.preventDefault(); this.classList.add('drop')" ondragleave="this.classList.remove('drop')" ondrop="fzRevSoltar(event, '${esc(p.clave)}')">
+      <span><b>${esc(p.nombre)}</b><small>${p.n ? `${p.n} campaña${p.n === 1 ? "" : "s"}` : "sin campañas"}</small></span>
+      <em>${p.n ? fmtVer(verMonto(p.gasto)) : "—"}</em>
+    </button>`).join("") : `<p class="fz-rev-vacio">Este día no tiene productos todavía. Aparecerán al asignarles campañas.</p>`;
+  iconos();
+}
+
+const normalizar = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+window.fzRevCerrar = () => { rev.abierta = false; pintarRev(); };
+window.fzRevTab = (t) => { rev.tab = t; rev.sel.clear(); pintarRev(); };
+window.fzRevBuscar = (v) => { rev.buscar = v; pintarRev(); };
+window.fzRevMonedaVer = (m) => { rev.ver = m; pintarRev(); };
+window.fzRevProducto = (clave) => { rev.producto = rev.producto === clave ? "" : clave; if (rev.producto) rev.tab = "asig"; pintarRev(); };
+window.fzRevSel = (i, v) => { if (v) rev.sel.add(i); else rev.sel.delete(i); pintarRev(); };
+window.fzRevSelTodo = (v) => {
+  rev.sel.clear();
+  if (v) { const q = normalizar(rev.buscar); rev.filas.forEach((f, i) => { if (tabDe(f) === rev.tab && (!q || normalizar(f.nombre).includes(q)) && (!rev.producto || f.clave === rev.producto)) rev.sel.add(i); }); }
+  pintarRev();
+};
+window.fzRevAsignar = (i, clave) => { const f = rev.filas[i]; if (!f) return; f.clave = clave; rev.sel.delete(i); pintarRev(); };
+window.fzRevAsignarSel = (clave) => { if (!clave) return; for (const i of rev.sel) rev.filas[i].clave = clave; rev.sel.clear(); pintarRev(); };
+window.fzRevMonto = (i, v) => {
+  const f = rev.filas[i]; if (!f) return;
+  const n = Math.max(0, deVer(Number(v) || 0));
+  f.gasto = n; f.editado = Math.abs(n - f.meta) > (rev.monedaPais === "USD" ? 0.005 : 0.5);
+  pintarRev();
+};
+window.fzRevArrastrar = (e, i) => { e.dataTransfer.setData("text/plain", String(i)); e.dataTransfer.effectAllowed = "move"; };
+window.fzRevSoltar = (e, clave) => {
+  e.preventDefault(); e.currentTarget.classList.remove("drop");
+  const i = Number(e.dataTransfer.getData("text/plain"));
+  const lote = rev.sel.has(i) ? [...rev.sel] : [i];
+  for (const k of lote) if (rev.filas[k]) rev.filas[k].clave = clave;
+  rev.sel.clear(); pintarRev();
+};
+window.fzRevVolver = () => {
+  for (const f of rev.filas) { f.gasto = f.meta; f.editado = false; f.clave = f.claveInicial; }
+  rev.sel.clear(); pintarRev();
+  avisar("Volviste a los datos de Meta (aún sin guardar)");
+};
+window.fzRevGuardar = async () => {
+  const btn = $("fzRevGuardar"); if (btn) btn.disabled = true;
+  try {
+    const nombres = {};
+    for (const f of rev.filas) if (f.clave && f.clave !== "x") nombres[f.clave] = nombreProd(f.clave);
+    const r = await api("POST", "/api/finanzas/meta/guardar", {
+      pais: st.pais, fecha: rev.fecha, nombres,
+      asignaciones: rev.filas.map(f => ({ campanaId: f.id, clave: f.clave, gasto: Math.round(f.gasto * 100) / 100, editado: f.editado }))
+    });
+    for (const k of Object.keys(st.pauta)) if (k.startsWith(rev.fecha + "|")) { const p = st.pauta[k]; if (p.metaAuto || p.metaManual) delete st.pauta[k]; }
+    for (const p of r.pauta || []) st.pauta[`${p.fecha}|${p.clave}`] = p;
+    rev.abierta = false; pintarRev();
+    avisar(`Pauta del ${fechaCorta(r.fecha)} guardada ✓`);
+    await metaSync(false);
+  } catch (err) {
+    avisar(err.message, "error");
+    if (btn) btn.disabled = false;
+  }
+};
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && rev.abierta) fzRevCerrar(); });
 
 function tablaControl(filas, t, conFecha) {
   return `<div class="fz-scroll"><table class="fz-tabla">

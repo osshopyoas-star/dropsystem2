@@ -5,6 +5,7 @@
 // Cuando Dropi dé el token "CoDropX", estas mismas tablas se llenarán solas.
 // =============================================
 import mongoose from "mongoose";
+import fetch from "node-fetch";
 import { gastoCampanas } from "./rutas-meta.js";
 import { claveProducto, emparejarCampana } from "./public/js/core/finanzas.js";
 
@@ -49,7 +50,8 @@ const configSchema = new mongoose.Schema({
   grupos: { type: [mongoose.Schema.Types.Mixed], default: [] },   // { id, nombre, ids: [productoId] }
   metaCuentas: { type: [String], default: [] },                    // cuentas publicitarias cuyo gasto se suma
   metaCampanas: { type: mongoose.Schema.Types.Mixed, default: {} }, // { campanaId: clave | "x" (no es de ningún producto) }
-  trm: { type: Number, default: 4000 },                           // 1 USD en COP, para cuentas en otra moneda
+  trm: { type: Number, default: null },                           // 1 USD en COP que tú fijaste (si no, la TRM del día)
+  trmManual: { type: Boolean, default: false },
   ultimaImportacion: { type: Date, default: null },
   actualizado: { type: Date, default: Date.now }
 });
@@ -82,7 +84,21 @@ export function limpiarLinea(l = {}) {
 
 const publicaPauta = (d) => ({ fecha: d.fecha, clave: d.clave, nombre: d.nombre, meta: d.meta, tiktok: d.tiktok, devPct: d.devPct, tipo: d.tipo, fallido: d.fallido, metaAuto: !!d.metaAuto, metaManual: !!d.metaManual });
 const MONEDA = { CO: "COP", EC: "USD" };
-const cacheMeta = new Map();   // owner|cuentas|desde|hasta → { t, datos } (5 min: no gastar el límite de Meta)
+const cacheMeta = new Map();
+
+// TRM oficial del día (Superfinanciera, datos.gov.co), guardada 6 horas
+let trmCache = { t: 0, valor: null, fecha: "" };
+export async function trmHoy() {
+  if (trmCache.valor && Date.now() - trmCache.t < 6 * 36e5) return trmCache;
+  try {
+    const r = await fetch("https://www.datos.gov.co/resource/32sa-8pi3.json?$limit=1&$order=vigenciadesde%20DESC", { headers: { Accept: "application/json" } });
+    const d = await r.json();
+    const valor = Number(d?.[0]?.valor);
+    if (valor > 1000 && valor < 20000) trmCache = { t: Date.now(), valor, fecha: String(d[0].vigenciadesde || "").slice(0, 10) };
+  } catch (e) { console.warn("No se pudo leer la TRM:", e.message); }
+  return trmCache;
+}
+export const _trmPrueba = (v) => { trmCache = v ? { t: Date.now(), valor: v, fecha: "2026-10-23" } : { t: 0, valor: null, fecha: "" }; };   // owner|cuentas|desde|hasta → { t, datos } (5 min: no gastar el límite de Meta)
 
 const pais = (v) => (PAISES.includes(String(v)) ? String(v) : "CO");
 const fechaQ = (v) => (esFecha(String(v || "")) ? String(v) : null);
@@ -177,7 +193,7 @@ Sin rodeos, sin inventar datos que no estén en las cifras. Si la publicidad est
       res.json({
         pais: p, cuenta: cfg?.cuenta || "", devPct: cfg?.devPct ?? 25, metaEntrega: cfg?.metaEntrega ?? 70,
         grupos: cfg?.grupos || [], ultimaImportacion: cfg?.ultimaImportacion || null,
-        metaCuentas: cfg?.metaCuentas || [], trm: cfg?.trm ?? 4000,
+        metaCuentas: cfg?.metaCuentas || [], trm: cfg?.trmManual ? cfg.trm : null,
         dias, desde: dias[0] || null, hasta: dias[dias.length - 1] || null
       });
     } catch (err) {
@@ -194,7 +210,11 @@ Sin rodeos, sin inventar datos que no estén en las cifras. Si la publicidad est
       if (req.body?.metaEntrega !== undefined) set.metaEntrega = Math.min(100, Math.max(1, Number(req.body.metaEntrega) || 70));
       if (req.body?.cuenta !== undefined) set.cuenta = String(req.body.cuenta || "").slice(0, 80);
       if (Array.isArray(req.body?.metaCuentas)) set.metaCuentas = [...new Set(req.body.metaCuentas.map(x => String(x).replace(/^act_/, "")).filter(x => /^\d{3,25}$/.test(x)))].slice(0, 25);
-      if (req.body?.trm !== undefined) set.trm = Math.min(20000, Math.max(1, Number(req.body.trm) || 4000));
+      if (req.body?.trm !== undefined) {
+        const v = Number(req.body.trm);
+        if (req.body.trm === null || req.body.trm === "" || !(v > 0)) { set.trm = null; set.trmManual = false; }
+        else { set.trm = Math.min(20000, Math.max(100, v)); set.trmManual = true; }
+      }
       if (Array.isArray(req.body?.grupos)) {
         set.grupos = req.body.grupos.slice(0, 100).map(g => ({
           id: String(g?.id || Math.random().toString(36).slice(2, 10)).slice(0, 20),
@@ -205,7 +225,7 @@ Sin rodeos, sin inventar datos que no estén en las cifras. Si la publicidad est
       const cfg = await FinanzasConfig.findOneAndUpdate(
         { owner: req.user.uid, pais: p }, { $set: set, $setOnInsert: { owner: req.user.uid, pais: p } }, { upsert: true, new: true }
       ).lean();
-      res.json({ ok: true, devPct: cfg.devPct, metaEntrega: cfg.metaEntrega, grupos: cfg.grupos || [], cuenta: cfg.cuenta || "", metaCuentas: cfg.metaCuentas || [], trm: cfg.trm ?? 4000 });
+      res.json({ ok: true, devPct: cfg.devPct, metaEntrega: cfg.metaEntrega, grupos: cfg.grupos || [], cuenta: cfg.cuenta || "", metaCuentas: cfg.metaCuentas || [], trm: cfg.trmManual ? cfg.trm : null });
     } catch (err) {
       console.error("Error guardando ajustes de finanzas:", err);
       res.status(500).json({ error: "No se pudo guardar" });
@@ -311,7 +331,11 @@ Sin rodeos, sin inventar datos que no estén en las cifras. Si la publicidad est
         if (cacheMeta.size > 200) cacheMeta.delete(cacheMeta.keys().next().value);
       }
 
-      const moneda = MONEDA[p], trm = Number(cfg?.trm) || 4000;
+      const moneda = MONEDA[p];
+      const oficial = await trmHoy();
+      const trm = cfg?.trmManual && cfg?.trm ? cfg.trm : oficial.valor || 4000;
+      const trmFuente = cfg?.trmManual && cfg?.trm ? "tuya" : oficial.valor ? `oficial ${oficial.fecha}` : "aproximada";
+      const links = datos.links || {};
       const convertir = (v, m) => (m === moneda ? v : m === "USD" && moneda === "COP" ? v * trm : m === "COP" && moneda === "USD" ? v / trm : null);
       const asignadas = cfg?.metaCampanas || {};
       const campanas = new Map();
@@ -323,18 +347,23 @@ Sin rodeos, sin inventar datos que no estén en las cifras. Si la publicidad est
         let c = campanas.get(f.campanaId);
         if (!c) {
           const elegida = asignadas[f.campanaId];
-          const auto = elegida ? null : emparejarCampana(f.campana, productos);
+          const link = links[f.campanaId] || "";
+          const handle = (link.match(/\/products\/([^/?#]+)/i) || [])[1] || "";
+          const auto = elegida ? null : (emparejarCampana(`${f.campana} ${decodeURIComponent(handle).replace(/[-_]+/g, " ")}`, productos) || null);
           const clave = elegida === "x" ? null : (elegida && vistos.has(elegida) ? elegida : auto);
-          c = { id: f.campanaId, nombre: f.campana, account_id: f.account_id, moneda: f.moneda, gasto: 0, compras: 0, dias: {}, clave,
+          c = { id: f.campanaId, nombre: f.campana, account_id: f.account_id, moneda: f.moneda, gasto: 0, compras: 0, dias: {}, diasOriginal: {}, clave,
+            link, linkProducto: link ? !!handle : null,
             origen: elegida === "x" ? "ignorada" : elegida && vistos.has(elegida) ? "manual" : auto ? "auto" : null };
           campanas.set(f.campanaId, c);
         }
         c.gasto += gasto; c.compras += f.compras;
         c.dias[f.fecha] = (c.dias[f.fecha] || 0) + gasto;
-        if (c.clave) { const k = `${f.fecha}|${c.clave}`; sumas.set(k, (sumas.get(k) || 0) + gasto); }
+        c.diasOriginal[f.fecha] = (c.diasOriginal[f.fecha] || 0) + f.gasto;
+        // A tus números solo entra lo que ya confirmaste (guardaste) — las sugerencias no
+        if (c.clave && c.origen === "manual") { const k = `${f.fecha}|${c.clave}`; sumas.set(k, (sumas.get(k) || 0) + gasto); }
       }
 
-      // Escribir en la pauta (sin pisar lo que escribiste a mano)
+      // Escribir en la pauta lo confirmado (sin pisar lo que escribiste o editaste a mano)
       const redondo = (v) => Math.round(v * 100) / 100;
       const existentes = await PautaDia.find({ owner: req.user.uid, pais: p, fecha: { $gte: desde, $lte: hasta } }).lean();
       const porLlave = new Map(existentes.map(d => [`${d.fecha}|${d.clave}`, d]));
@@ -364,7 +393,7 @@ Sin rodeos, sin inventar datos que no estén en las cifras. Si la publicidad est
         .sort((a, b) => b.gasto - a.gasto);
       const pauta = await PautaDia.find({ owner: req.user.uid, pais: p, fecha: { $gte: desde, $lte: hasta } }).lean();
       res.json({
-        desde, hasta, moneda, trm, cambios,
+        desde, hasta, moneda, trm, trmFuente, cambios,
         cuentas: datos.cuentas, otraMoneda: [...otraMoneda],
         campanas: lista,
         sinAsignar: redondo(lista.filter(c => !c.clave && c.origen !== "ignorada").reduce((a, c) => a + c.gasto, 0)),
@@ -375,6 +404,61 @@ Sin rodeos, sin inventar datos que no estén en las cifras. Si la publicidad est
     } catch (err) {
       console.error("Error sincronizando Meta:", err);
       res.status(err.status || 500).json({ error: err.message || "No se pudo traer el gasto de Meta" });
+    }
+  });
+
+  // Guardar la pauta de UN día desde la ventana "Revisa el gasto de Meta"
+  // asignaciones: [{ campanaId, clave: "p:..|g:.." | "x" (otras) | "" (sin asignar), gasto, editado }]
+  app.post("/api/finanzas/meta/guardar", async (req, res) => {
+    try {
+      const p = pais(req.body?.pais);
+      const fecha = fechaQ(req.body?.fecha);
+      if (!fecha) return res.status(400).json({ error: "Falta el día" });
+      const lista = (Array.isArray(req.body?.asignaciones) ? req.body.asignaciones : []).slice(0, 500);
+      const cfg = await FinanzasConfig.findOne({ owner: req.user.uid, pais: p }).lean();
+      const mapa = { ...(cfg?.metaCampanas || {}) };
+      const nombres = new Map(Object.entries(req.body?.nombres || {}).slice(0, 500).map(([k, v]) => [String(k).slice(0, 60), String(v || "").slice(0, 200)]));
+      const sumas = new Map();
+      for (const a of lista) {
+        const id = String(a?.campanaId || "");
+        const clave = String(a?.clave ?? "");
+        if (!/^\d{3,30}$/.test(id)) continue;
+        if (clave && clave !== "x" && !/^[pg]:[\w-]{1,58}$/.test(clave)) continue;
+        if (clave) mapa[id] = clave; else delete mapa[id];
+        if (!clave || clave === "x") continue;
+        const gasto = Math.max(0, Number(a?.gasto) || 0);
+        const s = sumas.get(clave) || { gasto: 0, editado: false };
+        s.gasto += gasto; s.editado = s.editado || !!a?.editado;
+        sumas.set(clave, s);
+      }
+      const llaves = Object.keys(mapa);
+      for (let i = 0; i < llaves.length - 2000; i++) delete mapa[llaves[i]];
+      await FinanzasConfig.findOneAndUpdate(
+        { owner: req.user.uid, pais: p }, { $set: { metaCampanas: mapa, actualizado: new Date() }, $setOnInsert: { owner: req.user.uid, pais: p } }, { upsert: true, new: true }
+      );
+      const redondo = (v) => Math.round(v * 100) / 100;
+      const ahora = new Date();
+      const existentes = await PautaDia.find({ owner: req.user.uid, pais: p, fecha }).lean();
+      for (const [clave, s] of sumas) {
+        const d = existentes.find(x => x.clave === clave);
+        await PautaDia.findOneAndUpdate(
+          { owner: req.user.uid, pais: p, fecha, clave },
+          { $set: { meta: redondo(s.gasto), metaAuto: !s.editado, metaManual: s.editado, actualizado: ahora, ...(d?.nombre ? {} : { nombre: nombres.get(clave) || "" }) },
+            $setOnInsert: { owner: req.user.uid, pais: p, fecha, clave } },
+          { upsert: true, new: true }
+        );
+      }
+      // Lo que venía de Meta ese día y ya no tiene campañas queda en 0
+      for (const d of existentes) {
+        if (!sumas.has(d.clave) && (d.metaAuto || d.metaManual) && Number(d.meta) > 0) {
+          await PautaDia.updateOne({ _id: d._id }, { $set: { meta: 0, metaAuto: false, metaManual: false, actualizado: ahora } });
+        }
+      }
+      const pauta = await PautaDia.find({ owner: req.user.uid, pais: p, fecha }).lean();
+      res.json({ ok: true, fecha, pauta: pauta.map(publicaPauta), asignadas: [...sumas.values()].reduce((a, s) => a + s.gasto, 0) });
+    } catch (err) {
+      console.error("Error guardando pauta de Meta:", err);
+      res.status(500).json({ error: "No se pudo guardar la pauta" });
     }
   });
 
