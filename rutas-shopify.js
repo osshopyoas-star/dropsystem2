@@ -12,6 +12,7 @@ import { cifrar, descifrar } from "./rutas-meta.js";
 
 export const API_VERSION = () => process.env.SHOPIFY_API_VERSION || "2026-01";
 export const PERMISOS = ["write_products", "write_files"];
+export const PERMISOS_OPCIONALES = ["read_themes"];     // para listar las plantillas de producto de tu tema
 const MAX_TIENDAS = 5;
 
 const tiendaSchema = new mongoose.Schema({
@@ -27,6 +28,8 @@ const tiendaSchema = new mongoose.Schema({
   expira: { type: Date, default: null },
   permisos: { type: [String], default: [] },
   error: { type: String, default: "" },
+  definiciones: { type: Boolean, default: false },  // ya se crearon los metacampos de CoDropX
+  plantillas: { type: mongoose.Schema.Types.Mixed, default: {} },   // última plantilla usada: { ban: "cdx-ban", normal: "" }
   creado: { type: Date, default: Date.now },
   actualizado: { type: Date, default: Date.now }
 });
@@ -55,7 +58,9 @@ export function limpiarShop(texto) {
 const vistaTienda = (t) => ({
   _id: String(t._id), shop: t.shop, nombre: t.nombre, dominio: t.dominio, moneda: t.moneda, pais: t.pais || "",
   permisos: t.permisos || [], error: t.error || "", conectada: !!t.token && !t.error,
-  faltanPermisos: PERMISOS.filter(p => !(t.permisos || []).includes(p))
+  faltanPermisos: PERMISOS.filter(p => !(t.permisos || []).includes(p)),
+  puedeLeerTema: (t.permisos || []).includes("read_themes") || (t.permisos || []).includes("write_themes"),
+  plantillas: t.plantillas || {}
 });
 
 // ---------- token (client credentials, 24 h) ----------
@@ -153,13 +158,13 @@ export async function subirImagen(t, { datos, tipo, nombre }) {
   }`, { files: [{ originalSource: destino.resourceUrl, contentType: "IMAGE", alt: String(nombre || "").slice(0, 120) }] });
   erroresUsuario(d2.fileCreate);
   const archivo = d2.fileCreate.files?.[0];
-  if (archivo?.image?.url) return archivo.image.url;
+  if (archivo?.image?.url) return { url: archivo.image.url, id: archivo.id };
 
   // Shopify procesa la imagen unos segundos antes de dar la URL
   for (let i = 0; i < 20; i++) {
     await new Promise(r => setTimeout(r, esperaProceso));
     const d3 = await gql(t, `query($id: ID!) { node(id: $id) { ... on MediaImage { fileStatus image { url } } } }`, { id: archivo.id });
-    if (d3.node?.image?.url) return d3.node.image.url;
+    if (d3.node?.image?.url) return { url: d3.node.image.url, id: archivo.id };
     if (d3.node?.fileStatus === "FAILED") throw new ErrorShopify("Shopify no pudo procesar una imagen", 502);
   }
   throw new ErrorShopify("Shopify tardó demasiado procesando las imágenes. Intenta de nuevo en un minuto.", 504);
@@ -170,7 +175,42 @@ export function _esperaProceso(ms) { esperaProceso = ms; }
 // ---------- Crear o actualizar el producto (siempre como BORRADOR) ----------
 const numeroGid = (gid) => String(gid || "").split("/").pop();
 
-export async function guardarProducto(t, { productoId, titulo, html, media, precio, precioAntes }) {
+// Metacampos donde viven las imágenes de la landing (los lee la sección "CoDropX landing" del tema)
+export const METACAMPOS = [
+  { key: "landing", name: "CoDropX · imágenes de la landing", type: "list.file_reference", validations: [{ name: "file_type_options", value: JSON.stringify(["Image"]) }] },
+  { key: "secciones", name: "CoDropX · textos de las secciones", type: "json" },
+  { key: "formato", name: "CoDropX · formato (ban o normal)", type: "single_line_text_field" }
+];
+
+async function asegurarDefiniciones(t) {
+  if (t.definiciones) return;
+  for (const m of METACAMPOS) {
+    const d = await gql(t, `mutation($definition: MetafieldDefinitionInput!) {
+      metafieldDefinitionCreate(definition: $definition) { createdDefinition { id } userErrors { field message code } }
+    }`, { definition: { name: m.name, namespace: "codropx", key: m.key, type: m.type, ownerType: "PRODUCT", ...(m.validations ? { validations: m.validations } : {}) } });
+    const errs = (d.metafieldDefinitionCreate?.userErrors || []).filter(e => e.code !== "TAKEN" && !/taken|already|en uso|ya existe/i.test(e.message));
+    if (errs.length) throw new ErrorShopify(`Shopify: ${errs.map(e => e.message).join("; ").slice(0, 300)}`, 400);
+  }
+  t.definiciones = true;
+  if (typeof t.save === "function") await t.save();
+}
+
+// Plantillas de producto del tema publicado (necesita read_themes) y si ya tiene la sección de CoDropX
+export async function plantillasTema(t) {
+  const d = await gql(t, `{ themes(first: 1, roles: [MAIN]) { nodes { id name files(filenames: ["templates/product*.json", "templates/product*.liquid", "sections/codropx-landing.liquid"], first: 100) { nodes { filename } } } } }`);
+  const tema = d.themes?.nodes?.[0];
+  if (!tema) return { tema: null, plantillas: [], seccion: false };
+  const archivos = (tema.files?.nodes || []).map(f => f.filename);
+  const plantillas = archivos
+    .map(f => (f.match(/^templates\/product(?:\.([^/]+))?\.(json|liquid)$/) || []))
+    .filter(m => m.length)
+    .map(m => m[1] || "")
+    .filter((v, i, a) => a.indexOf(v) === i)
+    .sort((a, b) => (a === "" ? -1 : b === "" ? 1 : a.localeCompare(b)));
+  return { tema: tema.name, plantillas, seccion: archivos.includes("sections/codropx-landing.liquid") };
+}
+
+export async function guardarProducto(t, { productoId, titulo, html, media, precio, precioAntes, plantilla, metacampos }) {
   let producto = null;
   if (productoId) {
     const d = await gql(t, `query($id: ID!) { product(id: $id) { id handle status variants(first: 1) { nodes { id } } } }`, { id: productoId });
@@ -180,14 +220,14 @@ export async function guardarProducto(t, { productoId, titulo, html, media, prec
   if (producto) {
     const d = await gql(t, `mutation($product: ProductUpdateInput!) {
       productUpdate(product: $product) { product { id handle status variants(first: 1) { nodes { id } } } userErrors { field message } }
-    }`, { product: { id: producto.id, title: titulo, descriptionHtml: html } });
+    }`, { product: { id: producto.id, title: titulo, descriptionHtml: html, ...(plantilla !== undefined ? { templateSuffix: plantilla || null } : {}) } });
     erroresUsuario(d.productUpdate);
     producto = d.productUpdate.product;
   } else {
     const d = await gql(t, `mutation($product: ProductCreateInput!, $media: [CreateMediaInput!]) {
       productCreate(product: $product, media: $media) { product { id handle status variants(first: 1) { nodes { id } } } userErrors { field message } }
     }`, {
-      product: { title: titulo, descriptionHtml: html, status: "DRAFT" },
+      product: { title: titulo, descriptionHtml: html, status: "DRAFT", ...(plantilla ? { templateSuffix: plantilla } : {}) },
       media: media.map(src => ({ originalSource: src, mediaContentType: "IMAGE", alt: titulo.slice(0, 120) }))
     });
     erroresUsuario(d.productCreate);
@@ -199,6 +239,17 @@ export async function guardarProducto(t, { productoId, titulo, html, media, prec
       productVariantsBulkUpdate(productId: $productId, variants: $variants) { userErrors { field message } }
     }`, { productId: producto.id, variants: [{ id: variante, price: String(precio), compareAtPrice: precioAntes && precioAntes > precio ? String(precioAntes) : null }] });
     erroresUsuario(d.productVariantsBulkUpdate);
+  }
+  if (metacampos) {
+    await asegurarDefiniciones(t);
+    const d = await gql(t, `mutation($metafields: [MetafieldsSetInput!]!) {
+      metafieldsSet(metafields: $metafields) { metafields { key } userErrors { field message } }
+    }`, { metafields: [
+      { ownerId: producto.id, namespace: "codropx", key: "landing", type: "list.file_reference", value: JSON.stringify(metacampos.imagenes) },
+      { ownerId: producto.id, namespace: "codropx", key: "secciones", type: "json", value: JSON.stringify(metacampos.secciones) },
+      { ownerId: producto.id, namespace: "codropx", key: "formato", type: "single_line_text_field", value: metacampos.formato }
+    ] });
+    erroresUsuario(d.metafieldsSet);
   }
   return {
     productoId: producto.id,
@@ -288,6 +339,19 @@ export function registrarRutasShopify(app) {
       if (err instanceof ErrorShopify) { t.error = err.message; await t.save().catch(() => {}); }
       fallo(res, err, "probar la tienda");
     }
+  });
+
+  // Plantillas de producto del tema y si la sección de CoDropX ya está instalada
+  app.get("/api/shopify/tiendas/:id/plantillas", async (req, res) => {
+    try {
+      const t = await tiendaDe(req.user.uid, req.params.id);
+      if (!t) return res.status(404).json({ error: "Tienda no encontrada" });
+      if (!(t.permisos || []).some(p => p === "read_themes" || p === "write_themes")) {
+        return res.json({ sinPermiso: true, plantillas: [], seccion: null, tema: null, elegida: t.plantillas || {} });
+      }
+      const r = await plantillasTema(t);
+      res.json({ ...r, elegida: t.plantillas || {} });
+    } catch (err) { fallo(res, err, "leer las plantillas del tema"); }
   });
 
   app.delete("/api/shopify/tiendas/:id", async (req, res) => {

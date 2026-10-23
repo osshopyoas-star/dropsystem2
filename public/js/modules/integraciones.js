@@ -3,6 +3,7 @@
 // =============================================
 import { registrarRuta } from "./navegacion.js";
 import { escapeHTML } from "../core/utils.js";
+import { SECCION_LIQUID } from "../core/seccion-shopify.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (v) => escapeHTML(v ?? "");
@@ -170,7 +171,7 @@ function tarjetaShopify() {
       <ol>
         <li>En tu tienda: <b>Configuración → Apps → Desarrollar apps</b> → <b>Crear apps en el Dev Dashboard</b>.</li>
         <li><b>Create app</b> → <b>Start from Dev Dashboard</b> → nombre: <code>CoDropX</code> → Create.</li>
-        <li>En <b>Versions</b>: App URL <code>https://codropx.com</code>, "Embed app in Shopify admin" apagado. En <b>Access scopes</b> pega: <code>${sh.permisos.map(esc).join(",")}</code></li>
+        <li>En <b>Versions</b>: App URL <code>https://codropx.com</code>, "Embed app in Shopify admin" apagado. En <b>Access scopes</b> pega: <code>${[...sh.permisos, "read_themes"].map(esc).join(",")}</code></li>
         <li><b>Release</b> (publica la versión) y luego <b>Install app</b> → elige tu tienda → aprueba.</li>
         <li>En <b>Settings</b> de la app copia el <b>Client ID</b> y el <b>Client secret</b> y pégalos aquí abajo.</li>
       </ol>
@@ -183,7 +184,39 @@ function tarjetaShopify() {
       <button id="inShConectar" class="in-btn" onclick="inShConectar()"><i data-lucide="plug"></i> Conectar tienda</button>
     </div>` : `<div class="in-acciones"><button class="in-btn claro" onclick="inShNueva()"><i data-lucide="plus"></i> Conectar otra tienda</button></div>`;
 
-  return `<section class="in-card">${cabeza}${lista ? `<div class="in-tiendas">${lista}</div>` : ""}${form}</section>`;
+  return `<section class="in-card">${cabeza}${lista ? `<div class="in-tiendas">${lista}</div>` : ""}${form}${tiendas.length ? guiaSeccion() : ""}</section>`;
+}
+
+// Sección "CoDropX landing" para el tema (se instala una vez por tienda/tema)
+function guiaSeccion() {
+  return `
+  <details class="in-guia">
+    <summary>Poner tus landings en la plantilla del tema (una sola vez por tienda)</summary>
+    <ol>
+      <li>Si ya conectaste la tienda antes, agrega el permiso <code>read_themes</code> a tu app en el Dev Dashboard (Versions → Access scopes), dale <b>Release</b> y aprueba la actualización en la tienda. Luego aquí dale <b>Probar</b>.</li>
+      <li>En Shopify: <b>Tienda online → Temas → … → Editar código</b>. En la carpeta <b>Sections</b> dale <b>Agregar nueva sección</b>, ponle de nombre <code>codropx-landing</code> y reemplaza todo lo que trae por el código de abajo. Guarda.</li>
+      <li>En <b>Personalizar</b>, abre (o crea) la plantilla de producto que usas para tus ban pages. Agrega la sección <b>CoDropX landing</b> donde quieras que vayan las imágenes y alrededor pon tus botones y GIF. Guarda.</li>
+      <li>En CoDropX, al publicar elige esa plantilla. Cada producto nuevo sale con sus imágenes en esa sección, en orden.</li>
+    </ol>
+    <div class="in-acciones">
+      <button class="in-btn" onclick="inCopiarSeccion()"><i data-lucide="copy"></i> Copiar código de la sección</button>
+      <button class="in-btn claro" onclick="inDescargarSeccion()"><i data-lucide="download"></i> Descargar codropx-landing.liquid</button>
+    </div>
+    <p class="in-sub">Las imágenes quedan guardadas en cada producto (metacampos <code>codropx</code>), así que puedes cambiar el diseño de la plantilla cuando quieras sin volver a publicar.</p>
+  </details>`;
+}
+
+window.inCopiarSeccion = async () => {
+  try { await navigator.clipboard.writeText(SECCION_LIQUID); avisar("Código copiado ✓"); }
+  catch {
+    const t = document.createElement("textarea"); t.value = SECCION_LIQUID; document.body.appendChild(t); t.select();
+    document.execCommand("copy"); t.remove(); avisar("Código copiado ✓");
+  }
+};
+window.inDescargarSeccion = () => {
+  const url = URL.createObjectURL(new Blob([SECCION_LIQUID], { type: "text/plain" }));
+  const a = document.createElement("a"); a.href = url; a.download = "codropx-landing.liquid"; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
 window.inShNueva = () => { shFormAbierto = true; render(); $("inShShop")?.focus(); };

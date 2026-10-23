@@ -11,6 +11,17 @@ import { construirLanding } from "./public/js/core/landing-html.js";
 import { tiendaDe, subirImagen, guardarProducto, ErrorShopify } from "./rutas-shopify.js";
 
 const MONEDA_PAIS = { CO: "COP", EC: "USD" };
+
+// "TEXTO PARA SHOPIFY / Título: "..." / Texto: "..."" que viene al final del prompt de cada sección (landing normal)
+export function textoShopify(prompt) {
+  const s = String(prompt || "");
+  const i = s.search(/TEXTO PARA SHOPIFY/i);
+  if (i === -1) return { titulo: "", texto: "" };
+  const parte = s.slice(i);
+  const saca = (re) => ((parte.match(re) || [])[1] || "").trim().replace(/^["“]|["”]$/g, "").trim();
+  return { titulo: saca(/T[íi]tulo:\s*(.+)/i).slice(0, 120), texto: saca(/Texto:\s*([\s\S]+?)(?:\n\s*\n|$)/i).slice(0, 600) };
+}
+const subidaDe = (v) => (v && typeof v === "object" && v.id && v.url ? v : null);   // las viejas solo tenían la URL
 const publicando = new Set();
 
 export function registrarRutasPublicar(app, { cargar, cargarRama, guardarRama, limiter }) {
@@ -117,7 +128,7 @@ export function registrarRutasPublicar(app, { cargar, cargarRama, guardarRama, l
       const urls = new Map();
       const pendientes = [];
       for (const i of imgs) {
-        if (i.subidas?.[tid]) urls.set(String(i._id), i.subidas[tid]);
+        if (subidaDe(i.subidas?.[tid])) urls.set(String(i._id), subidaDe(i.subidas[tid]));
         else pendientes.push(i);
       }
       let k = 0;
@@ -125,27 +136,60 @@ export function registrarRutasPublicar(app, { cargar, cargarRama, guardarRama, l
         while (k < pendientes.length) {
           const i = pendientes[k++];
           const s = secciones.find(z => z.id === i.seccion);
-          const url = await subirImagen(t, { datos: i.datos, tipo: i.tipo, nombre: `${titulo} ${s?.titulo || ""}` });
-          urls.set(String(i._id), url);
-          await ImagenLanding.updateOne({ _id: i._id }, { $set: { [`subidas.${tid}`]: url } });
+          const subida = await subirImagen(t, { datos: i.datos, tipo: i.tipo, nombre: `${titulo} ${s?.titulo || ""}` });
+          urls.set(String(i._id), subida);
+          await ImagenLanding.updateOne({ _id: i._id }, { $set: { [`subidas.${tid}`]: subida } });
         }
       };
       await Promise.all([trabajador(), trabajador(), trabajador()]);
 
+      const formato = x.p.formato === "normal" ? "normal" : "ban";
+      // destino: "tema" = imágenes en la sección "CoDropX landing" de tu plantilla (metacampos) · "descripcion" = dentro de la descripción
+      const destino = req.body?.destino === "descripcion" ? "descripcion" : "tema";
+      const plantilla = req.body?.plantilla === undefined ? undefined : String(req.body.plantilla || "");
+      if (plantilla && !/^[a-z0-9][a-z0-9_-]{0,59}$/i.test(plantilla)) return res.status(400).json({ error: "Nombre de plantilla inválido" });
+
       const imagenes = {};
-      for (const i of imgs) (imagenes[i.seccion] ||= []).push(urls.get(String(i._id)));
-      const landing = construirLanding({ formato: x.p.formato, secciones, imagenes, textos: x.r.textos, nombre: titulo });
+      for (const i of imgs) (imagenes[i.seccion] ||= []).push(urls.get(String(i._id)).url);
+      const completa = construirLanding({ formato, secciones, imagenes, textos: x.r.textos, nombre: titulo });
+
+      let html = completa.html;
+      let media = completa.galeria;
+      let metacampos;
+      if (destino === "tema") {
+        // Orden de la landing (sin la galería en landing normal: esas van como fotos del producto)
+        const lista = [];
+        const textos = [];
+        for (const sec of secciones) {
+          if (formato === "normal" && sec.tipo === "galeria") continue;
+          const deSeccion = imgs.filter(i => i.seccion === sec.id);
+          deSeccion.forEach((i, n) => {
+            lista.push(urls.get(String(i._id)).id);
+            textos.push(formato === "normal" && n === 0 ? textoShopify(sec.prompt) : { titulo: "", texto: "" });
+          });
+        }
+        metacampos = { imagenes: lista, secciones: textos, formato };
+        // Descripción: en ban page vacía (todo va en el tema); en landing normal solo los textos para Shopify
+        html = formato === "normal" ? construirLanding({ formato, secciones: [], imagenes: {}, textos: x.r.textos, nombre: titulo }).html : "";
+      }
 
       const anterior = x.r.publicaciones?.[tid];
       const r = await guardarProducto(t, {
-        productoId: anterior?.productoId, titulo, html: landing.html, media: landing.galeria,
-        precio: Number(x.p.ficha?.precio) || null, precioAntes: Number(x.p.ficha?.precioAntes) || null
+        productoId: anterior?.productoId, titulo, html, media,
+        precio: Number(x.p.ficha?.precio) || null, precioAntes: Number(x.p.ficha?.precioAntes) || null,
+        plantilla, metacampos
       });
+      const landing = completa;
+      if (plantilla !== undefined) {
+        t.plantillas = { ...(t.plantillas || {}), [formato]: plantilla };
+        t.markModified?.("plantillas");
+        await t.save().catch(() => {});
+      }
 
       const publicacion = {
         tiendaId: tid, tienda: t.nombre || t.shop, dominio: t.dominio || "", productoId: r.productoId,
         handle: r.handle, adminUrl: r.adminUrl, estado: r.estado, fecha: new Date().toISOString(),
-        imagenes: imgs.length, faltan: landing.faltan
+        imagenes: imgs.length, faltan: landing.faltan, destino, plantilla: plantilla ?? anterior?.plantilla ?? ""
       };
       const rama = { ...x.r, publicaciones: { ...(x.r.publicaciones || {}), [tid]: publicacion } };
       await guardarRama(x.p, x.av, rama);

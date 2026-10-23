@@ -33,6 +33,9 @@ let proyecto = null;   // proyecto abierto
 let imagenes = [];     // imágenes de Gemini subidas a las secciones (solo datos; la imagen se ve en /api/imagenes/:id)
 let tiendasShopify = null;   // tiendas conectadas (se cargan al abrir el paso Publicar)
 let tiendaElegida = null;
+const temaTiendas = {};      // tiendaId → { plantillas, seccion, tema, sinPermiso, elegida } (o "cargando")
+let destinoPub = (() => { try { return localStorage.getItem("est_destino_pub") || "tema"; } catch { return "tema"; } })();
+let plantillaPub = null;     // sufijo elegido ("" = predeterminada)
 let gastoIA = null;          // { usd, limite, queda, imagenes, precioImagen, precioReferencia }
 const generandoIA = new Set();
 let tab = 1;           // paso que se está viendo
@@ -1704,6 +1707,7 @@ function tarjetaPublicar(L) {
       <select id="estTienda" onchange="estElegirTienda(this.value)">
         ${tiendas.map(x => `<option value="${esc(x._id)}" ${x._id === tiendaElegida ? "selected" : ""}>${esc(x.nombre || x.shop)} · ${esc(x.moneda)}</option>`).join("")}
       </select>
+      ${t ? opcionesTema(t) : ""}
       ${L.faltan.length ? `<div class="est-alert warn">Sin imagen: ${L.faltan.map(esc).join(", ")}. Esas secciones no se publican.</div>` : ""}
       ${t?.faltanPermisos?.length ? `<div class="est-alert warn">A esta tienda le faltan permisos (${t.faltanPermisos.map(esc).join(", ")}). Revísala en Integraciones.</div>` : ""}
       <div class="est-sec-actions">
@@ -1722,12 +1726,49 @@ function tarjetaPublicar(L) {
   </div>`;
 }
 
-window.estElegirTienda = (id) => { tiendaElegida = id; renderPaso(); };
+window.estElegirTienda = (id) => { tiendaElegida = id; plantillaPub = null; renderPaso(); };
+
+// Dónde van las imágenes: en la sección "CoDropX landing" de una plantilla del tema, o en la descripción
+function opcionesTema(t) {
+  const info = temaTiendas[t._id];
+  if (info === undefined) {
+    temaTiendas[t._id] = "cargando";
+    api("GET", `/api/shopify/tiendas/${t._id}/plantillas`)
+      .then(d => { temaTiendas[t._id] = d; if (tab === 6) renderPaso(); })
+      .catch(err => { temaTiendas[t._id] = { error: err.message, plantillas: [] }; if (tab === 6) renderPaso(); });
+  }
+  const d = info && info !== "cargando" ? info : null;
+  const formato = formatoDe(proyecto);
+  if (plantillaPub === null && d) plantillaPub = d.elegida?.[formato] ?? "";
+  const lista = d?.plantillas || [];
+  return `
+    <label class="est-label-claro">Dónde van las imágenes</label>
+    <select id="estDestino" onchange="estDestino(this.value)">
+      <option value="tema" ${destinoPub === "tema" ? "selected" : ""}>En mi plantilla del tema (sección CoDropX landing)</option>
+      <option value="descripcion" ${destinoPub === "descripcion" ? "selected" : ""}>En la descripción del producto</option>
+    </select>
+    ${destinoPub === "tema" ? `
+      <label class="est-label-claro">Plantilla de producto ${d?.tema ? `<small>(tema "${esc(d.tema)}")</small>` : ""}</label>
+      ${!d ? `<p class="est-hint">Leyendo las plantillas de tu tema...</p>`
+        : d.sinPermiso || d.error ? `
+          <input id="estPlantilla" class="est-input" placeholder="Nombre de la plantilla (ej: ban-page). Vacío = predeterminada" value="${esc(plantillaPub || "")}" onchange="estPlantilla(this.value.trim())">
+          <p class="est-hint">${d.sinPermiso ? "Para ver la lista de tus plantillas agrega el permiso read_themes a la app (Integraciones)." : esc(d.error)}</p>`
+        : `<select id="estPlantilla" onchange="estPlantilla(this.value)">
+            ${lista.map(sfx => `<option value="${esc(sfx)}" ${sfx === (plantillaPub || "") ? "selected" : ""}>${sfx ? `product.${esc(sfx)}` : "Predeterminada (product)"}</option>`).join("")}
+            ${plantillaPub && !lista.includes(plantillaPub) ? `<option value="${esc(plantillaPub)}" selected>product.${esc(plantillaPub)} (no está en el tema)</option>` : ""}
+          </select>`}
+      ${d && d.seccion === false ? `<div class="est-alert warn">Tu tema todavía no tiene la sección <b>CoDropX landing</b>: instálala una vez desde <a href="#" onclick="goTo('integraciones'); return false;">Integraciones → Shopify</a> y agrégala a esa plantilla. Sin ella, las imágenes quedan guardadas en el producto pero no se ven.</div>` : ""}
+    ` : `<p class="est-hint">Las imágenes van una debajo de otra dentro de la descripción.</p>`}`;
+}
+window.estDestino = (v) => { destinoPub = v === "descripcion" ? "descripcion" : "tema"; try { localStorage.setItem("est_destino_pub", destinoPub); } catch {} renderPaso(); };
+window.estPlantilla = (v) => { plantillaPub = String(v || ""); };
 window.estPublicar = () => conCarga("estBtnPublicar", "Subiendo a Shopify...", async () => {
   const L = landingActual();
   if (L.faltan.length && !confirm(`${L.faltan.length} sección(es) no tienen imagen y no se van a publicar. ¿Seguir?`)) return;
   const avInicio = av;
-  const { publicacion, nuevo, rama, listo } = await api("POST", urlRama("publicar"), { tiendaId: tiendaElegida });
+  const cuerpo = { tiendaId: tiendaElegida, destino: destinoPub };
+  if (destinoPub === "tema") cuerpo.plantilla = $("estPlantilla")?.value?.trim() ?? plantillaPub ?? "";
+  const { publicacion, nuevo, rama, listo } = await api("POST", urlRama("publicar"), cuerpo);
   if (av === avInicio) ponerRama(rama);
   avisar((nuevo ? `Borrador creado en ${publicacion.tienda} ✓` : `Actualizado en ${publicacion.tienda} ✓`) + (listo ? " · Quedó en Mis testeos como LISTO para testear" : ""));
   if (tab === 6) renderPaso();
