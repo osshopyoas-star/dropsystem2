@@ -49,6 +49,7 @@ export const REGLAS_APRENDIDAS = [
   "Mantén EXACTAMENTE el mismo modelo, color y diseño del producto en todas las imágenes.",
   "El producto EN USO lleva solo las piezas que van puestas a la vez (por ejemplo, UN solo cabezal en la punta). Los accesorios o repuestos sueltos aparecen solo en la sección de 'qué incluye'. Nunca dupliques piezas ni pongas una pieza en un lugar donde no va.",
   "Cada texto, tarjeta o ícono aparece UNA sola vez en la imagen: no repitas tarjetas.",
+  "En imágenes del PROBLEMA o del 'antes', la persona sufre con el método viejo (cepillo común, a mano, de rodillas…): NUESTRO producto no aparece en sus manos. Si quieres mostrar la solución en esa misma imagen, va aparte (otra franja o un recuadro), nunca el producto dos veces en la escena.",
   "Listas de tallas o números: escríbelas completas y en orden, sin repetir."
 ];
 
