@@ -1727,9 +1727,9 @@ window.estPublicar = () => conCarga("estBtnPublicar", "Subiendo a Shopify...", a
   const L = landingActual();
   if (L.faltan.length && !confirm(`${L.faltan.length} sección(es) no tienen imagen y no se van a publicar. ¿Seguir?`)) return;
   const avInicio = av;
-  const { publicacion, nuevo, rama } = await api("POST", urlRama("publicar"), { tiendaId: tiendaElegida });
+  const { publicacion, nuevo, rama, listo } = await api("POST", urlRama("publicar"), { tiendaId: tiendaElegida });
   if (av === avInicio) ponerRama(rama);
-  avisar(nuevo ? `Borrador creado en ${publicacion.tienda} ✓` : `Actualizado en ${publicacion.tienda} ✓`);
+  avisar((nuevo ? `Borrador creado en ${publicacion.tienda} ✓` : `Actualizado en ${publicacion.tienda} ✓`) + (listo ? " · Quedó en Mis testeos como LISTO para testear" : ""));
   if (tab === 6) renderPaso();
 });
 

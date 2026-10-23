@@ -456,10 +456,10 @@ Tono: ${avatar?.tono || ""}
 TAREA: Escribe los textos de anuncio para Meta Ads (Facebook e Instagram) y TikTok para este avatar en ${pais.nombre}.
 - 3 variantes para Meta, una por enfoque: "problema" (problema → solución), "beneficio" (beneficio principal) y "curiosidad" (gancho de curiosidad).
   Cada una con:
-  - texto_principal: 3 a 6 líneas cortas, fácil de escanear, con 2 a 4 emojis bien puestos y saltos de línea. La primera línea es el gancho.
+  - texto_principal: 3 a 6 líneas cortas, fácil de escanear, CON emojis (3 a 6, bien puestos: al inicio de las líneas de beneficios y en el gancho) y saltos de línea. La primera línea es el gancho.
   - titulo: máximo 40 caracteres (va debajo de la imagen).
   - descripcion: máximo 30 caracteres.
-- tiktok: 1 frase corta (máximo 100 caracteres) para el texto del anuncio en TikTok.
+- tiktok: 1 frase corta (máximo 100 caracteres) para el texto del anuncio en TikTok, SIN emojis y sin hashtags (solo texto).
 - Menciona: ${mencionar.join(", ") || "nada extra"}.${!opciones.precio ? " NO pongas el precio." : ""}
 
 REGLAS DE META (para que no rechacen el anuncio ni bloqueen la cuenta):

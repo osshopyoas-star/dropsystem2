@@ -119,7 +119,7 @@ function limpiarCopys(c) {
       titulo: txt(v?.titulo, 80),
       descripcion: txt(v?.descripcion, 60)
     })),
-    tiktok: txt(c.tiktok, 200),
+    tiktok: txt(c.tiktok, 200).replace(/[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}\u{FE0F}\u{200D}]/gu, "").replace(/#\S+/g, "").replace(/\s{2,}/g, " ").trim(),
     opciones: {
       envio: !!c.opciones?.envio, contraEntrega: c.opciones?.contraEntrega !== false, precio: !!c.opciones?.precio
     }

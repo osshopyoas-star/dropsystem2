@@ -4353,7 +4353,7 @@ main:has(.pl-page) { overflow-x: clip; overflow-y: visible; }
 .ts-head h1 { margin: 0 0 6px; font-size: 30px; font-weight: 800; display: flex; align-items: center; gap: 10px; }
 .ts-head h1 svg { width: 26px; height: 26px; }
 .ts-head p { margin: 0; color: #64748b; font-size: 14px; line-height: 1.5; max-width: 860px; }
-.ts-tarjetas { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.ts-tarjetas { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
 .ts-tarjeta {
   display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 14px 16px; border-radius: 14px;
   background: #fff; border: 1.5px solid #e2e8f0; cursor: pointer; font: inherit; color: #0f172a; text-align: left;
@@ -4947,3 +4947,9 @@ button.bp-chip { border: 0; cursor: pointer; font: inherit; font-size: 12px; fon
 .pl-acabado-muestra.limpio b { color: #3f2a1d; }
 .pl-acabado-muestra.limpio i { color: #fff; background: #111827; }
 @media (max-width: 640px) { .pl-acabados { grid-template-columns: 1fr; } }
+
+/* Mis testeos · listo para testear */
+.ts-tarjeta.listo span { color: #6d28d9; }
+.ts-res.listo { color: #6d28d9; border-color: #c4b5fd; }
+.bp-chip.res-listo { background: #ede9fe; color: #6d28d9; }
+.ts-btn.chico { min-height: 30px; padding: 0 10px; font-size: 12px; margin-top: 4px; }

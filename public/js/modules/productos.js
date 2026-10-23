@@ -169,7 +169,7 @@ function chipsAvance(p) {
     chips.push(`<span class="bp-chip proyecto" title="Avance en Desarrollo">${pasos || `paso ${Math.min(pr.paso || 1, 2)}/6`}</span>`);
   }
   if (pr?.vendio) chips.push(`<span class="bp-chip vendio">Vendió ✓</span>`);
-  const RES = { testeando: "Testeando", winner: "Winner", perdedor: "Perdedor", inconcluso: "Inconcluso" };
+  const RES = { listo: "Listo para testear", testeando: "Testeando", winner: "Winner", perdedor: "Perdedor", inconcluso: "Inconcluso" };
   if (RES[p.resultado]) chips.push(`<span class="bp-chip res-${p.resultado}" title="Resultado en Mis testeos">${RES[p.resultado]}</span>`);
   const pts = puntaje(p.analisis);
   const ver = veredicto(pts);

@@ -1,6 +1,6 @@
 // =============================================
 // 🧪 MIS TESTEOS — cómo le fue a cada producto que lanzaste
-// Resultado (testeando, winner, perdedor, inconcluso), fecha, avatar y nota.
+// Resultado (listo, testeando, winner, perdedor, inconcluso), fecha, avatar y nota.
 // Usa los productos de la Base (Colombia y Ecuador juntos).
 // =============================================
 import { registrarRuta } from "./navegacion.js";
@@ -13,6 +13,7 @@ const esc = (v) => escapeHTML(v ?? "");
 const iconos = () => { if (window.lucide) lucide.createIcons(); };
 
 const RESULTADOS = {
+  listo: { nombre: "Listo para testear", corto: "LISTO", desc: "landing y anuncios listos" },
   testeando: { nombre: "Testeando", corto: "TESTEANDO", desc: "en pauta ahora" },
   winner: { nombre: "Winner", corto: "WINNER", desc: "vendió y es rentable" },
   perdedor: { nombre: "Perdedor", corto: "PERDEDOR", desc: "no funcionó" },
@@ -171,6 +172,7 @@ function fila(p) {
 }
 
 function celdaNumeros(p, c) {
+  if (p.resultado === "listo") return `<div class="ts-precio"><small>Aún sin pauta</small><button class="ts-btn chico" onclick="tsGuardar('${esc(p._id)}', { resultado: 'testeando' })">Empezar testeo hoy</button></div>`;
   const { m } = numerosTesteo(p, fin, c);
   const pais = p.pais || "CO";
   if (!m || (!m.pedidos && !m.gasto)) {
@@ -185,6 +187,7 @@ function celdaNumeros(p, c) {
 }
 
 function sugerencia(p, c) {
+  if (p.resultado === "listo") return "";
   const { sug } = numerosTesteo(p, fin, c);
   if (!sug.resultado || sug.resultado === p.resultado) return sug.motivo ? `<small class="ts-sug-txt" title="${esc(sug.motivo)}">${esc(sug.motivo)}</small>` : "";
   return `<div class="ts-sug ${sug.resultado}" title="${esc(sug.motivo)}">

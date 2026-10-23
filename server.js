@@ -61,7 +61,7 @@ const productoSchema = new mongoose.Schema({
   },
   fecha: Date,
   // Mis testeos: resultado del testeo del producto
-  resultado: { type: String, default: "" },          // "" | testeando | winner | perdedor | inconcluso
+  resultado: { type: String, default: "" },          // "" | listo | testeando | winner | perdedor | inconcluso
   testeo: { inicio: Date, fin: Date, avatar: String, nota: String },
   // Análisis de 19 criterios y recursos guardados (anuncios, TikToks, proveedores, competencia)
   analisis: { type: mongoose.Schema.Types.Mixed, default: undefined },
@@ -70,7 +70,7 @@ const productoSchema = new mongoose.Schema({
 
 const Producto = mongoose.model("Producto", productoSchema);
 
-const RESULTADOS = ["", "testeando", "winner", "perdedor", "inconcluso"];
+const RESULTADOS = ["", "listo", "testeando", "winner", "perdedor", "inconcluso"];
 const AVATARES_TESTEO = ["", "A", "B", "AB"];
 
 // Datos del testeo que llegan del navegador
@@ -82,7 +82,8 @@ function limpiarTesteo(body = {}, actual = {}) {
   if (body.inicio !== undefined) t.inicio = fecha(body.inicio);
   if (body.avatar !== undefined) t.avatar = AVATARES_TESTEO.includes(body.avatar) ? body.avatar : "";
   if (body.nota !== undefined) t.nota = String(body.nota || "").slice(0, 1000);
-  if (resultado && !t.inicio) t.inicio = new Date();                       // empieza hoy si no tiene fecha
+  if (resultado === "listo") t.inicio = null;                               // listo = aún sin pauta
+  else if (resultado && !t.inicio) t.inicio = new Date();                  // empieza hoy si no tiene fecha
   if (["winner", "perdedor", "inconcluso"].includes(resultado)) t.fin = t.fin || new Date();
   else t.fin = null;
   return { resultado, testeo: t };
@@ -530,7 +531,7 @@ app.put("/api/productos/:id/estado", async (req, res) => {
     // Al lanzarlo, queda "testeando" en Mis testeos (si aún no tenía resultado)
     if (estado === "lanzado") {
       const actual = await Producto.findOne({ _id: id, owner: req.user.uid });
-      if (actual && !actual.resultado) Object.assign(cambios, limpiarTesteo({ resultado: "testeando" }, actual));
+      if (actual && (!actual.resultado || actual.resultado === "listo")) Object.assign(cambios, limpiarTesteo({ resultado: "testeando" }, actual));
     }
     const productoActualizado = await Producto.findOneAndUpdate(
       { _id: id, owner: req.user.uid },
