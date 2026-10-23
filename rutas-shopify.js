@@ -207,7 +207,11 @@ export async function plantillasTema(t) {
     .map(m => m[1] || "")
     .filter((v, i, a) => a.indexOf(v) === i)
     .sort((a, b) => (a === "" ? -1 : b === "" ? 1 : a.localeCompare(b)));
-  return { tema: tema.name, plantillas, seccion: archivos.includes("sections/codropx-landing.liquid") };
+  return {
+    tema: tema.name, plantillas, seccion: archivos.includes("sections/codropx-landing.liquid"),
+    // Editor del tema abierto en las plantillas de producto (para crear una nueva)
+    editorUrl: `https://admin.shopify.com/store/${t.shop}/themes/${String(tema.id).split("/").pop()}/editor?template=product`
+  };
 }
 
 export async function guardarProducto(t, { productoId, titulo, html, media, precio, precioAntes, plantilla, metacampos }) {

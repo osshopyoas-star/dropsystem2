@@ -1756,13 +1756,59 @@ function opcionesTema(t) {
         : d.sinPermiso || d.error ? `
           <input id="estPlantilla" class="est-input" placeholder="Nombre de la plantilla (ej: ban-page). Vacío = predeterminada" value="${esc(plantillaPub || "")}" onchange="estPlantilla(this.value.trim())">
           <p class="est-hint">${d.sinPermiso ? "Para ver la lista de tus plantillas agrega el permiso read_themes a la app (Integraciones)." : esc(d.error)}</p>`
-        : `<select id="estPlantilla" onchange="estPlantilla(this.value)">
-            ${lista.map(sfx => `<option value="${esc(sfx)}" ${sfx === (plantillaPub || "") ? "selected" : ""}>${sfx ? `product.${esc(sfx)}` : "Predeterminada (product)"}</option>`).join("")}
-            ${plantillaPub && !lista.includes(plantillaPub) ? `<option value="${esc(plantillaPub)}" selected>product.${esc(plantillaPub)} (no está en el tema)</option>` : ""}
-          </select>`}
+        : `<div class="est-pl-buscar">
+            <div class="est-pl-fila">
+              <input id="estPlantillaBuscar" class="est-input" placeholder="Busca tu plantilla (ej: ban)" autocomplete="off"
+                value="${esc(plantillaPub ? plantillaPub : "")}" oninput="estBuscarPlantilla(this.value)" onfocus="estBuscarPlantilla(this.value, true)"
+                onkeydown="if(event.key==='Enter'){event.preventDefault(); estPrimeraPlantilla();}">
+              ${d.editorUrl ? `<a class="est-btn chico" href="${esc(d.editorUrl)}" target="_blank" rel="noopener" title="Abre el editor de tu tema en las plantillas de producto. Ahí: Crear plantilla → basada en banpage. Luego vuelve y dale Recargar lista."><i data-lucide="plus"></i> Crear plantilla</a>` : ""}
+            </div>
+            <input type="hidden" id="estPlantilla" value="${esc(plantillaPub || "")}">
+            <p class="est-pl-elegida">Elegida: <b>${plantillaPub ? `product.${esc(plantillaPub)}` : "Predeterminada (product)"}</b>${plantillaPub && !lista.includes(plantillaPub) ? ` <span class="est-hint">(no está en el tema)</span>` : ""}</p>
+            <div id="estPlantillaLista" class="est-pl-lista" hidden></div>
+          </div>`}
       ${d && d.seccion === false ? `<div class="est-alert warn">Tu tema todavía no tiene la sección <b>CoDropX landing</b>: instálala una vez desde <a href="#" onclick="goTo('integraciones'); return false;">Integraciones → Shopify</a> y agrégala a esa plantilla. Sin ella, las imágenes quedan guardadas en el producto pero no se ven.</div>` : ""}
     ` : `<p class="est-hint">Las imágenes van una debajo de otra dentro de la descripción.</p>`}`;
 }
+// Buscador de plantillas: filtra mientras escribes; si queda una sola (o coincide exacto) la elige
+function plantillasActuales() {
+  const d = temaTiendas[tiendaElegida];
+  return d && d !== "cargando" ? (d.plantillas || []) : [];
+}
+function elegirPlantillaUI(sfx) {
+  plantillaPub = String(sfx || "");
+  const h = $("estPlantilla"); if (h) h.value = plantillaPub;
+  const e = document.querySelector(".est-pl-elegida b"); if (e) e.textContent = plantillaPub ? `product.${plantillaPub}` : "Predeterminada (product)";
+}
+window.estBuscarPlantilla = (txt, alEntrar) => {
+  const q = String(txt || "").trim().toLowerCase().replace(/^product\.?/, "");
+  const lista = plantillasActuales();
+  const hay = q ? lista.filter(s => (s || "predeterminada").toLowerCase().includes(q)) : lista;
+  const caja = $("estPlantillaLista");
+  if (!caja) return;
+  caja.hidden = false;
+  caja.innerHTML = hay.length
+    ? hay.slice(0, 50).map(s => `<button type="button" class="${s === plantillaPub ? "sel" : ""}" onmousedown="event.preventDefault(); estClicPlantilla('${esc(s)}')">${s ? `product.${esc(s)}` : "Predeterminada (product)"}</button>`).join("")
+    : `<p class="est-hint">No hay ninguna plantilla con "${esc(q)}". Créala con el botón y dale ↻ Recargar lista.</p>`;
+  if (!alEntrar && q) {
+    const exacta = hay.find(s => s.toLowerCase() === q);
+    if (exacta !== undefined) elegirPlantillaUI(exacta);
+    else if (hay.length === 1) elegirPlantillaUI(hay[0]);
+  }
+};
+window.estClicPlantilla = (s) => {
+  elegirPlantillaUI(s);
+  const i = $("estPlantillaBuscar"); if (i) i.value = s;
+  const caja = $("estPlantillaLista"); if (caja) caja.hidden = true;
+};
+window.estPrimeraPlantilla = () => {
+  const b = document.querySelector("#estPlantillaLista button");
+  if (b) b.dispatchEvent(new MouseEvent("mousedown"));
+};
+document.addEventListener("click", (e) => {
+  if (!e.target.closest?.(".est-pl-buscar")) { const c = $("estPlantillaLista"); if (c) c.hidden = true; }
+});
+
 window.estRecargarPlantillas = (id) => { delete temaTiendas[id]; plantillaPub = null; renderPaso(); };
 window.estDestino = (v) => { destinoPub = v === "descripcion" ? "descripcion" : "tema"; try { localStorage.setItem("est_destino_pub", destinoPub); } catch {} renderPaso(); };
 window.estPlantilla = (v) => { plantillaPub = String(v || ""); };
