@@ -195,7 +195,7 @@ function guiaSeccion() {
     <ol>
       <li>Si ya conectaste la tienda antes, agrega el permiso <code>read_themes</code> a tu app en el Dev Dashboard (Versions → Access scopes), dale <b>Release</b> y aprueba la actualización en la tienda. Luego aquí dale <b>Probar</b>.</li>
       <li>En Shopify: <b>Tienda online → Temas → … → Editar código</b>. En la carpeta <b>Sections</b> dale <b>Agregar nueva sección</b>, ponle de nombre <code>codropx-landing</code> y reemplaza todo lo que trae por el código de abajo. Guarda.</li>
-      <li>En <b>Personalizar</b>, abre (o crea) la plantilla de producto que usas para tus ban pages. Agrega la sección <b>CoDropX landing</b> donde quieras que vayan las imágenes y alrededor pon tus botones y GIF. Guarda.</li>
+      <li>En <b>Personalizar</b>, abre (o crea) la plantilla de producto que usas para tus ban pages. Agrega la sección <b>CoDropX landing</b>. Dentro de ella, con <b>Agregar bloque</b>, pones tus botones y GIF encima de las imágenes, igual que en el Constructor DropHouse: <b>Botón o GIF encima</b> (eliges en qué imagen va, el tamaño y la posición; con "Es el botón de Releasit" abre el formulario) y <b>Formulario de Releasit</b>. Guarda.</li>
       <li>En CoDropX, al publicar elige esa plantilla. Cada producto nuevo sale con sus imágenes en esa sección, en orden.</li>
     </ol>
     <div class="in-acciones">
