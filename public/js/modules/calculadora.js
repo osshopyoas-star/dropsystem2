@@ -5,7 +5,7 @@
 // =============================================
 import { registrarRuta } from "./navegacion.js";
 import { escapeHTML } from "../core/utils.js";
-import { PAISES_COSTEO, calcularCosteo, formatear, redondear } from "../core/costeo.js";
+import { PAISES_COSTEO, calcularCosteo, formatear, redondear, TIPOS_COMPLEMENTO, complementosPorDefecto, calcularComplementos, precioExtra } from "../core/costeo.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (v) => escapeHTML(v ?? "");
@@ -14,6 +14,8 @@ let productos = [];
 let costeos = [];
 let productoPendiente = null;   // producto con el que se abrió la calculadora desde la Base
 let ultimo = null;              // último resultado calculado
+// Complementos (unidad extra, protección, garantía, post-compra). Mientras no los toques, se recalculan con el precio.
+const comp = { lista: [], personalizado: false, textosIA: null };
 
 const CAMPOS = ["proveedor", "flete", "cancelados", "devoluciones", "admin", "fulfillment", "cpa", "utilidad", "descuento", "precio"];
 
@@ -153,7 +155,8 @@ function leerDatos() {
     proveedor: v("calProveedor"), flete: v("calFlete"),
     cancelados: v("calCancelados"), devoluciones: v("calDevoluciones"),
     admin: v("calAdmin"), fulfillment: v("calFulfillment"), cpa: v("calCpa"),
-    utilidad: v("calUtilidad"), descuento: v("calDescuento"), precio: v("calPrecio")
+    utilidad: v("calUtilidad"), descuento: v("calDescuento"), precio: v("calPrecio"),
+    complementos: comp.personalizado ? comp.lista : undefined
   };
 }
 
@@ -170,6 +173,9 @@ function ponerDatos(d = {}) {
   set("calUtilidad", d.utilidad ?? base.utilidad);
   set("calDescuento", d.descuento ?? base.descuento);
   set("calPrecio", d.precio ?? "");
+  comp.personalizado = Array.isArray(d.complementos) && d.complementos.length > 0;
+  comp.lista = comp.personalizado ? d.complementos.map(c => ({ ...c })) : [];
+  comp.textosIA = null;
 }
 
 function guardarBorrador() {
@@ -280,6 +286,8 @@ window.calCalcular = function () {
       `).join("")}
     </div>
 
+    ${sinProveedor ? "" : bloqueComplementos(r)}
+
     <button class="cal-btn grande" id="calBtnDesarrollo" onclick="calPasarADesarrollo()" ${sinProveedor ? "disabled" : ""}>
       <i data-lucide="arrow-right-circle"></i> Guardar y pasar a Desarrollo
     </button>
@@ -287,6 +295,137 @@ window.calCalcular = function () {
   `;
   if (window.lucide) lucide.createIcons();
 };
+
+// =============================================
+// 🛒 COMPLEMENTOS: sube lo que te deja cada cliente
+// =============================================
+let ultimoComp = null;
+const tipoNombre = (t) => TIPOS_COMPLEMENTO[t]?.nombre || "Complemento";
+
+function bloqueComplementos(r) {
+  const d = leerDatos();
+  if (!comp.personalizado) comp.lista = complementosPorDefecto({ pais: pais(), precio: r.redondeado, proveedor: d.proveedor, flete: d.flete });
+  const k = calcularComplementos(r, comp.lista);
+  ultimoComp = k;
+  const barras = [
+    ["Solo el producto", k.utilidadBase, "base"],
+    ["+ complementos", k.conCheckout, "medio"],
+    ["+ oferta post-compra", k.conTodo, "alto"]
+  ];
+  const tope = Math.max(1, ...barras.map(b => Math.abs(b[1])));
+  return `
+    <h3 class="cal-sub"><i data-lucide="shopping-cart"></i> Sube tu ticket: complementos y oferta post-compra</h3>
+    <p class="cal-hint">En el formulario de compra (Releasit) le ofreces extras con un clic, y al terminar una oferta de 1 clic. Van en el <b>mismo paquete</b>: no pagas otro flete ni otra pauta, y en contra entrega solo los cobras si se entrega.</p>
+
+    <div class="cal-comp-barras">
+      ${barras.map(([t, v, c]) => `
+        <div class="cal-comp-barra ${c}">
+          <b class="${v < 0 ? "neg" : ""}">${fmt(v)}</b>
+          <span style="height:${Math.max(6, Math.round(Math.abs(v) / tope * 100))}%"></span>
+          <small>${t}</small>
+        </div>`).join("")}
+    </div>
+    <p class="cal-comp-res">Lo que te deja <b>cada cliente entregado</b>, en promedio: ${fmt(k.utilidadBase)} → <b>${fmt(k.conTodo)}</b>${k.multiplicador && k.multiplicador > 1.05 ? ` (<b>×${k.multiplicador.toFixed(1)}</b>)` : ""}. Ticket promedio ${fmt(k.ticketPromedio)} · si lo toma todo ${fmt(k.ticketMaximo)}.</p>
+    <div class="cal-bep cal-bep-comp">
+      <div><b>Nuevo CPA máximo sin perder</b><small>con los complementos puedes pagar más por cada venta y seguir ganando (antes ${fmt(k.bepBase)}).</small></div>
+      <strong>${fmt(k.bepNuevo)}</strong>
+    </div>
+    ${k.utilidadBase <= 0 ? `<div class="cal-alert warn">Sin complementos este producto no te deja ganancia por cliente. Los complementos ayudan, pero revisa primero el precio.</div>` : ""}
+    ${k.hayPerdida ? `<div class="cal-alert error">Hay un complemento que vendes por debajo de su costo (en rojo). Súbele el precio o apágalo.</div>` : ""}
+
+    <div class="cal-comp-lista">
+      <div class="cal-comp-enc"><span></span><span></span><span>Precio</span><span>Costo</span><span title="De cada 100 clientes, cuántos lo toman">% lo toma</span><span>Te deja / cliente</span><span></span></div>
+      ${k.complementos.map((c, i) => `
+        <div class="cal-comp ${c.activo === false ? "apagado" : ""} ${c.perdida ? "pierde" : ""}">
+          <input type="checkbox" ${c.activo !== false ? "checked" : ""} onchange="calComp(${i}, 'activo', this.checked)" title="Usar este complemento">
+          <div class="cal-comp-nombre">
+            <input value="${esc(c.nombre)}" onchange="calComp(${i}, 'nombre', this.value)">
+            <small><em class="${c.donde}">${c.donde === "postcompra" ? "Después de comprar" : "En el formulario"}</em> ${esc(tipoNombre(c.tipo))}</small>
+          </div>
+          <input type="number" min="0" step="any" value="${c.precio}" onchange="calComp(${i}, 'precio', this.value)" aria-label="Precio">
+          <input type="number" min="0" step="any" value="${c.costo}" onchange="calComp(${i}, 'costo', this.value)" aria-label="Costo" title="${esc(TIPOS_COMPLEMENTO[c.tipo]?.ayuda || "")}">
+          <label class="cal-comp-toma"><input type="number" min="0" max="100" step="1" value="${Math.round(c.toma)}" onchange="calComp(${i}, 'toma', this.value)" aria-label="% que lo toma">%</label>
+          <b class="${c.margen < 0 ? "neg" : ""}" title="${fmt(c.margen)} cada vez que lo toman">${c.activo === false ? "—" : "+" + fmt(c.aporte)}</b>
+          <button class="cal-mini" title="Quitar" onclick="calCompQuitar(${i})">✕</button>
+        </div>`).join("")}
+      <div class="cal-comp-acciones">
+        <select id="calCompTipo">${Object.entries(TIPOS_COMPLEMENTO).map(([t, x]) => `<option value="${t}">${x.nombre}</option>`).join("")}</select>
+        <button class="cal-mini" onclick="calCompAgregar()">+ Agregar</button>
+        ${comp.personalizado ? `<button class="cal-link" onclick="calCompRestablecer()">Volver a los sugeridos</button>` : ""}
+      </div>
+      <small class="cal-hint">"% lo toma" es de cada 100 clientes cuántos lo marcan. Empieza con estos números y ajústalos con tus pedidos reales. El costo de la protección y la garantía es lo que te cuesta en promedio reenviar o cambiar.</small>
+    </div>
+
+    <details class="cal-comp-textos" ${comp.textosIA ? "open" : ""}>
+      <summary><i data-lucide="clipboard-list"></i> Textos para Releasit (formulario y oferta post-compra)</summary>
+      <pre id="calCompTxt">${esc(textosComplementos(k))}</pre>
+      <div class="cal-comp-acciones">
+        <button class="cal-mini" onclick="calCompCopiar()">Copiar</button>
+        <button class="cal-mini" id="calBtnCompIA" onclick="calCompIA()"><i data-lucide="sparkles"></i> Mejorar con IA y sugerir complementos</button>
+      </div>
+      ${comp.textosIA?.ideas?.length ? `<div class="cal-comp-ideas"><b>Productos que combinan (busca su costo en Dropi y agrégalos):</b><ul>${comp.textosIA.ideas.map(x => `<li><b>${esc(x.producto)}</b> — ${esc(x.por_que)}</li>`).join("")}</ul></div>` : ""}
+    </details>`;
+}
+
+// Textos listos para pegar: con tus precios reales
+function textosComplementos(k) {
+  if (comp.textosIA?.texto) return comp.textosIA.texto;
+  const precio = k.ticketBase;
+  const lineas = [];
+  const activos = k.complementos.filter(c => c.activo !== false);
+  const check = activos.filter(c => c.donde === "checkout");
+  if (check.length) {
+    lineas.push("— EN EL FORMULARIO (casillas de 1 clic) —");
+    for (const c of check) {
+      if (c.tipo === "unidad") lineas.push(`✅ ${c.nombre} por solo ${fmt(c.precio)} (ahorras ${fmt(Math.max(0, precio - c.precio))}) · llega en el mismo paquete`);
+      else if (c.tipo === "proteccion") lineas.push(`🛡️ ${c.nombre} +${fmt(c.precio)}: si tu paquete se pierde o llega dañado, te lo reenviamos sin costo`);
+      else if (c.tipo === "garantia") lineas.push(`⭐ ${c.nombre} +${fmt(c.precio)}: si algo falla, te lo cambiamos`);
+      else lineas.push(`➕ Añade ${c.nombre} por ${fmt(c.precio)}`);
+    }
+  }
+  for (const c of activos.filter(x => x.donde === "postcompra")) {
+    lineas.push("", "— OFERTA DESPUÉS DE COMPRAR (ventana de 1 clic) —",
+      `Título: ${c.nombre}`,
+      `Texto: Antes ${fmt(precio)} · Ahora ${fmt(c.precio)}. Llega en el mismo paquete y lo pagas al recibir.`,
+      `Botón sí: Sí, añadir por ${fmt(c.precio)}`,
+      `Botón no: No, gracias`);
+  }
+  return lineas.join("\n") || "Activa al menos un complemento.";
+}
+
+const reCalc = () => { comp.textosIA = null; calCalcular(); };
+window.calComp = (i, campo, valor) => {
+  const c = comp.lista[i]; if (!c) return;
+  comp.personalizado = true;
+  c[campo] = campo === "activo" ? !!valor : campo === "nombre" ? String(valor).slice(0, 80) : Math.max(0, Number(valor) || 0);
+  if (campo === "toma") c.toma = Math.min(100, c.toma);
+  reCalc();
+};
+window.calCompQuitar = (i) => { comp.personalizado = true; comp.lista.splice(i, 1); reCalc(); };
+window.calCompAgregar = () => {
+  const tipo = $("calCompTipo")?.value || "complemento";
+  const r = ultimo || {}; const d = leerDatos();
+  const base = complementosPorDefecto({ pais: pais(), precio: r.redondeado, proveedor: d.proveedor, flete: d.flete }).find(x => x.tipo === tipo);
+  comp.personalizado = true;
+  comp.lista.push(base ? { ...base, id: `${tipo}-${Date.now()}`, activo: true }
+    : { id: `c-${Date.now()}`, tipo, activo: true, nombre: tipoNombre(tipo), precio: precioExtra((r.redondeado || 0) * 0.5, pais()), costo: 0, toma: TIPOS_COMPLEMENTO[tipo]?.toma || 10 });
+  reCalc();
+};
+window.calCompRestablecer = () => { comp.personalizado = false; comp.lista = []; reCalc(); };
+window.calCompCopiar = async () => {
+  const t = $("calCompTxt")?.textContent || "";
+  try { await navigator.clipboard.writeText(t); avisar("Textos copiados ✓"); } catch { avisar("No se pudo copiar", "error"); }
+};
+window.calCompIA = () => conBoton("calBtnCompIA", "Pensando...", async () => {
+  const prod = productos.find(p => String(p._id) === String($("calProducto")?.value));
+  const r = await api("POST", "/api/costeos/complementos-ia", {
+    pais: pais(), producto: prod?.nombre || $("calNombre")?.value || "", descripcion: prod?.descripcion || prod?.notas || "",
+    precio: ultimo?.redondeado, complementos: comp.lista.filter(c => c.activo !== false).map(c => ({ tipo: c.tipo, nombre: c.nombre, precio: c.precio }))
+  });
+  comp.textosIA = r;
+  calCalcular();
+  avisar("Textos mejorados ✓");
+});
 
 // ¿Los paquetes llevan envío gratis? (se recuerda en este navegador)
 function envioPacks() {
@@ -369,11 +508,12 @@ async function guardarCosteo() {
   const r = ultimo;
   const c = await api("POST", "/api/costeos", {
     productoId, nombre, pais: pais(),
-    datos: leerDatos(),
+    datos: { ...leerDatos(), complementos: comp.lista },
     resumen: {
       precio: r.precio, redondeado: r.redondeado, precioAntes: r.precioAntes,
       utilidad: r.utilidad, utilidadPct: r.utilidadPct, bep: r.bep, costosTotales: r.costosTotales,
-      paquetes: r.paquetes
+      paquetes: r.paquetes,
+      ...(ultimoComp ? { gananciaCliente: ultimoComp.conTodo, ticketPromedio: ultimoComp.ticketPromedio } : {})
     }
   });
   const i = costeos.findIndex(x => x._id === c._id);

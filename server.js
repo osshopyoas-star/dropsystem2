@@ -18,7 +18,7 @@ import {
   rateLimit
 } from "./auth.js";
 import { promptTendencia, promptKeywordsMaslow } from "./prompts.js";
-import { registrarRutasProyectos } from "./rutas-proyectos.js";
+import { registrarRutasProyectos, parsearJSON } from "./rutas-proyectos.js";
 import { registrarRutasCosteos } from "./rutas-costeos.js";
 import { registrarRutasPlantilla } from "./rutas-plantilla.js";
 import { registrarRutasMeta } from "./rutas-meta.js";
@@ -483,7 +483,7 @@ const ayudasProyectos = registrarRutasProyectos(app, { llamarIA, iaLimiter, idVa
 registrarRutasShopify(app);
 registrarRutasPublicar(app, { ...ayudasProyectos, limiter: iaLimiter });
 registrarRutasIAImagenes(app, { ...ayudasProyectos, limiter: iaLimiter });
-registrarRutasCosteos(app, { idValido, Producto });
+registrarRutasCosteos(app, { idValido, Producto, llamarIA, iaLimiter, parsearJSON });
 registrarRutasPlantilla(app);
 registrarRutasMeta(app);
 registrarRutasFinanzas(app, { llamarIA, iaLimiter });

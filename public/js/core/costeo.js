@@ -115,3 +115,96 @@ export function calcularCosteo(datos = {}) {
     paquetes
   };
 }
+
+// =============================================
+// 🛒 COMPLEMENTOS: subir lo que te deja cada cliente
+// En el checkout (Releasit): unidad extra, protección de envío, garantía, otro producto.
+// Después de comprar: una oferta de 1 clic (ej. otra unidad con descuento).
+// En contra entrega solo se cobran si el pedido se entrega, y viajan en el MISMO paquete
+// (no pagas otro flete ni otra pauta): casi todo lo que cobras de más es ganancia.
+// =============================================
+export const TIPOS_COMPLEMENTO = {
+  unidad: { nombre: "Unidad extra", donde: "checkout", toma: 20, ayuda: "Otra unidad del mismo producto con descuento, marcada con un clic en el formulario." },
+  proteccion: { nombre: "Protección de envío", donde: "checkout", toma: 30, ayuda: "Si el paquete se pierde o llega dañado, lo reenvías sin costo. Cuesta poco y casi siempre es ganancia." },
+  garantia: { nombre: "Garantía de satisfacción", donde: "checkout", toma: 15, ayuda: "Cambio o reposición si algo falla. Solo ofrécela si la vas a cumplir." },
+  complemento: { nombre: "Producto complementario", donde: "checkout", toma: 10, ayuda: "Algo que combina con el producto (ej. champú con el spray). Busca el costo en Dropi." },
+  postcompra: { nombre: "Oferta después de comprar", donde: "postcompra", toma: 12, ayuda: "Ventana de 1 clic al terminar el pedido: '¿Y solo 1 unidad extra? Antes X, ahora Y'." }
+};
+
+// Precio "bonito" para extras pequeños: Colombia en X.900 (9.900, 14.900, 59.900) · Ecuador en ,99
+export function precioExtra(valor, pais = "CO") {
+  const v = num(valor);
+  if (v <= 0) return 0;
+  if (pais === "EC") return Math.max(0.99, Math.round(v) - 0.01);
+  return Math.max(900, Math.round((v + 100) / 1000) * 1000 - 100);
+}
+
+// Igual, pero nunca por debajo del valor (para mínimos de margen)
+export function precioExtraArriba(valor, pais = "CO") {
+  const v = num(valor);
+  if (v <= 0) return 0;
+  if (pais === "EC") return Math.max(0.99, Math.ceil(v + 0.01) - 0.01);
+  return Math.max(900, Math.ceil((v + 100) / 1000) * 1000 - 100);
+}
+
+const PRECIOS_FIJOS = { CO: { proteccion: 9900, garantia: 14900 }, EC: { proteccion: 1.99, garantia: 2.99 } };
+
+// Los de arranque, calculados con el precio y el costo del producto
+export function complementosPorDefecto({ pais = "CO", precio = 0, proveedor = 0, flete = 0 } = {}) {
+  const P = pais === "EC" ? "EC" : "CO";
+  const pr = num(precio), prov = num(proveedor), fl = num(flete);
+  const minimo = (factor) => prov * factor;   // que nunca quede por debajo del costo
+  return [
+    { id: "unidad", tipo: "unidad", activo: true, nombre: "Lleva 1 unidad más",
+      precio: Math.max(precioExtra(pr * 0.65, P), precioExtraArriba(minimo(1.4), P)), costo: prov, toma: TIPOS_COMPLEMENTO.unidad.toma },
+    { id: "proteccion", tipo: "proteccion", activo: true, nombre: "Protección de envío",
+      precio: PRECIOS_FIJOS[P].proteccion, costo: Math.round((prov + fl) * 0.03 * 100) / 100, toma: TIPOS_COMPLEMENTO.proteccion.toma },
+    { id: "garantia", tipo: "garantia", activo: false, nombre: "Garantía de satisfacción",
+      precio: PRECIOS_FIJOS[P].garantia, costo: Math.round((prov + fl) * 0.05 * 100) / 100, toma: TIPOS_COMPLEMENTO.garantia.toma },
+    { id: "postcompra", tipo: "postcompra", activo: true, nombre: "¿Y solo 1 unidad extra?",
+      precio: Math.max(precioExtra(pr * 0.45, P), precioExtraArriba(minimo(1.25), P)), costo: prov, toma: TIPOS_COMPLEMENTO.postcompra.toma }
+  ];
+}
+
+/**
+ * base: resultado de calcularCosteo (usa precio redondeado, utilidad por venta entregada y BEP)
+ * complementos: [{ tipo, nombre, activo, precio, costo, toma (% de clientes que lo toman) }]
+ * → ganancia por cliente con y sin extras, ticket promedio y cuánto más puedes pagar de pauta
+ */
+export function calcularComplementos(base, complementos = []) {
+  const precio = num(base?.redondeado) || num(base?.precio);
+  const utilidadBase = num(base?.utilidad);
+  const lista = (complementos || []).map(c => {
+    const pr = Math.max(0, num(c.precio)), co = Math.max(0, num(c.costo));
+    const toma = Math.min(100, Math.max(0, num(c.toma))) / 100;
+    const margen = pr - co;
+    return {
+      ...c, precio: pr, costo: co, toma: toma * 100, margen,
+      donde: TIPOS_COMPLEMENTO[c.tipo]?.donde || "checkout",
+      aporte: c.activo === false ? 0 : margen * toma,          // lo que suma por cliente, en promedio
+      ticket: c.activo === false ? 0 : pr * toma,
+      perdida: margen < 0
+    };
+  });
+  const activos = lista.filter(c => c.activo !== false);
+  const suma = (arr, k) => arr.reduce((a, c) => a + c[k], 0);
+  const checkout = activos.filter(c => c.donde === "checkout");
+  const post = activos.filter(c => c.donde === "postcompra");
+  const conCheckout = utilidadBase + suma(checkout, "aporte");
+  const conTodo = conCheckout + suma(post, "aporte");
+  const extra = conTodo - utilidadBase;
+  return {
+    complementos: lista,
+    utilidadBase,
+    conCheckout,
+    conTodo,
+    extra,
+    multiplicador: utilidadBase > 0 ? conTodo / utilidadBase : null,
+    ticketBase: precio,
+    ticketPromedio: precio + suma(activos, "ticket"),
+    ticketMaximo: precio + suma(activos, "precio"),
+    bepBase: num(base?.bep),
+    bepNuevo: num(base?.bep) + extra,        // ahora puedes pagar más por cada venta y seguir ganando
+    hayPerdida: activos.some(c => c.perdida)
+  };
+}
