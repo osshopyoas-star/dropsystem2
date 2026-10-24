@@ -4655,7 +4655,7 @@ main:has(.pl-page) { overflow-x: clip; overflow-y: visible; }
   .fz-dia-caja { min-width: 0; flex: 1; }
   .fz-tienda button { margin-left: 0; }
 }
-.ts-fila { grid-template-columns: minmax(0, 2fr) 64px 110px 170px 130px minmax(0, 1.6fr) 110px; align-items: start; }
+.ts-fila { grid-template-columns: minmax(0, 1.8fr) 64px 110px minmax(210px, 1.4fr) 130px minmax(0, 1.4fr) 110px; align-items: start; }
 .ts-num { display: flex; flex-direction: column; gap: 2px; font-size: 12px; }
 .ts-num small { color: #94a3b8; }
 .ts-num .verde { color: #15803d; font-weight: 700; }
@@ -5215,3 +5215,30 @@ body.fz-sin-scroll { overflow: hidden; }
 @media (max-width: 640px) {
   .cal-comp-barras { height: 150px; }
 }
+
+/* ===== Mis testeos: decisión ESCALAR · AGUANTAR · APAGAR ===== */
+.ts-decisiones { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 12px 16px; margin-bottom: 12px; }
+.ts-decisiones > div { display: flex; flex-direction: column; margin-right: 6px; }
+.ts-decisiones > div b { font-size: 15px; }
+.ts-decisiones > div small, .ts-decisiones > small { color: #64748b; font-size: 12px; }
+.ts-decisiones .rojo { color: #dc2626; }
+.ts-dchip { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 5px 12px; font-size: 12.5px; font-weight: 700; }
+.ts-dchip b { font-size: 15px; }
+.ts-dchip.escalar, .ts-dec.escalar .ts-dec-top b { background: #dcfce7; color: #166534; }
+.ts-dchip.aguantar, .ts-dec.aguantar .ts-dec-top b { background: #fef3c7; color: #92400e; }
+.ts-dchip.apagar, .ts-dec.apagar .ts-dec-top b { background: #fee2e2; color: #b91c1c; }
+.ts-dchip.falta, .ts-dec.falta .ts-dec-top b { background: #f1f5f9; color: #475569; }
+.ts-meta-logo { color: #1877f2; font-weight: 900; }
+.ts-btn.claro { background: #fff; color: #0f172a; border: 1px solid #cbd5e1; }
+.ts-dec { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; line-height: 1.4; }
+.ts-dec-top { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ts-dec-top b { font-size: 11px; font-weight: 900; letter-spacing: .04em; border-radius: 6px; padding: 3px 8px; }
+.ts-dec-top button { border: 1px solid #cbd5e1; background: #fff; color: #0f172a; font: inherit; font-size: 11px; font-weight: 700; border-radius: 6px; padding: 2px 8px; cursor: pointer; }
+.ts-dec-top button:hover { background: #f1f5f9; }
+.ts-dec > small { color: #475569; }
+.ts-dec details summary { cursor: pointer; color: #0f766e; font-weight: 700; }
+.ts-dec details ul { margin: 4px 0 0; padding-left: 16px; color: #334155; }
+.ts-dec details li { margin-bottom: 3px; }
+.ts-dec-meta { border: 0; background: #eef4ff; color: #1d4ed8; font: inherit; font-size: 11px; font-weight: 700; border-radius: 6px; padding: 4px 8px; cursor: pointer; text-align: left; }
+.ts-dec-meta:hover { background: #dbe7ff; }
+.ts-dec-alerta { color: #b45309 !important; font-weight: 700; }

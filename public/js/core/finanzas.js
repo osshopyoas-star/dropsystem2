@@ -493,6 +493,63 @@ export function sugerirResultado(m, equilibrioRef = null) {
 }
 
 // =============================================
+// DECISIÓN DEL TESTEO: ESCALAR · AGUANTAR · APAGAR
+// Compara lo que te cuesta cada pedido entregado (CPA real = pauta ÷ entregas estimadas)
+// con lo máximo que puedes pagar sin perder (CPA máximo):
+//   · con pedidos: el equilibrio real de Dropi (precio − proveedor − flete con devoluciones)
+//   · sin pedidos todavía: el del costeo, sumando lo que dejan los complementos
+// Reglas (no decide sola: tú confirmas con "Aplicar"):
+//   APAGAR  → gastó 1 CPA máximo sin una venta, o 2 CPA máximos y va perdiendo
+//   ESCALAR → 3+ entregas estimadas y CPA ≤ 70% del máximo (y los últimos 3 días no se dañaron)
+//   AGUANTAR→ todo lo demás: te dice cuánto más gastar antes de decidir y qué probar
+// =============================================
+export const ACCIONES_TESTEO = {
+  escalar: { nombre: "ESCALAR", resultado: "winner" },
+  aguantar: { nombre: "AGUANTAR", resultado: "testeando" },
+  apagar: { nombre: "APAGAR", resultado: "perdedor" },
+  falta: { nombre: "FALTAN DATOS", resultado: null }
+};
+
+export function decidirTesteo(m, { cpaMaximoRef = null, ultimos = null, fmt = (v) => Math.round(v).toLocaleString("es-CO") } = {}) {
+  const r = (accion, motivo, pasos = [], extra = {}) => ({ accion, resultado: ACCIONES_TESTEO[accion].resultado, nombre: ACCIONES_TESTEO[accion].nombre, motivo, pasos, ...extra });
+  if (!m || (!m.gasto && !m.pedidos)) return r("falta", "Sin pedidos ni pauta todavía.", ["Revisa la pauta de Meta en el Control Diario («Actualizar Pauta») o escríbela a mano."]);
+  if (!m.gasto) return r("falta", "Tiene pedidos pero no tiene pauta registrada.", ["Abre el Control Diario y pulsa «Actualizar Pauta» para traer el gasto de Meta."]);
+
+  const max = m.efectivas > 0 && m.equilibrio ? m.equilibrio : (cpaMaximoRef || m.equilibrio || null);
+  if (!max || max <= 0) return r("falta", "No sé tu CPA máximo: cuesta el producto en la Calculadora.", ["Abre la Calculadora, pon el costo del proveedor y guarda el costeo."]);
+
+  const veces = m.gasto / max;
+  const cpa = m.cpa;
+  const ratio = cpa !== null && cpa !== undefined ? cpa / max : null;
+  const entregaMala = m.cerrados >= 10 && m.tasaEntrega !== null && m.tasaEntrega < 60;
+  const ultimosMal = ultimos && ultimos.gasto > 0 && (ultimos.cpa === null ? ultimos.gasto >= max : ultimos.cpa > max);
+  const datos = { cpaMaximo: max, veces, ratio, entregaMala, ultimosMal };
+  const avisoEntrega = entregaMala ? `Ojo: solo se entrega el ${Math.round(m.tasaEntrega)}% de lo despachado; confirma mejor los pedidos y revisa transportadora y ciudades.` : null;
+
+  // APAGAR
+  if (!m.pedidos && veces >= 1) return r("apagar", `Gastó ${fmt(m.gasto)} (${veces.toFixed(1)} veces tu CPA máximo de ${fmt(max)}) y no tiene ni un pedido.`,
+    ["Apaga las campañas de este producto.", "Si crees en el producto, prueba UN cambio grande antes de volver: otro ángulo (la causa real), otro avatar u otro precio."], datos);
+  if (veces >= 2 && m.utilidad < 0) return r("apagar", `Gastó ${veces.toFixed(1)} veces su CPA máximo y va perdiendo ${fmt(-m.utilidad)}. Cada pedido entregado te cuesta ${cpa ? fmt(cpa) : "—"} y lo máximo es ${fmt(max)}.`,
+    ["Apaga las campañas.", "Antes de descartarlo: ¿la landing repite las palabras del anuncio? ¿Probaste la oferta con complementos? Si no, eso es lo único que vale la pena probar.", avisoEntrega].filter(Boolean), datos);
+
+  // ESCALAR
+  if (m.efectivas >= 3 && ratio !== null && ratio <= 0.7 && m.utilidad > 0) {
+    if (ultimosMal) return r("aguantar", `Venía muy bien (CPA ${fmt(cpa)}, máximo ${fmt(max)}), pero los últimos 3 días se dañó (CPA ${ultimos.cpa ? fmt(ultimos.cpa) : "sin entregas"}).`,
+      ["No escales todavía: mantén el presupuesto 2 o 3 días.", "Mira si se cansó el creativo (frecuencia alta) y sube uno nuevo con otro gancho.", avisoEntrega].filter(Boolean), datos);
+    return r("escalar", `Gana: cada pedido entregado te cuesta ${fmt(cpa)} y puedes pagar hasta ${fmt(max)} (usa el ${Math.round(ratio * 100)}% de tu máximo). Lleva ${m.pedidos} pedidos y ${fmt(m.utilidad)} de utilidad.`,
+      ["Sube el presupuesto de 20% a 30% cada 2 o 3 días mientras el CPA se mantenga por debajo de " + fmt(max * 0.8) + ".", "Duplica el conjunto o campaña que mejor va y prueba el otro avatar.", "Activa los complementos y la oferta post-compra para subir lo que te deja cada cliente.", avisoEntrega].filter(Boolean), datos);
+  }
+
+  // AGUANTAR
+  const tope = m.pedidos ? 2 : 1;   // sin ventas se decide con 1 CPA máximo; con ventas, con 2
+  const falta = Math.max(0, tope * max - m.gasto);
+  if (ratio !== null && ratio <= 1 && m.utilidad >= 0) return r("aguantar", `Rentable pero justo: CPA ${fmt(cpa)} de un máximo de ${fmt(max)} (${Math.round(ratio * 100)}%).${m.efectivas < 3 ? " Aún son pocas entregas para escalar." : ""}`,
+    ["Mantén el presupuesto, no lo subas todavía.", "Prueba 2 creativos nuevos con el gancho de la causa real para bajar el CPA.", "Sube el ticket con complementos: así tu CPA máximo crece.", avisoEntrega].filter(Boolean), datos);
+  return r("aguantar", `Todavía no hay datos suficientes: gastó ${fmt(m.gasto)} (${veces.toFixed(1)} de ${tope} CPA máximo${tope > 1 ? "s" : ""}${m.pedidos ? "" : " sin ventas"})${cpa ? ` y cada entrega le cuesta ${fmt(cpa)} (máximo ${fmt(max)})` : ""}.`,
+    [falta > 0 ? `Dale hasta ${fmt(falta)} más de pauta antes de decidir.` : "Decide hoy con lo que ves.", "Si mañana sigue por encima del máximo, cambia el creativo o el avatar antes de seguir gastando.", avisoEntrega].filter(Boolean), { ...datos, falta });
+}
+
+// =============================================
 // META → PRODUCTO: qué producto es cada campaña, por su nombre
 // "TRAPEADOR CO 23/10" → el producto de Dropi "TRAPEADOR PULVERIZADOR SPRAY 360"
 // Cuenta las palabras del producto (de 4+ letras, sin las de relleno) que aparecen en la campaña.

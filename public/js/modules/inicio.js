@@ -176,7 +176,7 @@ function render(view) {
           const pa = p.pais || "CO";
           return `<li onclick="goTo('testeos')">
             <span><b>${esc(p.nombre)}</b><small>${pa === "EC" ? "🇪🇨" : "🇨🇴"} ${m && (m.pedidos || m.gasto) ? `${m.pedidos} ped · gasto ${formatear(m.gasto, pa)} · ${m.utilidad < 0 ? "-" : ""}${formatear(Math.abs(m.utilidad), pa)}` : "sin números todavía"}</small></span>
-            ${sug.resultado && sug.resultado !== "testeando" ? `<em class="ih-sug ${sug.resultado}">${sug.resultado === "winner" ? "Parece WINNER" : sug.resultado === "perdedor" ? "Parece PERDEDOR" : "Inconcluso"}</em>` : `<em class="ih-sug">Testeando</em>`}
+            <em class="ih-sug ${sug.accion === "escalar" ? "winner" : sug.accion === "apagar" ? "perdedor" : ""}">${sug.nombre || "Testeando"}</em>
           </li>`;
         }).join("")}</ul>` : `<p class="ih-vacio">No tienes testeos activos. Pasa un producto a "Lanzado" en tu Base y entra aquí solo.</p>`}
       </section>

@@ -6,7 +6,7 @@
 import { registrarRuta } from "./navegacion.js";
 import { escapeHTML } from "../core/utils.js";
 import { formatear } from "../core/costeo.js";
-import { claveDeProducto, metricasProducto, sugerirResultado } from "../core/finanzas.js";
+import { claveDeProducto, metricasProducto, decidirTesteo, ACCIONES_TESTEO } from "../core/finanzas.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (v) => escapeHTML(v ?? "");
@@ -25,7 +25,8 @@ const AVATARES = [["", "—"], ["A", "Avatar A"], ["B", "Avatar B"], ["AB", "A y
 let productos = [];
 let costeos = new Map();
 let proyectos = new Map();
-let fin = {};   // { CO: { lineas, pauta, config }, EC: {...} } de Finanzas
+let fin = {};   // { CO: { lineas, pauta, config, metaPend }, EC: {...} } de Finanzas
+const meta = { cargando: false, hecho: false, error: "" };
 const filtro = { resultado: "todos", pais: "", buscar: "" };
 
 async function api(metodo, url, body) {
@@ -90,6 +91,8 @@ function render() {
         </button>`).join("")}
     </div>
 
+    ${resumenDecisiones()}
+
     <div class="ts-barra">
       <input id="tsBuscar" placeholder="Buscar por nombre o ID de Dropi" value="${esc(filtro.buscar)}" oninput="tsBuscar(this.value)">
       <select onchange="tsPais(this.value)">
@@ -117,21 +120,62 @@ function render() {
         ? "No hay testeos con ese filtro."
         : "Todavía no tienes testeos. Agrega un producto arriba, o pásalo a \"Lanzado\" en tu Base de Productos."}</div>`}
     </section>
-    <p class="ts-nota">Los números salen de <b>Finanzas</b>: pedidos de tus Excel de Dropi (por el ID de Dropi del producto) y la pauta que registras en el Control Diario, desde la fecha de inicio del testeo. La sugerencia no cambia nada sola: tú decides con "Aplicar".</p>
+    <p class="ts-nota">Los números salen de <b>Finanzas</b>: pedidos de tus Excel de Dropi (por el ID de Dropi del producto) y la pauta de Meta que confirmaste en el Control Diario, desde la fecha de inicio del testeo. <b>ESCALAR</b>: 3+ entregas y cada una te cuesta 70% o menos de tu CPA máximo. <b>APAGAR</b>: gastó 1 CPA máximo sin ventas, o 2 y va perdiendo. <b>AGUANTAR</b>: lo demás, con cuánto más gastar. Nada cambia solo: tú marcas el resultado.</p>
   </div>`;
   iconos();
 }
 
-// Números del testeo desde Finanzas
+function resumenDecisiones() {
+  const activos = enTesteo().filter(p => p.resultado === "testeando" || p.resultado === "winner");
+  if (!activos.length) return "";
+  const ds = activos.map(p => ({ p, d: numerosTesteo(p, fin, costeos.get(String(p._id))).d }));
+  const n = (a) => ds.filter(x => x.d.accion === a).length;
+  const conMeta = Object.values(fin).some(f => (f.config?.metaCuentas || []).length);
+  return `
+  <section class="ts-decisiones">
+    <div><b>Decisión de hoy</b><small>${activos.length} producto${activos.length === 1 ? "" : "s"} en pauta · CPA real contra tu CPA máximo</small></div>
+    <span class="ts-dchip escalar"><b>${n("escalar")}</b> escalar</span>
+    <span class="ts-dchip aguantar"><b>${n("aguantar")}</b> aguantar</span>
+    <span class="ts-dchip apagar"><b>${n("apagar")}</b> apagar</span>
+    ${n("falta") ? `<span class="ts-dchip falta"><b>${n("falta")}</b> faltan datos</span>` : ""}
+    <span class="ts-espacio"></span>
+    ${conMeta ? `<button class="ts-btn claro" onclick="tsMeta()" ${meta.cargando ? "disabled" : ""}><span class="ts-meta-logo">∞</span> ${meta.cargando ? "Trayendo Meta…" : "Actualizar con Meta"}</button>` : `<small>Elige tus cuentas publicitarias en el Control Diario para traer Meta solo.</small>`}
+    ${meta.error ? `<small class="rojo">${esc(meta.error)}</small>` : ""}
+  </section>`;
+}
+
+// Números del testeo desde Finanzas + la decisión (ESCALAR · AGUANTAR · APAGAR)
+const hoyISO = () => new Date(Date.now() - 5 * 36e5).toISOString().slice(0, 10);
+const restarDias = (iso, n) => { const d = new Date(iso + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() - n); return d.toISOString().slice(0, 10); };
+
+// CPA máximo del costeo, sumando lo que dejan los complementos (si los guardaste en la Calculadora)
+export function cpaMaximoCosteo(costeo) {
+  const r = costeo?.resumen || {};
+  if (!(Number(r.bep) > 0)) return null;
+  const extra = Number(r.gananciaCliente) > 0 && Number.isFinite(Number(r.utilidad)) ? Math.max(0, Number(r.gananciaCliente) - Number(r.utilidad)) : 0;
+  return Number(r.bep) + extra;
+}
+
 export function numerosTesteo(p, finanzas = fin, costeo = null) {
-  const f = finanzas[p.pais || "CO"];
-  if (!f || !f.lineas?.length) return { m: null, sug: { resultado: null, motivo: "Sube el Excel de Dropi en Finanzas para ver los números." } };
+  const pais = p.pais || "CO";
+  const f = finanzas[pais];
+  const fmt = (v) => formatear(v, pais);
+  if (!f || !f.lineas?.length) {
+    const d = { accion: "falta", resultado: null, nombre: ACCIONES_TESTEO.falta.nombre, motivo: "Sube el Excel de Dropi en Finanzas para ver los números.", pasos: [] };
+    return { m: null, d, sug: d };
+  }
   const grupos = f.config?.grupos || [];
   const clave = claveDeProducto(p, f.lineas, grupos);
   const desde = p.testeo?.inicio ? new Date(p.testeo.inicio).toISOString().slice(0, 10) : null;
   const hasta = p.testeo?.fin ? new Date(p.testeo.fin).toISOString().slice(0, 10) : null;
-  const m = clave ? metricasProducto(f.lineas, { clave, desde, hasta, pauta: f.pauta, grupos, devPct: f.config?.devPct ?? 25 }) : null;
-  return { m, sug: sugerirResultado(m && (m.pedidos || m.gasto) ? m : null, costeo?.resumen?.bep || null) };
+  const args = { clave, pauta: f.pauta, grupos, devPct: f.config?.devPct ?? 25 };
+  const m = clave ? metricasProducto(f.lineas, { ...args, desde, hasta }) : null;
+  const fin3 = hasta || hoyISO();
+  const ini3 = [restarDias(fin3, 2), desde].filter(Boolean).sort().pop();
+  const m3 = clave ? metricasProducto(f.lineas, { ...args, desde: ini3, hasta: fin3 }) : null;
+  const d = decidirTesteo(m && (m.pedidos || m.gasto) ? m : null, { cpaMaximoRef: cpaMaximoCosteo(costeo), ultimos: m3, fmt });
+  const pendiente = clave ? Object.entries(f.metaPend?.[clave] || {}).filter(([fe]) => (!desde || fe >= desde) && (!hasta || fe <= hasta)).reduce((a, [, g]) => a + g, 0) : 0;
+  return { m, m3, d, sug: d, clave, pendiente };
 }
 
 function fila(p) {
@@ -156,7 +200,7 @@ function fila(p) {
       <select class="ts-sel ts-res ${r}" onchange="tsGuardar('${esc(p._id)}', { resultado: this.value })">
         ${Object.entries(RESULTADOS).map(([k, x]) => `<option value="${k}" ${r === k ? "selected" : ""}>${x.corto}</option>`).join("")}
       </select>
-      ${sugerencia(p, c)}
+      ${decision(p, c)}
     </div>
     <div class="ts-fecha">
       <input type="date" value="${fechaInput(p.testeo?.inicio)}" onchange="tsGuardar('${esc(p._id)}', { inicio: this.value })">
@@ -186,14 +230,18 @@ function celdaNumeros(p, c) {
   </div>`;
 }
 
-function sugerencia(p, c) {
+function decision(p, c) {
   if (p.resultado === "listo") return "";
-  const { sug } = numerosTesteo(p, fin, c);
-  if (!sug.resultado || sug.resultado === p.resultado) return sug.motivo ? `<small class="ts-sug-txt" title="${esc(sug.motivo)}">${esc(sug.motivo)}</small>` : "";
-  return `<div class="ts-sug ${sug.resultado}" title="${esc(sug.motivo)}">
-    <span>Sugerido: <b>${RESULTADOS[sug.resultado].corto}</b></span>
-    <button onclick="tsGuardar('${esc(p._id)}', { resultado: '${sug.resultado}' })">Aplicar</button>
-    <small>${esc(sug.motivo)}</small>
+  const { d, pendiente } = numerosTesteo(p, fin, c);
+  const pais = p.pais || "CO";
+  const aplicar = d.resultado && d.resultado !== p.resultado && ["testeando", "winner", "perdedor"].includes(p.resultado)
+    ? `<button onclick="tsGuardar('${esc(p._id)}', { resultado: '${d.resultado}' })">Marcar ${RESULTADOS[d.resultado].corto}</button>` : "";
+  return `<div class="ts-dec ${d.accion}">
+    <div class="ts-dec-top"><b>${d.nombre}</b>${aplicar}</div>
+    <small>${esc(d.motivo)}</small>
+    ${d.entregaMala ? `<small class="ts-dec-alerta">⚠ Se está entregando poco: revisa confirmación, transportadora y ciudades en Logística.</small>` : ""}
+    ${d.pasos?.length ? `<details><summary>Qué hacer</summary><ul>${d.pasos.map(x => `<li>${esc(x)}</li>`).join("")}</ul></details>` : ""}
+    ${pendiente > 0 ? `<button class="ts-dec-meta" onclick="goTo('control-diario')">+${formatear(pendiente, pais)} de Meta sin confirmar → revisa en Control Diario</button>` : ""}
   </div>`;
 }
 
@@ -207,10 +255,41 @@ async function cargarFinanzas() {
         api("GET", `/api/finanzas/pauta?pais=${pa}`),
         api("GET", `/api/finanzas/config?pais=${pa}`)
       ]);
-      fin[pa] = { lineas, config, pauta: Object.fromEntries(pauta.map(x => [`${x.fecha}|${x.clave}`, x])) };
+      fin[pa] = { lineas, config, pauta: Object.fromEntries(pauta.map(x => [`${x.fecha}|${x.clave}`, x])), metaPend: {} };
     } catch { /* sin finanzas: la lista funciona igual */ }
   }));
 }
+
+// Trae de Meta el gasto de las campañas ya confirmadas (lo escribe en la pauta) y suma lo sugerido sin confirmar
+async function sincronizarMeta() {
+  const paises = Object.keys(fin).filter(pa => (fin[pa].config?.metaCuentas || []).length);
+  if (!paises.length) { meta.hecho = true; return; }
+  meta.cargando = true; meta.error = "";
+  render();
+  const hoy = hoyISO();
+  await Promise.all(paises.map(async (pa) => {
+    const inicios = enTesteo().filter(p => (p.pais || "CO") === pa && p.testeo?.inicio).map(p => new Date(p.testeo.inicio).toISOString().slice(0, 10));
+    const desde = [restarDias(hoy, 30), ...inicios].sort()[0];
+    try {
+      const r = await api("POST", "/api/finanzas/meta/sincronizar", { pais: pa, desde, hasta: hoy });
+      if (r.sinCuentas) return;
+      const f = fin[pa];
+      for (const k of Object.keys(f.pauta)) { const fe = k.slice(0, 10); if (fe >= r.desde && fe <= r.hasta) delete f.pauta[k]; }
+      for (const x of r.pauta || []) f.pauta[`${x.fecha}|${x.clave}`] = x;
+      // Gasto sugerido (aún no confirmado) por producto y día
+      const pend = {};
+      for (const c of r.campanas || []) {
+        if (c.origen !== "auto" || !c.clave) continue;
+        const dias = (pend[c.clave] ||= {});
+        for (const [fe, g] of Object.entries(c.dias || {})) dias[fe] = (dias[fe] || 0) + g;
+      }
+      f.metaPend = pend;
+    } catch (err) { meta.error = err.message; }
+  }));
+  meta.cargando = false; meta.hecho = true;
+  const y = window.scrollY; render(); window.scrollTo(0, y);
+}
+window.tsMeta = () => { meta.hecho = false; sincronizarMeta(); };
 
 async function cargar() {
   const [ps, cs, prs] = await Promise.all([
@@ -279,6 +358,7 @@ registrarRuta("testeos", async (view) => {
   try {
     await cargar();
     render();
+    sincronizarMeta();
   } catch (err) {
     view.innerHTML = `<div class="ts-page"><p class="est-error">${esc(err.message)}</p></div>`;
   }
