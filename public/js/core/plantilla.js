@@ -68,6 +68,18 @@ export const SECCIONES = {
         dibujo: [T(7), ["r", 6, 12, 48, 30, "g", 3], ["c", 10, 50, 2.5, "a"], T(50, 36, 15), ["c", 10, 58, 2.5, "a"], T(58, 36, 15), ["c", 10, 66, 2.5, "a"], T(66, 36, 15), ["t", 12, 78, 36, "a"]] }
     ]
   },
+  causa: {
+    titulo: "La verdadera causa (el problema)", formatos: ["ban", "normal"], tipos: ["producto"],
+    def: "Le explica en simple POR QUÉ le pasa el problema y por qué lo que ya probó no le funcionó (lo descarta: 'No es X, no es Y'), y le muestra la causa real con un gráfico muy fácil de entender. Cierra con una frase puente: por eso este producto ataca justo esa causa. Educa, no grita 'cómpralo'. Sin diagnósticos ni promesas médicas.",
+    variantes: [
+      { id: "tablero", nombre: "Tablero explicativo", desc: "Titular arriba ('El problema no es lo que crees'), un tablero o pizarra con un dibujo de líneas simples tipo tiza que señala la causa real con una flecha, y una frase corta '¡así de fácil!'; abajo la frase puente hacia el producto.",
+        dibujo: [T(7), ["r", 6, 14, 48, 40, "d", 2], ["x", 14, 34, 46, 34, "w"], ["x", 30, 20, 30, 46, "w"], ["o", 30, 46, 3, "w"], ["x", 40, 48, 33, 46, "a"], ["t", 34, 50, 16, "a"], ["r", 10, 62, 40, 10, "a", 3], T(78, 30)] },
+      { id: "tachados", nombre: "Mitos tachados", desc: "Tres etiquetas con lo que la gente cree que es la causa (o lo que ya probó), tachadas con una línea roja; debajo, resaltada en grande, la causa real; abajo el producto y la frase puente.",
+        dibujo: [T(7), ["r", 14, 14, 32, 7, "w", 4], ["x", 14, 17.5, 46, 17.5, "a"], ["r", 14, 24, 32, 7, "w", 4], ["x", 14, 27.5, 46, 27.5, "a"], ["r", 12, 35, 36, 10, "a", 4], ["r", 18, 50, 24, 26, "g", 4], T(82, 32)] },
+      { id: "lupa", nombre: "Bajo la lupa", desc: "Una escena real con un círculo de acercamiento tipo lupa que muestra de cerca dónde está el problema (con líneas simples que lo señalan), un titular corto con la causa y la frase puente abajo.",
+        dibujo: [T(7), ["r", 0, 14, 60, 50, "g"], ["o", 38, 34, 13, "w"], ["x", 29, 43, 20, 54, "w"], ["t", 6, 70, 40, "a"], T(78, 30)] }
+    ]
+  },
   identificacion: {
     titulo: "¿Es para ti?", formatos: ["ban", "normal"],
     def: "Situaciones en las que el cliente se reconoce, con íconos.",
@@ -373,15 +385,35 @@ export const SECCIONES = {
   }
 };
 
+// =============================================
+// AIDA: en qué etapa trabaja cada sección
+//   A = Atención (que pare de deslizar) · I = Interés (entiende su problema y la causa real)
+//   D = Deseo (ve que esto sí lo resuelve) · C = aCción (compra sin miedo)
+// =============================================
+export const ETAPAS_AIDA = {
+  A: { nombre: "Atención", meta: "que pare de deslizar: gancho con SUS palabras y la promesa principal" },
+  I: { nombre: "Interés", meta: "que se reconozca en el problema y entienda la causa real que nadie le había explicado" },
+  D: { nombre: "Deseo", meta: "que vea que este producto ataca esa causa y se imagine con el resultado" },
+  C: { nombre: "Acción", meta: "que compre sin miedo: precio, garantía, pago contra entrega y dudas resueltas" }
+};
+export const ETAPA_AIDA = {
+  oferta: "A", galeria: "A", moda_portada: "A",
+  dolor: "I", causa: "I", identificacion: "I", para_quien: "I",
+  funcion_estrella: "D", antes_despues: "D", como_se_usa: "D", detalles: "D", que_incluye: "D", tamano_variantes: "D", resenas: "D",
+  moda_vistas: "D", moda_material: "D", moda_ficha: "D", moda_fuera_estudio: "D", moda_tres_formas: "D", moda_chats: "D", moda_por_que: "D", moda_guia_tallas: "D",
+  paquetes: "C", como_funciona: "C", por_que_aqui: "C", preguntas: "C", confianza: "C", oferta_cierre: "C", moda_precio_tallas: "C", moda_cambio_talla: "C"
+};
+export const etapaDe = (tipo) => ETAPA_AIDA[tipo] || "D";
+
 // Orden de siempre (lo que se ve sin tocar nada) y qué va prendido de entrada
 export const ORDEN_BASE = {
   ban: [
-    ["oferta", 1], ["dolor", 1], ["identificacion", 0], ["funcion_estrella", 1], ["detalles", 1], ["que_incluye", 1],
+    ["oferta", 1], ["dolor", 1], ["causa", 1], ["identificacion", 0], ["funcion_estrella", 1], ["detalles", 1], ["que_incluye", 1],
     ["tamano_variantes", 1], ["como_se_usa", 1], ["para_quien", 1], ["antes_despues", 0], ["paquetes", 1],
     ["como_funciona", 1], ["por_que_aqui", 1], ["resenas", 0], ["preguntas", 1], ["confianza", 0], ["oferta_cierre", 0]
   ],
   normal: [
-    ["galeria", 1], ["dolor", 1], ["funcion_estrella", 1], ["antes_despues", 1], ["como_se_usa", 1], ["detalles", 1],
+    ["galeria", 1], ["dolor", 1], ["causa", 1], ["funcion_estrella", 1], ["antes_despues", 1], ["como_se_usa", 1], ["detalles", 1],
     ["para_quien", 1], ["que_incluye", 0], ["tamano_variantes", 0], ["identificacion", 0], ["paquetes", 0],
     ["como_funciona", 1], ["por_que_aqui", 1], ["resenas", 0], ["confianza", 0], ["preguntas", 0], ["oferta_cierre", 0]
   ],
@@ -464,7 +496,14 @@ export function normalizarPlantilla(clave, raw = {}) {
     vistos.add(tipo);
     orden.push({ tipo, visible: esFija(tipo, f) ? true : it.visible !== false });
   }
-  for (const it of base.orden) if (!vistos.has(it.tipo)) orden.push(it);   // tipos nuevos al final
+  // Tipos nuevos: justo después del que les sigue en el orden base (ej. "causa" después de "dolor")
+  base.orden.forEach((it, k) => {
+    if (vistos.has(it.tipo)) return;
+    const previo = base.orden.slice(0, k).reverse().find(b => orden.some(o => o.tipo === b.tipo));
+    const i = previo ? orden.findIndex(o => o.tipo === previo.tipo) + 1 : orden.length;
+    orden.splice(i, 0, it);
+    vistos.add(it.tipo);
+  });
 
   const estilos = {};
   const e = r.estilos && typeof r.estilos === "object" ? r.estilos : {};

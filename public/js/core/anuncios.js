@@ -49,6 +49,11 @@ export const ESTRUCTURAS_AD = {
     desc: "Imagen partida en diagonal o vertical: 'Sin [producto]' vs 'Con [producto]', la misma escena con el problema y con la solución.",
     dibujo: [T(6), ["r", 4, 12, 52, 58, "g", 3], ["x", 4, 70, 56, 12, "d"], ["r", 6, 14, 14, 5, "d", 2], ["r", 40, 62, 14, 5, "a", 2], ["r", 14, 76, 32, 8, "a", 3]]
   },
+  causa_real: {
+    nombre: "La verdadera causa",
+    desc: "Educa en una imagen: arriba un gancho con las palabras del cliente; al medio 2 o 3 cosas que la gente cree o ya probó, tachadas en rojo ('No es X', 'No es Y'), y resaltada la causa real; abajo el producto como la solución a esa causa y el llamado a la acción. Gráfico simple, nada médico.",
+    dibujo: [T(6, 44), ["r", 8, 14, 26, 6, "w", 3], ["x", 8, 17, 34, 17, "a"], ["r", 8, 23, 26, 6, "w", 3], ["x", 8, 26, 34, 26, "a"], ["r", 6, 33, 30, 9, "a", 3], ["r", 38, 14, 18, 40, "g", 4], ["r", 10, 64, 40, 10, "a", 3], T(80, 30)]
+  },
   problemas_solucion: {
     nombre: "Tus problemas / nuestra solución",
     desc: "A la izquierda una lista de 3 o 4 problemas con ✗ en rojo; a la derecha el producto con 'Nuestra solución' y el precio.",
@@ -67,7 +72,7 @@ export const ESTRUCTURAS_AD = {
 };
 
 export const ENFOQUES_COPY = {
-  problema: "Problema → solución",
+  problema: "Problema → causa real → solución",
   beneficio: "Beneficio principal",
   curiosidad: "Curiosidad / gancho"
 };

@@ -5161,3 +5161,11 @@ body.fz-sin-scroll { overflow: hidden; }
 .fz-rev-tabs > button:hover { background: #f8fafc; }
 .fz-rev-tabs > button.on:hover { background: #fff; }
 .fz-link:hover, .fz-rev-filtro button:hover { background: none; text-decoration: underline; }
+
+/* AIDA: etapa de cada sección + campos clave del avatar */
+.est-aida { font-weight: 800; letter-spacing: .02em; }
+.est-aida.A { background: #fef3c7; color: #92400e; }
+.est-aida.I { background: #fde2e2; color: #b91c1c; }
+.est-aida.D { background: #e0e7ff; color: #3730a3; }
+.est-aida.C { background: #dcfce7; color: #166534; }
+.est-av-clave { border-color: #f5c27a !important; background: #fffaf0 !important; }

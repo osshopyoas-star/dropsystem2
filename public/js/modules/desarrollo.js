@@ -6,7 +6,7 @@
 import { state } from "../state.js";
 import { registrarRuta } from "./navegacion.js";
 import { escapeHTML } from "../core/utils.js";
-import { SECCIONES, FORMATOS, tiposDe, varianteDe, elegirVariante, formatoImagen, claveDe } from "../core/plantilla.js";
+import { SECCIONES, FORMATOS, tiposDe, varianteDe, elegirVariante, formatoImagen, claveDe, ETAPAS_AIDA, etapaDe } from "../core/plantilla.js";
 import { ESTRUCTURAS_AD, FORMATOS_AD, ENFOQUES_COPY, MAX_ADS } from "../core/anuncios.js";
 import { dibujar } from "./plantilla.js";
 import { construirLanding } from "../core/landing-html.js";
@@ -780,6 +780,9 @@ const CAMPOS_AVATAR = [
   ["problema", "Su problema o deseo principal"],
   ["probado", "Qué ha probado y por qué no le sirvió"],
   ["frase", "Frase que diría con sus palabras"],
+  ["palabras", "Sus palabras exactas (cómo describe el problema)"],
+  ["causa", "La causa real (lo que nadie le ha explicado)"],
+  ["mecanismo", "Por qué este producto sí (mecanismo)"],
   ["angulo", "Ángulo de venta"],
   ["titular", "Titular de la imagen 1 (línea 1 / línea 2)"],
   ["escena", "Escena y modelo de las fotos"],
@@ -810,7 +813,7 @@ function pasoAvatares() {
           <div class="est-form">
             ${CAMPOS_AVATAR.map(([k, label]) => `
               <label>${label}</label>
-              <textarea rows="${k === "escena" || k === "problema" ? 3 : 2}" onchange="estEditarAvatar(${i}, '${k}', this.value)">${esc(a[k])}</textarea>
+              <textarea class="${["palabras", "causa", "mecanismo"].includes(k) ? "est-av-clave" : ""}" rows="${["escena", "problema", "causa", "mecanismo"].includes(k) ? 3 : 2}" onchange="estEditarAvatar(${i}, '${k}', this.value)">${esc(a[k])}</textarea>
             `).join("")}
           </div>
           <button class="est-btn ${av === a.id ? "" : "primary"} est-avatar-go" onclick="estTrabajarCon('${esc(a.id)}')">
@@ -989,6 +992,7 @@ function tarjetaSeccion(x, i, numero) {
       <div class="est-sec-info">
         <strong>${esc(x.titulo)}</strong>
         <div class="est-sec-tags">
+          <span class="est-chip est-aida ${etapaDe(x.tipo)}" title="AIDA: ${esc(ETAPAS_AIDA[etapaDe(x.tipo)].meta)}">${ETAPAS_AIDA[etapaDe(x.tipo)].nombre}</span>
           <span class="est-chip">${esc(x.formato || "9:16")}</span>
           ${(SECCIONES[x.tipo]?.variantes || []).length ? `
             <select class="est-variante" title="Diseño de la sección" onchange="estCambiarVariante(${i}, this.value)">
@@ -1548,7 +1552,7 @@ function pasoGuiones() {
   <div class="est-card">
     <h3>Guiones de voz en off ${avTag()}</h3>
     <p class="est-muted">${POR_AVATAR} guiones para ${esc(resumenAvatar(avatarActual()))}, cada uno basado en un video de referencia distinto. Pega el texto del video (en inglés, chino o español, sin traducir) y la IA lo reescribe para este avatar. ${hechos}/${POR_AVATAR} listos.</p>
-    <p class="est-hint">Formato: 20 a 25 segundos · [lo que se ve] entre corchetes · gancho en los primeros 3 segundos · cierre con precio, contra entrega y llamado a la acción.</p>
+    <p class="est-hint">Formato AIDA de 25 a 30 segundos: gancho con sus palabras (0-3 s) · la causa real (3-15 s) · por qué esto sí (15-24 s) · precio, contra entrega y llamado a la acción. [Lo que se ve] entre corchetes.</p>
   </div>
 
   <div class="est-guiones">

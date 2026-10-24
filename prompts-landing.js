@@ -6,7 +6,7 @@ import { limpiarFuentes } from "./public/js/core/fuentes.js";
 // y todas las landings nuevas la tendrán en cuenta.
 // =============================================
 
-import { SECCIONES, FORMATOS, varianteDe, tiposDe, claveDe, ACABADOS } from "./public/js/core/plantilla.js";
+import { SECCIONES, FORMATOS, varianteDe, tiposDe, claveDe, ACABADOS, ETAPAS_AIDA, etapaDe } from "./public/js/core/plantilla.js";
 
 const limpio = (v, max = 3000) => String(v ?? "").slice(0, max).trim();
 
@@ -63,7 +63,33 @@ export const LIMITES = [
   "Marcas ajenas: no escribas nombres de otras marcas (Nike, IKEA, etc.) ni digas que es el producto original u oficial de una marca, salvo que la ficha diga que es original o licenciado. Pide logos de terceros borrosos o sin logo.",
   "Personas reales: no uses ni recrees personas famosas, jugadores, ni animales o personas de noticias.",
   "Promesas comerciales: 'envío gratis', 'garantía', 'original', 'quedan pocas' SOLO si la ficha dice que son verdad.",
+  "La causa real se explica en palabras simples y generales, que el cliente pueda comprobar en su vida diaria. Nada de diagnósticos, enfermedades, estudios, porcentajes ni 'científicamente probado' inventados. En salud y belleza habla de hábitos, uso o cuidado (no de curar), y nunca le digas a la persona que tiene una condición.",
 ];
+
+// =============================================
+// AIDA + "EL PROBLEMA": cómo se vende en CoDropX
+// Atención (sus palabras) → Interés (la causa real que nadie le explicó) → Deseo (por qué esto sí) → Acción (sin miedo)
+// "Cuando el cliente entiende su problema, no hay que gritarle cómpralo."
+// =============================================
+export const METODO_AIDA = `MÉTODO DE VENTA (AIDA + la causa real):
+- ATENCIÓN: abre con las PALABRAS EXACTAS del cliente (cómo él describe su problema) o con la promesa principal. Nada genérico.
+- INTERÉS: explícale la CAUSA REAL de su problema en simple, y por qué lo que ya probó no le sirvió ("No es X, no es Y: es Z"). Que piense "nadie me lo había explicado así".
+- DESEO: muéstrale por qué ESTE producto ataca justo esa causa (el mecanismo) y cómo se ve su vida con el resultado. Solo lo que la ficha permite prometer.
+- ACCIÓN: precio claro, pago contra entrega, garantía solo si existe, y una instrucción simple. Sin gritar ni urgencia falsa.`;
+
+// El avatar en un bloque (para todos los prompts)
+export function bloqueAvatar(a, titulo = "AVATAR") {
+  if (!a) return `${titulo}: (sin avatar)`;
+  return `${titulo} ${a.id || "A"}:
+Quién es: ${a.quien || ""}
+Problema/deseo: ${a.problema || ""}
+Qué ha probado y por qué no le sirvió: ${a.probado || ""}
+Sus palabras (cómo lo dice él): ${a.palabras || a.frase || ""}
+La causa real (lo que nadie le ha explicado): ${a.causa || "(no definida: dedúcela del problema, en simple y sin diagnósticos)"}
+Por qué este producto sí (mecanismo): ${a.mecanismo || "(no definido: sale de la ficha, sin inventar)"}
+Ángulo: ${a.angulo || ""}
+Tono: ${a.tono || ""}`;
+}
 
 // Estilos ya usados (de la guía). Los de proyectos nuevos se suman automáticamente.
 export const ESTILOS_BASE_USADOS = [
@@ -185,17 +211,20 @@ Para cada avatar llena:
 - problema: su problema o deseo principal
 - probado: qué ha probado y por qué no le sirvió
 - frase: una frase que diría con sus propias palabras (natural del país)
-- angulo: el ángulo de venta para este avatar
+- palabras: 3 o 4 frases CORTAS y TEXTUALES con las que esta persona describe su problema o deseo cuando se queja con una amiga (como se dice en ${PAISES[p.pais]?.nombre || "Colombia"}), separadas por " / ". Ej. para caída del cabello: "se me cae a puñados / se me ve el cuero / el cepillo queda lleno"
+- causa: la CAUSA REAL de su problema explicada en 1 o 2 frases simples, y por qué lo que ya probó no le sirvió ("No es X ni Y: es Z"). Debe ser cierta y fácil de comprobar en su día a día; sin diagnósticos, sin cifras ni estudios inventados. Si el producto no resuelve un problema (regalo, decoración, gusto), la causa es por qué hoy no tiene eso que desea o por qué las opciones que conoce no le convencen.
+- mecanismo: en 1 o 2 frases, por qué ESTE producto ataca justo esa causa, solo con lo que dice la ficha
+- angulo: el ángulo de venta para este avatar (debe salir de la causa real)
 - titular: el titular de la imagen 1 (oferta) en 2 líneas cortas, separadas por " / "
 - escena: escena y modelo de las fotos (edad, aspecto, ropa, lugar)
 - tono: tono del texto para este avatar
 
 Responde SOLO este JSON válido:
-{ "avatares": [ { "id": "A", "quien": "", "problema": "", "probado": "", "frase": "", "angulo": "", "titular": "", "escena": "", "tono": "" }${n === 2 ? `, { "id": "B", "quien": "", "problema": "", "probado": "", "frase": "", "angulo": "", "titular": "", "escena": "", "tono": "" }` : ""} ] }`;
+{ "avatares": [ { "id": "A", "quien": "", "problema": "", "probado": "", "frase": "", "palabras": "", "causa": "", "mecanismo": "", "angulo": "", "titular": "", "escena": "", "tono": "" }${n === 2 ? `, { "id": "B", "quien": "", "problema": "", "probado": "", "frase": "", "palabras": "", "causa": "", "mecanismo": "", "angulo": "", "titular": "", "escena": "", "tono": "" }` : ""} ] }`;
 }
 
 const resumenAvatares = (p) => (p.avatares || []).map(a =>
-  `AVATAR ${a.id}: ${a.quien || ""} | Problema: ${a.problema || ""} | Ángulo: ${a.angulo || ""} | Escena: ${a.escena || ""} | Tono: ${a.tono || ""} | Titular imagen 1: ${a.titular || ""}`
+  `AVATAR ${a.id}: ${a.quien || ""} | Problema: ${a.problema || ""} | Sus palabras: ${a.palabras || a.frase || ""} | Causa real: ${a.causa || ""} | Por qué esto sí: ${a.mecanismo || ""} | Ángulo: ${a.angulo || ""} | Escena: ${a.escena || ""} | Tono: ${a.tono || ""} | Titular imagen 1: ${a.titular || ""}`
 ).join("\n") || "(sin avatares)";
 
 // Colores de marca fijos (Mi plantilla)
@@ -310,7 +339,7 @@ export function promptPropuestaSecciones(p, plantilla = null) {
   const normal = esNormal(p);
   const validos = tiposDe(claveDe(normal ? "normal" : "ban", p.tipo));
   const moda = p.tipo === "moda";
-  const catalogo = validos.map(k => `- ${k}: ${SECCIONES[k].titulo}. ${SECCIONES[k].def}`).join("\n");
+  const catalogo = validos.map(k => `- ${k} [${ETAPAS_AIDA[etapaDe(k)].nombre}]: ${SECCIONES[k].titulo}. ${SECCIONES[k].def}`).join("\n");
   const fijas = seccionesFijas(p, plantilla);
 
   const estructura = fijas
@@ -319,10 +348,10 @@ Para cada una escribe un título propio para este producto, su propósito y una 
     : normal
       ? `TAREA: Arma la estructura de la LANDING NORMAL de 6 a 8 secciones para este producto, eligiendo del catálogo.
 - La primera SIEMPRE es "galeria" (las fotos cuadradas de la galería de Shopify).
-- Orden base recomendado: ${moda ? "galeria, moda_vistas, moda_material, moda_fuera_estudio, moda_guia_tallas, moda_por_que, moda_cambio_talla, como_funciona" : "galeria, dolor, funcion_estrella, antes_despues, como_se_usa, detalles, para_quien, como_funciona, por_que_aqui"}. Ajústalo al producto.
+- Orden base recomendado: ${moda ? "galeria, moda_vistas, moda_material, moda_fuera_estudio, moda_guia_tallas, moda_por_que, moda_cambio_talla, como_funciona" : "galeria, dolor, causa, funcion_estrella, antes_despues, como_se_usa, detalles, para_quien, como_funciona, por_que_aqui"}. Ajústalo al producto.
 - Las preguntas frecuentes van como texto en Shopify: no las pongas como imagen salvo que aporten mucho.`
       : `TAREA: Arma la estructura de la landing de 8 a 9 secciones para este producto, eligiendo del catálogo.
-${moda ? `Es MODA. La primera SIEMPRE es "moda_portada". Orden base recomendado: moda_portada, moda_precio_tallas, moda_vistas, moda_material, moda_fuera_estudio, moda_guia_tallas, moda_por_que, moda_cambio_talla, preguntas.` : `Orden base recomendado: oferta, dolor/identificación, función estrella, detalles o qué incluye, tamaño/variantes, cómo se usa, para quién es, por qué comprar aquí, preguntas frecuentes.`} Ajústalo al producto:
+${moda ? `Es MODA. La primera SIEMPRE es "moda_portada". Orden base recomendado: moda_portada, moda_precio_tallas, moda_vistas, moda_material, moda_fuera_estudio, moda_guia_tallas, moda_por_que, moda_cambio_talla, preguntas.` : `Orden base recomendado: oferta, dolor, causa (la verdadera causa), función estrella, detalles o qué incluye, tamaño/variantes, cómo se usa, para quién es, por qué comprar aquí, preguntas frecuentes.`} Ajústalo al producto:
 - La última o penúltima es "preguntas".`;
 
   return `${contextoProducto(p)}
@@ -336,7 +365,8 @@ CATÁLOGO DE TIPOS DE SECCIÓN:
 ${catalogo}
 
 ${estructura}
-- "paquetes" solo si hay paquetes; "tamano_variantes" solo si hay tallas, colores o el tamaño importa; "que_incluye" si llegan varias piezas o hay regalo.
+${fijas ? "" : `- Sigue el orden AIDA (cada tipo del catálogo dice su etapa): primero ATENCIÓN, luego INTERÉS (el problema con sus palabras y "causa": la causa real), luego DESEO (por qué esto sí lo resuelve) y al final ACCIÓN (precio, cómo llega, garantía, dudas). ${moda ? "" : `Incluye "causa" justo después de "dolor" salvo que el producto no resuelva ningún problema (regalo, decoración).`}
+`}- "paquetes" solo si hay paquetes; "tamano_variantes" solo si hay tallas, colores o el tamaño importa; "que_incluye" si llegan varias piezas o hay regalo.
 ${n === 2 ? `- Hay 2 landings (A y B) que SOLO cambian en lo que le habla al avatar. Marca grupo "A/B" en: ${normal ? "galeria" : (moda ? "moda_portada" : "oferta")}, dolor (o identificación) y para_quien. Todo lo demás es grupo "compartida".` : `- Hay una sola landing: todas las secciones son grupo "compartida".`}
 - Asigna a cada sección una COMPOSICIÓN distinta para que no se vea plana ni repetida (diagonal, franjas, collage, cuadrícula, zigzag, primer plano, partida en dos, producto central con círculos, tarjetas apiladas...). No repitas composición en secciones seguidas.
 - formato: ${normal ? `"1:1" siempre (imágenes cuadradas de Shopify)` : `"9:16" casi siempre; "1:1" o "16:9" solo si la sección lo necesita (por ejemplo un antes/después cuadrado)`}.
@@ -361,14 +391,14 @@ export function promptSeccion(p, seccion, avatar, otras = []) {
   const deslizador = normal && seccion.tipo === "antes_despues";
   return `${contextoProducto(p)}
 
-${avatar ? `ESTA IMAGEN LE HABLA AL AVATAR ${avatar.id}:
-Quién es: ${avatar.quien || ""}
-Problema/deseo: ${avatar.problema || ""}
-Frase: ${avatar.frase || ""}
-Ángulo: ${avatar.angulo || ""}
+${avatar ? `${bloqueAvatar(avatar, "ESTA IMAGEN LE HABLA AL AVATAR")}
 Titular sugerido imagen 1: ${avatar.titular || ""}
-Escena y modelo: ${avatar.escena || ""}
-Tono: ${avatar.tono || ""}` : `ESTA IMAGEN ES IGUAL PARA TODAS LAS LANDINGS: no la enfoques en un solo avatar.`}
+Escena y modelo: ${avatar.escena || ""}` : `ESTA IMAGEN ES IGUAL PARA TODAS LAS LANDINGS: no la enfoques en un solo avatar.${(p.avatares || [])[0]?.causa ? `
+Causa real del problema (para mantener el mismo mensaje en toda la landing): ${p.avatares[0].causa}
+Por qué este producto sí: ${p.avatares[0].mecanismo || ""}` : ""}`}
+
+ETAPA AIDA DE ESTA SECCIÓN: ${ETAPAS_AIDA[etapaDe(seccion.tipo)].nombre.toUpperCase()}: ${ETAPAS_AIDA[etapaDe(seccion.tipo)].meta}.
+Usa las MISMAS palabras del cliente y el mismo mensaje de la causa real que el resto de la landing y los anuncios (la página repite lo que dijo el anuncio).
 
 BLOQUE DE ESTILO (el dueño lo pega antes de tu prompt; NO lo repitas):
 ${p.bloqueEstilo || construirBloqueEstilo(p)}
@@ -381,7 +411,8 @@ ${EJEMPLO_NIVEL}
 SECCIÓN A ESCRIBIR: ${seccion.titulo} [tipo: ${seccion.tipo}]
 Qué debe tener: ${tipo?.def || seccion.proposito || ""}
 Propósito: ${seccion.proposito || ""}
-Composición asignada: ${seccion.composicion || "elige una que no se repita"}${diseno}${formato}${diseno ? `
+Composición asignada: ${seccion.composicion || "elige una que no se repita"}${diseno}${formato}${seccion.tipo === "causa" ? `
+CÓMO HACER "LA VERDADERA CAUSA": foto real de la escena con un gráfico MUY simple encima (líneas tipo tiza, flecha, lupa o etiquetas tachadas). Titular tipo "No es X, es Y" o "El problema no es lo que crees". Máximo 3 textos cortos además del titular. Cierra con la frase puente al producto. Nada de anatomía detallada, nada médico.` : ""}${diseno ? `
 (El diseño de Mi plantilla define DÓNDE van los bloques; la imagen sigue siendo una escena de foto real con vida, no un catálogo plano.)` : ""}
 
 ${galeria ? `TAREA: Esta sección son las 4 FOTOS CUADRADAS 1:1 DE LA GALERÍA de Shopify (las primeras que ve el cliente). Escribe 4 prompts, uno por foto, cada uno con EXACTAMENTE este formato (texto plano, sin markdown, sin explicaciones):
@@ -441,17 +472,15 @@ TEXTOS:
 export function promptTextosShopify(p, avatar) {
   return `${contextoProducto(p)}
 
-AVATAR AL QUE LE HABLA ESTA LANDING (${avatar?.id || "A"}):
-Quién es: ${avatar?.quien || ""}
-Problema/deseo: ${avatar?.problema || ""}
-Ángulo: ${avatar?.angulo || ""}
-Tono: ${avatar?.tono || ""}
+${bloqueAvatar(avatar, "AVATAR AL QUE LE HABLA ESTA LANDING")}
+
+${METODO_AIDA}
 
 TAREA: Escribe los TEXTOS de la página de producto de Shopify (landing normal) para este avatar:
 - titulo: título del producto, gancho corto con 1 emoji al inicio (máximo 12 palabras). Si hay regalo, agrégalo ("+ ¡... GRATIS! 🎁").
 - frase_oferta: frase corta en mayúsculas sobre el precio (por ejemplo "RECIBE UN DESCUENTO EXCLUSIVO 👇"). Nada de urgencia falsa.
 - beneficios: 4 o 5 beneficios cortos en MAYÚSCULAS (máximo 5 palabras cada uno), que irán con un ✔ verde.
-- descripcion: 2 o 3 párrafos cortos para la descripción del producto (qué es, para quién, por qué ahora).
+- descripcion: 3 párrafos cortos en orden AIDA: 1) atención: su problema con SUS palabras; 2) interés: la causa real y por qué lo que probó no le sirvió; 3) deseo y acción: por qué este producto sí y cómo pedirlo (pago contra entrega).
 - especificaciones: lista de datos reales del producto (medidas, material, qué incluye). Solo datos de la ficha.
 - envio: texto corto para la pestaña "Envío y devoluciones" con el pago contra entrega y SOLO las promesas verdaderas.
 - preguntas: 5 preguntas frecuentes con respuesta corta; la última SIEMPRE sobre el pago contra entrega.
@@ -473,17 +502,17 @@ export function promptCopys(p, avatar, opciones = {}) {
   ].filter(Boolean);
   return `${contextoProducto(p)}
 
-AVATAR AL QUE LE HABLA (${avatar?.id || "A"}):
-Quién es: ${avatar?.quien || ""}
-Problema/deseo: ${avatar?.problema || ""}
-Frase: ${avatar?.frase || ""}
-Ángulo: ${avatar?.angulo || ""}
-Tono: ${avatar?.tono || ""}
+${bloqueAvatar(avatar, "AVATAR AL QUE LE HABLA")}
+
+${METODO_AIDA}
 
 TAREA: Escribe los textos de anuncio para Meta Ads (Facebook e Instagram) y TikTok para este avatar en ${pais.nombre}.
-- 3 variantes para Meta, una por enfoque: "problema" (problema → solución), "beneficio" (beneficio principal) y "curiosidad" (gancho de curiosidad).
+- 3 variantes para Meta, una por enfoque, y TODAS siguen el orden AIDA (gancho → causa real → por qué esto sí → acción):
+  - "problema": arranca con SUS palabras y gasta la mayor parte en explicar la causa real ("No es X, es Y").
+  - "beneficio": arranca con el resultado que desea y luego explica por qué lo logra (la causa que ataca).
+  - "curiosidad": arranca con una pregunta o dato curioso sobre la causa ("¿Sabías por qué…?") y lo resuelve.
   Cada una con:
-  - texto_principal: 3 a 6 líneas cortas, fácil de escanear, CON emojis (3 a 6, bien puestos: al inicio de las líneas de beneficios y en el gancho) y saltos de línea. La primera línea es el gancho.
+  - texto_principal: 4 a 7 líneas cortas en orden AIDA, fácil de escanear, CON emojis (3 a 6, bien puestos: al inicio de las líneas de beneficios y en el gancho) y saltos de línea. La primera línea es el gancho.
   - titulo: máximo 40 caracteres (va debajo de la imagen).
   - descripcion: máximo 30 caracteres.
 - tiktok: 1 frase corta (máximo 100 caracteres) para el texto del anuncio en TikTok, SIN emojis y sin hashtags (solo texto).
@@ -506,12 +535,10 @@ export function promptAd(p, ad, avatar, estructura, formatoInfo) {
   const desc = porcentajeDescuento(p.ficha?.precioAntes, p.ficha?.precio);
   return `${contextoProducto(p)}
 
-ESTE ANUNCIO LE HABLA AL AVATAR ${avatar?.id || "A"}:
-Quién es: ${avatar?.quien || ""}
-Problema/deseo: ${avatar?.problema || ""}
-Ángulo: ${avatar?.angulo || ""}
+${bloqueAvatar(avatar, "ESTE ANUNCIO LE HABLA AL AVATAR")}
 Escena y modelo: ${avatar?.escena || ""}
-Tono: ${avatar?.tono || ""}
+
+El gancho de la imagen usa SUS palabras o la causa real (Atención + Interés): que quien lo vea piense "eso me pasa a mí".
 
 ESTILO DE LA MARCA (usa los mismos colores y tipografía; NO repitas este bloque):
 ${p.bloqueEstilo || construirBloqueEstilo(p)}
@@ -565,13 +592,9 @@ export function promptGuion(p, guion, avatar) {
   const ref = limpio(guion.referencia, 5000);
   return `${contextoProducto(p)}
 
-AVATAR AL QUE LE HABLA ESTE ANUNCIO (${avatar?.id || "A"}):
-Quién es: ${avatar?.quien || ""}
-Problema/deseo: ${avatar?.problema || ""}
-Qué ha probado: ${avatar?.probado || ""}
-Frase: ${avatar?.frase || ""}
-Ángulo: ${avatar?.angulo || ""}
-Tono: ${avatar?.tono || ""}
+${bloqueAvatar(avatar, "AVATAR AL QUE LE HABLA ESTE ANUNCIO")}
+
+${METODO_AIDA}
 
 ${ref ? `VIDEO DE REFERENCIA (transcripción; puede estar en inglés, chino u otro idioma):
 """
@@ -582,10 +605,13 @@ ${guion.nota ? `NOTA DEL DUEÑO SOBRE EL VIDEO: ${limpio(guion.nota, 500)}` : ""
 TAREA: Reescribe este video como un guion de voz en off en español para el avatar. NO lo traduzcas literal: conserva la estructura y lo que lo hace funcionar (el gancho, el ritmo, las escenas), pero con palabras naturales de ${pais.nombre} y hablándole directo al avatar.`
 : `TAREA: No hay video de referencia. Escribe un guion de voz en off original para el avatar, basado en su ángulo de venta y pensado para un video UGC sencillo de grabar.`}
 
-FORMATO OBLIGATORIO DEL GUION:
-- Duración 20 a 25 segundos: entre 50 y 65 palabras de voz (sin contar lo que va entre corchetes).
+FORMATO OBLIGATORIO DEL GUION (orden AIDA):
+- Duración 25 a 30 segundos: entre 60 y 75 palabras de voz (sin contar lo que va entre corchetes).
+- 0-3 s ATENCIÓN: gancho con SUS palabras ("¿Se te cae a puñados?") o la promesa.
+- 3-15 s INTERÉS: la causa real en simple y por qué lo que probó no sirvió ("No es X, ni Y: es Z"). Es la parte más importante: que entienda su problema.
+- 15-24 s DESEO: por qué este producto ataca esa causa y cómo se ve el resultado.
+- 24-30 s ACCIÓN: precio, pago contra entrega y qué hacer.
 - Entre corchetes va lo que se VE en el video, que no se lee. Ejemplo: [Primer plano de la mochila abriéndose].
-- Gancho fuerte en los primeros 3 segundos (primera frase).
 - Cierre con el precio, el pago contra entrega y un llamado a la acción. El precio escríbelo como se dice en voz alta (por ejemplo "ciento nueve mil novecientos noventa pesos" o "treinta y cinco dólares con noventa y nueve"); el precio es ${precio || "(sin precio)"}.
 - Español natural de ${pais.nombre}, frases cortas, fácil de leer en voz alta (sirve para voz de CapCut o para grabar).
 - Si el video cuenta una historia real (una persona, un animal, una noticia), pasa del relato al producto con una frase puente (por ejemplo "Pero la historia no terminó ahí") y lista los datos de la historia que el dueño debe verificar.

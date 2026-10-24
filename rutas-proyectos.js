@@ -411,7 +411,9 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
       p.avatares = (j.avatares || []).slice(0, ids.length).map((a, i) => ({
         id: ids[i],
         quien: String(a.quien || ""), problema: String(a.problema || ""), probado: String(a.probado || ""),
-        frase: String(a.frase || ""), angulo: String(a.angulo || ""), titular: String(a.titular || ""),
+        frase: String(a.frase || ""), palabras: String(a.palabras || "").slice(0, 400),
+        causa: String(a.causa || "").slice(0, 600), mecanismo: String(a.mecanismo || "").slice(0, 600),
+        angulo: String(a.angulo || ""), titular: String(a.titular || ""),
         escena: String(a.escena || ""), tono: String(a.tono || "")
       }));
       if (p.paso < 2) p.paso = 2;
