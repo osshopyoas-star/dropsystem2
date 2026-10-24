@@ -16,6 +16,7 @@ const imagenSchema = new mongoose.Schema({
   alto: Number,
   origen: { type: String, default: "subida" },    // subida (Gemini, a mano) | ia (generada en CoDropX)
   capa: { type: Boolean, default: false },         // GIF o botón que va ENCIMA de una imagen (no es una imagen de la landing)
+  media: { type: Boolean, default: false },        // foto del producto para "Multimedia" de Shopify (no va en la landing)
   subidas: { type: mongoose.Schema.Types.Mixed, default: {} },   // { [tiendaId]: url en el CDN de Shopify }
   creado: { type: Date, default: Date.now }
 });
@@ -59,5 +60,5 @@ export function tipoDeBytes(buf, conGif = false) {
 }
 
 export const metaImagen = (x) => ({
-  _id: String(x._id), rama: x.rama, seccion: x.seccion, origen: x.origen || "subida", capa: !!x.capa, tipo: x.tipo || "", ancho: x.ancho || null, alto: x.alto || null, bytes: x.bytes || 0, creado: x.creado
+  _id: String(x._id), rama: x.rama, seccion: x.seccion, origen: x.origen || "subida", capa: !!x.capa, media: !!x.media, tipo: x.tipo || "", ancho: x.ancho || null, alto: x.alto || null, bytes: x.bytes || 0, creado: x.creado
 });

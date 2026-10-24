@@ -1662,7 +1662,7 @@ window.estUsarGancho = async (i, k) => {
 function landingActual() {
   const r = R();
   const mapa = {};
-  for (const im of imagenes) if (im.rama === av && !im.capa) (mapa[im.seccion] ||= []).push(`/api/imagenes/${im._id}`);
+  for (const im of imagenes) if (im.rama === av && !im.capa && !im.media) (mapa[im.seccion] ||= []).push(`/api/imagenes/${im._id}`);
   const formato = formatoDe(proyecto);
   const capas = formato === "ban" ? numerarCapas(r.capas || [], r.secciones || [], mapa, formato).map(c => ({ ...c, src: c.imagenId ? `/api/imagenes/${c.imagenId}` : "" })) : null;
   return construirLanding({ formato, secciones: r.secciones || [], imagenes: mapa, textos: r.textos, nombre: r.textos?.titulo || proyecto.nombre, capas, capaSel });
@@ -1690,6 +1690,59 @@ function vistaPrevia(L) {
     </div>
   </div>`;
 }
+
+// =============================================
+// FOTO DEL PRODUCTO para "Multimedia" de Shopify (catálogo, carrito, anuncios de catálogo)
+// No va en la landing: la landing sigue en la plantilla
+// =============================================
+const fotosProducto = () => imagenes.filter(i => i.rama === av && i.media);
+
+function tarjetaFotosProducto() {
+  const fotos = fotosProducto();
+  const ficha = proyecto.fotos || [];
+  const normal = formatoDe(proyecto) === "normal";
+  return `
+  <div class="est-capas est-fotos-prod">
+    <div class="est-card-row"><h4>Foto del producto (Multimedia)</h4><small class="est-muted">${fotos.length}/6</small></div>
+    <p class="est-hint">La que sale en <b>Multimedia</b> de Shopify, el carrito y el catálogo. ${normal ? "Va antes de la galería." : "No es una imagen de la landing (esa sigue en la plantilla)."} ${fotos.length ? "" : `Si no eliges ninguna, se usa ${normal ? "solo la galería" : "la primera imagen de la landing"}.`}</p>
+    ${fotos.length ? `<div class="est-fp-lista">${fotos.map((f, i) => `
+      <div class="est-fp"><img src="/api/imagenes/${esc(f._id)}" alt="Foto ${i + 1}">${i === 0 ? `<span>Principal</span>` : ""}<button title="Quitar" onclick="estQuitarImagen('${esc(f._id)}')">✕</button></div>`).join("")}</div>` : ""}
+    ${fotos.length < 6 ? `
+    ${ficha.length ? `<p class="est-hint">Usar una foto de la Ficha:</p>
+    <div class="est-fp-ficha">${ficha.map((src, i) => `<button title="Usar esta foto" onclick="estUsarFotoFicha(${i})"><img src="${src}" alt="Foto ${i + 1} de la Ficha"></button>`).join("")}</div>` : ""}
+    <div class="est-capas-add">
+      <label class="est-btn chico" id="estFpSubir"><input type="file" accept="image/png,image/jpeg,image/webp" hidden onchange="estSubirFotoProducto(this.files); this.value=''"><i data-lucide="upload"></i> Subir foto</label>
+    </div>` : ""}
+  </div>`;
+}
+
+async function guardarFotoProducto(dataUrl, ancho, alto) {
+  const avInicio = av;
+  const { imagen } = await api("POST", `/api/proyectos/${proyecto._id}/rama/${avInicio}/fotos-producto`, { dataUrl, ancho, alto });
+  imagenes.push(imagen);
+}
+
+window.estSubirFotoProducto = async (files) => {
+  const f = [...(files || [])].find(x => /^image\//.test(x.type));
+  if (!f) return;
+  const b = $("estFpSubir"); if (b) b.innerHTML = `<span class="est-spin"></span> Subiendo...`;
+  try {
+    const { dataUrl, ancho, alto } = await comprimirImagen(f);
+    await guardarFotoProducto(dataUrl, ancho, alto);
+    avisar("Foto del producto guardada ✓ Se sube al publicar");
+  } catch (err) { avisar(err.message, "error"); }
+  renderPaso();
+};
+
+window.estUsarFotoFicha = async (i) => {
+  const src = (proyecto.fotos || [])[i];
+  if (!src) return;
+  try {
+    await guardarFotoProducto(src);
+    avisar("Foto agregada ✓ Se sube al publicar");
+    renderPaso();
+  } catch (err) { avisar(err.message, "error"); }
+};
 
 // =============================================
 // GIF Y BOTONES ENCIMA (por producto): se guardan en el producto, no en la plantilla
@@ -2003,6 +2056,7 @@ function pasoPublicar() {
       </div>
       ${vistaPrevia(L)}
       ${tarjetaCapas(L)}
+      ${tarjetaFotosProducto()}
     </div>
     <div class="est-publicar-lado">
       ${tarjetaPublicar(L)}

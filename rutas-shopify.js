@@ -234,7 +234,7 @@ export async function plantillasTema(t) {
   };
 }
 
-export async function guardarProducto(t, { productoId, titulo, html, media, precio, precioAntes, plantilla, metacampos }) {
+export async function guardarProducto(t, { productoId, titulo, html, media, precio, precioAntes, plantilla, metacampos, reemplazarMedia = false }) {
   let producto = null;
   if (productoId) {
     const d = await gql(t, `query($id: ID!) { product(id: $id) { id handle status variants(first: 1) { nodes { id } } } }`, { id: productoId });
@@ -247,6 +247,20 @@ export async function guardarProducto(t, { productoId, titulo, html, media, prec
     }`, { product: { id: producto.id, title: titulo, descriptionHtml: html, ...(plantilla !== undefined ? { templateSuffix: plantilla || null } : {}) } });
     erroresUsuario(d.productUpdate);
     producto = d.productUpdate.product;
+    // Cambiaste las fotos de "Multimedia": se quitan las de antes y se ponen las nuevas
+    if (reemplazarMedia && media?.length) {
+      const q = await gql(t, `query($id: ID!) { product(id: $id) { media(first: 50) { nodes { id } } } }`, { id: producto.id });
+      const viejas = (q.product?.media?.nodes || []).map(m => m.id);
+      if (viejas.length) {
+        const f = await gql(t, `mutation($files: [FileUpdateInput!]!) { fileUpdate(files: $files) { userErrors { field message } } }`,
+          { files: viejas.map(id => ({ id, referencesToRemove: [producto.id] })) });
+        erroresUsuario(f.fileUpdate);
+      }
+      const m = await gql(t, `mutation($product: ProductUpdateInput!, $media: [CreateMediaInput!]) {
+        productUpdate(product: $product, media: $media) { product { id } userErrors { field message } }
+      }`, { product: { id: producto.id }, media: media.map(src => ({ originalSource: src, mediaContentType: "IMAGE", alt: titulo.slice(0, 120) })) });
+      erroresUsuario(m.productUpdate);
+    }
   } else {
     const d = await gql(t, `mutation($product: ProductCreateInput!, $media: [CreateMediaInput!]) {
       productCreate(product: $product, media: $media) { product { id handle status variants(first: 1) { nodes { id } } } userErrors { field message } }
@@ -258,10 +272,12 @@ export async function guardarProducto(t, { productoId, titulo, html, media, prec
     producto = d.productCreate.product;
   }
   const variante = producto?.variants?.nodes?.[0]?.id;
-  if (variante && precio) {
+  if (variante) {
+    // "Cobrar impuestos sobre este producto" siempre desmarcado (contra entrega, precio final)
+    const v = { id: variante, taxable: false, ...(precio ? { price: String(precio), compareAtPrice: precioAntes && precioAntes > precio ? String(precioAntes) : null } : {}) };
     const d = await gql(t, `mutation($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
       productVariantsBulkUpdate(productId: $productId, variants: $variants) { userErrors { field message } }
-    }`, { productId: producto.id, variants: [{ id: variante, price: String(precio), compareAtPrice: precioAntes && precioAntes > precio ? String(precioAntes) : null }] });
+    }`, { productId: producto.id, variants: [v] });
     erroresUsuario(d.productVariantsBulkUpdate);
   }
   if (metacampos) {

@@ -113,6 +113,26 @@ export function registrarRutasPublicar(app, { cargar, cargarRama, guardarRama, a
     }
   });
 
+  // Foto del producto para "Multimedia" de Shopify (catálogo, carrito, Meta). No va en la landing.
+  app.post("/api/proyectos/:id/rama/:av/fotos-producto", async (req, res) => {
+    try {
+      const x = await cargarRama(req, res); if (!x) return;
+      const ya = await ImagenLanding.countDocuments({ owner: req.user.uid, proyecto: x.p._id, rama: x.av, media: true });
+      if (ya >= MAX_POR_SECCION) return res.status(400).json({ error: `Máximo ${MAX_POR_SECCION} fotos del producto` });
+      const img = leerDataUrl(req.body?.dataUrl);
+      if (!img) return res.status(400).json({ error: "La foto no es válida (JPG, PNG o WEBP de máximo 3 MB)" });
+      const medida = (v) => { const n = Math.round(Number(v)); return n > 0 && n < 20000 ? n : null; };
+      const nueva = await ImagenLanding.create({
+        owner: req.user.uid, proyecto: x.p._id, rama: x.av, seccion: "", media: true,
+        tipo: img.tipo, datos: img.datos, bytes: img.datos.length, ancho: medida(req.body?.ancho), alto: medida(req.body?.alto)
+      });
+      res.json({ imagen: metaImagen(nueva) });
+    } catch (err) {
+      console.error("Error guardando foto del producto:", err);
+      res.status(500).json({ error: "No se pudo guardar la foto" });
+    }
+  });
+
   // Agregar una capa (GIF o botón con su imagen, o el formulario de Releasit sin imagen)
   app.post("/api/proyectos/:id/rama/:av/capas", async (req, res) => {
     try {
@@ -203,6 +223,7 @@ export function registrarRutasPublicar(app, { cargar, cargarRama, guardarRama, a
       const capasRama = x.r.capas || [];
       const idsCapas = new Set(capasRama.map(c => c.imagenId).filter(Boolean));
       const imgsCapas = todas.filter(i => i.capa && idsCapas.has(String(i._id)));
+      const imgsMedia = todas.filter(i => i.media);
       if (!imgs.length) return res.status(400).json({ error: "Sube al menos una imagen en el paso Landing" });
 
       const titulo = String(req.body?.titulo || x.r.textos?.titulo || x.p.nombre || "Producto").trim().slice(0, 255);
@@ -211,7 +232,7 @@ export function registrarRutasPublicar(app, { cargar, cargarRama, guardarRama, a
       // Subir a Shopify las que no se han subido a esta tienda (de a 3)
       const urls = new Map();
       const pendientes = [];
-      for (const i of [...imgs, ...imgsCapas]) {
+      for (const i of [...imgs, ...imgsCapas, ...imgsMedia]) {
         if (subidaDe(i.subidas?.[tid])) urls.set(String(i._id), subidaDe(i.subidas[tid]));
         else pendientes.push(i);
       }
@@ -220,7 +241,7 @@ export function registrarRutasPublicar(app, { cargar, cargarRama, guardarRama, a
         while (k < pendientes.length) {
           const i = pendientes[k++];
           const s = secciones.find(z => z.id === i.seccion);
-          const subida = await subirImagen(t, { datos: i.datos, tipo: i.tipo, nombre: `${titulo} ${i.capa ? "GIF" : (s?.titulo || "")}` });
+          const subida = await subirImagen(t, { datos: i.datos, tipo: i.tipo, nombre: `${titulo} ${i.capa ? "GIF" : i.media ? "foto" : (s?.titulo || "")}` });
           urls.set(String(i._id), subida);
           await ImagenLanding.updateOne({ _id: i._id }, { $set: { [`subidas.${tid}`]: subida } });
         }
@@ -239,6 +260,11 @@ export function registrarRutasPublicar(app, { cargar, cargarRama, guardarRama, a
 
       let html = completa.html;
       let media = completa.galeria;
+      // Fotos del producto elegidas para "Multimedia": en ban page reemplazan a la primera imagen de la landing;
+      // en landing normal van antes de la galería
+      const mediaFotos = imgsMedia.map(i => urls.get(String(i._id))?.url).filter(Boolean);
+      if (mediaFotos.length) media = formato === "normal" ? [...mediaFotos, ...completa.galeria] : mediaFotos;
+      const mediaKey = imgsMedia.map(i => String(i._id)).join(",") || "landing";
       let metacampos;
       if (destino === "tema") {
         // Orden de la landing (sin la galería en landing normal: esas van como fotos del producto)
@@ -266,6 +292,7 @@ export function registrarRutasPublicar(app, { cargar, cargarRama, guardarRama, a
       const anterior = x.r.publicaciones?.[tid];
       const r = await guardarProducto(t, {
         productoId: anterior?.productoId, titulo, html, media,
+        reemplazarMedia: !!anterior?.productoId && (anterior.mediaKey || "landing") !== mediaKey,
         precio: Number(x.p.ficha?.precio) || null, precioAntes: Number(x.p.ficha?.precioAntes) || null,
         plantilla, metacampos
       });
@@ -279,7 +306,7 @@ export function registrarRutasPublicar(app, { cargar, cargarRama, guardarRama, a
       const publicacion = {
         tiendaId: tid, tienda: t.nombre || t.shop, dominio: t.dominio || "", productoId: r.productoId,
         handle: r.handle, adminUrl: r.adminUrl, estado: r.estado, fecha: new Date().toISOString(),
-        imagenes: imgs.length, faltan: landing.faltan, destino, plantilla: plantilla ?? anterior?.plantilla ?? ""
+        imagenes: imgs.length, faltan: landing.faltan, destino, plantilla: plantilla ?? anterior?.plantilla ?? "", mediaKey
       };
       const rama = await actualizarRama(x.p, x.av, (actual) => ({
         ...actual, publicaciones: { ...(actual.publicaciones || {}), [tid]: publicacion }
