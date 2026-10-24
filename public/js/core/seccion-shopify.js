@@ -5,11 +5,20 @@
 // y encima puedes poner bloques flotantes: botón/GIF (con o sin Releasit) y el formulario de Releasit,
 // eligiendo en qué imagen va cada uno y su posición en %.
 // Landing normal: imagen con su título y texto al lado.
+// v2: los GIF y botones de CADA producto vienen de CoDropX (metacampo codropx.capas): una sola plantilla sirve para todos.
 // =============================================
 export const ARCHIVO_SECCION = "sections/codropx-landing.liquid";
+// Súbelo cada vez que cambie el código de la sección: CoDropX lee la del tema y avisa si quedó vieja
+export const VERSION_SECCION = 2;
+export const versionDeSeccion = (codigo) => {
+  if (!codigo) return null;
+  const m = String(codigo).match(/codropx-version:\s*(\d+)/);
+  return m ? Number(m[1]) : 1;
+};
 
-export const SECCION_LIQUID = `{%- comment -%} CoDropX landing · imágenes publicadas desde codropx.com {%- endcomment -%}
+export const SECCION_LIQUID = `{%- comment -%} CoDropX landing · imágenes publicadas desde codropx.com · codropx-version: ${VERSION_SECCION} {%- endcomment -%}
 {%- assign cdx_imgs = product.metafields.codropx.landing.value -%}
+{%- assign cdx_capas = product.metafields.codropx.capas.value -%}
 {%- assign cdx_textos = product.metafields.codropx.secciones.value -%}
 {%- assign cdx_formato = product.metafields.codropx.formato.value | default: 'ban' -%}
 {%- if cdx_imgs != blank -%}
@@ -50,6 +59,25 @@ export const SECCION_LIQUID = `{%- comment -%} CoDropX landing · imágenes publ
                   <div class="_rsi-cod-form-gempages-button-hook"></div>
                   <div id="_rsi-cod-form-embed-custom-hook"></div>
                 </div>
+            {%- endcase -%}
+          {%- endfor -%}
+          {%- comment -%} GIF y botones de este producto (los pones en CoDropX → Publicar) {%- endcomment -%}
+          {%- for c in cdx_capas -%}
+            {%- if c.n != n -%}{%- continue -%}{%- endif -%}
+            {%- capture cdx_cpos -%}top: {{ c.y }}%; {% if c.centrar %}left: 50%; transform: translateX(-50%);{% else %}left: {{ c.x }}%;{% endif %} width: {{ c.ancho }}%;{%- endcapture -%}
+            {%- case c.tipo -%}
+              {%- when 'boton' -%}
+                <a href="/rsi-btn-overwrite" id="rsi--btn-cdx{{ forloop.index }}" class="cdx-flota" style="{{ cdx_cpos }}">
+                  <img src="{{ c.url }}" alt="Comprar" loading="lazy" style="border-radius: {{ c.redondeo | default: 0 }}px;">
+                </a>
+              {%- when 'formulario' -%}
+                <div class="cdx-flota cdx-releasit" style="{{ cdx_cpos }}">
+                  <div class="_rsi-cod-form-is-gempage"></div>
+                  <div class="_rsi-cod-form-gempages-button-hook"></div>
+                  <div id="_rsi-cod-form-embed-custom-hook"></div>
+                </div>
+              {%- else -%}
+                <img class="cdx-flota" src="{{ c.url }}" alt="" loading="lazy" style="{{ cdx_cpos }} border-radius: {{ c.redondeo | default: 0 }}px;">
             {%- endcase -%}
           {%- endfor -%}
         </div>

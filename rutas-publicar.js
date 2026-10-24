@@ -6,8 +6,8 @@
 //     (tú lo revisas, le pones botones/GIF y lo activas)
 // =============================================
 import mongoose from "mongoose";
-import { ImagenLanding, leerDataUrl, metaImagen, MAX_POR_SECCION } from "./modelo-imagenes.js";
-import { construirLanding } from "./public/js/core/landing-html.js";
+import { ImagenLanding, leerDataUrl, leerDataUrlCapa, metaImagen, MAX_POR_SECCION, MAX_CAPAS } from "./modelo-imagenes.js";
+import { construirLanding, numerarCapas } from "./public/js/core/landing-html.js";
 import { tiendaDe, subirImagen, guardarProducto, ErrorShopify } from "./rutas-shopify.js";
 
 const MONEDA_PAIS = { CO: "COP", EC: "USD" };
@@ -21,6 +21,25 @@ export function textoShopify(prompt) {
   const saca = (re) => ((parte.match(re) || [])[1] || "").trim().replace(/^["“]|["”]$/g, "").trim();
   return { titulo: saca(/T[íi]tulo:\s*(.+)/i).slice(0, 120), texto: saca(/Texto:\s*([\s\S]+?)(?:\n\s*\n|$)/i).slice(0, 600) };
 }
+// ---------- Capas: GIF y botones encima de las imágenes (por producto) ----------
+const TIPOS_CAPA = ["gif", "boton", "formulario"];
+const num = (v, min, max, def) => { const n = Number(v); return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : def; };
+export function limpiarCapa(c = {}, previa = {}) {
+  const tipo = TIPOS_CAPA.includes(c.tipo) ? c.tipo : (previa.tipo || "gif");
+  return {
+    id: previa.id || String(c.id || Math.random().toString(36).slice(2, 10)).slice(0, 20),
+    tipo,
+    imagenId: previa.imagenId ?? (c.imagenId ? String(c.imagenId) : null),
+    seccion: String(c.seccion ?? previa.seccion ?? "").slice(0, 40),
+    imagenN: Math.round(num(c.imagenN ?? previa.imagenN, 1, 6, 1)),
+    x: num(c.x ?? previa.x, 0, 100, 0),
+    y: num(c.y ?? previa.y, 0, 100, tipo === "boton" ? 82 : 50),
+    ancho: num(c.ancho ?? previa.ancho, 5, 100, tipo === "gif" ? 40 : 80),
+    centrar: c.centrar !== undefined ? !!c.centrar : (previa.centrar ?? true),
+    redondeo: Math.round(num(c.redondeo ?? previa.redondeo, 0, 50, 0))
+  };
+}
+
 const subidaDe = (v) => (v && typeof v === "object" && v.id && v.url ? v : null);   // las viejas solo tenían la URL
 const publicando = new Set();
 
@@ -94,6 +113,70 @@ export function registrarRutasPublicar(app, { cargar, cargarRama, guardarRama, a
     }
   });
 
+  // Agregar una capa (GIF o botón con su imagen, o el formulario de Releasit sin imagen)
+  app.post("/api/proyectos/:id/rama/:av/capas", async (req, res) => {
+    try {
+      const x = await cargarRama(req, res); if (!x) return;
+      const tipo = TIPOS_CAPA.includes(req.body?.tipo) ? req.body.tipo : "gif";
+      if ((x.r.capas || []).length >= MAX_CAPAS) return res.status(400).json({ error: `Máximo ${MAX_CAPAS} GIF o botones por landing` });
+      const secciones = x.r.secciones || [];
+      const seccion = secciones.some(s => s.id === req.body?.seccion) ? req.body.seccion : (secciones[0]?.id || "");
+      let imagen = null;
+      if (tipo !== "formulario") {
+        const img = leerDataUrlCapa(req.body?.dataUrl);
+        if (!img) return res.status(400).json({ error: "Sube un GIF, PNG, JPG o WEBP de máximo 6 MB" });
+        const medida = (v) => { const n = Math.round(Number(v)); return n > 0 && n < 20000 ? n : null; };
+        imagen = await ImagenLanding.create({
+          owner: req.user.uid, proyecto: x.p._id, rama: x.av, seccion: "", capa: true,
+          tipo: img.tipo, datos: img.datos, bytes: img.datos.length, ancho: medida(req.body?.ancho), alto: medida(req.body?.alto)
+        });
+      }
+      const capa = limpiarCapa({ tipo, seccion, imagenId: imagen ? String(imagen._id) : null, ...(req.body?.pos || {}) });
+      const rama = (await actualizarRama(x.p, x.av, (a) => ({ ...a, capas: [...(a.capas || []), capa] }))) || x.r;
+      res.json({ capa, imagen: imagen ? metaImagen(imagen) : null, rama });
+    } catch (err) {
+      console.error("Error agregando capa:", err);
+      res.status(500).json({ error: "No se pudo guardar" });
+    }
+  });
+
+  // Mover / cambiar una capa (posición, tamaño, en qué imagen va)
+  app.put("/api/proyectos/:id/rama/:av/capas/:capaId", async (req, res) => {
+    try {
+      const x = await cargarRama(req, res); if (!x) return;
+      let encontrada = null;
+      const rama = await actualizarRama(x.p, x.av, (a) => {
+        const capas = (a.capas || []).map(c => {
+          if (c.id !== req.params.capaId) return c;
+          const cambios = { ...req.body };
+          if (c.tipo === "formulario" || cambios.tipo === "formulario") delete cambios.tipo;   // el formulario no tiene imagen
+          encontrada = limpiarCapa(cambios, c);
+          return encontrada;
+        });
+        return { ...a, capas };
+      });
+      if (!encontrada) return res.status(404).json({ error: "No encontramos ese GIF o botón" });
+      res.json({ capa: encontrada, rama });
+    } catch (err) {
+      console.error("Error moviendo capa:", err);
+      res.status(500).json({ error: "No se pudo guardar" });
+    }
+  });
+
+  app.delete("/api/proyectos/:id/rama/:av/capas/:capaId", async (req, res) => {
+    try {
+      const x = await cargarRama(req, res); if (!x) return;
+      const capa = (x.r.capas || []).find(c => c.id === req.params.capaId);
+      if (!capa) return res.status(404).json({ error: "No encontramos ese GIF o botón" });
+      if (capa.imagenId && idOk(capa.imagenId)) await ImagenLanding.deleteOne({ _id: capa.imagenId, owner: req.user.uid });
+      const rama = await actualizarRama(x.p, x.av, (a) => ({ ...a, capas: (a.capas || []).filter(c => c.id !== req.params.capaId) }));
+      res.json({ ok: true, rama });
+    } catch (err) {
+      console.error("Error quitando capa:", err);
+      res.status(500).json({ error: "No se pudo quitar" });
+    }
+  });
+
   // Publicar la landing de este avatar en una tienda (crea o actualiza el BORRADOR)
   app.post("/api/proyectos/:id/rama/:av/publicar", ...mw, async (req, res) => {
     let llave = null;
@@ -115,8 +198,11 @@ export function registrarRutasPublicar(app, { cargar, cargarRama, guardarRama, a
 
       const secciones = x.r.secciones || [];
       const ids = new Set(secciones.map(s => s.id));
-      const imgs = (await ImagenLanding.find({ owner: req.user.uid, proyecto: x.p._id, rama: x.av }).sort({ creado: 1 }))
-        .filter(i => ids.has(i.seccion));
+      const todas = await ImagenLanding.find({ owner: req.user.uid, proyecto: x.p._id, rama: x.av }).sort({ creado: 1 });
+      const imgs = todas.filter(i => !i.capa && ids.has(i.seccion));
+      const capasRama = x.r.capas || [];
+      const idsCapas = new Set(capasRama.map(c => c.imagenId).filter(Boolean));
+      const imgsCapas = todas.filter(i => i.capa && idsCapas.has(String(i._id)));
       if (!imgs.length) return res.status(400).json({ error: "Sube al menos una imagen en el paso Landing" });
 
       const titulo = String(req.body?.titulo || x.r.textos?.titulo || x.p.nombre || "Producto").trim().slice(0, 255);
@@ -125,7 +211,7 @@ export function registrarRutasPublicar(app, { cargar, cargarRama, guardarRama, a
       // Subir a Shopify las que no se han subido a esta tienda (de a 3)
       const urls = new Map();
       const pendientes = [];
-      for (const i of imgs) {
+      for (const i of [...imgs, ...imgsCapas]) {
         if (subidaDe(i.subidas?.[tid])) urls.set(String(i._id), subidaDe(i.subidas[tid]));
         else pendientes.push(i);
       }
@@ -134,7 +220,7 @@ export function registrarRutasPublicar(app, { cargar, cargarRama, guardarRama, a
         while (k < pendientes.length) {
           const i = pendientes[k++];
           const s = secciones.find(z => z.id === i.seccion);
-          const subida = await subirImagen(t, { datos: i.datos, tipo: i.tipo, nombre: `${titulo} ${s?.titulo || ""}` });
+          const subida = await subirImagen(t, { datos: i.datos, tipo: i.tipo, nombre: `${titulo} ${i.capa ? "GIF" : (s?.titulo || "")}` });
           urls.set(String(i._id), subida);
           await ImagenLanding.updateOne({ _id: i._id }, { $set: { [`subidas.${tid}`]: subida } });
         }
@@ -166,7 +252,13 @@ export function registrarRutasPublicar(app, { cargar, cargarRama, guardarRama, a
             textos.push(formato === "normal" && n === 0 ? textoShopify(sec.prompt) : { titulo: "", texto: "" });
           });
         }
-        metacampos = { imagenes: lista, secciones: textos, formato };
+        // GIF y botones de este producto, con el número de imagen donde van
+        const porSeccion = {};
+        for (const i of imgs) (porSeccion[i.seccion] ||= []).push(i);
+        const capas = numerarCapas(capasRama, secciones, porSeccion, formato)
+          .map(c => ({ n: c.n, tipo: c.tipo, url: c.imagenId ? urls.get(c.imagenId)?.url || "" : "", x: c.x, y: c.y, ancho: c.ancho, centrar: c.centrar, redondeo: c.redondeo }))
+          .filter(c => c.tipo === "formulario" || c.url);
+        metacampos = { imagenes: lista, secciones: textos, formato, capas };
         // Descripción: en ban page vacía (todo va en el tema); en landing normal solo los textos para Shopify
         html = formato === "normal" ? construirLanding({ formato, secciones: [], imagenes: {}, textos: x.r.textos, nombre: titulo }).html : "";
       }

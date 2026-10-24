@@ -9,7 +9,8 @@ import { escapeHTML } from "../core/utils.js";
 import { SECCIONES, FORMATOS, tiposDe, varianteDe, elegirVariante, formatoImagen, claveDe, ETAPAS_AIDA, etapaDe } from "../core/plantilla.js";
 import { ESTRUCTURAS_AD, FORMATOS_AD, ENFOQUES_COPY, MAX_ADS } from "../core/anuncios.js";
 import { dibujar } from "./plantilla.js";
-import { construirLanding } from "../core/landing-html.js";
+import { construirLanding, numerarCapas } from "../core/landing-html.js";
+import { VERSION_SECCION } from "../core/seccion-shopify.js";
 import { limpiarFuentes } from "../core/fuentes.js";
 
 const PASOS = [
@@ -36,6 +37,7 @@ let tiendaElegida = null;
 const temaTiendas = {};      // tiendaId → { plantillas, seccion, tema, sinPermiso, elegida } (o "cargando")
 let destinoPub = (() => { try { return localStorage.getItem("est_destino_pub") || "tema"; } catch { return "tema"; } })();
 let plantillaPub = null;     // sufijo elegido ("" = predeterminada)
+let capaSel = null;          // GIF/botón que se mueve al tocar la vista previa
 let gastoIA = null;          // { usd, limite, queda, imagenes, precioImagen, precioReferencia }
 const generandoIA = new Set();
 let tab = 1;           // paso que se está viendo
@@ -1025,7 +1027,7 @@ function tarjetaSeccion(x, i, numero) {
 }
 
 // ---------- Imágenes de cada sección (las que sacas de Gemini) ----------
-const imgsDe = (idSeccion) => imagenes.filter(i => i.rama === av && i.seccion === idSeccion);
+const imgsDe = (idSeccion) => imagenes.filter(i => i.rama === av && i.seccion === idSeccion && !i.capa);
 const MAX_IMGS_SECCION = 6;
 
 function tiraImagenes(x) {
@@ -1660,8 +1662,10 @@ window.estUsarGancho = async (i, k) => {
 function landingActual() {
   const r = R();
   const mapa = {};
-  for (const im of imagenes) if (im.rama === av) (mapa[im.seccion] ||= []).push(`/api/imagenes/${im._id}`);
-  return construirLanding({ formato: formatoDe(proyecto), secciones: r.secciones || [], imagenes: mapa, textos: r.textos, nombre: r.textos?.titulo || proyecto.nombre });
+  for (const im of imagenes) if (im.rama === av && !im.capa) (mapa[im.seccion] ||= []).push(`/api/imagenes/${im._id}`);
+  const formato = formatoDe(proyecto);
+  const capas = formato === "ban" ? numerarCapas(r.capas || [], r.secciones || [], mapa, formato).map(c => ({ ...c, src: c.imagenId ? `/api/imagenes/${c.imagenId}` : "" })) : null;
+  return construirLanding({ formato, secciones: r.secciones || [], imagenes: mapa, textos: r.textos, nombre: r.textos?.titulo || proyecto.nombre, capas, capaSel });
 }
 
 function vistaPrevia(L) {
@@ -1680,12 +1684,170 @@ function vistaPrevia(L) {
   return `
   <div class="est-phone">
     <div class="est-phone-barra"><span></span></div>
-    <div class="est-phone-pantalla">
+    <div class="est-phone-pantalla" onclick="estTocarPreview(event)">
       ${cabecera}
       ${vacio && !normal ? `<div class="est-pv-vacio alto">Sube las imágenes de Gemini en el paso 4 para ver la ban page aquí.</div>` : L.html}
     </div>
   </div>`;
 }
+
+// =============================================
+// GIF Y BOTONES ENCIMA (por producto): se guardan en el producto, no en la plantilla
+// =============================================
+const NOMBRE_CAPA = { gif: "GIF / imagen", boton: "Botón de Releasit", formulario: "Formulario de Releasit" };
+
+function tarjetaCapas(L) {
+  if (formatoDe(proyecto) !== "ban" || !L.totalImagenes) return "";
+  const r = R();
+  const capas = r.capas || [];
+  const porSeccion = Object.fromEntries((r.secciones || []).map(s => [s.id, imgsDe(s.id)]));
+  const n = Object.fromEntries(numerarCapas(capas, r.secciones || [], porSeccion, "ban").map(c => [c.id, c.n]));
+  const rango = (c, campo, etiqueta, min, max, unidad, valor) => `<label>${etiqueta} <input type="range" min="${min}" max="${max}" value="${Math.round(valor)}" oninput="this.nextElementSibling.textContent=this.value+'${unidad}'" onchange="estCapa('${esc(c.id)}', '${campo}', this.value)"><em>${Math.round(valor)}${unidad}</em></label>`;
+  return `
+  <div class="est-capas">
+    <div class="est-card-row"><h4>GIF y botones encima</h4><small class="est-muted">${capas.length}/12</small></div>
+    <p class="est-hint">Se guardan <b>en este producto</b>: una sola plantilla (ej. "ban-page") sirve para todos tus productos. Elige uno y <b>toca en el celular</b> dónde va.</p>
+    ${capas.map(c => `
+      <div class="est-capa ${capaSel === c.id ? "sel" : ""}" onclick="estElegirCapa('${esc(c.id)}')">
+        ${c.imagenId ? `<img src="/api/imagenes/${esc(c.imagenId)}" alt="">` : `<span class="est-capa-form">Form</span>`}
+        <div class="est-capa-datos">
+          <div class="est-capa-fila">
+            ${c.tipo === "formulario" ? `<b>${NOMBRE_CAPA.formulario}</b>` : `
+            <select onchange="estCapa('${esc(c.id)}', 'tipo', this.value)" onclick="event.stopPropagation()">
+              <option value="gif" ${c.tipo === "gif" ? "selected" : ""}>${NOMBRE_CAPA.gif}</option>
+              <option value="boton" ${c.tipo === "boton" ? "selected" : ""}>${NOMBRE_CAPA.boton} (abre el formulario)</option>
+            </select>`}
+            <span class="est-capa-n">${n[c.id] ? `Imagen ${n[c.id]}` : `<span class="rojo">sin imagen</span>`}</span>
+            <button class="est-link" onclick="event.stopPropagation(); estQuitarCapa('${esc(c.id)}')">Quitar</button>
+          </div>
+          ${capaSel === c.id ? `
+          <div class="est-capa-ctrl" onclick="event.stopPropagation()">
+            ${rango(c, "ancho", "Tamaño", 5, 100, "%", c.ancho)}
+            ${rango(c, "y", "Altura", 0, 100, "%", c.y)}
+            <label class="est-capa-check"><input type="checkbox" ${c.centrar ? "checked" : ""} onchange="estCapa('${esc(c.id)}', 'centrar', this.checked)"> Centrado</label>
+            ${c.centrar ? "" : rango(c, "x", "Lado", 0, 100, "%", c.x)}
+            ${c.tipo !== "formulario" ? rango(c, "redondeo", "Esquinas", 0, 50, "px", c.redondeo) : ""}
+          </div>` : ""}
+        </div>
+      </div>`).join("")}
+    ${capas.length < 12 ? `
+    <div class="est-capas-add">
+      <label class="est-btn chico"><input type="file" accept="image/gif,image/png,image/jpeg,image/webp" hidden onchange="estAgregarCapa('gif', this.files); this.value=''"><i data-lucide="image-plus"></i> GIF o imagen</label>
+      <label class="est-btn chico"><input type="file" accept="image/gif,image/png,image/jpeg,image/webp" hidden onchange="estAgregarCapa('boton', this.files); this.value=''"><i data-lucide="mouse-pointer-click"></i> Botón de Releasit</label>
+      ${capas.some(c => c.tipo === "formulario") ? "" : `<button class="est-btn chico" onclick="estAgregarCapa('formulario')"><i data-lucide="clipboard-list"></i> Formulario de Releasit</button>`}
+    </div>` : ""}
+  </div>`;
+}
+
+// GIF tal cual (sin comprimir: perdería la animación); PNG/JPG grandes se achican manteniendo la transparencia
+function leerArchivoCapa(f) {
+  return new Promise((resolve, reject) => {
+    if (f.type === "image/gif" && f.size > 6 * 1024 * 1024) return reject(new Error("El GIF pesa más de 6 MB. Achícalo (por ejemplo en ezgif.com) y vuelve a subirlo."));
+    if (f.type !== "image/gif" && f.size > 1.5 * 1024 * 1024) {
+      const img = new Image(); const url = URL.createObjectURL(f);
+      img.onload = () => {
+        const escala = Math.min(1, 1200 / Math.max(img.width, img.height));
+        const c = document.createElement("canvas"); c.width = Math.round(img.width * escala); c.height = Math.round(img.height * escala);
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+        resolve({ dataUrl: c.toDataURL("image/png"), ancho: c.width, alto: c.height });
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("No se pudo leer la imagen")); };
+      img.src = url;
+      return;
+    }
+    const rd = new FileReader();
+    rd.onload = () => {
+      const im = new Image();
+      im.onload = () => resolve({ dataUrl: rd.result, ancho: im.width, alto: im.height });
+      im.onerror = () => resolve({ dataUrl: rd.result });
+      im.src = rd.result;
+    };
+    rd.onerror = () => reject(new Error("No se pudo leer el archivo"));
+    rd.readAsDataURL(f);
+  });
+}
+
+// Sección de arranque: botón y formulario en la portada/oferta; GIF en la primera imagen
+function seccionInicialCapa(tipo) {
+  const secs = (R().secciones || []).filter(s => imgsDe(s.id).length);
+  if (tipo === "boton" || tipo === "formulario") return (secs.find(s => s.tipo === "oferta") || secs[0])?.id;
+  return secs[0]?.id;
+}
+
+window.estAgregarCapa = async (tipo, files) => {
+  const avInicio = av;
+  try {
+    let body = { tipo, seccion: seccionInicialCapa(tipo) };
+    if (tipo !== "formulario") {
+      const f = [...(files || [])][0];
+      if (!f) return;
+      const { dataUrl, ancho, alto } = await leerArchivoCapa(f);
+      body = { ...body, dataUrl, ancho, alto };
+    }
+    const { capa, imagen, rama } = await api("POST", `/api/proyectos/${proyecto._id}/rama/${avInicio}/capas`, body);
+    if (imagen) imagenes.push(imagen);
+    if (av === avInicio) { ponerRama(rama); capaSel = capa.id; }
+    avisar("Listo ✓ Ahora toca en el celular dónde va");
+    renderPaso();
+  } catch (err) { avisar(err.message, "error"); }
+};
+
+// Se ve al instante; se guarda en orden (sin pisarse si tocas rápido)
+let colaCapas = Promise.resolve();
+function guardarCapa(id, cambios) {
+  const avInicio = av;
+  const r = R();
+  ponerRama({ ...r, capas: (r.capas || []).map(c => c.id === id ? { ...c, ...cambios } : c) });
+  renderPaso();
+  colaCapas = colaCapas.then(async () => {
+    try {
+      await api("PUT", `/api/proyectos/${proyecto._id}/rama/${avInicio}/capas/${id}`, cambios);
+    } catch (err) { avisar(err.message, "error"); }
+  });
+  return colaCapas;
+}
+
+window.estElegirCapa = (id) => { capaSel = capaSel === id ? null : id; renderPaso(); };
+window.estCapa = (id, campo, valor) => guardarCapa(id, { [campo]: campo === "centrar" ? !!valor : campo === "tipo" ? valor : Number(valor) });
+window.estQuitarCapa = async (id) => {
+  if (!confirm("¿Quitar este GIF o botón?")) return;
+  try {
+    await colaCapas;
+    const { rama } = await api("DELETE", `/api/proyectos/${proyecto._id}/rama/${av}/capas/${id}`);
+    ponerRama(rama);
+    imagenes = imagenes.filter(i => !(i.capa && !(rama.capas || []).some(c => c.imagenId === i._id)));
+    if (capaSel === id) capaSel = null;
+    renderPaso();
+  } catch (err) { avisar(err.message, "error"); }
+};
+
+// Tocar la vista previa: el GIF/botón elegido queda centrado en ese punto de esa imagen
+window.estTocarPreview = (e) => {
+  const banner = e.target.closest?.(".cdx-banner");
+  if (!banner) return;
+  const tocada = e.target.closest?.(".cdx-capa");
+  if (tocada?.dataset.capa && tocada.dataset.capa !== capaSel) { capaSel = tocada.dataset.capa; renderPaso(); return; }
+  if (!capaSel) { avisar("Elige primero un GIF o botón de la lista (o súbelo) y luego toca dónde va"); return; }
+  const r = R();
+  const capa = (r.capas || []).find(c => c.id === capaSel);
+  if (!capa) return;
+  const n = Number(banner.dataset.n);
+  let cuenta = 0, destino = null;
+  for (const s of r.secciones || []) {
+    const k = imgsDe(s.id).length;
+    if (n <= cuenta + k) { destino = { seccion: s.id, imagenN: n - cuenta }; break; }
+    cuenta += k;
+  }
+  if (!destino) return;
+  const caja = banner.getBoundingClientRect();
+  const px = (e.clientX - caja.left) / caja.width * 100;
+  const py = (e.clientY - caja.top) / caja.height * 100;
+  const im = imagenes.find(i => i._id === capa.imagenId);
+  const altoPct = im?.ancho && im?.alto ? capa.ancho * (im.alto / im.ancho) * (caja.width / caja.height) : 6;
+  const cambios = { ...destino, y: Math.max(0, Math.min(100, Math.round((py - altoPct / 2) * 10) / 10)) };
+  if (!capa.centrar) cambios.x = Math.max(0, Math.min(100, Math.round((px - capa.ancho / 2) * 10) / 10));
+  guardarCapa(capaSel, cambios);
+};
 
 function tarjetaPublicar(L) {
   const r = R();
@@ -1708,7 +1870,7 @@ function tarjetaPublicar(L) {
     ${!tiendas.length ? `
       <p class="est-muted">Conecta tu tienda una vez y desde aquí subes la landing con un clic: imágenes, precio${normal ? ", textos" : ""} y todo en orden.</p>
       <button class="est-btn primary" onclick="goTo('integraciones')"><i data-lucide="plug"></i> Conectar mi tienda Shopify</button>` : `
-      <p class="est-muted">Se crea el producto en <b>borrador</b> con ${L.totalImagenes} imagen(es)${normal ? ", la galería, los textos" : ""} y el precio${proyecto.ficha?.precioAntes ? " con el \"antes\" tachado" : ""}. En Shopify le pones botones y GIF, revisas y lo activas.</p>
+      <p class="est-muted">Se crea el producto en <b>borrador</b> con ${L.totalImagenes} imagen(es)${normal ? ", la galería, los textos" : ""} y el precio${proyecto.ficha?.precioAntes ? " con el \"antes\" tachado" : ""}. Los GIF y botones que pongas aquí al lado se publican con el producto; revisas y lo activas.</p>
       <label class="est-label-claro">Tienda</label>
       <select id="estTienda" onchange="estElegirTienda(this.value)">
         ${tiendas.map(x => `<option value="${esc(x._id)}" ${x._id === tiendaElegida ? "selected" : ""}>${esc(x.nombre || x.shop)} · ${esc(x.moneda)}</option>`).join("")}
@@ -1772,6 +1934,7 @@ function opcionesTema(t) {
             <p class="est-pl-elegida">Elegida: <b>${plantillaPub ? `product.${esc(plantillaPub)}` : "Predeterminada (product)"}</b>${plantillaPub && !lista.includes(plantillaPub) ? ` <span class="est-hint">(no está en el tema)</span>` : ""}</p>
             <div id="estPlantillaLista" class="est-pl-lista" hidden></div>
           </div>`}
+      ${d && d.seccion && d.seccionVersion && d.seccionVersion < VERSION_SECCION ? `<div class="est-alert warn">La sección <b>CoDropX landing</b> de este tema es una versión vieja: los GIF y botones que pones en CoDropX no se van a ver. <a href="#" onclick="goTo('integraciones'); return false;">Copia la nueva en Integraciones</a> y pégala encima de la que tienes (una sola vez).</div>` : ""}
       ${d && d.seccion === false ? `<div class="est-alert warn">Tu tema todavía no tiene la sección <b>CoDropX landing</b>: instálala una vez desde <a href="#" onclick="goTo('integraciones'); return false;">Integraciones → Shopify</a> y agrégala a esa plantilla. Sin ella, las imágenes quedan guardadas en el producto pero no se ven.</div>` : ""}
     ` : `<p class="est-hint">Las imágenes van una debajo de otra dentro de la descripción.</p>`}`;
 }
@@ -1839,6 +2002,7 @@ function pasoPublicar() {
         <span class="est-muted">${L.totalImagenes} imagen(es)</span>
       </div>
       ${vistaPrevia(L)}
+      ${tarjetaCapas(L)}
     </div>
     <div class="est-publicar-lado">
       ${tarjetaPublicar(L)}

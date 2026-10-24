@@ -14,8 +14,34 @@ const parrafos = (t) => String(t || "").split(/\n{2,}|\n/).map(x => x.trim()).fi
 
 const img = (src, alt) => `<img src="${esc(src)}" alt="${esc(alt)}" loading="lazy" style="display:block;width:100%;height:auto;margin:0;border:0">`;
 
+// Número de imagen (1, 2, 3…) de cada capa (GIF/botón) dentro de la landing: el mismo en la vista previa y en Shopify
+export function numerarCapas(capas = [], secciones = [], imagenesPorSeccion = {}, formato = "ban") {
+  const inicio = {};
+  let n = 0;
+  for (const s of secciones) {
+    if (formato === "normal" && s.tipo === "galeria") continue;
+    const k = (imagenesPorSeccion[s.id] || []).length;
+    inicio[s.id] = { desde: n, total: k };
+    n += k;
+  }
+  return (capas || []).map(c => {
+    const i = inicio[c.seccion];
+    if (!i || c.imagenN > i.total) return null;
+    return { ...c, n: i.desde + c.imagenN };
+  }).filter(Boolean);
+}
+
+// Capa encima de una imagen (vista previa: el formulario de Releasit se muestra como un recuadro)
+function capaHtml(c, sel) {
+  const pos = `position:absolute;top:${c.y}%;${c.centrar ? "left:50%;transform:translateX(-50%)" : `left:${c.x}%`};width:${c.ancho}%;`;
+  const marca = `data-capa="${esc(c.id || "")}" class="cdx-capa ${sel ? "sel" : ""}"`;
+  if (c.tipo === "formulario") return `<div ${marca} style="${pos}line-height:1.3;border:2px dashed #1877f2;background:rgba(255,255,255,.85);border-radius:8px;padding:10px;font:600 11px sans-serif;color:#1d4ed8;text-align:center">Formulario de Releasit</div>`;
+  return `<img ${marca} src="${esc(c.src)}" alt="" style="${pos}height:auto;border-radius:${Number(c.redondeo) || 0}px">`;
+}
+
 // secciones: [{ id, tipo, titulo }] en orden · imagenes: { [idSeccion]: [src, ...] }
-export function construirLanding({ formato = "ban", secciones = [], imagenes = {}, textos = null, nombre = "" } = {}) {
+// capas (opcional, solo ban page): [{ n, tipo, src, x, y, ancho, centrar, redondeo }] — ya numeradas
+export function construirLanding({ formato = "ban", secciones = [], imagenes = {}, textos = null, nombre = "", capas = null, capaSel = null } = {}) {
   const normal = formato === "normal";
   const faltan = [];
   const bloques = [];      // { seccion, srcs }
@@ -32,7 +58,17 @@ export function construirLanding({ formato = "ban", secciones = [], imagenes = {
 
   let html;
   if (!normal) {
-    html = `<div class="cdx-landing cdx-ban" style="max-width:600px;margin:0 auto;line-height:0">${bloques.map(imagenesHtml).join("")}</div>`;
+    if (capas) {
+      let n = 0;
+      const conCapas = (b) => b.srcs.map((src, k) => {
+        n++;
+        const encima = capas.filter(c => c.n === n).map(c => capaHtml(c, c.id && c.id === capaSel)).join("");
+        return `<div class="cdx-banner" data-n="${n}" style="position:relative;line-height:0">${img(src, `${nombre} - ${b.seccion.titulo || ""}${b.srcs.length > 1 ? ` ${k + 1}` : ""}`.trim())}${encima}</div>`;
+      }).join("");
+      html = `<div class="cdx-landing cdx-ban" style="max-width:600px;margin:0 auto;line-height:0">${bloques.map(conCapas).join("")}</div>`;
+    } else {
+      html = `<div class="cdx-landing cdx-ban" style="max-width:600px;margin:0 auto;line-height:0">${bloques.map(imagenesHtml).join("")}</div>`;
+    }
     // La primera imagen sirve de foto principal del producto (catálogo, Meta, carrito)
     if (bloques[0]) galeria = [bloques[0].srcs[0]];
   } else {

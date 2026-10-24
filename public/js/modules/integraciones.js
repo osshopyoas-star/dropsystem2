@@ -3,7 +3,25 @@
 // =============================================
 import { registrarRuta } from "./navegacion.js";
 import { escapeHTML } from "../core/utils.js";
-import { SECCION_LIQUID } from "../core/seccion-shopify.js";
+import { SECCION_LIQUID, VERSION_SECCION } from "../core/seccion-shopify.js";
+
+// Estado de la sección "CoDropX landing" en el tema de cada tienda (se lee del tema)
+const temaSeccion = {};
+function estadoSeccion(t) {
+  if (!t.conectada || !(t.permisos || []).includes("read_themes")) return "";
+  const e = temaSeccion[t._id];
+  if (e === undefined) {
+    temaSeccion[t._id] = "cargando";
+    api("GET", `/api/shopify/tiendas/${t._id}/plantillas`).then(d => { temaSeccion[t._id] = d; render(); }).catch(() => { temaSeccion[t._id] = null; render(); });
+    return `<p class="in-sec-estado">Revisando la sección del tema…</p>`;
+  }
+  if (!e || e === "cargando") return e === "cargando" ? `<p class="in-sec-estado">Revisando la sección del tema…</p>` : "";
+  if (e.seccion === false) return `<p class="in-sec-estado mal">⚠ El tema "${esc(e.tema || "")}" no tiene la sección <b>CoDropX landing</b>. Instálala con la guía de abajo.</p>`;
+  if (e.seccionVersion && e.seccionVersion < VERSION_SECCION) return `<p class="in-sec-estado mal">⚠ La sección del tema "${esc(e.tema || "")}" está <b>desactualizada</b>. Copia el código de abajo y pégalo encima del que tienes (Editar código → sections/codropx-landing.liquid).</p>`;
+  if (e.seccion) return `<p class="in-sec-estado ok">✓ Sección CoDropX landing al día en el tema "${esc(e.tema || "")}"</p>`;
+  return "";
+}
+window.inShRevisarSeccion = (id) => { delete temaSeccion[id]; render(); };
 
 const $ = (id) => document.getElementById(id);
 const esc = (v) => escapeHTML(v ?? "");
@@ -162,6 +180,7 @@ function tarjetaShopify() {
       <span class="in-estado ${t.conectada && !t.faltanPermisos.length ? "ok" : ""}">${t.error ? "Con error" : t.faltanPermisos.length ? "Faltan permisos" : "Conectada"}</span>
       <button class="in-btn claro chico" id="inShProbar-${esc(t._id)}" onclick="inShProbar('${esc(t._id)}')"><i data-lucide="refresh-cw"></i> Probar</button>
       <button class="in-btn peligro chico" onclick="inShQuitar('${esc(t._id)}')"><i data-lucide="unplug"></i></button>
+      ${estadoSeccion(t)}
       ${t.error ? `<p class="in-aviso">${esc(t.error)}</p>` : t.faltanPermisos.length ? `<p class="in-aviso">Faltan permisos: ${t.faltanPermisos.map(esc).join(", ")}. Agrégalos en la app del Dev Dashboard, publica una versión nueva (Release) y apruébala en la tienda; luego dale a Probar.</p>` : ""}
     </div>`).join("");
 
@@ -194,9 +213,10 @@ function guiaSeccion() {
     <summary>Poner tus landings en la plantilla del tema (una sola vez por tienda)</summary>
     <ol>
       <li>Si ya conectaste la tienda antes, agrega el permiso <code>read_themes</code> a tu app en el Dev Dashboard (Versions → Access scopes), dale <b>Release</b> y aprueba la actualización en la tienda. Luego aquí dale <b>Probar</b>.</li>
-      <li>En Shopify: <b>Tienda online → Temas → … → Editar código</b>. En la carpeta <b>Sections</b> dale <b>Agregar nueva sección</b>, ponle de nombre <code>codropx-landing</code> y reemplaza todo lo que trae por el código de abajo. Guarda.</li>
-      <li>En <b>Personalizar</b>, abre (o crea) la plantilla de producto que usas para tus ban pages. Agrega la sección <b>CoDropX landing</b>. Dentro de ella, con <b>Agregar bloque</b>, pones tus botones y GIF encima de las imágenes, igual que en el Constructor DropHouse: <b>Botón o GIF encima</b> (eliges en qué imagen va, el tamaño y la posición; con "Es el botón de Releasit" abre el formulario) y <b>Formulario de Releasit</b>. Guarda.</li>
-      <li>En CoDropX, al publicar elige esa plantilla. Cada producto nuevo sale con sus imágenes en esa sección, en orden.</li>
+      <li>En Shopify: <b>Tienda online → Temas → … → Editar código</b>. En la carpeta <b>Sections</b> dale <b>Agregar nueva sección</b>, ponle de nombre <code>codropx-landing</code> y reemplaza todo lo que trae por el código de abajo. Guarda. <b>Si ya la tenías</b>, abre <code>codropx-landing.liquid</code> y pega el código nuevo encima (versión ${VERSION_SECCION}).</li>
+      <li>En <b>Personalizar</b>, abre (o crea) <b>una</b> plantilla de producto para tus ban pages (ej. <code>ban-page</code>) y agrégale la sección <b>CoDropX landing</b>. Guarda. Esa misma plantilla sirve para todos tus productos.</li>
+      <li>Los <b>GIF, botones de Releasit y el formulario</b> de cada producto los pones en CoDropX → Desarrollo → <b>Publicar</b> (tocando en el celular dónde va cada uno). Se guardan en el producto, así que no tienes que crear una plantilla por producto.</li>
+      <li>Si quieres un botón igual en todos tus productos, todavía puedes ponerlo como bloque dentro de la sección (<b>Botón o GIF encima</b> / <b>Formulario de Releasit</b>).</li>
     </ol>
     <div class="in-acciones">
       <button class="in-btn" onclick="inCopiarSeccion()"><i data-lucide="copy"></i> Copiar código de la sección</button>

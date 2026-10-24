@@ -9,6 +9,7 @@
 // =============================================
 import mongoose from "mongoose";
 import { cifrar, descifrar } from "./rutas-meta.js";
+import { VERSION_SECCION, versionDeSeccion } from "./public/js/core/seccion-shopify.js";
 
 export const API_VERSION = () => process.env.SHOPIFY_API_VERSION || "2026-01";
 export const PERMISOS = ["write_products", "write_files"];
@@ -28,7 +29,7 @@ const tiendaSchema = new mongoose.Schema({
   expira: { type: Date, default: null },
   permisos: { type: [String], default: [] },
   error: { type: String, default: "" },
-  definiciones: { type: Boolean, default: false },  // ya se crearon los metacampos de CoDropX
+  definiciones: { type: mongoose.Schema.Types.Mixed, default: false },  // cuántos metacampos de CoDropX ya se crearon
   plantillas: { type: mongoose.Schema.Types.Mixed, default: {} },   // última plantilla usada: { ban: "cdx-ban", normal: "" }
   creado: { type: Date, default: Date.now },
   actualizado: { type: Date, default: Date.now }
@@ -179,11 +180,12 @@ const numeroGid = (gid) => String(gid || "").split("/").pop();
 export const METACAMPOS = [
   { key: "landing", name: "CoDropX · imágenes de la landing", type: "list.file_reference", validations: [{ name: "file_type_options", value: JSON.stringify(["Image"]) }] },
   { key: "secciones", name: "CoDropX · textos de las secciones", type: "json" },
-  { key: "formato", name: "CoDropX · formato (ban o normal)", type: "single_line_text_field" }
+  { key: "formato", name: "CoDropX · formato (ban o normal)", type: "single_line_text_field" },
+  { key: "capas", name: "CoDropX · GIF y botones encima", type: "json" }
 ];
 
 async function asegurarDefiniciones(t) {
-  if (t.definiciones) return;
+  if (Number(t.definiciones) >= METACAMPOS.length || (t.definiciones === true && METACAMPOS.length <= 3)) return;   // los nuevos se crean solos
   for (const m of METACAMPOS) {
     const d = await gql(t, `mutation($definition: MetafieldDefinitionInput!) {
       metafieldDefinitionCreate(definition: $definition) { createdDefinition { id } userErrors { field message code } }
@@ -191,7 +193,8 @@ async function asegurarDefiniciones(t) {
     const errs = (d.metafieldDefinitionCreate?.userErrors || []).filter(e => e.code !== "TAKEN" && !/taken|already|en uso|ya existe/i.test(e.message));
     if (errs.length) throw new ErrorShopify(`Shopify: ${errs.map(e => e.message).join("; ").slice(0, 300)}`, 400);
   }
-  t.definiciones = true;
+  t.definiciones = METACAMPOS.length;
+  t.markModified?.("definiciones");
   if (typeof t.save === "function") await t.save();
 }
 
@@ -209,6 +212,14 @@ export async function plantillasTema(t) {
     archivos.push(...(m.theme?.files?.nodes || []).map(f => f.filename));
     pagina = m.theme?.files?.pageInfo;
   }
+  // Versión de la sección instalada (para avisar si hay que pegar la nueva)
+  let seccionVersion = null;
+  if (archivos.includes("sections/codropx-landing.liquid")) {
+    try {
+      const v = await gql(t, `query($id: ID!) { theme(id: $id) { files(filenames: ["sections/codropx-landing.liquid"], first: 1) { nodes { body { ... on OnlineStoreThemeFileBodyText { content } } } } } }`, { id: tema.id });
+      seccionVersion = versionDeSeccion(v.theme?.files?.nodes?.[0]?.body?.content || "") || 1;
+    } catch (e) { console.warn("No se pudo leer la sección del tema:", e.message); }
+  }
   const plantillas = archivos
     .map(f => (f.match(/^templates\/product(?:\.([^/]+))?\.(json|liquid)$/) || []))
     .filter(m => m.length)
@@ -217,6 +228,7 @@ export async function plantillasTema(t) {
     .sort((a, b) => (a === "" ? -1 : b === "" ? 1 : a.localeCompare(b)));
   return {
     tema: tema.name, plantillas, seccion: archivos.includes("sections/codropx-landing.liquid"),
+    seccionVersion, versionActual: VERSION_SECCION,
     // Editor del tema abierto en las plantillas de producto (para crear una nueva)
     editorUrl: `https://admin.shopify.com/store/${t.shop}/themes/${String(tema.id).split("/").pop()}/editor?template=product`
   };
@@ -259,7 +271,8 @@ export async function guardarProducto(t, { productoId, titulo, html, media, prec
     }`, { metafields: [
       { ownerId: producto.id, namespace: "codropx", key: "landing", type: "list.file_reference", value: JSON.stringify(metacampos.imagenes) },
       { ownerId: producto.id, namespace: "codropx", key: "secciones", type: "json", value: JSON.stringify(metacampos.secciones) },
-      { ownerId: producto.id, namespace: "codropx", key: "formato", type: "single_line_text_field", value: metacampos.formato }
+      { ownerId: producto.id, namespace: "codropx", key: "formato", type: "single_line_text_field", value: metacampos.formato },
+      { ownerId: producto.id, namespace: "codropx", key: "capas", type: "json", value: JSON.stringify(metacampos.capas || []) }
     ] });
     erroresUsuario(d.metafieldsSet);
   }

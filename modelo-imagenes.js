@@ -15,6 +15,7 @@ const imagenSchema = new mongoose.Schema({
   ancho: Number,
   alto: Number,
   origen: { type: String, default: "subida" },    // subida (Gemini, a mano) | ia (generada en CoDropX)
+  capa: { type: Boolean, default: false },         // GIF o botón que va ENCIMA de una imagen (no es una imagen de la landing)
   subidas: { type: mongoose.Schema.Types.Mixed, default: {} },   // { [tiendaId]: url en el CDN de Shopify }
   creado: { type: Date, default: Date.now }
 });
@@ -23,6 +24,8 @@ export const ImagenLanding = mongoose.model("ImagenLanding", imagenSchema);
 
 export const MAX_IMAGEN_BYTES = 3 * 1024 * 1024;
 export const MAX_POR_SECCION = 6;
+export const MAX_CAPA_BYTES = 6 * 1024 * 1024;   // GIF animados: no se comprimen (se perdería la animación)
+export const MAX_CAPAS = 12;
 
 // Revisa que de verdad sea una imagen (por los primeros bytes, no por lo que diga el texto)
 export function leerDataUrl(dataUrl) {
@@ -35,7 +38,19 @@ export function leerDataUrl(dataUrl) {
   return { tipo, datos: buf };
 }
 
-export function tipoDeBytes(buf) {
+// GIF o PNG con transparencia, tal cual (sin comprimir)
+export function leerDataUrlCapa(dataUrl) {
+  const m = String(dataUrl || "").match(/^data:(image\/(?:jpeg|png|webp|gif));base64,([A-Za-z0-9+/=\s]+)$/);
+  if (!m) return null;
+  const buf = Buffer.from(m[2], "base64");
+  if (buf.length < 30 || buf.length > MAX_CAPA_BYTES) return null;
+  const tipo = tipoDeBytes(buf, true);
+  if (!tipo) return null;
+  return { tipo, datos: buf };
+}
+
+export function tipoDeBytes(buf, conGif = false) {
+  if (conGif && buf && buf.length >= 6 && /^GIF8[79]a$/.test(buf.slice(0, 6).toString("ascii"))) return "image/gif";
   if (!buf || buf.length < 100) return null;
   if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return "image/jpeg";
   if (buf.slice(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return "image/png";
@@ -44,5 +59,5 @@ export function tipoDeBytes(buf) {
 }
 
 export const metaImagen = (x) => ({
-  _id: String(x._id), rama: x.rama, seccion: x.seccion, origen: x.origen || "subida", ancho: x.ancho || null, alto: x.alto || null, bytes: x.bytes || 0, creado: x.creado
+  _id: String(x._id), rama: x.rama, seccion: x.seccion, origen: x.origen || "subida", capa: !!x.capa, tipo: x.tipo || "", ancho: x.ancho || null, alto: x.alto || null, bytes: x.bytes || 0, creado: x.creado
 });

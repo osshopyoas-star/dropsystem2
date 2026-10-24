@@ -5242,3 +5242,31 @@ body.fz-sin-scroll { overflow: hidden; }
 .ts-dec-meta { border: 0; background: #eef4ff; color: #1d4ed8; font: inherit; font-size: 11px; font-weight: 700; border-radius: 6px; padding: 4px 8px; cursor: pointer; text-align: left; }
 .ts-dec-meta:hover { background: #dbe7ff; }
 .ts-dec-alerta { color: #b45309 !important; font-weight: 700; }
+
+/* ===== Publicar: GIF y botones encima (por producto) ===== */
+.est-phone-pantalla .cdx-banner { cursor: crosshair; }
+.est-phone-pantalla .cdx-capa { cursor: pointer; }
+.est-phone-pantalla .cdx-capa.sel { outline: 2px dashed #1877f2; outline-offset: 2px; }
+.est-capas { margin-top: 14px; border-top: 1px solid #e2e8f0; padding-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.est-capas h4 { margin: 0; font-size: 15px; }
+.est-capa { display: flex; gap: 10px; align-items: flex-start; border: 1px solid #e2e8f0; border-radius: 10px; padding: 8px; background: #f8fafc; color: #0f172a; cursor: pointer; }
+.est-capa b { color: #0f172a; }
+.est-capa.sel { border-color: #1877f2; background: #eef4ff; }
+.est-capa > img, .est-capa-form { width: 48px; height: 48px; object-fit: contain; border-radius: 6px; background: repeating-conic-gradient(#e2e8f0 0% 25%, #fff 0% 50%) 50% / 12px 12px; flex: none; }
+.est-capa-form { display: grid; place-items: center; font-size: 11px; font-weight: 800; color: #1d4ed8; background: #dbeafe; }
+.est-capa-datos { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.est-capa-fila { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; }
+.est-capa-fila select { height: 30px; border: 1px solid #cbd5e1; border-radius: 7px; font: inherit; font-size: 12.5px; max-width: 100%; min-width: 0; flex: 1 1 160px; background: #fff; color: #0f172a; padding: 0 6px; }
+.est-capa-fila select option { color: #0f172a; background: #fff; }
+.est-capa-n { font-size: 12px; color: #475569; background: #fff; border: 1px solid #e2e8f0; border-radius: 999px; padding: 2px 8px; }
+.est-capa-n .rojo { color: #dc2626; }
+.est-capa-ctrl { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px 12px; font-size: 12px; color: #334155; min-width: 0; }
+.est-capa-ctrl label { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.est-capa-ctrl input[type=range] { flex: 1; min-width: 0; accent-color: #1877f2; }
+.est-capa-ctrl em { font-style: normal; font-weight: 700; min-width: 36px; text-align: right; }
+.est-capa-check { cursor: pointer; }
+.est-capas-add { display: flex; gap: 6px; flex-wrap: wrap; }
+.est-capas-add .est-btn { cursor: pointer; }
+.in-sec-estado { margin: 6px 0 0; font-size: 12.5px; color: #64748b; flex-basis: 100%; }
+.in-sec-estado.ok { color: #15803d; }
+.in-sec-estado.mal { color: #b45309; font-weight: 600; }
