@@ -283,7 +283,7 @@ ${lista([...ESTILOS_BASE_USADOS, ...usados])}
 TAREA: Propón 3 estilos visuales DISTINTOS entre sí para la landing de este producto, pensados para su cliente.
 Cada estilo es una identidad completa de CAMPAÑA: el mundo donde pasan las fotos (lugar, ambiente y luz, como una campaña de marca grande), colores con código hex, tipografía, recursos gráficos que la hacen reconocible, tipo de tarjetas, personas y tono.
 Ejemplo del nivel que quiero (otro producto, no lo copies): mundo = "campaña de marca de gimnasio: deportistas reales con piel con textura y un poco de sudor, luz dramática de gimnasio o de estadio de noche"; recursos = "líneas diagonales de velocidad en cian, titulares ligeramente inclinados, leve brillo cian en los acentos".
-Lo que siempre se mantiene en cualquier estilo: titular de dos líneas con dos colores, precio protagonista con el "antes" tachado, sello de descuento y barra de confianza abajo.
+Lo que siempre se mantiene en cualquier estilo: titular de dos líneas con dos colores y barra de confianza abajo; en las imágenes que llevan precio (portada, paquetes y cierre), precio protagonista con el "antes" tachado y sello de descuento.
 Recuerda: venta directa (empuja a comprar), no editorial. El rojo vende si encaja con el producto.
 Acabado que pide el dueño (los 3 estilos lo respetan): ${acabadoTexto(p)}${coloresFijosTexto(p)}
 
@@ -345,7 +345,7 @@ export function construirBloqueEstilo(p) {
     ? `Crea una imagen cuadrada 1:1 (1080x1080) para la página de producto de una tienda Shopify en ${pais.nombre}, en español. Poco texto dentro de la imagen: titular corto y etiquetas; el texto largo va al lado, en Shopify.`
     : `Crea una imagen vertical 9:16 (1080x1920) para una landing page de ecommerce en ${pais.nombre}, en español.`}
 TIPO DE IMAGEN: FOTOGRAFÍA REAL ${e.mundo ? `como de ${limpio(e.mundo, 400)}` : `de ${e.tipo_foto || "producto y estilo de vida"}, como de campaña publicitaria de una marca grande`}: personas reales, piel con textura real, luz con intención (no plana). PROHIBIDO: dibujo, ilustración, caricatura, animación o 3D.
-DISEÑO GRÁFICO (encima de la foto): fondo ${fondo || "oscuro"}; titulares en ${limpiarFuentes(e.tipografia) || "letra sans extra gruesa"}, una línea en ${color1 || "blanco"} y otra en ${color2 || "color de acento"}; tarjetas ${tarjetas || "con bordes redondeados"}; íconos de línea en ${acento || "color de acento"}; ${normal ? `cuando la imagen lleve precio, va dentro de una caja ${caja || "de color de acento"}` : `precio grande dentro de una caja ${caja || "de color de acento"}; sello de descuento circular`}${e.recursos ? `; recursos que se repiten en todas las imágenes: ${limpio(e.recursos, 300)}` : ""}.
+DISEÑO GRÁFICO (encima de la foto): fondo ${fondo || "oscuro"}; titulares en ${limpiarFuentes(e.tipografia) || "letra sans extra gruesa"}, una línea en ${color1 || "blanco"} y otra en ${color2 || "color de acento"}; tarjetas ${tarjetas || "con bordes redondeados"}; íconos de línea en ${acento || "color de acento"}; ${normal ? `cuando la imagen lleve precio, va dentro de una caja ${caja || "de color de acento"}` : `cuando la imagen lleve precio (solo portada, paquetes y cierre), va grande dentro de una caja ${caja || "de color de acento"} con sello de descuento circular`}${e.recursos ? `; recursos que se repiten en todas las imágenes: ${limpio(e.recursos, 300)}` : ""}.
 ${acabadoTexto(p)}
 REGLA: el producto es el protagonista, grande y bien visible. Ningún texto lo tapa. Estilo de venta directa, no editorial.
 PRODUCTO: usa EXACTAMENTE el producto de la foto adjunta: ${r.descripcionFisica || f.descripcion || p.nombre}.${e.producto_en_uso ? ` En uso: ${limpio(e.producto_en_uso, 500)}.` : ""}${f.variantes ? ` Variantes que existen: ${limpio(f.variantes, 200)}.` : ""}${noTiene ? ` NO tiene ni trae: ${noTiene}.` : ""} No agregues piezas, logos ni marcas. Cuando se está usando, lleva solo las piezas que van puestas (un solo accesorio a la vez); los repuestos sueltos van solo en la imagen de "qué incluye".
@@ -409,6 +409,10 @@ Responde SOLO este JSON válido:
 // ---------- Paso 4b: prompt de UNA sección ----------
 const NOMBRE_FORMATO = { "9:16": "vertical 9:16 (1080x1920)", "1:1": "cuadrada 1:1 (1080x1080)", "4:5": "vertical 4:5 (1080x1350)", "16:9": "horizontal 16:9 (1920x1080)" };
 
+// Secciones que llevan precio. En el resto el precio no va: repetido en cada imagen le quita espacio al mensaje.
+export const SECCIONES_CON_PRECIO = new Set(["oferta", "moda_portada", "moda_precio_tallas", "paquetes", "oferta_cierre"]);
+export const llevaPrecio = (tipo, normal = false) => normal ? ["paquetes", "oferta_cierre", "moda_precio_tallas"].includes(tipo) : SECCIONES_CON_PRECIO.has(tipo);
+
 export function promptSeccion(p, seccion, avatar, otras = []) {
   const tipo = CATALOGO_SECCIONES[seccion.tipo];
   const normal = esNormal(p);
@@ -420,6 +424,7 @@ export function promptSeccion(p, seccion, avatar, otras = []) {
   const diseno = variante ? `\nDISEÑO OBLIGATORIO DE ESTA SECCIÓN (Mi plantilla: "${variante.nombre}"): ${variante.desc}` : "";
   const galeria = normal && seccion.tipo === "galeria";
   const deslizador = normal && seccion.tipo === "antes_despues";
+  const conPrecio = llevaPrecio(seccion.tipo, normal);
   return `${contextoProducto(p)}
 
 ${avatar ? `${bloqueAvatar(avatar, "ESTA IMAGEN LE HABLA AL AVATAR")}
@@ -470,7 +475,7 @@ FOTOGRAFÍA REAL (no dibujo, no animación).
 COMPOSICIÓN: [una ESCENA concreta: quién (edad, aspecto, ropa), haciendo qué acción exacta, en qué lugar, desde qué ángulo de cámara, con qué luz y qué emoción. El producto PUESTO o EN USO, grande y bien visible, y di de qué color/variante es en esta imagen. Luego los elementos gráficos y dónde va cada uno (arriba, a la izquierda, abajo…)]
 TEXTOS:
 - Titular: "[línea 1]" (color, tamaño) / "[línea 2]" (color, tamaño: di cuál es lo más grande de la imagen)
-- [subtítulo, tarjetas o chips con ícono, etiquetas${normal ? "" : ", precio (con 'antes' tachado y, si es pack, el precio por unidad), sello, barra inferior"}: cada texto entre comillas, con su color, tamaño y posición]
+- [subtítulo, tarjetas o chips con ícono, etiquetas${conPrecio ? ", precio (con 'antes' tachado y, si es pack, el precio por unidad), sello de descuento" : ""}${normal ? "" : ", barra inferior"}: cada texto entre comillas, con su color, tamaño y posición]
 ZONA LIBRE: [si el dueño debe pegar algo después (GIF, logo, reseñas, transportadoras), di DÓNDE queda una zona lisa del mismo fondo, SIN dibujar recuadros, círculos ni marcos; si no aplica escribe "ninguna"]`}
 ${normal && !galeria ? `
 Al final agrega el texto que va AL LADO de la imagen en Shopify (sección "Imagen con texto"), con este formato:
@@ -479,9 +484,10 @@ Título: "[máximo 8 palabras]"
 Texto: "[2 o 3 frases cortas, vendedoras, sin repetir lo que ya dice la imagen]"` : ""}
 
 Reglas para esta imagen:
-- Titulares cortos (máximo 4 o 5 palabras por línea). Poco texto. El producto grande y sin tapar.${normal ? `
-- Landing normal: NO pongas el precio en la imagen, salvo en "paquetes" y "oferta_cierre".` : ""}
-- Si llevas precios, úsalos exactamente así: ${formatoPrecio(p.ficha?.precio, p.pais) || "(sin precio)"}${p.ficha?.precioAntes ? ` y antes ${formatoPrecio(p.ficha.precioAntes, p.pais)}` : ""}${porcentajeDescuento(p.ficha?.precioAntes, p.ficha?.precio) ? ` (${porcentajeDescuento(p.ficha.precioAntes, p.ficha.precio)}% de descuento)` : ""}. No inventes otros.
+- Titulares cortos (máximo 4 o 5 palabras por línea). Poco texto. El producto grande y sin tapar.${conPrecio ? `
+- Esta imagen SÍ lleva el precio, protagonista.` : `
+- Esta imagen NO lleva precio: nada de precio, "antes" tachado, sello de descuento ni porcentaje (aunque el bloque de estilo hable de la caja del precio). El precio solo va en ${normal ? "Paquetes y Oferta de cierre" : "la portada, Paquetes y Oferta de cierre"}. La barra de confianza${normal ? "" : " abajo"} sí puede ir.`}
+${conPrecio ? `- Usa los precios exactamente así: ${formatoPrecio(p.ficha?.precio, p.pais) || "(sin precio)"}${p.ficha?.precioAntes ? ` y antes ${formatoPrecio(p.ficha.precioAntes, p.pais)}` : ""}${porcentajeDescuento(p.ficha?.precioAntes, p.ficha?.precio) ? ` (${porcentajeDescuento(p.ficha.precioAntes, p.ficha.precio)}% de descuento)` : ""}. No inventes otros.` : `- Ningún número de precio en esta imagen.`}
 - Solo promesas que sean verdad según la ficha.
 - Recuerda decir lo que el producto NO tiene si hay riesgo de que la IA lo invente en esta escena.`;
 }
