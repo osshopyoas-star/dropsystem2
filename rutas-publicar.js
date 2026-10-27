@@ -312,18 +312,8 @@ export function registrarRutasPublicar(app, { cargar, cargarRama, guardarRama, a
         ...actual, publicaciones: { ...(actual.publicaciones || {}), [tid]: publicacion }
       }));
 
-      // El producto de la Base queda "Listo para testear" en Mis testeos (si aún no estaba en testeo)
-      let listo = false;
-      if (x.p.productoId) {
-        try {
-          const Producto = mongoose.model("Producto");
-          const u = await Producto.updateOne(
-            { _id: x.p.productoId, owner: req.user.uid, $or: [{ resultado: "" }, { resultado: null }, { resultado: { $exists: false } }] },
-            { $set: { resultado: "listo", "testeo.inicio": null, "testeo.fin": null } }
-          );
-          listo = (u.modifiedCount ?? u.nModified ?? 0) > 0;
-        } catch (e) { console.error("No se pudo marcar listo para testear:", e.message); }
-      }
+      // Ya no pasa solo a "Listo para testear": eso lo haces con el botón "Pasar a testeo" cuando terminas todo
+      const listo = false;
       res.json({ publicacion, nuevo: r.nuevo, subidas: pendientes.length, rama, listo });
     } catch (err) {
       if (err instanceof ErrorShopify) return res.status(err.status).json({ error: err.message });

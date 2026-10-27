@@ -54,6 +54,7 @@ const proyectoSchema = new mongoose.Schema({
   guiones: { type: [Mixed], default: [] },     // { id, avatar, referencia, link, nota, guion, ganchos[], historiaReal, verificar[] }
   notas: { type: Mixed, default: null },
   vendio: { type: Boolean, default: false },
+  listo: { type: Date, default: null },         // cuándo le diste "Pasar a testeo"
   creado: { type: Date, default: Date.now },
   actualizado: { type: Date, default: Date.now }
 });
@@ -289,7 +290,7 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
       const filtro = { owner: req.user.uid };
       if (req.query.productoId && idValido(req.query.productoId)) filtro.productoId = req.query.productoId;
       const lista = await Proyecto.find(filtro)
-        .select("nombre pais formato tipo paso pasosRamas productoId origen dropiId vendio estilo.nombre actualizado creado")
+        .select("nombre pais formato tipo paso pasosRamas productoId origen dropiId vendio listo estilo.nombre actualizado creado")
         .sort({ actualizado: -1 })
         .limit(100);
       res.json(lista);
@@ -352,6 +353,67 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
   app.get("/api/proyectos/:id", async (req, res) => {
     const p = await cargar(req, res); if (!p) return;
     res.json(p);
+  });
+
+  // ---------- Terminado → "Listo para testear" ----------
+  // Resumen para montar la campaña: por avatar, dónde quedó publicado, cuántas imágenes y creativos, y los copys de Meta
+  const kitDe = (p) => {
+    const o = plano(p);
+    const ramas = Object.entries(o.ramas || {}).filter(([av]) => AVATARES_VALIDOS.includes(av)).sort(([a], [b]) => a.localeCompare(b));
+    return {
+      _id: o._id, nombre: o.nombre, pais: o.pais || "CO", formato: o.formato || "ban", tipo: o.tipo || "producto",
+      precio: Number(o.ficha?.precio) || null, precioAntes: Number(o.ficha?.precioAntes) || null,
+      avatares: ramas.map(([av, r]) => {
+        const a = (o.avatares || []).find(x => x.id === av) || {};
+        return {
+          id: av, quien: String(a.quien || "").slice(0, 200), angulo: String(a.angulo || "").slice(0, 200),
+          publicaciones: Object.values(r.publicaciones || {}).map(x => ({
+            tienda: x.tienda, dominio: x.dominio || "", handle: x.handle || "", adminUrl: x.adminUrl || "",
+            estado: x.estado || "", imagenes: Number(x.imagenes) || 0, fecha: x.fecha || null
+          })),
+          secciones: (r.secciones || []).length,
+          ads: (r.ads || []).length, adsHechos: (r.ads || []).filter(x => x.hecha).length,
+          guiones: (r.guiones || []).length,
+          copys: r.copys?.meta?.length ? r.copys.meta : [],
+          tiktok: r.copys?.tiktok || ""
+        };
+      })
+    };
+  };
+
+  app.get("/api/proyectos/:id/kit", async (req, res) => {
+    try {
+      const p = await cargar(req, res); if (!p) return;
+      res.json(kitDe(p));
+    } catch (err) {
+      console.error("Error leyendo el kit:", err);
+      res.status(500).json({ error: "No se pudo cargar" });
+    }
+  });
+
+  // Botón "Pasar a testeo": el producto queda LISTO en Mis testeos con la fecha de hoy.
+  // Si el proyecto no viene de la Base, se crea el producto en la Base para que aparezca en Mis testeos.
+  app.post("/api/proyectos/:id/listo", async (req, res) => {
+    try {
+      const p = await cargar(req, res); if (!p) return;
+      const Producto = mongoose.model("Producto");
+      let prod = p.productoId ? await Producto.findOne({ _id: p.productoId, owner: req.user.uid }) : null;
+      if (!prod) {
+        prod = await Producto.create({ owner: req.user.uid, nombre: p.nombre, pais: p.pais || "CO", dropiId: p.dropiId || "", origen: p.origen || "desarrollo", estado: "desarrollo", fecha: new Date() });
+        p.productoId = prod._id;
+      }
+      p.listo = new Date();
+      await p.save();
+      const yaEnPauta = ["testeando", "winner", "perdedor", "inconcluso"].includes(prod.resultado);
+      if (!yaEnPauta) {
+        const t = { ...(prod.toObject().testeo || {}), inicio: null, fin: null, listo: new Date() };
+        prod = await Producto.findOneAndUpdate({ _id: prod._id, owner: req.user.uid }, { $set: { resultado: "listo", testeo: t } }, { new: true });
+      }
+      res.json({ ok: true, producto: prod, yaEnPauta, kit: kitDe(p) });
+    } catch (err) {
+      console.error("Error pasando a testeo:", err);
+      res.status(500).json({ error: "No se pudo pasar a testeo" });
+    }
   });
 
   app.put("/api/proyectos/:id", async (req, res) => {

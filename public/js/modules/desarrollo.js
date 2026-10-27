@@ -1997,6 +1997,46 @@ function tarjetaPublicar(L) {
   </div>`;
 }
 
+// Al final de todo: "Pasar a testeo". Revisa los dos avatares y deja el producto LISTO en Mis testeos con la fecha.
+function tarjetaPasarTesteo() {
+  const ramas = Object.entries(proyecto.ramas || {}).filter(([k]) => /^[AB]$/.test(k)).sort(([a], [b]) => a.localeCompare(b));
+  const filas = ramas.map(([av, r]) => {
+    const pubs = Object.values(r.publicaciones || {});
+    const copys = r.copys?.meta?.length || 0;
+    const ads = (r.ads || []).length, guiones = (r.guiones || []).length;
+    const item = (ok, txt) => `<span class="est-chk ${ok ? "ok" : "falta"}">${ok ? "✓" : "✗"} ${txt}</span>`;
+    return `<div class="est-pt-fila"><b>Avatar ${av}</b>
+      ${item(pubs.length, pubs.length ? `En Shopify (${pubs.map(x => esc(x.tienda)).join(", ")})` : "Sin publicar en Shopify")}
+      ${item(copys, copys ? `${copys} copys de Meta` : "Sin copys de Meta")}
+      ${item(ads || guiones, `${ads} creativo${ads === 1 ? "" : "s"} · ${guiones} guion${guiones === 1 ? "" : "es"}`)}
+    </div>`;
+  }).join("");
+  const listo = proyecto.listo;
+  return `
+  <div class="est-card est-pasar">
+    <div class="est-card-row"><h3><i data-lucide="flask-conical"></i> Pasar a testeo</h3>${listo ? `<span class="est-chip-ok">Listo · ${esc(fecha(listo))}</span>` : ""}</div>
+    <p class="est-muted">Cuando termines los dos avatares (landing en Shopify, creativos y copys), dale aquí. Queda <b>LISTO PARA TESTEAR</b> en Mis testeos con la fecha, y ahí se ven los links de Shopify y los copys para montar la campaña.</p>
+    ${filas || `<p class="est-hint">Todavía no hay avatares trabajados.</p>`}
+    <div class="est-sec-actions">
+      <button id="estBtnTesteo" class="est-btn primary" onclick="estPasarTesteo()"><i data-lucide="${listo ? "refresh-cw" : "flask-conical"}"></i> ${listo ? "Marcar listo otra vez (hoy)" : "Pasar a testeo"}</button>
+      ${listo ? `<button class="est-btn" onclick="goTo('testeos')"><i data-lucide="arrow-right"></i> Ver en Mis testeos</button>` : ""}
+    </div>
+  </div>`;
+}
+window.estPasarTesteo = () => conCarga("estBtnTesteo", "Pasando a testeo...", async () => {
+  const ramas = Object.entries(proyecto.ramas || {}).filter(([k]) => /^[AB]$/.test(k));
+  const faltan = ramas.flatMap(([av, r]) => [
+    !Object.keys(r.publicaciones || {}).length ? `Avatar ${av}: no está publicado en Shopify` : null,
+    !r.copys?.meta?.length ? `Avatar ${av}: no tiene copys de Meta` : null
+  ]).filter(Boolean);
+  if (faltan.length && !confirm(`Te falta:\n- ${faltan.join("\n- ")}\n\n¿Pasarlo a testeo igual?`)) return;
+  const r = await api("POST", `/api/proyectos/${proyecto._id}/listo`);
+  proyecto.listo = new Date().toISOString();
+  if (r.producto?._id) proyecto.productoId = r.producto._id;
+  avisar(r.yaEnPauta ? "Ya estaba en pauta en Mis testeos; guardé la fecha de terminado ✓" : "Quedó LISTO PARA TESTEAR en Mis testeos ✓");
+  if (tab === 6) renderPaso();
+});
+
 window.estElegirTienda = (id) => { tiendaElegida = id; plantillaPub = null; renderPaso(); };
 
 // Dónde van las imágenes: en la sección "CoDropX landing" de una plantilla del tema, o en la descripción
@@ -2102,7 +2142,7 @@ window.estPublicar = () => conCarga("estBtnPublicar", "Subiendo a Shopify...", a
     : publicacion.canal ? " · Activo en la Tienda online"
     : publicacion.canalMotivo === "permiso" ? " · Falta el permiso write_publications: actívalo a mano en Shopify (Canales de venta → Tienda online)"
     : " · Revisa en Shopify que esté en el canal Tienda online";
-  avisar((nuevo ? (estadoPub === "borrador" ? `Borrador creado en ${publicacion.tienda} ✓` : `Producto creado en ${publicacion.tienda} ✓`) : `Actualizado en ${publicacion.tienda} ✓`) + canalTxt + (listo ? " · Quedó en Mis testeos como LISTO para testear" : ""));
+  avisar((nuevo ? (estadoPub === "borrador" ? `Borrador creado en ${publicacion.tienda} ✓` : `Producto creado en ${publicacion.tienda} ✓`) : `Actualizado en ${publicacion.tienda} ✓`) + canalTxt + (listo ? " · Quedó en Mis testeos como LISTO para testear" : " · Cuando termines todo, dale \"Pasar a testeo\" abajo"));
   if (tab === 6) renderPaso();
 });
 
@@ -2121,6 +2161,7 @@ function pasoPublicar() {
     </div>
     <div class="est-publicar-lado">
       ${tarjetaPublicar(L)}
+      ${tarjetaPasarTesteo()}
       ${pasoNotas()}
     </div>
   </div>`;

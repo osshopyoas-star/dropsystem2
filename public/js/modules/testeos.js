@@ -28,6 +28,8 @@ let proyectos = new Map();
 let fin = {};   // { CO: { lineas, pauta, config, metaPend }, EC: {...} } de Finanzas
 const meta = { cargando: false, hecho: false, error: "" };
 const filtro = { resultado: "todos", pais: "", buscar: "" };
+const kits = new Map();      // proyectoId → kit para montar la campaña (links de Shopify, copys, creativos) | "cargando" | { error }
+let copias = [];             // textos de los botones "Copiar"
 
 async function api(metodo, url, body) {
   const res = await fetch(url, {
@@ -91,6 +93,8 @@ function render() {
         </button>`).join("")}
     </div>
 
+    ${listosParaMontar()}
+
     ${resumenDecisiones()}
 
     <div class="ts-barra">
@@ -124,6 +128,90 @@ function render() {
   </div>`;
   iconos();
 }
+
+// ---------- LISTOS PARA MONTAR: lo que se terminó en Desarrollo, con todo lo que se necesita para la campaña ----------
+const fechaCorta = (d) => d ? new Date(d).toLocaleDateString("es-CO", { day: "numeric", month: "short", year: "numeric" }) : "";
+const copiar = (texto, etiqueta = "Copiar") => {
+  if (!String(texto || "").trim()) return "";
+  copias.push(String(texto));
+  return `<button class="ts-copiar" onclick="tsCopiar(${copias.length - 1}, this)"><i data-lucide="copy"></i> ${etiqueta}</button>`;
+};
+function listosParaMontar() {
+  copias = [];
+  const listos = productos.filter(p => p.resultado === "listo" && (!filtro.pais || (p.pais || "CO") === filtro.pais))
+    .sort((a, b) => new Date(b.testeo?.listo || 0) - new Date(a.testeo?.listo || 0));
+  if (!listos.length) return "";
+  return `
+  <section class="ts-listos">
+    <div class="ts-listos-head">
+      <h2><i data-lucide="rocket"></i> Listos para montar <span>${listos.length}</span></h2>
+      <small>Terminados en Desarrollo. Aquí está todo para la campaña: país, tienda, links de Shopify de cada avatar, creativos y copys. Al montarla, dale <b>Ya monté la campaña</b>.</small>
+    </div>
+    ${listos.map(tarjetaListo).join("")}
+  </section>`;
+}
+function tarjetaListo(p) {
+  const pr = proyectos.get(String(p._id));
+  let kit = pr ? kits.get(String(pr._id)) : null;
+  if (pr && !kit) {
+    kits.set(String(pr._id), "cargando");
+    api("GET", `/api/proyectos/${pr._id}/kit`)
+      .then(k => { kits.set(String(pr._id), k); const y = window.scrollY; render(); window.scrollTo(0, y); })
+      .catch(e => { kits.set(String(pr._id), { error: e.message }); render(); });
+    kit = "cargando";
+  }
+  const pais = p.pais || "CO";
+  const cuerpo = !pr ? `<p class="ts-kit-nota">No tiene proyecto en Desarrollo.</p>`
+    : kit === "cargando" ? `<p class="ts-kit-nota">Cargando links y copys…</p>`
+    : kit?.error ? `<p class="ts-kit-nota rojo">${esc(kit.error)}</p>`
+    : `<div class="ts-kit-avs">${(kit.avatares || []).map(a => avatarKit(a, pais)).join("") || `<p class="ts-kit-nota">Sin avatares trabajados.</p>`}</div>`;
+  return `
+  <article class="ts-listo">
+    <div class="ts-listo-top">
+      <div>
+        <strong>${esc(p.nombre)}</strong>
+        <small>${PAISES[pais] || esc(pais)} · ${pais === "EC" ? "Ecuador (USD)" : "Colombia (COP)"}${p.testeo?.listo ? ` · Terminado el <b>${esc(fechaCorta(p.testeo.listo))}</b>` : ""}${kit?.precio ? ` · Precio ${formatear(kit.precio, pais)}` : ""}${kit?.formato ? ` · ${kit.formato === "normal" ? "Landing normal" : "Ban page"}${kit.tipo === "moda" ? " (moda)" : ""}` : ""}</small>
+      </div>
+      <div class="ts-listo-acc">
+        ${pr ? `<button class="ts-btn claro chico" onclick="bpAbrirProyecto('${esc(pr._id)}')"><i data-lucide="folder-open"></i> Abrir en Desarrollo</button>` : ""}
+        <button class="ts-btn chico" onclick="tsGuardar('${esc(p._id)}', { resultado: 'testeando' })"><i data-lucide="play"></i> Ya monté la campaña</button>
+      </div>
+    </div>
+    ${cuerpo}
+  </article>`;
+}
+function avatarKit(a, pais) {
+  const pubs = a.publicaciones || [];
+  const links = pubs.length ? pubs.map(x => {
+    const tienda = x.dominio && x.handle ? `https://${x.dominio}/products/${x.handle}` : "";
+    return `<div class="ts-kit-pub">
+      <span><b>${esc(x.tienda)}</b> · ${x.estado === "ACTIVE" ? "Activo" : "Borrador"} · ${x.imagenes} imágenes en la landing</span>
+      <span class="ts-kit-links">
+        ${tienda ? `<a href="${esc(tienda)}" target="_blank" rel="noopener noreferrer"><i data-lucide="external-link"></i> Ver landing</a>${copiar(tienda, "Copiar link")}` : ""}
+        ${x.adminUrl ? `<a href="${esc(x.adminUrl)}" target="_blank" rel="noopener noreferrer"><i data-lucide="store"></i> Shopify</a>` : ""}
+      </span>
+    </div>`;
+  }).join("") : `<p class="ts-kit-nota rojo">No está publicado en Shopify.</p>`;
+  const copys = (a.copys || []).map((c, i) => `
+    <div class="ts-copy">
+      <div class="ts-copy-top"><b>Copy ${i + 1}</b> <small>enfoque ${esc(c.enfoque)}</small></div>
+      <p>${esc(c.texto_principal).replace(/\n/g, "<br>")}</p>
+      ${c.titulo ? `<small>Título: <b>${esc(c.titulo)}</b></small>` : ""}${c.descripcion ? `<small>Descripción: ${esc(c.descripcion)}</small>` : ""}
+      <div class="ts-copy-btns">${copiar(c.texto_principal, "Copiar texto")}${copiar(c.titulo, "Copiar título")}${copiar(c.descripcion, "Copiar descripción")}</div>
+    </div>`).join("");
+  return `
+  <div class="ts-kit-av">
+    <div class="ts-kit-av-top"><span class="ts-av">Avatar ${esc(a.id)}</span>${a.quien ? `<small>${esc(a.quien)}</small>` : ""}</div>
+    ${links}
+    <p class="ts-kit-crea"><i data-lucide="image"></i> ${a.ads} creativo${a.ads === 1 ? "" : "s"} estático${a.ads === 1 ? "" : "s"}${a.adsHechos ? ` (${a.adsHechos} hechos)` : ""} · ${a.guiones} guion${a.guiones === 1 ? "" : "es"} de video</p>
+    ${copys ? `<details class="ts-kit-copys"><summary>Copys para Meta (${a.copys.length})</summary>${copys}</details>` : `<p class="ts-kit-nota rojo">Sin copys de Meta.</p>`}
+  </div>`;
+}
+window.tsCopiar = async (i, btn) => {
+  try { await navigator.clipboard.writeText(copias[i] || ""); }
+  catch { const t = document.createElement("textarea"); t.value = copias[i] || ""; document.body.appendChild(t); t.select(); document.execCommand("copy"); t.remove(); }
+  if (btn) { const o = btn.innerHTML; btn.textContent = "Copiado ✓"; setTimeout(() => { btn.innerHTML = o; iconos(); }, 1200); }
+};
 
 function resumenDecisiones() {
   const activos = enTesteo().filter(p => p.resultado === "testeando" || p.resultado === "winner");

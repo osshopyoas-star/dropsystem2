@@ -62,7 +62,7 @@ const productoSchema = new mongoose.Schema({
   fecha: Date,
   // Mis testeos: resultado del testeo del producto
   resultado: { type: String, default: "" },          // "" | listo | testeando | winner | perdedor | inconcluso
-  testeo: { inicio: Date, fin: Date, avatar: String, nota: String },
+  testeo: { inicio: Date, fin: Date, avatar: String, nota: String, listo: Date },     // listo = cuándo lo terminaste en Desarrollo
   // Análisis de 19 criterios y recursos guardados (anuncios, TikToks, proveedores, competencia)
   analisis: { type: mongoose.Schema.Types.Mixed, default: undefined },
   recursos: { type: [mongoose.Schema.Types.Mixed], default: [] }
@@ -82,7 +82,7 @@ function limpiarTesteo(body = {}, actual = {}) {
   if (body.inicio !== undefined) t.inicio = fecha(body.inicio);
   if (body.avatar !== undefined) t.avatar = AVATARES_TESTEO.includes(body.avatar) ? body.avatar : "";
   if (body.nota !== undefined) t.nota = String(body.nota || "").slice(0, 1000);
-  if (resultado === "listo") t.inicio = null;                               // listo = aún sin pauta
+  if (resultado === "listo") { t.inicio = null; t.listo = t.listo || new Date(); }   // listo = aún sin pauta
   else if (resultado && !t.inicio) t.inicio = new Date();                  // empieza hoy si no tiene fecha
   if (["winner", "perdedor", "inconcluso"].includes(resultado)) t.fin = t.fin || new Date();
   else t.fin = null;
