@@ -554,6 +554,11 @@ function pasoFicha() {
         <button class="est-btn est-calc-btn" onclick="estAbrirCalculadora()"><i data-lucide="calculator"></i> ${f.costeoId ? "Ver costeo en la calculadora" : "Calcular precio y paquetes en la calculadora"}</button>
         <p id="fDescuento" class="est-hint">${descuento ? `Se verá: ${formatoPrecio(f.precio, p.pais)} antes ${formatoPrecio(f.precioAntes, p.pais)} · ${descuento}% de descuento` : "Escribe el precio y el 'antes' para calcular el descuento."}</p>
 
+        <label>¿Para quién es? <small class="est-hint">(quién lo USA; los avatares son quienes lo COMPRAN)</small></label>
+        <select id="fParaQuien" class="est-input">
+          ${[["adultos", "Adultos"], ["bebes", "Bebés (0 a 2 años)"], ["ninos", "Niños (3 a 12 años)"], ["adolescentes", "Adolescentes (13 a 17 años)"], ["familia", "Toda la familia"], ["mascotas", "Mascotas"], ["hogar", "Hogar, carro u objetos (sin persona)"]]
+            .map(([k, t]) => `<option value="${k}" ${(f.paraQuien || "adultos") === k ? "selected" : ""}>${t}</option>`).join("")}
+        </select>
         <label>Medidas reales</label>
         <input id="fMedidas" value="${esc(f.medidas)}" placeholder="Ej: 18 x 11 cm, 1.92 m de alto, 40 cm">
         <label>Lo que NO tiene (para que la IA no lo invente)</label>
@@ -747,6 +752,7 @@ function leerFicha() {
     precio: num("fPrecio"),
     precioAntes: num("fPrecioAntes"),
     medidas: val("fMedidas"),
+    paraQuien: val("fParaQuien") || "adultos",
     noTiene: val("fNoTiene"),
     variantes: val("fVariantes"),
     regalo: val("fRegalo"),

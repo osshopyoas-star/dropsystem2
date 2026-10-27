@@ -87,6 +87,29 @@ CHATS REALES (una burbuja por mensaje, EXACTAMENTE estos ${rs.length}, textuales
 ${rs.map((r, i) => `${i + 1}. "${limpio(r.nombre, 40) || "Cliente"}": "${limpio(r.texto, 200)}"`).join("\n")}`;
 }
 
+// Quién USA el producto (Ficha → "¿Para quién es?"). Los avatares son siempre los adultos que lo COMPRAN.
+export const PARA_QUIEN = {
+  adultos: { usa: "adultos", personas: null },
+  bebes: { usa: "bebés de 0 a 2 años", personas: "un bebé (0 a 2 años) con su mamá o papá" },
+  ninos: { usa: "niños de 3 a 12 años", personas: "un niño o niña de la edad indicada con su mamá, papá o abuelos" },
+  adolescentes: { usa: "adolescentes de 13 a 17 años", personas: "un adolescente de 13 a 17 años en su vida diaria, y su mamá o papá cuando la escena es de compra o regalo" },
+  familia: { usa: "toda la familia", personas: "una familia: adultos y niños juntos" },
+  mascotas: { usa: "mascotas (perros, gatos)", personas: "la mascota con su dueño o dueña" },
+  hogar: { usa: "el hogar, el carro u objetos (no una persona)", personas: null }
+};
+const paraQuienDe = (p) => PARA_QUIEN[p?.ficha?.paraQuien] ? p.ficha.paraQuien : "adultos";
+const esMenor = (p) => ["bebes", "ninos", "adolescentes"].includes(paraQuienDe(p));
+function bloqueParaQuien(p) {
+  const k = paraQuienDe(p);
+  if (k === "adultos") return "";
+  const x = PARA_QUIEN[k];
+  if (esMenor(p)) return `QUIÉN LO USA: ${x.usa}. QUIÉN LO COMPRA: un adulto (mamá, papá, abuelos, tíos, padrinos o quien lo regala). Los avatares, el ángulo y los textos le hablan SIEMPRE al adulto que compra (su preocupación como mamá/papá, la edad de su hijo, el regalo).
+REGLAS CON MENORES EN LAS FOTOS: el menor aparece con ropa normal y completa, en escenas cotidianas y familiares (casa, parque, colegio, cumpleaños), con aspecto y edad reales de ${x.usa}, natural y contento; si la escena lo pide, con un adulto cerca. Nada de poses de modelo adulto, maquillaje, ropa reveladora, bikini ni nada sugestivo. En los primeros planos, mejor el producto en las manos o junto al menor que la cara.`;
+  if (k === "mascotas") return `QUIÉN LO USA: ${x.usa}. QUIÉN LO COMPRA: su dueño o dueña. Los avatares son los dueños; en las fotos sale la mascota usando el producto, con su dueño cuando ayude.`;
+  if (k === "hogar") return `QUIÉN LO USA: ${x.usa}. Los avatares son los adultos que lo compran para su casa o carro; las fotos muestran el producto en ese lugar, con personas solo si ayudan a la escena.`;
+  return `QUIÉN LO USA: ${x.usa}. Los avatares son los adultos que lo compran para su familia; en las fotos salen adultos y niños juntos, en escenas cotidianas, con ropa normal y completa.`;
+}
+
 // Reseñas reales de la Ficha → texto para el prompt de la sección de reseñas
 export function resenasReales(p) {
   return (p?.ficha?.resenas || []).filter(r => r && String(r.texto || "").trim()).slice(0, 6);
@@ -185,7 +208,7 @@ REGALO: ${limpio(f.regalo, 200) || "(no hay regalo)"}
 PROMESAS QUE SÍ SON VERDAD (no inventes otras):
 ${lista(verdades)}
 FORMATO DE LA LANDING: ${textoFormato(p)}
-${p.tipo === "moda" ? `TIPO DE PRODUCTO: MODA (ropa, calzado o accesorio). Las fotos muestran la pieza PUESTA en una persona adulta real, natural, sin poses sugestivas; la talla, el color y el corte deben ser EXACTAMENTE los de la foto adjunta. Lista de tallas y colores siempre completa y en orden. No inventes medidas.
+${bloqueParaQuien(p) ? bloqueParaQuien(p) + "\n" : ""}${p.tipo === "moda" ? `TIPO DE PRODUCTO: MODA (ropa, calzado o accesorio). Las fotos muestran la pieza PUESTA en ${esMenor(p) ? `${({ bebes: "un bebé de 0 a 2 años", ninos: "un niño o niña de 3 a 12 años", adolescentes: "un adolescente de 13 a 17 años" })[paraQuienDe(p)]} real, natural y contento, en una escena cotidiana` : "una persona adulta real, natural, sin poses sugestivas"}; la talla, el color y el corte deben ser EXACTAMENTE los de la foto adjunta. Lista de tallas y colores siempre completa y en orden. No inventes medidas.
 ` : ""}PREFERENCIA DE ESTILO DEL DUEÑO: ${limpio(f.estiloPreferido, 300) || "(ninguna)"}
 NOTAS DEL DUEÑO: ${limpio(f.notas, 1000) || "(ninguna)"}
 `.trim();
@@ -235,7 +258,9 @@ export function promptAvatares(p) {
   return `${contextoProducto(p)}
 
 TAREA: Propón ${n === 2 ? "2 avatares MUY distintos entre sí (A y B) para testear con dos landings" : "1 avatar principal (A)"}, a partir de la foto, la descripción y el mercado de ${PAISES[p.pais]?.nombre || "Colombia"}.
-Deben ser personas reales que compran este producto por impulso en pago contra entrega. Cada avatar necesita su propio ángulo de venta.
+Deben ser personas reales que compran este producto por impulso en pago contra entrega. Cada avatar necesita su propio ángulo de venta.${esMenor(p) ? `
+Este producto lo USAN ${PARA_QUIEN[paraQuienDe(p)].usa}, pero lo COMPRA un adulto: cada avatar es el ADULTO que compra (mamá, papá, abuela, tía, padrino o quien regala), y en "quien" di también la edad del niño (ej. "mamá de 31 años, trabaja, con un hijo de 4 años"). El problema, las palabras y la causa son las de ese adulto. En "escena": el niño de esa edad usando el producto en una escena familiar, con ropa normal y completa.` : paraQuienDe(p) === "mascotas" ? `
+Este producto es para mascotas: cada avatar es el dueño o dueña (di qué mascota tiene), y en "escena" sale la mascota usando el producto.` : ""}
 
 Para cada avatar llena:
 - quien: edad, sexo, ocupación y situación de vida
@@ -350,7 +375,7 @@ ${acabadoTexto(p)}
 REGLA: el producto es el protagonista, grande y bien visible. Ningún texto lo tapa. Estilo de venta directa, no editorial.
 PRODUCTO: usa EXACTAMENTE el producto de la foto adjunta: ${r.descripcionFisica || f.descripcion || p.nombre}.${e.producto_en_uso ? ` En uso: ${limpio(e.producto_en_uso, 500)}.` : ""}${f.variantes ? ` Variantes que existen: ${limpio(f.variantes, 200)}.` : ""}${noTiene ? ` NO tiene ni trae: ${noTiene}.` : ""} No agregues piezas, logos ni marcas. Cuando se está usando, lleva solo las piezas que van puestas (un solo accesorio a la vez); los repuestos sueltos van solo en la imagen de "qué incluye".
 TAMAÑO REAL: ${f.medidas || r.tamano || "(indicar medidas)"}. Respeta esa proporción junto a una persona.
-PERSONAS: ${e.personas || `adultos de ${pais.nombre}, aspecto latino natural`}.
+PERSONAS: ${e.personas || (PARA_QUIEN[paraQuienDe(p)].personas ? `${PARA_QUIEN[paraQuienDe(p)].personas}, de ${pais.nombre}, aspecto latino natural` : `adultos de ${pais.nombre}, aspecto latino natural`)}.${esMenor(p) ? " Los menores siempre con ropa normal y completa, en escenas cotidianas y familiares; nada sugestivo." : ""}
 TEXTO: escribe los textos exactamente como te los doy, con tildes y signos de español, sin errores ni texto extra, y cada uno UNA sola vez. Los nombres de letras, colores y estas instrucciones NO se escriben en la imagen.
 NADA VACÍO: no dibujes recuadros, círculos ni marcos vacíos (salvo las tarjetas lisas de la sección de reseñas o chats).`);
 }
