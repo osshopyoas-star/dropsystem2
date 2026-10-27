@@ -53,7 +53,7 @@ function guardarBorrador() {
 // ---------- Dibujos ----------
 const TONOS = { d: "#1f2937", g: "#e5e7eb", m: "#9ca3af", w: "#ffffff" };
 
-export function dibujar(dibujo, acento = "#14b8a6", clase = "") {
+export function dibujar(dibujo, acento = "#3b82f6", clase = "") {
   const color = (t) => (t === "a" ? acento : TONOS[t] || TONOS.g);
   const partes = (dibujo || []).map(el => {
     const [k, ...v] = el;
@@ -69,7 +69,7 @@ export function dibujar(dibujo, acento = "#14b8a6", clase = "") {
 
 const ICONO_AZAR = `<svg class="pl-dibujo" viewBox="0 0 60 90" aria-hidden="true"><rect x="2" y="2" width="56" height="86" rx="5" fill="none" stroke="#cbd5e1" stroke-dasharray="3 3"/><path d="M20 38h6l10 14h6m-4-4 4 4-4 4M20 52h6l3-4m7-10h6m-4-4 4 4-4 4" fill="none" stroke="#64748b" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
-const acentoDe = (p) => (p.colores.modo === "fijos" ? p.colores.acento : "#14b8a6");
+const acentoDe = (p) => (p.colores.modo === "fijos" ? p.colores.acento : "#3b82f6");
 
 // ---------- Pantalla ----------
 function render() {
