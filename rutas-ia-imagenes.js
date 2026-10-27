@@ -61,10 +61,14 @@ export const aspectoDe = (formato) => {
 };
 
 // El producto va primero y al final: la IA tiende a obedecer lo que más se repite
-export function armarPrompt({ bloqueEstilo, prompt, referencias, descripcion = "", noTiene = "" }) {
-  const etiquetas = referencias > 1 ? Array.from({ length: referencias }, (_, i) => `<IMAGE_${i}>`).join(", ") : "la foto de referencia";
+export function armarPrompt({ bloqueEstilo, prompt, referencias, descripcion = "", noTiene = "", clientes = 0 }) {
+  // Las últimas "clientes" referencias son fotos reales de clientes (sección de reseñas), no del producto
+  const total = referencias;
+  referencias = Math.max(0, referencias - clientes);
+  const etiquetas = total > 1 ? Array.from({ length: referencias }, (_, i) => `<IMAGE_${i}>`).join(", ") : "la foto de referencia";
+  const fotosClientes = clientes > 0 ? `\nFOTOS REALES DE CLIENTES: ${Array.from({ length: clientes }, (_, i) => `<IMAGE_${referencias + i}>`).join(", ")} son las fotos que mandaron los clientes, en el orden de las reseñas. Úsalas tal cual dentro de sus tarjetas (solo recórtalas): no cambies a las personas ni los lugares.` : "";
   const cabeza = referencias
-    ? `PRODUCTO REAL QUE SE VENDE: es el que aparece en ${etiquetas}. Cópialo IDÉNTICO: misma forma, tamaño relativo, colores, materiales, botones, piezas, logos y proporciones. NO inventes otro producto parecido, NO lo rediseñes, NO le agregues ni quites partes, NO dupliques piezas (si se está usando, lleva un solo accesorio puesto). Solo cambia la escena, las personas, la luz y los textos alrededor.${descripcion ? `\nCómo es el producto: ${descripcion}` : ""}${noTiene ? `\nEl producto NO tiene: ${noTiene}` : ""}\n\n`
+    ? `PRODUCTO REAL QUE SE VENDE: es el que aparece en ${etiquetas}. Cópialo IDÉNTICO: misma forma, tamaño relativo, colores, materiales, botones, piezas, logos y proporciones. NO inventes otro producto parecido, NO lo rediseñes, NO le agregues ni quites partes, NO dupliques piezas (si se está usando, lleva un solo accesorio puesto). Solo cambia la escena, las personas, la luz y los textos alrededor.${descripcion ? `\nCómo es el producto: ${descripcion}` : ""}${noTiene ? `\nEl producto NO tiene: ${noTiene}` : ""}${fotosClientes}\n\n`
     : "";
   const cola = "\n\nTEXTOS: escribe SOLO los textos que están entre comillas, letra por letra y bien escritos. Si un texto pequeño no te queda legible, NO lo pongas: nunca letras inventadas ni palabras sin sentido. Los precios y porcentajes van EXACTOS como están escritos."
     + (referencias ? `\n\nRECUERDA: el producto de la imagen debe verse exactamente igual al de ${etiquetas}.` : "");
@@ -150,7 +154,13 @@ export function registrarRutasIAImagenes(app, { cargarRama, guardarRama, actuali
       const todas = (x.p.fotos || []).filter(f => /^data:image\/(jpeg|png|webp);base64,/.test(f));
       if (!todas.length) return res.status(400).json({ error: "Sube fotos reales del producto en la Ficha (paso 1). Sin fotos la IA inventa otro producto." });
       const pedidas = Array.isArray(req.body?.refs) ? [...new Set(req.body.refs.map(Number))].filter(i => Number.isInteger(i) && i >= 0 && i < todas.length) : [];
-      const fotos = (pedidas.length ? pedidas.map(i => todas[i]) : todas).slice(0, MAX_REFERENCIAS);
+      let fotos = (pedidas.length ? pedidas.map(i => todas[i]) : todas).slice(0, MAX_REFERENCIAS);
+      // Reseñas: 1 foto del producto + las fotos reales que mandaron los clientes (en el orden de las reseñas)
+      let clientes = 0;
+      if (sec.tipo === "resenas") {
+        const deClientes = (x.p.ficha?.resenas || []).filter(r => r?.texto && /^data:image\/(jpeg|png|webp);base64,/.test(r.foto || "")).map(r => r.foto);
+        if (deClientes.length) { fotos = [fotos[0], ...deClientes].slice(0, MAX_REFERENCIAS + 1); clientes = fotos.length - 1; }
+      }
       const estimado = PRECIO_IMAGEN + PRECIO_REFERENCIA * fotos.length;
       const g = await estadoGasto(req.user.uid);
       if (g.usd + estimado > g.limite + 1e-9) {
@@ -163,7 +173,7 @@ export function registrarRutasIAImagenes(app, { cargarRama, guardarRama, actuali
 
       const bloque = x.r.bloqueEstilo || "";
       const r = await pedirImagen({ prompt: armarPrompt({
-        bloqueEstilo: bloque, prompt: sec.prompt, referencias: fotos.length,
+        bloqueEstilo: bloque, prompt: sec.prompt, referencias: fotos.length, clientes,
         descripcion: String(x.p.revision?.descripcionFisica || "").slice(0, 600) + (x.p.ficha?.medidas ? ` Medidas: ${String(x.p.ficha.medidas).slice(0, 120)}.` : ""),
         noTiene: [...(Array.isArray(x.p.revision?.noTiene) ? x.p.revision.noTiene : []), x.p.ficha?.noTiene].filter(Boolean).join("; ").slice(0, 300)
       }), fotos, aspecto: aspectoDe(sec.formato) });

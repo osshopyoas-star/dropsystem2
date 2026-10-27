@@ -94,7 +94,20 @@ function limpiarCambios(body = {}) {
     else out.fotos = out.fotos.filter(fotoValida).slice(0, MAX_FOTOS);
   }
   if (out.avatares !== undefined && !Array.isArray(out.avatares)) delete out.avatares;
+  if (out.ficha && typeof out.ficha === "object" && out.ficha.resenas !== undefined) out.ficha = { ...out.ficha, resenas: limpiarResenas(out.ficha.resenas) };
   return out;
+}
+
+// Reseñas reales que el dueño pega en la Ficha (se usan textuales en la sección de reseñas)
+const MAX_FOTO_RESENA = 400_000;
+export function limpiarResenas(lista) {
+  if (!Array.isArray(lista)) return [];
+  const txt = (v, n) => String(v ?? "").replace(/[\u0000-\u001f]+/g, " ").trim().slice(0, n);
+  return lista.slice(0, 6).map(r => {
+    const e = Math.round(Number(r?.estrellas));
+    const foto = typeof r?.foto === "string" && /^data:image\/(png|jpe?g|webp);base64,/.test(r.foto) && r.foto.length <= MAX_FOTO_RESENA ? r.foto : "";
+    return { nombre: txt(r?.nombre, 40), ciudad: txt(r?.ciudad, 40), texto: txt(r?.texto, 300), estrellas: e >= 1 && e <= 5 ? e : 0, foto };
+  }).filter(r => r.texto);
 }
 
 function limpiarGuiones(lista, av) {

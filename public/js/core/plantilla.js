@@ -219,16 +219,16 @@ export const SECCIONES = {
     ]
   },
   resenas: {
-    titulo: "Reseñas reales (plantilla)", formatos: ["ban", "normal"],
-    def: "Título y tarjetas blancas LISAS con sombra suave (sin borde doble, sin líneas ni nada adentro) donde el dueño pega capturas de reseñas reales. Sin nombres, caras ni estrellas inventadas.",
+    titulo: "Reseñas de clientes", formatos: ["ban", "normal"],
+    def: "Las reseñas REALES que el dueño escribió en la Ficha, textuales: foto que mandó el cliente (o el producto si no hay), nombre o iniciales, ciudad, estrellas que dio y su texto. Si la Ficha no tiene reseñas: título y tarjetas blancas LISAS donde el dueño pega capturas. Nunca se inventa nada.",
     variantes: [
-      { id: "dos_columnas", nombre: "Tarjetas en dos columnas", desc: "Cuadrícula de 4 tarjetas blancas lisas en dos columnas.",
+      { id: "dos_columnas", nombre: "Tarjetas en dos columnas", desc: "Cuadrícula de tarjetas en dos columnas; cada una con la foto del cliente arriba, su nombre y ciudad, las estrellas y el texto.",
         dibujo: [T(6), ["r", 6, 13, 23, 30, "w", 3], ["r", 31, 13, 23, 30, "w", 3], ["r", 6, 46, 23, 30, "w", 3], ["r", 31, 46, 23, 30, "w", 3]] },
-      { id: "carrusel", nombre: "Carrusel", desc: "Una tarjeta blanca lisa grande al centro y las de los lados asomando, como un carrusel.",
+      { id: "carrusel", nombre: "Carrusel", desc: "Una tarjeta grande al centro (foto del cliente, nombre, ciudad, estrellas y texto) y las de los lados asomando, como un carrusel con puntos abajo.",
         dibujo: [T(6), ["r", 0, 20, 8, 44, "w", 3], ["r", 11, 16, 38, 52, "w", 3], ["r", 52, 20, 8, 44, "w", 3], ["c", 26, 74, 1.5, "d"], ["c", 30, 74, 1.5, "m"], ["c", 34, 74, 1.5, "m"]] },
-      { id: "columna", nombre: "Citas en columna", desc: "3 tarjetas blancas lisas anchas una debajo de otra con una barra de color a la izquierda.",
+      { id: "columna", nombre: "Citas en columna", desc: "Tarjetas anchas una debajo de otra con una barra de color a la izquierda: foto pequeña del cliente en círculo, nombre, ciudad, estrellas y la cita entre comillas.",
         dibujo: [T(6), ["r", 6, 13, 48, 20, "w", 3], ["r", 6, 13, 2, 20, "a"], ["r", 6, 36, 48, 20, "w", 3], ["r", 6, 36, 2, 20, "a"], ["r", 6, 59, 48, 20, "w", 3], ["r", 6, 59, 2, 20, "a"]] },
-      { id: "destacada", nombre: "Destacada y compactas", desc: "Una tarjeta blanca lisa grande arriba y 3 pequeñas debajo.",
+      { id: "destacada", nombre: "Destacada y compactas", desc: "Una reseña grande arriba con la foto del cliente usando el producto, y debajo 2 o 3 reseñas compactas (nombre, ciudad, estrellas y una frase).",
         dibujo: [T(6), ["r", 6, 13, 48, 34, "w", 3], ["r", 6, 50, 48, 9, "w", 2], ["r", 6, 62, 48, 9, "w", 2], ["r", 6, 74, 48, 9, "w", 2]] }
     ]
   },
@@ -354,12 +354,12 @@ export const SECCIONES = {
     ]
   },
   moda_chats: {
-    titulo: "Conversaciones de WhatsApp (plantilla)", formatos: ["ban", "normal"], tipos: ["moda"],
-    def: "Título y burbujas blancas LISAS (sin borde doble ni nada adentro) donde el dueño pega capturas reales de chats con clientes (con permiso). Sin nombres, fotos ni mensajes inventados.",
+    titulo: "Lo que nos escriben (chats)", formatos: ["ban", "normal"], tipos: ["moda"],
+    def: "Burbujas de chat tipo WhatsApp con los mensajes REALES que el dueño escribió en la Ficha (reseñas), textuales: el mensaje del cliente, su nombre o iniciales y la hora. Si la Ficha no tiene reseñas: burbujas blancas LISAS donde el dueño pega capturas. Nunca se inventa nada.",
     variantes: [
-      { id: "telefono", nombre: "Dentro de un celular", desc: "Un celular dibujado con 3 o 4 burbujas blancas lisas y el título 'Lo que nos escriben'.",
+      { id: "telefono", nombre: "Dentro de un celular", desc: "Un celular dibujado con un chat de 3 o 4 mensajes de clientes (burbujas con su texto) y el título 'Lo que nos escriben'.",
         dibujo: [T(6), ["r", 14, 12, 32, 70, "d", 6], ["r", 17, 18, 26, 62, "g", 3], ["r", 19, 22, 18, 7, "w", 3], ["r", 23, 33, 18, 7, "w", 3], ["r", 19, 44, 18, 7, "w", 3], ["r", 23, 55, 18, 7, "w", 3]] },
-      { id: "burbujas", nombre: "Burbujas sueltas", desc: "Cuatro burbujas de chat blancas, grandes y lisas, alternando izquierda y derecha, sobre fondo suave.",
+      { id: "burbujas", nombre: "Burbujas sueltas", desc: "Cuatro burbujas de chat grandes con el mensaje de cada cliente, alternando izquierda y derecha, sobre fondo suave con la prenda.",
         dibujo: [["r", 0, 0, 60, 90, "g"], T(8), ["r", 6, 16, 34, 12, "w", 5], ["r", 20, 32, 34, 12, "w", 5], ["r", 6, 48, 34, 12, "w", 5], ["r", 20, 64, 34, 12, "w", 5]] }
     ]
   },

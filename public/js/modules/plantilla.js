@@ -6,6 +6,7 @@
 import { registrarRuta } from "./navegacion.js";
 import { escapeHTML } from "../core/utils.js";
 import { SECCIONES, FORMATOS, esFija, plantillaPorDefecto, normalizarPlantilla, CLAVES, claveDe, TIPOS_PRODUCTO, ACABADOS } from "../core/plantilla.js";
+import { ejemploDe } from "../core/ejemplos.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (v) => escapeHTML(v ?? "");
@@ -161,7 +162,7 @@ function render() {
                 </button>
                 ${s.variantes.map((v, k) => `
                   <button class="pl-var ${actual === v.id ? "elegida" : ""}" title="${esc(v.desc)}" onclick="plEstilo('${x.tipo}', '${v.id}')">
-                    ${dibujar(v.dibujo, azul, "pl-dibujo")}
+                    ${miniatura(x.tipo, v, azul, "pl-dibujo")}
                     <span>${String.fromCharCode(65 + k)} · ${esc(v.nombre)}</span>
                   </button>`).join("")}
               </div>
@@ -235,6 +236,14 @@ function render() {
   iconos();
 }
 
+// Imagen real de ejemplo (si ya existe) o el dibujo del diseño
+function miniatura(tipo, v, azul, clase) {
+  const src = ejemploDe(tipo, v.id, base());
+  return src
+    ? `<img class="${clase} pl-ejemplo ${base() === "normal" ? "cuadrada" : ""}" src="${src}" alt="Ejemplo: ${esc(v.nombre)}" loading="lazy" decoding="async">`
+    : dibujar(v.dibujo, azul, clase);
+}
+
 function vistaPrevia(p, azul) {
   return p.orden.filter(x => x.visible).map(x => {
     const s = SECCIONES[x.tipo];
@@ -242,7 +251,7 @@ function vistaPrevia(p, azul) {
     const v = fija || s.variantes[0];
     return `
       <div class="pl-bloque ${fija ? "" : "azar"}" data-tipo="${x.tipo}" onclick="document.getElementById('pl-sec-${x.tipo}')?.scrollIntoView({behavior:'smooth', block:'center'})">
-        ${dibujar(v.dibujo, azul, "pl-dibujo-grande")}
+        ${miniatura(x.tipo, v, azul, "pl-dibujo-grande")}
         <span>${esc(s.titulo)}${fija ? ` · ${esc(fija.nombre)}` : " · al azar"}</span>
       </div>`;
   }).join("");

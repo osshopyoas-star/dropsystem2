@@ -57,7 +57,7 @@ export const REGLAS_APRENDIDAS = [
 ];
 
 export const LIMITES = [
-  "Reseñas y testimonios: NUNCA inventes rostros, nombres, ciudades, calificaciones ('4.8/5'), cantidades de comentarios ni 'compra verificada'. Si hay sección de reseñas, solo el título y una zona de fondo liso (sin tarjetas ni marcos) donde el dueño pega capturas reales.",
+  "Reseñas y testimonios: usa SOLO las reseñas reales que el dueño escribió en la Ficha, textuales (mismo nombre o iniciales, ciudad, estrellas y texto, sin mejorarlas). NUNCA inventes reseñas, rostros, nombres, ciudades, calificaciones promedio ('4.8/5'), cantidades de comentarios ni 'compra verificada'. Si la Ficha no tiene reseñas, la sección lleva solo el título y tarjetas blancas lisas donde el dueño pega capturas reales.",
   "Producto real: la imagen muestra exactamente lo que llega. No agregues detalles, piezas, logos ni empaques de marca que no existan.",
   "Promesas médicas: prohibido 'cura', 'elimina', 'reduce el dolor', 'indoloro' o porcentajes sin prueba. Usa 'soporte', 'molestias', 'calor leve', 'apoyo' y menciona para quién no es si aplica.",
   "Marcas ajenas: no escribas nombres de otras marcas (Nike, IKEA, etc.) ni digas que es el producto original u oficial de una marca, salvo que la ficha diga que es original o licenciado. Pide logos de terceros borrosos o sin logo.",
@@ -76,6 +76,37 @@ export const METODO_AIDA = `MÉTODO DE VENTA (AIDA + la causa real):
 - INTERÉS: explícale la CAUSA REAL de su problema en simple, y por qué lo que ya probó no le sirvió ("No es X, no es Y: es Z"). Que piense "nadie me lo había explicado así".
 - DESEO: muéstrale por qué ESTE producto ataca justo esa causa (el mecanismo) y cómo se ve su vida con el resultado. Solo lo que la ficha permite prometer.
 - ACCIÓN: precio claro, pago contra entrega, garantía solo si existe, y una instrucción simple. Sin gritar ni urgencia falsa.`;
+
+// Chats de clientes: los mismos mensajes reales de la Ficha, como burbujas de WhatsApp
+function bloqueChats(p) {
+  const rs = resenasReales(p).slice(0, 4);
+  if (!rs.length) return `
+CHATS: la Ficha no tiene reseñas reales todavía. Haz SOLO el título y burbujas de chat blancas lisas vacías (sin texto ni nombres) donde el dueño pegará capturas.`;
+  return `
+CHATS REALES (una burbuja por mensaje, EXACTAMENTE estos ${rs.length}, textuales; no cambies ni una palabra ni agregues otros). Cada burbuja: nombre o iniciales pequeño arriba, el mensaje y una hora pequeña abajo a la derecha (ej. 10:42). Letra grande y legible:
+${rs.map((r, i) => `${i + 1}. "${limpio(r.nombre, 40) || "Cliente"}": "${limpio(r.texto, 200)}"`).join("\n")}`;
+}
+
+// Reseñas reales de la Ficha → texto para el prompt de la sección de reseñas
+export function resenasReales(p) {
+  return (p?.ficha?.resenas || []).filter(r => r && String(r.texto || "").trim()).slice(0, 6);
+}
+function bloqueResenas(p) {
+  const rs = resenasReales(p);
+  if (!rs.length) return `
+RESEÑAS: la Ficha no tiene reseñas reales todavía. Haz SOLO el título y tarjetas blancas lisas vacías (sin texto, sin estrellas, sin nombres ni caras) donde el dueño pegará capturas.`;
+  let foto = 1;
+  const lineas = rs.map((r, i) => {
+    const conFoto = !!r.foto;
+    const ref = conFoto ? `foto del cliente: la imagen adjunta #${++foto}` : "sin foto del cliente: usa el producto en una escena real, sin personas";
+    const estrellas = Number(r.estrellas) >= 1 && Number(r.estrellas) <= 5 ? `${Number(r.estrellas)} estrellas` : "sin estrellas";
+    return `${i + 1}. Nombre: "${limpio(r.nombre, 40) || "Cliente"}"${r.ciudad ? ` · Ciudad: "${limpio(r.ciudad, 40)}"` : ""} · ${estrellas} · Texto: "${limpio(r.texto, 260)}" · ${ref}`;
+  });
+  return `
+RESEÑAS REALES (pon EXACTAMENTE estas ${rs.length}, textuales, una por tarjeta; no cambies ni una palabra, no agregues otras, no pongas promedio ni "verificado"):
+${lineas.join("\n")}
+${foto > 1 ? `Al pegar este prompt en Gemini el dueño adjunta: #1 la foto del producto y luego las fotos de los clientes en este orden. Usa cada foto de cliente tal cual (recórtala para la tarjeta), sin cambiar a la persona ni el lugar.` : ""}`;
+}
 
 // El avatar en un bloque (para todos los prompts)
 export function bloqueAvatar(a, titulo = "AVATAR") {
@@ -411,7 +442,7 @@ ${EJEMPLO_NIVEL}
 SECCIÓN A ESCRIBIR: ${seccion.titulo} [tipo: ${seccion.tipo}]
 Qué debe tener: ${tipo?.def || seccion.proposito || ""}
 Propósito: ${seccion.proposito || ""}
-Composición asignada: ${seccion.composicion || "elige una que no se repita"}${diseno}${formato}${seccion.tipo === "causa" ? `
+Composición asignada: ${seccion.composicion || "elige una que no se repita"}${diseno}${formato}${seccion.tipo === "resenas" ? bloqueResenas(p) : ""}${seccion.tipo === "moda_chats" ? bloqueChats(p) : ""}${seccion.tipo === "causa" ? `
 CÓMO HACER "LA VERDADERA CAUSA": foto real de la escena con un gráfico MUY simple encima (líneas tipo tiza, flecha, lupa o etiquetas tachadas). Titular tipo "No es X, es Y" o "El problema no es lo que crees". Máximo 3 textos cortos además del titular. Cierra con la frase puente al producto. Nada de anatomía detallada, nada médico.` : ""}${diseno ? `
 (El diseño de Mi plantilla define DÓNDE van los bloques; la imagen sigue siendo una escena de foto real con vida, no un catálogo plano.)` : ""}
 

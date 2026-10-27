@@ -584,6 +584,12 @@ function pasoFicha() {
         <textarea id="fNotas" rows="3" placeholder="Cualquier cosa importante del producto o del cliente">${esc(f.notas)}</textarea>
       </div>
 
+      <div class="est-resenas">
+        <div class="est-card-row"><h4>Reseñas reales de clientes</h4><small class="est-muted">hasta 6</small></div>
+        <p class="est-hint">Las que te mandan por WhatsApp, Releasit o Judge.me. La sección de reseñas de la landing las pone <b>textuales</b> en el diseño que elijas (con la foto que te mandó el cliente), y en moda también salen como burbujas en <b>Lo que nos escriben</b>. Sin reseñas, esas secciones quedan con tarjetas para pegar capturas.</p>
+        <div id="fResenas">${listaResenas()}</div>
+      </div>
+
       <div class="est-actions">
         <button id="estBtnGuardarFicha" class="est-btn" onclick="estGuardarFicha()"><i data-lucide="save"></i> Guardar</button>
         <button id="estBtnRevisar" class="est-btn primary" onclick="estRevisarFicha()"><i data-lucide="scan-search"></i> ${tieneRevision ? "Volver a revisar" : "Revisar con IA"}</button>
@@ -687,6 +693,49 @@ window.estAplicarImportado = () => conCarga("estBtnAplicarImport", "Guardando...
   renderPaso();
   avisar("Ficha actualizada desde el link ✓");
 });
+
+// ---------- Reseñas reales (Ficha) ----------
+const resenas = () => (proyecto.ficha ||= {}, proyecto.ficha.resenas ||= []);
+function listaResenas() {
+  const rs = resenas();
+  return `${rs.map((r, i) => `
+    <div class="est-resena">
+      <label class="est-resena-foto" title="Foto que te mandó el cliente (opcional)">
+        ${r.foto ? `<img src="${r.foto}" alt="Foto del cliente">` : `<i data-lucide="camera"></i><span>Foto</span>`}
+        <input type="file" accept="image/png,image/jpeg,image/webp" hidden onchange="estResenaFoto(${i}, this.files); this.value=''">
+      </label>
+      <div class="est-resena-datos">
+        <div class="est-resena-fila">
+          <input placeholder="Nombre o iniciales (ej: Carlos M.)" value="${esc(r.nombre)}" maxlength="40" onchange="estResena(${i}, 'nombre', this.value)">
+          <input placeholder="Ciudad" value="${esc(r.ciudad)}" maxlength="40" onchange="estResena(${i}, 'ciudad', this.value)">
+          <select onchange="estResena(${i}, 'estrellas', this.value)" title="Las estrellas que te dio el cliente">
+            <option value="0" ${!r.estrellas ? "selected" : ""}>Sin estrellas</option>
+            ${[5, 4, 3, 2, 1].map(n => `<option value="${n}" ${Number(r.estrellas) === n ? "selected" : ""}>${"★".repeat(n)}</option>`).join("")}
+          </select>
+        </div>
+        <textarea rows="2" maxlength="300" placeholder="Lo que te escribió, tal cual" onchange="estResena(${i}, 'texto', this.value)">${esc(r.texto)}</textarea>
+      </div>
+      <button class="est-link" title="Quitar" onclick="estQuitarResena(${i})">✕</button>
+    </div>`).join("")}
+    ${rs.length < 6 ? `<button class="est-btn chico" onclick="estAgregarResena()"><i data-lucide="plus"></i> Agregar reseña</button>` : ""}
+    ${rs.some(r => r.foto) ? `<p class="est-hint">Al hacer la imagen de reseñas en Gemini, adjunta primero la foto del producto y luego las fotos de los clientes en este mismo orden (el prompt te lo recuerda).</p>` : ""}`;
+}
+const pintarResenas = () => { const el = $("fResenas"); if (el) { el.innerHTML = listaResenas(); if (window.lucide) lucide.createIcons(); } };
+let tGuardarResenas = null;
+const guardarResenasLuego = () => { clearTimeout(tGuardarResenas); tGuardarResenas = setTimeout(() => guardar({ ficha: leerFicha() }).catch(err => avisar(err.message, "error")), 600); };
+window.estAgregarResena = () => { resenas().push({ nombre: "", ciudad: "", estrellas: 5, texto: "", foto: "" }); pintarResenas(); };
+window.estResena = (i, campo, v) => { const r = resenas()[i]; if (!r) return; r[campo] = campo === "estrellas" ? Number(v) : String(v); if (r.texto?.trim()) guardarResenasLuego(); };
+window.estQuitarResena = (i) => { resenas().splice(i, 1); pintarResenas(); guardarResenasLuego(); };
+window.estResenaFoto = async (i, files) => {
+  const f = [...(files || [])][0]; const r = resenas()[i];
+  if (!f || !r) return;
+  try {
+    const { dataUrl } = await comprimirImagen(f, 600, 0.8);
+    r.foto = dataUrl;
+    pintarResenas();
+    if (r.texto?.trim()) guardarResenasLuego();
+  } catch (err) { avisar(err.message, "error"); }
+};
 
 function leerFicha() {
   const val = (id) => $(id)?.value?.trim() ?? "";
