@@ -110,6 +110,26 @@ REGLAS CON MENORES EN LAS FOTOS: el menor aparece con ropa normal y completa, en
   return `QUIÉN LO USA: ${x.usa}. Los avatares son los adultos que lo compran para su familia; en las fotos salen adultos y niños juntos, en escenas cotidianas, con ropa normal y completa.`;
 }
 
+// Tamaño real con una referencia de la vida diaria (la IA entiende mejor "como un antebrazo" que "32,5 cm")
+export function referenciaTamano(medidas) {
+  const t = String(medidas || "").toLowerCase().replace(/,/g, ".");
+  let max = 0;
+  // "32.5 cm", "18 x 11 cm", "20×10×5 cm", "1.92 m"
+  for (const m of t.matchAll(/((?:\d+(?:\.\d+)?\s*[x×]\s*)*\d+(?:\.\d+)?)\s*(mm|cm|m)\b/g)) {
+    const f = m[2] === "mm" ? 0.1 : m[2] === "m" ? 100 : 1;
+    for (const n of m[1].split(/[x×]/)) { const v = Number(n.trim()) * f; if (v > max) max = v; }
+  }
+  if (!max || max > 400) return "";
+  const refs = [
+    [4, "una moneda"], [9, "una tarjeta de crédito"], [16, "un celular"], [24, "una mano abierta de adulto"],
+    [36, "un antebrazo de adulto (del codo a la mano)"], [50, "un brazo de niño o una hoja tamaño oficio"],
+    [80, "las rodillas de un adulto (desde el piso)"], [120, "la cintura de un adulto (desde el piso)"],
+    [170, "el hombro de un adulto (desde el piso)"], [400, "la altura de una persona o más"]
+  ];
+  const r = refs.find(([lim]) => max <= lim)?.[1];
+  return r ? `La medida más larga es de unos ${Math.round(max)} cm: más o menos ${r}.` : "";
+}
+
 // Reseñas reales de la Ficha → texto para el prompt de la sección de reseñas
 export function resenasReales(p) {
   return (p?.ficha?.resenas || []).filter(r => r && String(r.texto || "").trim()).slice(0, 6);
@@ -323,7 +343,7 @@ Responde SOLO este JSON válido:
   "tipografia": "(descríbela por cómo se ve, SIN nombres de fuentes: ej. 'condensada alta en mayúsculas, estilo póster')",
   "mundo": "(el lugar, ambiente y luz de la campaña: concreto y con emoción)",
   "recursos": "(2 o 3 recursos gráficos que se repiten en todas las imágenes)",
-  "producto_en_uso": "(cómo se ve el producto puesto o usándose: en qué parte del cuerpo o del lugar, en qué posición; y qué colores/variantes existen)",
+  "producto_en_uso": "(cómo se ve el producto puesto o usándose: en qué parte del cuerpo o del lugar, en qué posición, y su tamaño comparado con algo de la escena usando las medidas reales; y qué colores/variantes existen)",
   "tarjetas": "",
   "precio_caja": "",
   "tipo_foto": "producto / estilo de vida / deportiva",
@@ -372,9 +392,9 @@ export function construirBloqueEstilo(p) {
 TIPO DE IMAGEN: FOTOGRAFÍA REAL ${e.mundo ? `como de ${limpio(e.mundo, 400)}` : `de ${e.tipo_foto || "producto y estilo de vida"}, como de campaña publicitaria de una marca grande`}: personas reales, piel con textura real, luz con intención (no plana). PROHIBIDO: dibujo, ilustración, caricatura, animación o 3D.
 DISEÑO GRÁFICO (encima de la foto): fondo ${fondo || "oscuro"}; titulares en ${limpiarFuentes(e.tipografia) || "letra sans extra gruesa"}, una línea en ${color1 || "blanco"} y otra en ${color2 || "color de acento"}; tarjetas ${tarjetas || "con bordes redondeados"}; íconos de línea en ${acento || "color de acento"}; ${normal ? `cuando la imagen lleve precio, va dentro de una caja ${caja || "de color de acento"}` : `cuando la imagen lleve precio (solo portada, paquetes y cierre), va grande dentro de una caja ${caja || "de color de acento"} con sello de descuento circular`}${e.recursos ? `; recursos que se repiten en todas las imágenes: ${limpio(e.recursos, 300)}` : ""}.
 ${acabadoTexto(p)}
-REGLA: el producto es el protagonista, grande y bien visible. Ningún texto lo tapa. Estilo de venta directa, no editorial.
+REGLA: el producto es el protagonista y se ve nítido y completo, pero SIEMPRE a su tamaño real junto a las personas y los objetos: nunca lo agrandes. Si quieres que se vea más, acerca la cámara o ponlo en primer plano. Ningún texto lo tapa. Estilo de venta directa, no editorial.
 PRODUCTO: usa EXACTAMENTE el producto de la foto adjunta: ${r.descripcionFisica || f.descripcion || p.nombre}.${e.producto_en_uso ? ` En uso: ${limpio(e.producto_en_uso, 500)}.` : ""}${f.variantes ? ` Variantes que existen: ${limpio(f.variantes, 200)}.` : ""}${noTiene ? ` NO tiene ni trae: ${noTiene}.` : ""} No agregues piezas, logos ni marcas. Cuando se está usando, lleva solo las piezas que van puestas (un solo accesorio a la vez); los repuestos sueltos van solo en la imagen de "qué incluye".
-TAMAÑO REAL: ${f.medidas || r.tamano || "(indicar medidas)"}. Respeta esa proporción junto a una persona.
+TAMAÑO REAL: ${f.medidas || r.tamano || "(indicar medidas)"}. ${referenciaTamano(f.medidas || r.tamano)} Respeta esa escala exacta junto a manos, personas y muebles.
 PERSONAS: ${e.personas || (PARA_QUIEN[paraQuienDe(p)].personas ? `${PARA_QUIEN[paraQuienDe(p)].personas}, de ${pais.nombre}, aspecto latino natural` : `adultos de ${pais.nombre}, aspecto latino natural`)}.${esMenor(p) ? " Los menores siempre con ropa normal y completa, en escenas cotidianas y familiares; nada sugestivo." : ""}
 TEXTO: escribe los textos exactamente como te los doy, con tildes y signos de español, sin errores ni texto extra, y cada uno UNA sola vez. Los nombres de letras, colores y estas instrucciones NO se escriben en la imagen.
 NADA VACÍO: no dibujes recuadros, círculos ni marcos vacíos (salvo las tarjetas lisas de la sección de reseñas o chats).`);
@@ -497,7 +517,7 @@ TEXTOS: [una etiqueta "DESPUÉS" y como máximo una frase corta]` : `TAREA: Escr
 
 IDEA: [una frase: el momento o la historia que cuenta esta imagen]
 FOTOGRAFÍA REAL (no dibujo, no animación).
-COMPOSICIÓN: [una ESCENA concreta: quién (edad, aspecto, ropa), haciendo qué acción exacta, en qué lugar, desde qué ángulo de cámara, con qué luz y qué emoción. El producto PUESTO o EN USO, grande y bien visible, y di de qué color/variante es en esta imagen. Luego los elementos gráficos y dónde va cada uno (arriba, a la izquierda, abajo…)]
+COMPOSICIÓN: [una ESCENA concreta: quién (edad, aspecto, ropa), haciendo qué acción exacta, en qué lugar, desde qué ángulo de cámara, con qué luz y qué emoción. El producto PUESTO o EN USO, bien visible y a su TAMAÑO REAL comparado con las personas (para que se vea más, acerca la cámara; nunca lo agrandes ni lo compares con algo más grande que él), y di de qué color/variante es en esta imagen. Luego los elementos gráficos y dónde va cada uno (arriba, a la izquierda, abajo…)]
 TEXTOS:
 - Titular: "[línea 1]" (color, tamaño) / "[línea 2]" (color, tamaño: di cuál es lo más grande de la imagen)
 - [subtítulo, tarjetas o chips con ícono, etiquetas${conPrecio ? ", precio (con 'antes' tachado y, si es pack, el precio por unidad), sello de descuento" : ""}${normal ? "" : ", barra inferior"}: cada texto entre comillas, con su color, tamaño y posición]
@@ -509,7 +529,7 @@ Título: "[máximo 8 palabras]"
 Texto: "[2 o 3 frases cortas, vendedoras, sin repetir lo que ya dice la imagen]"` : ""}
 
 Reglas para esta imagen:
-- Titulares cortos (máximo 4 o 5 palabras por línea). Poco texto. El producto grande y sin tapar.${conPrecio ? `
+- Titulares cortos (máximo 4 o 5 palabras por línea). Poco texto. El producto sin tapar y a su tamaño real.${conPrecio ? `
 - Esta imagen SÍ lleva el precio, protagonista.` : `
 - Esta imagen NO lleva precio: nada de precio, "antes" tachado, sello de descuento ni porcentaje (aunque el bloque de estilo hable de la caja del precio). El precio solo va en ${normal ? "Paquetes y Oferta de cierre" : "la portada, Paquetes y Oferta de cierre"}. La barra de confianza${normal ? "" : " abajo"} sí puede ir.`}
 ${conPrecio ? `- Usa los precios exactamente así: ${formatoPrecio(p.ficha?.precio, p.pais) || "(sin precio)"}${p.ficha?.precioAntes ? ` y antes ${formatoPrecio(p.ficha.precioAntes, p.pais)}` : ""}${porcentajeDescuento(p.ficha?.precioAntes, p.ficha?.precio) ? ` (${porcentajeDescuento(p.ficha.precioAntes, p.ficha.precio)}% de descuento)` : ""}. No inventes otros.` : `- Ningún número de precio en esta imagen.`}
