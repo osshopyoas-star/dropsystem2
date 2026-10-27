@@ -294,7 +294,7 @@ export function registrarRutasPublicar(app, { cargar, cargarRama, guardarRama, a
         productoId: anterior?.productoId, titulo, html, media,
         reemplazarMedia: !!anterior?.productoId && (anterior.mediaKey || "landing") !== mediaKey,
         precio: Number(x.p.ficha?.precio) || null, precioAntes: Number(x.p.ficha?.precioAntes) || null,
-        plantilla, metacampos
+        plantilla, metacampos, activo: req.body?.estado !== "borrador"
       });
       const landing = completa;
       if (plantilla !== undefined) {
@@ -305,7 +305,7 @@ export function registrarRutasPublicar(app, { cargar, cargarRama, guardarRama, a
 
       const publicacion = {
         tiendaId: tid, tienda: t.nombre || t.shop, dominio: t.dominio || "", productoId: r.productoId,
-        handle: r.handle, adminUrl: r.adminUrl, estado: r.estado, fecha: new Date().toISOString(),
+        handle: r.handle, adminUrl: r.adminUrl, estado: r.estado, canal: !!r.canal?.ok, canalMotivo: r.canal?.ok ? "" : (r.canal?.motivo || ""), fecha: new Date().toISOString(),
         imagenes: imgs.length, faltan: landing.faltan, destino, plantilla: plantilla ?? anterior?.plantilla ?? "", mediaKey
       };
       const rama = await actualizarRama(x.p, x.av, (actual) => ({

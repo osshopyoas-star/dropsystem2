@@ -35,6 +35,7 @@ let imagenes = [];     // imágenes de Gemini subidas a las secciones (solo dato
 let tiendasShopify = null;   // tiendas conectadas (se cargan al abrir el paso Publicar)
 let tiendaElegida = null;
 const temaTiendas = {};      // tiendaId → { plantillas, seccion, tema, sinPermiso, elegida } (o "cargando")
+let estadoPub = (() => { try { return localStorage.getItem("est_estado_pub") === "borrador" ? "borrador" : "activo"; } catch { return "activo"; } })();
 let destinoPub = (() => { try { return localStorage.getItem("est_destino_pub") || "tema"; } catch { return "tema"; } })();
 let plantillaPub = null;     // sufijo elegido ("" = predeterminada)
 let capaSel = null;          // GIF/botón que se mueve al tocar la vista previa
@@ -1972,7 +1973,7 @@ function tarjetaPublicar(L) {
     ${!tiendas.length ? `
       <p class="est-muted">Conecta tu tienda una vez y desde aquí subes la landing con un clic: imágenes, precio${normal ? ", textos" : ""} y todo en orden.</p>
       <button class="est-btn primary" onclick="goTo('integraciones')"><i data-lucide="plug"></i> Conectar mi tienda Shopify</button>` : `
-      <p class="est-muted">Se crea el producto en <b>borrador</b> con ${L.totalImagenes} imagen(es)${normal ? ", la galería, los textos" : ""} y el precio${proyecto.ficha?.precioAntes ? " con el \"antes\" tachado" : ""}. Los GIF y botones que pongas aquí al lado se publican con el producto; revisas y lo activas.</p>
+      <p class="est-muted">Se crea el producto ${estadoPub === "borrador" ? "en <b>borrador</b>" : "<b>activo en la Tienda online</b> (listo para el formulario contra entrega)"} con ${L.totalImagenes} imagen(es)${normal ? ", la galería, los textos" : ""} y el precio${proyecto.ficha?.precioAntes ? " con el \"antes\" tachado" : ""}. Los GIF y botones que pongas aquí al lado se publican con el producto.</p>
       <label class="est-label-claro">Tienda</label>
       <select id="estTienda" onchange="estElegirTienda(this.value)">
         ${tiendas.map(x => `<option value="${esc(x._id)}" ${x._id === tiendaElegida ? "selected" : ""}>${esc(x.nombre || x.shop)} · ${esc(x.moneda)}</option>`).join("")}
@@ -1981,7 +1982,7 @@ function tarjetaPublicar(L) {
       ${L.faltan.length ? `<div class="est-alert warn">Sin imagen: ${L.faltan.map(esc).join(", ")}. Esas secciones no se publican.</div>` : ""}
       ${t?.faltanPermisos?.length ? `<div class="est-alert warn">A esta tienda le faltan permisos (${t.faltanPermisos.map(esc).join(", ")}). Revísala en Integraciones.</div>` : ""}
       <div class="est-sec-actions">
-        <button id="estBtnPublicar" class="est-btn primary" onclick="estPublicar()" ${L.totalImagenes ? "" : "disabled"}><i data-lucide="${ya ? "refresh-cw" : "upload-cloud"}"></i> ${ya ? "Actualizar en Shopify" : "Publicar como borrador"}</button>
+        <button id="estBtnPublicar" class="est-btn primary" onclick="estPublicar()" ${L.totalImagenes ? "" : "disabled"}><i data-lucide="${ya ? "refresh-cw" : "upload-cloud"}"></i> ${ya ? "Actualizar en Shopify" : estadoPub === "borrador" ? "Publicar como borrador" : "Publicar en Shopify"}</button>
       </div>
       ${!L.totalImagenes ? `<p class="est-hint">Primero sube las imágenes en el paso 4 (Landing).</p>` : ""}`}
     ${pubs.length ? `
@@ -1989,7 +1990,7 @@ function tarjetaPublicar(L) {
         ${pubs.map(pb => `
           <div class="est-pub">
             <i data-lucide="check-circle-2"></i>
-            <div><b>${esc(pb.tienda)}</b><small>${pb.estado === "ACTIVE" ? "Activo" : "Borrador"} · ${esc(fecha(pb.fecha))} · ${pb.imagenes} imágenes</small></div>
+            <div><b>${esc(pb.tienda)}</b><small>${pb.estado === "ACTIVE" ? (pb.canal === false && pb.canalMotivo ? "Activo (sin canal Tienda online)" : "Activo") : "Borrador"} · ${esc(fecha(pb.fecha))} · ${pb.imagenes} imágenes</small></div>
             <a class="est-btn chico" href="${esc(pb.adminUrl)}" target="_blank" rel="noopener noreferrer"><i data-lucide="external-link"></i> Abrir en Shopify</a>
           </div>`).join("")}
       </div>` : ""}
@@ -2013,6 +2014,12 @@ function opcionesTema(t) {
   if (plantillaPub === null && d) plantillaPub = R().publicaciones?.[t._id]?.plantilla ?? d.elegida?.[formato] ?? "";
   const lista = d?.plantillas || [];
   return `
+    <label class="est-label-claro">Estado en Shopify</label>
+    <select id="estEstado" onchange="estEstado(this.value)">
+      <option value="activo" ${estadoPub === "activo" ? "selected" : ""}>Activo en la Tienda online (se puede comprar)</option>
+      <option value="borrador" ${estadoPub === "borrador" ? "selected" : ""}>Borrador (solo para revisar, no se puede comprar)</option>
+    </select>
+    ${estadoPub === "borrador" ? `<p class="est-hint">En borrador el carrito y el formulario contra entrega (Releasit) dan error. Ponlo en Activo cuando vayas a pautar.</p>` : ""}
     <label class="est-label-claro">Dónde van las imágenes</label>
     <select id="estDestino" onchange="estDestino(this.value)">
       <option value="tema" ${destinoPub === "tema" ? "selected" : ""}>En mi plantilla del tema (sección CoDropX landing)</option>
@@ -2081,16 +2088,21 @@ document.addEventListener("click", (e) => {
 
 window.estRecargarPlantillas = (id) => { delete temaTiendas[id]; plantillaPub = null; renderPaso(); };
 window.estDestino = (v) => { destinoPub = v === "descripcion" ? "descripcion" : "tema"; try { localStorage.setItem("est_destino_pub", destinoPub); } catch {} renderPaso(); };
+window.estEstado = (v) => { estadoPub = v === "borrador" ? "borrador" : "activo"; try { localStorage.setItem("est_estado_pub", estadoPub); } catch {} renderPaso(); };
 window.estPlantilla = (v) => { plantillaPub = String(v || ""); };
 window.estPublicar = () => conCarga("estBtnPublicar", "Subiendo a Shopify...", async () => {
   const L = landingActual();
   if (L.faltan.length && !confirm(`${L.faltan.length} sección(es) no tienen imagen y no se van a publicar. ¿Seguir?`)) return;
   const avInicio = av;
-  const cuerpo = { tiendaId: tiendaElegida, destino: destinoPub };
+  const cuerpo = { tiendaId: tiendaElegida, destino: destinoPub, estado: estadoPub };
   if (destinoPub === "tema") cuerpo.plantilla = $("estPlantilla")?.value?.trim() ?? plantillaPub ?? "";
   const { publicacion, nuevo, rama, listo } = await api("POST", urlRama("publicar"), cuerpo);
   if (av === avInicio) ponerRama(rama);
-  avisar((nuevo ? `Borrador creado en ${publicacion.tienda} ✓` : `Actualizado en ${publicacion.tienda} ✓`) + (listo ? " · Quedó en Mis testeos como LISTO para testear" : ""));
+  const canalTxt = estadoPub === "borrador" ? ""
+    : publicacion.canal ? " · Activo en la Tienda online"
+    : publicacion.canalMotivo === "permiso" ? " · Falta el permiso write_publications: actívalo a mano en Shopify (Canales de venta → Tienda online)"
+    : " · Revisa en Shopify que esté en el canal Tienda online";
+  avisar((nuevo ? (estadoPub === "borrador" ? `Borrador creado en ${publicacion.tienda} ✓` : `Producto creado en ${publicacion.tienda} ✓`) : `Actualizado en ${publicacion.tienda} ✓`) + canalTxt + (listo ? " · Quedó en Mis testeos como LISTO para testear" : ""));
   if (tab === 6) renderPaso();
 });
 

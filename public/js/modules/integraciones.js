@@ -190,7 +190,7 @@ function tarjetaShopify() {
       <ol>
         <li>En tu tienda: <b>Configuración → Apps → Desarrollar apps</b> → <b>Crear apps en el Dev Dashboard</b>.</li>
         <li><b>Create app</b> → <b>Start from Dev Dashboard</b> → nombre: <code>CoDropX</code> → Create.</li>
-        <li>En <b>Versions</b>: App URL <code>https://codropx.com</code>, "Embed app in Shopify admin" apagado. En <b>Access scopes</b> pega: <code>${[...sh.permisos, "read_themes"].map(esc).join(",")}</code></li>
+        <li>En <b>Versions</b>: App URL <code>https://codropx.com</code>, "Embed app in Shopify admin" apagado. En <b>Access scopes</b> pega: <code>${[...sh.permisos, "read_themes", "write_publications"].map(esc).join(",")}</code></li>
         <li><b>Release</b> (publica la versión) y luego <b>Install app</b> → elige tu tienda → aprueba.</li>
         <li>En <b>Settings</b> de la app copia el <b>Client ID</b> y el <b>Client secret</b> y pégalos aquí abajo.</li>
       </ol>
@@ -212,7 +212,7 @@ function guiaSeccion() {
   <details class="in-guia">
     <summary>Poner tus landings en la plantilla del tema (una sola vez por tienda)</summary>
     <ol>
-      <li>Si ya conectaste la tienda antes, agrega el permiso <code>read_themes</code> a tu app en el Dev Dashboard (Versions → Access scopes), dale <b>Release</b> y aprueba la actualización en la tienda. Luego aquí dale <b>Probar</b>.</li>
+      <li>Si ya conectaste la tienda antes, agrega los permisos <code>read_themes</code> y <code>write_publications</code> a tu app en el Dev Dashboard (Versions → Access scopes), dale <b>Release</b> y aprueba la actualización en la tienda. Luego aquí dale <b>Probar</b>.</li>
       <li>En Shopify: <b>Tienda online → Temas → … → Editar código</b>. En la carpeta <b>Sections</b> dale <b>Agregar nueva sección</b>, ponle de nombre <code>codropx-landing</code> y reemplaza todo lo que trae por el código de abajo. Guarda. <b>Si ya la tenías</b>, abre <code>codropx-landing.liquid</code> y pega el código nuevo encima (versión ${VERSION_SECCION}).</li>
       <li>En <b>Personalizar</b>, abre (o crea) <b>una</b> plantilla de producto para tus ban pages (ej. <code>ban-page</code>) y agrégale la sección <b>CoDropX landing</b>. Guarda. Esa misma plantilla sirve para todos tus productos.</li>
       <li>Los <b>GIF, botones de Releasit y el formulario</b> de cada producto los pones en CoDropX → Desarrollo → <b>Publicar</b> (tocando en el celular dónde va cada uno). Se guardan en el producto, así que no tienes que crear una plantilla por producto.</li>

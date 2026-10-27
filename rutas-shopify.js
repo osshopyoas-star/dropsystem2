@@ -13,7 +13,7 @@ import { VERSION_SECCION, versionDeSeccion } from "./public/js/core/seccion-shop
 
 export const API_VERSION = () => process.env.SHOPIFY_API_VERSION || "2026-01";
 export const PERMISOS = ["write_products", "write_files"];
-export const PERMISOS_OPCIONALES = ["read_themes"];     // para listar las plantillas de producto de tu tema
+export const PERMISOS_OPCIONALES = ["read_themes", "write_publications"];     // listar plantillas del tema · poner el producto en el canal Tienda online
 const MAX_TIENDAS = 5;
 
 const tiendaSchema = new mongoose.Schema({
@@ -234,7 +234,25 @@ export async function plantillasTema(t) {
   };
 }
 
-export async function guardarProducto(t, { productoId, titulo, html, media, precio, precioAntes, plantilla, metacampos, reemplazarMedia = false }) {
+// Pone el producto en el canal "Tienda online". Los productos creados por la API no quedan en ningún canal
+// (los que creas a mano en Shopify sí), y sin canal el carrito y el formulario contra entrega (Releasit) fallan.
+async function publicarEnTienda(t, productoId) {
+  try {
+    const d = await gql(t, `query { publications(first: 25) { nodes { id name } } }`);
+    const pubs = d.publications?.nodes || [];
+    const tienda = pubs.find(p => /online store|tienda online|boutique en ligne|loja online/i.test(p.name || ""));
+    if (!tienda) return { ok: false, motivo: "canal" };
+    const r = await gql(t, `mutation($id: ID!, $input: [PublicationInput!]!) {
+      publishablePublish(id: $id, input: $input) { userErrors { field message } }
+    }`, { id: productoId, input: [{ publicationId: tienda.id }] });
+    erroresUsuario(r.publishablePublish);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, motivo: /permis|access|scope|403/i.test(e.message || "") ? "permiso" : "error", error: e.message };
+  }
+}
+
+export async function guardarProducto(t, { productoId, titulo, html, media, precio, precioAntes, plantilla, metacampos, reemplazarMedia = false, activo = true }) {
   let producto = null;
   if (productoId) {
     const d = await gql(t, `query($id: ID!) { product(id: $id) { id handle status variants(first: 1) { nodes { id } } } }`, { id: productoId });
@@ -244,7 +262,7 @@ export async function guardarProducto(t, { productoId, titulo, html, media, prec
   if (producto) {
     const d = await gql(t, `mutation($product: ProductUpdateInput!) {
       productUpdate(product: $product) { product { id handle status variants(first: 1) { nodes { id } } } userErrors { field message } }
-    }`, { product: { id: producto.id, title: titulo, descriptionHtml: html, ...(plantilla !== undefined ? { templateSuffix: plantilla || null } : {}) } });
+    }`, { product: { id: producto.id, title: titulo, descriptionHtml: html, ...(activo && producto.status !== "ACTIVE" ? { status: "ACTIVE" } : {}), ...(plantilla !== undefined ? { templateSuffix: plantilla || null } : {}) } });
     erroresUsuario(d.productUpdate);
     producto = d.productUpdate.product;
     // Cambiaste las fotos de "Multimedia": se quitan las de antes y se ponen las nuevas
@@ -265,7 +283,7 @@ export async function guardarProducto(t, { productoId, titulo, html, media, prec
     const d = await gql(t, `mutation($product: ProductCreateInput!, $media: [CreateMediaInput!]) {
       productCreate(product: $product, media: $media) { product { id handle status variants(first: 1) { nodes { id } } } userErrors { field message } }
     }`, {
-      product: { title: titulo, descriptionHtml: html, status: "DRAFT", ...(plantilla ? { templateSuffix: plantilla } : {}) },
+      product: { title: titulo, descriptionHtml: html, status: activo ? "ACTIVE" : "DRAFT", ...(plantilla ? { templateSuffix: plantilla } : {}) },
       media: media.map(src => ({ originalSource: src, mediaContentType: "IMAGE", alt: titulo.slice(0, 120) }))
     });
     erroresUsuario(d.productCreate);
@@ -274,7 +292,8 @@ export async function guardarProducto(t, { productoId, titulo, html, media, prec
   const variante = producto?.variants?.nodes?.[0]?.id;
   if (variante) {
     // "Cobrar impuestos sobre este producto" siempre desmarcado (contra entrega, precio final)
-    const v = { id: variante, taxable: false, ...(precio ? { price: String(precio), compareAtPrice: precioAntes && precioAntes > precio ? String(precioAntes) : null } : {}) };
+    // "Seguir vendiendo sin stock": en dropshipping no hay inventario en Shopify; sin esto el carrito dice que no hay unidades
+    const v = { id: variante, taxable: false, inventoryPolicy: "CONTINUE", ...(precio ? { price: String(precio), compareAtPrice: precioAntes && precioAntes > precio ? String(precioAntes) : null } : {}) };
     const d = await gql(t, `mutation($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
       productVariantsBulkUpdate(productId: $productId, variants: $variants) { userErrors { field message } }
     }`, { productId: producto.id, variants: [v] });
@@ -292,10 +311,13 @@ export async function guardarProducto(t, { productoId, titulo, html, media, prec
     ] });
     erroresUsuario(d.metafieldsSet);
   }
+  // Activo → también en el canal Tienda online (si no, Releasit da "Error en el carrito")
+  const canal = activo ? await publicarEnTienda(t, producto.id) : { ok: false, motivo: "borrador" };
   return {
     productoId: producto.id,
     handle: producto.handle,
     estado: producto.status,
+    canal,
     adminUrl: `https://admin.shopify.com/store/${t.shop}/products/${numeroGid(producto.id)}`,
     nuevo
   };
