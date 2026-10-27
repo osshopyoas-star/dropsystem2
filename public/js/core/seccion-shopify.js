@@ -6,10 +6,11 @@
 // eligiendo en qué imagen va cada uno y su posición en %.
 // Landing normal: imagen con su título y texto al lado.
 // v2: los GIF y botones de CADA producto vienen de CoDropX (metacampo codropx.capas): una sola plantilla sirve para todos.
+// v3: "Desde la imagen" / "Hasta la imagen": agregas la sección varias veces (1–5, 6–30…) y metes otras secciones del tema entre medio.
 // =============================================
 export const ARCHIVO_SECCION = "sections/codropx-landing.liquid";
 // Súbelo cada vez que cambie el código de la sección: CoDropX lee la del tema y avisa si quedó vieja
-export const VERSION_SECCION = 2;
+export const VERSION_SECCION = 3;
 export const versionDeSeccion = (codigo) => {
   if (!codigo) return null;
   const m = String(codigo).match(/codropx-version:\s*(\d+)/);
@@ -21,10 +22,15 @@ export const SECCION_LIQUID = `{%- comment -%} CoDropX landing · imágenes publ
 {%- assign cdx_capas = product.metafields.codropx.capas.value -%}
 {%- assign cdx_textos = product.metafields.codropx.secciones.value -%}
 {%- assign cdx_formato = product.metafields.codropx.formato.value | default: 'ban' -%}
-{%- if cdx_imgs != blank -%}
+{%- if cdx_imgs != blank and cdx_imgs.size < section.settings.desde and request.design_mode -%}
+  <div style="text-align:center;padding:16px;border:2px dashed #c7c7c7;border-radius:12px;margin:16px;font-family:sans-serif;color:#555">
+    <b>CoDropX landing</b> (desde la imagen {{ section.settings.desde }}): este producto solo tiene {{ cdx_imgs.size }} imágenes. Esta parte no se muestra.
+  </div>
+{%- elsif cdx_imgs != blank -%}
   <div class="cdx-landing cdx-{{ cdx_formato }}" style="--cdx-ancho: {{ section.settings.ancho }}px;">
     {%- for img in cdx_imgs -%}
       {%- assign n = forloop.index -%}
+      {%- if n < section.settings.desde or n > section.settings.hasta -%}{%- continue -%}{%- endif -%}
       {%- assign t = cdx_textos[forloop.index0] -%}
       {%- if cdx_formato == 'normal' and t.titulo != blank -%}
         <div class="cdx-it">
@@ -33,7 +39,7 @@ export const SECCION_LIQUID = `{%- comment -%} CoDropX landing · imágenes publ
         </div>
       {%- else -%}
         <div class="cdx-banner">
-          {%- if forloop.first -%}{%- assign cdx_carga = 'eager' -%}{%- else -%}{%- assign cdx_carga = 'lazy' -%}{%- endif -%}
+          {%- if n == 1 -%}{%- assign cdx_carga = 'eager' -%}{%- else -%}{%- assign cdx_carga = 'lazy' -%}{%- endif -%}
           {{ img | image_url: width: 1080 | image_tag: loading: cdx_carga, widths: '375, 540, 750, 1080', sizes: '(min-width: 750px) 600px, 100vw', alt: product.title, class: 'cdx-img' }}
           {%- for block in section.blocks -%}
             {%- if block.settings.imagen != n -%}{%- continue -%}{%- endif -%}
@@ -120,6 +126,9 @@ export const SECCION_LIQUID = `{%- comment -%} CoDropX landing · imágenes publ
   "tag": "section",
   "class": "cdx-seccion",
   "settings": [
+    { "type": "paragraph", "content": "¿Quieres meter otra sección entre las imágenes? Pon aquí Hasta la imagen 5, agrega tu otra sección debajo y luego otra CoDropX landing Desde la imagen 6." },
+    { "type": "range", "id": "desde", "label": "Desde la imagen número", "min": 1, "max": 40, "step": 1, "default": 1 },
+    { "type": "range", "id": "hasta", "label": "Hasta la imagen número (40 = hasta la última)", "min": 1, "max": 40, "step": 1, "default": 40 },
     { "type": "range", "id": "ancho", "label": "Ancho máximo en computador", "min": 320, "max": 1200, "step": 20, "unit": "px", "default": 600 },
     { "type": "checkbox", "id": "ocultar_encabezado", "label": "Ocultar el encabezado de la tienda (ban page)", "default": true },
     { "type": "checkbox", "id": "ocultar_footer", "label": "Ocultar el pie de página (ban page)", "default": true },
