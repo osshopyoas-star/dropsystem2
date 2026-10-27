@@ -158,7 +158,7 @@ export function registrarRutasIAImagenes(app, { cargarRama, guardarRama, actuali
       // Reseñas: 1 foto del producto + las fotos reales que mandaron los clientes (en el orden de las reseñas)
       let clientes = 0;
       if (sec.tipo === "resenas") {
-        const deClientes = (x.p.ficha?.resenas || []).filter(r => r?.texto && /^data:image\/(jpeg|png|webp);base64,/.test(r.foto || "")).map(r => r.foto);
+        const deClientes = (x.p.ficha?.resenas || []).filter(r => (r?.texto || r?.foto)).slice(0, 6).filter(r => /^data:image\/(jpeg|png|webp);base64,/.test(r.foto || "")).map(r => r.foto);
         if (deClientes.length) { fotos = [fotos[0], ...deClientes].slice(0, MAX_REFERENCIAS + 1); clientes = fotos.length - 1; }
       }
       const estimado = PRECIO_IMAGEN + PRECIO_REFERENCIA * fotos.length;

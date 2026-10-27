@@ -592,7 +592,7 @@ function pasoFicha() {
 
       <div class="est-resenas">
         <div class="est-card-row"><h4>Reseñas reales de clientes</h4><small class="est-muted">hasta 6</small></div>
-        <p class="est-hint">Las que te mandan por WhatsApp, Releasit o Judge.me. La sección de reseñas de la landing las pone <b>textuales</b> en el diseño que elijas (con la foto que te mandó el cliente), y en moda también salen como burbujas en <b>Lo que nos escriben</b>. Sin reseñas, esas secciones quedan con tarjetas para pegar capturas.</p>
+        <p class="est-hint">Las fotos que te mandan los clientes y lo que te escriben o dicen (WhatsApp, nota de voz, al recibir el video). <b>Si solo tienes la foto, súbela sola</b>: la tarjeta sale con la foto, la ciudad y las estrellas, sin inventar texto ni nombre. Puedes corregir la ortografía, pero no le pongas palabras que el cliente no dijo. Sin reseñas aquí, la sección sale con tarjetas vacías.</p>
         <div id="fResenas">${listaResenas()}</div>
       </div>
 
@@ -712,26 +712,46 @@ function listaResenas() {
       </label>
       <div class="est-resena-datos">
         <div class="est-resena-fila">
-          <input placeholder="Nombre o iniciales (ej: Carlos M.)" value="${esc(r.nombre)}" maxlength="40" onchange="estResena(${i}, 'nombre', this.value)">
+          <input placeholder="Nombre o iniciales (opcional)" value="${esc(r.nombre)}" maxlength="40" onchange="estResena(${i}, 'nombre', this.value)">
           <input placeholder="Ciudad" value="${esc(r.ciudad)}" maxlength="40" onchange="estResena(${i}, 'ciudad', this.value)">
           <select onchange="estResena(${i}, 'estrellas', this.value)" title="Las estrellas que te dio el cliente">
             <option value="0" ${!r.estrellas ? "selected" : ""}>Sin estrellas</option>
             ${[5, 4, 3, 2, 1].map(n => `<option value="${n}" ${Number(r.estrellas) === n ? "selected" : ""}>${"★".repeat(n)}</option>`).join("")}
           </select>
         </div>
-        <textarea rows="2" maxlength="300" placeholder="Lo que te escribió, tal cual" onchange="estResena(${i}, 'texto', this.value)">${esc(r.texto)}</textarea>
+        <textarea rows="2" maxlength="300" placeholder="Lo que te escribió o dijo, tal cual (opcional si solo tienes la foto)" onchange="estResena(${i}, 'texto', this.value)">${esc(r.texto)}</textarea>
       </div>
       <button class="est-link" title="Quitar" onclick="estQuitarResena(${i})">✕</button>
     </div>`).join("")}
-    ${rs.length < 6 ? `<button class="est-btn chico" onclick="estAgregarResena()"><i data-lucide="plus"></i> Agregar reseña</button>` : ""}
+    ${rs.length < 6 ? `<div class="est-sec-actions">
+      <label class="est-btn chico primary" title="Elige varias fotos de clientes a la vez: cada una queda como reseña con 5 estrellas, sin escribir nada">
+        <i data-lucide="images"></i> Subir fotos de clientes (varias)
+        <input type="file" accept="image/png,image/jpeg,image/webp" multiple hidden onchange="estResenasFotos(this.files); this.value=''">
+      </label>
+      <button class="est-btn chico" onclick="estAgregarResena()"><i data-lucide="plus"></i> Agregar reseña</button>
+    </div>` : ""}
     ${rs.some(r => r.foto) ? `<p class="est-hint">Al hacer la imagen de reseñas en Gemini, adjunta primero la foto del producto y luego las fotos de los clientes en este mismo orden (el prompt te lo recuerda).</p>` : ""}`;
 }
 const pintarResenas = () => { const el = $("fResenas"); if (el) { el.innerHTML = listaResenas(); if (window.lucide) lucide.createIcons(); } };
 let tGuardarResenas = null;
 const guardarResenasLuego = () => { clearTimeout(tGuardarResenas); tGuardarResenas = setTimeout(() => guardar({ ficha: leerFicha() }).catch(err => avisar(err.message, "error")), 600); };
 window.estAgregarResena = () => { resenas().push({ nombre: "", ciudad: "", estrellas: 5, texto: "", foto: "" }); pintarResenas(); };
-window.estResena = (i, campo, v) => { const r = resenas()[i]; if (!r) return; r[campo] = campo === "estrellas" ? Number(v) : String(v); if (r.texto?.trim()) guardarResenasLuego(); };
+window.estResena = (i, campo, v) => { const r = resenas()[i]; if (!r) return; r[campo] = campo === "estrellas" ? Number(v) : String(v); if (r.texto?.trim() || r.foto) guardarResenasLuego(); };
 window.estQuitarResena = (i) => { resenas().splice(i, 1); pintarResenas(); guardarResenasLuego(); };
+// Varias fotos de una: cada foto = una reseña (5 estrellas, sin nombre ni texto). Nada que escribir.
+window.estResenasFotos = async (files) => {
+  const lista = [...(files || [])].slice(0, 6 - resenas().length);
+  if (!lista.length) return;
+  try {
+    for (const f of lista) {
+      const { dataUrl } = await comprimirImagen(f, 600, 0.8);
+      resenas().push({ nombre: "", ciudad: "", estrellas: 5, texto: "", foto: dataUrl });
+    }
+    pintarResenas();
+    guardarResenasLuego();
+    avisar(`${lista.length} foto(s) de clientes agregadas ✓`);
+  } catch (err) { avisar(err.message, "error"); }
+};
 window.estResenaFoto = async (i, files) => {
   const f = [...(files || [])][0]; const r = resenas()[i];
   if (!f || !r) return;
@@ -739,7 +759,7 @@ window.estResenaFoto = async (i, files) => {
     const { dataUrl } = await comprimirImagen(f, 600, 0.8);
     r.foto = dataUrl;
     pintarResenas();
-    if (r.texto?.trim()) guardarResenasLuego();
+    guardarResenasLuego();
   } catch (err) { avisar(err.message, "error"); }
 };
 

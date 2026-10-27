@@ -108,7 +108,7 @@ export function limpiarResenas(lista) {
     const e = Math.round(Number(r?.estrellas));
     const foto = typeof r?.foto === "string" && /^data:image\/(png|jpe?g|webp);base64,/.test(r.foto) && r.foto.length <= MAX_FOTO_RESENA ? r.foto : "";
     return { nombre: txt(r?.nombre, 40), ciudad: txt(r?.ciudad, 40), texto: txt(r?.texto, 300), estrellas: e >= 1 && e <= 5 ? e : 0, foto };
-  }).filter(r => r.texto);
+  }).filter(r => r.texto || r.foto);     // una reseña puede ser solo la foto que mandó el cliente
 }
 
 function limpiarGuiones(lista, av) {

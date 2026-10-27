@@ -79,7 +79,7 @@ export const METODO_AIDA = `MÉTODO DE VENTA (AIDA + la causa real):
 
 // Chats de clientes: los mismos mensajes reales de la Ficha, como burbujas de WhatsApp
 function bloqueChats(p) {
-  const rs = resenasReales(p).slice(0, 4);
+  const rs = resenasReales(p).filter(r => String(r.texto || "").trim()).slice(0, 4);
   if (!rs.length) return `
 CHATS: la Ficha no tiene reseñas reales todavía. Haz SOLO el título y burbujas de chat blancas lisas vacías (sin texto ni nombres) donde el dueño pegará capturas.`;
   return `
@@ -132,7 +132,7 @@ export function referenciaTamano(medidas) {
 
 // Reseñas reales de la Ficha → texto para el prompt de la sección de reseñas
 export function resenasReales(p) {
-  return (p?.ficha?.resenas || []).filter(r => r && String(r.texto || "").trim()).slice(0, 6);
+  return (p?.ficha?.resenas || []).filter(r => r && (String(r.texto || "").trim() || r.foto)).slice(0, 6);
 }
 function bloqueResenas(p) {
   const rs = resenasReales(p);
@@ -143,10 +143,13 @@ RESEÑAS: la Ficha no tiene reseñas reales todavía. Haz SOLO el título y tarj
     const conFoto = !!r.foto;
     const ref = conFoto ? `foto del cliente: la imagen adjunta #${++foto}` : "sin foto del cliente: usa el producto en una escena real, sin personas";
     const estrellas = Number(r.estrellas) >= 1 && Number(r.estrellas) <= 5 ? `${Number(r.estrellas)} estrellas` : "sin estrellas";
-    return `${i + 1}. Nombre: "${limpio(r.nombre, 40) || "Cliente"}"${r.ciudad ? ` · Ciudad: "${limpio(r.ciudad, 40)}"` : ""} · ${estrellas} · Texto: "${limpio(r.texto, 260)}" · ${ref}`;
+    const nombre = limpio(r.nombre, 40) ? `Nombre: "${limpio(r.nombre, 40)}"` : "SIN nombre (no escribas ningún nombre)";
+    const texto = limpio(r.texto, 260) ? `Texto: "${limpio(r.texto, 260)}"` : "SIN texto: tarjeta solo con la foto (no escribas ninguna cita ni frase del cliente)";
+    return `${i + 1}. ${nombre}${r.ciudad ? ` · Ciudad: "${limpio(r.ciudad, 40)}"` : ""} · ${estrellas} · ${texto} · ${ref}`;
   });
   return `
-RESEÑAS REALES (pon EXACTAMENTE estas ${rs.length}, textuales, una por tarjeta; no cambies ni una palabra, no agregues otras, no pongas promedio ni "verificado"):
+RESEÑAS REALES (pon EXACTAMENTE estas ${rs.length}, una por tarjeta, LLENAS con lo que se indica: foto, nombre, ciudad, estrellas y texto cuando existan; no cambies ni una palabra, no agregues otras, no pongas promedio ni "verificado"). Las tarjetas NUNCA van vacías.
+El titular de la sección es genérico (ej. "LO QUE DICEN" / "NUESTROS CLIENTES" o "FOTOS REALES DE CLIENTES"); nunca una cita inventada de un cliente.
 ${lineas.join("\n")}
 ${foto > 1 ? `Al pegar este prompt en Gemini el dueño adjunta: #1 la foto del producto y luego las fotos de los clientes en este orden. Usa cada foto de cliente tal cual (recórtala para la tarjeta), sin cambiar a la persona ni el lugar.` : ""}`;
 }
