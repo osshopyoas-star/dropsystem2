@@ -29,7 +29,32 @@ const hoyISO = () => new Date(Date.now() - 5 * 36e5).toISOString().slice(0, 10);
 const sumarDias = (iso, n) => { const d = new Date(iso + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const fechaCorta = (iso) => { if (!iso) return ""; const [, m, d] = iso.split("-"); return `${d}/${m}`; };
 const plata = (v) => (v === null || v === undefined ? "—" : (v < 0 ? "-" : "") + formatear(Math.abs(v), st.pais));
-const saludo = () => { const h = new Date().getHours(); return h < 12 ? "Buenos días" : h < 19 ? "Buenas tardes" : "Buenas noches"; };
+// Un mensaje motivador distinto cada vez que entras o refrescas (general: sirve para quien esté usando CoDropX)
+const MOTIVACION = [
+  "¡Vamos con toda! 💪", "Campeón, tú puedes 🏆", "¡Lo vas a lograr! 🚀", "¡Con toda la energía hoy! ⚡",
+  "Hoy es un gran día para vender 🔥", "Un producto ganador te está esperando 🎯", "Paso a paso se llega lejos 👣",
+  "La constancia gana 💯", "¡A romperla hoy! 💥", "Cada testeo te acerca al winner 🧪", "¡Hoy no se para! 🔋",
+  "Hoy se vende, campeón 💸", "Disciplina hoy, libertad mañana 🗝️", "¡Enfocados y con hambre de más! 🎯",
+  "El que la sigue la consigue 🙌", "Hoy montamos algo grande 🏗️", "¡Equipo imparable! 🤝",
+  "Lo difícil se hace, lo imposible se intenta 💪", "¡Dale que sí se puede! ✊", "Tu próximo winner está a un testeo 🚀",
+  "Los resultados llegan a los que no se rinden 🔥", "¡Modo bestia activado! 🦁", "Hoy mejor que ayer 📈",
+  "Confía en el proceso 🧭", "¡A facturar se dijo! 💰", "Grandes cosas vienen ✨",
+  "Hoy no es suerte, es trabajo 🛠️", "¡Arriba ese ánimo! ☀️", "Cada pedido cuenta, sigue así 📦",
+  "¡Juntos lo hacemos crecer! 👑"
+];
+let mensajeInicio = null;
+function nuevoMensaje() {
+  let ultimo = -1;
+  try { ultimo = Number(localStorage.getItem("ih_motivacion") ?? -1); } catch {}
+  let i = Math.floor(Math.random() * MOTIVACION.length);
+  if (i === ultimo) i = (i + 1) % MOTIVACION.length;
+  try { localStorage.setItem("ih_motivacion", String(i)); } catch {}
+  mensajeInicio = MOTIVACION[i];
+}
+const saludo = () => {
+  if (!mensajeInicio) nuevoMensaje();
+  return mensajeInicio;
+};
 const diasDesde = (fecha) => (fecha ? Math.floor((Date.now() - new Date(fecha)) / 864e5) : null);
 
 async function cargarFinanzas(pa) {
@@ -89,7 +114,6 @@ function numeros() {
 // ---------- Pantalla ----------
 function render(view) {
   const n = numeros();
-  const nombre = (st.usuario?.nombre || "").split(" ")[0];
   const testeos = st.productos.filter(p => p.resultado === "testeando");
   const resultados = ["winner", "perdedor", "inconcluso"].map(k => st.productos.filter(p => p.resultado === k).length);
   const enDesarrollo = [...st.proyectos].sort((a, b) => new Date(b.actualizado) - new Date(a.actualizado)).slice(0, 5);
@@ -99,7 +123,7 @@ function render(view) {
   <div class="in-home">
     <header class="ih-head">
       <div>
-        <h1>${saludo()}${nombre ? `, ${esc(nombre)}` : ""} 👋</h1>
+        <h1>${esc(saludo())}</h1>
         <p>${n ? `Así va tu operación en ${st.pais === "EC" ? "Ecuador" : "Colombia"} · datos de Dropi hasta el ${fechaCorta(n.ultimo)}` : "Tu tablero se llena cuando subes el Excel de Dropi en Finanzas."}</p>
       </div>
       <div class="ih-pais">
@@ -246,6 +270,7 @@ window.ihAbrirProyecto = (id) => { goTo("desarrollo"); setTimeout(() => window.e
 
 registrarRuta("inicio", async (view) => {
   window.marcarMenuActivo?.("inicio");
+  nuevoMensaje();      // cada vez que entras a Inicio, otro mensaje
   try { st.pais = localStorage.getItem("fz_pais") || st.pais; } catch {}
   view.innerHTML = `<div class="in-home"><p class="est-muted">Cargando tu tablero...</p></div>`;
   try {
