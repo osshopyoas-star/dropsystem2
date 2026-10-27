@@ -168,10 +168,13 @@ const HAY = new Set([
   "tamano_variantes-tabla-normal"
 ]);
 
-// formato: "ban" o "normal" · las secciones generales usan el mismo ejemplo en producto y en moda
-export function ejemploDe(tipo, variante, formato = "ban") {
+// formato: "ban" o "normal" · producto: "producto" o "moda"
+// En moda, las secciones generales (dolor, paquetes, reseñas…) usan su versión con la chaqueta ({nombre}-moda);
+// si todavía no existe se muestra el dibujo (no la botella, que confunde).
+export function ejemploDe(tipo, variante, formato = "ban", producto = "producto") {
   const f = formato === "normal" ? "normal" : "ban";
-  const n = `${tipo}-${variante}-${f}`;
+  let n = `${tipo}-${variante}-${f}`;
+  if (producto === "moda" && !tipo.startsWith("moda_")) n += "-moda";
   return HAY.has(n) ? `/ejemplos/${n}.webp` : null;
 }
 

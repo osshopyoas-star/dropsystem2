@@ -238,7 +238,7 @@ function render() {
 
 // Imagen real de ejemplo (si ya existe) o el dibujo del diseño
 function miniatura(tipo, v, azul, clase) {
-  const src = ejemploDe(tipo, v.id, base());
+  const src = ejemploDe(tipo, v.id, base(), tipoProd());
   return src
     ? `<img class="${clase} pl-ejemplo ${base() === "normal" ? "cuadrada" : ""}" src="${src}" alt="Ejemplo: ${esc(v.nombre)}" loading="lazy" decoding="async">`
     : dibujar(v.dibujo, azul, clase);
