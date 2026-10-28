@@ -456,6 +456,57 @@ export function rentabilidadProductos(lineas, { desde, hasta, grupos = [], pauta
 }
 
 // =============================================
+// EDITAR UN REPORTE GUARDADO: cambiar la publicidad por producto y los costos operativos
+// sin volver a leer los pedidos. datos = { r, op, rent, costos, pautaProd }.
+// pautaProd: { clave: { meta, tiktok } } · otros: { meta, tiktok } (pauta que no es de un producto)
+// costos: los del periodo; cada mes cuenta los mismos días que cuando se guardó (op.meses).
+// =============================================
+const rentDerivados = (f) => ({
+  ...f, neta: f.bruta - f.pauta,
+  margen: f.venta > 0 ? (f.bruta - f.pauta) / f.venta * 100 : null,
+  ticket: f.entregados ? f.venta / f.entregados : null,
+  cpa: f.pauta && f.pedidos ? f.pauta / f.pedidos : null,
+  cpaReal: f.pauta && f.entregados ? f.pauta / f.entregados : null,
+  roas: f.pauta ? f.venta / f.pauta : null
+});
+export function editarReporte(datos, { pautaProd = {}, otros = { meta: 0, tiktok: 0 }, costos = [], convertir = (v) => v } = {}) {
+  const r = { ...datos.r };
+  const n = (v) => Math.max(0, Number(v) || 0);
+  // Publicidad
+  let meta = n(otros.meta), tiktok = n(otros.tiktok);
+  for (const v of Object.values(pautaProd)) { meta += n(v?.meta); tiktok += n(v?.tiktok); }
+  // Costos operativos con los mismos días por mes del reporte
+  const meses = (datos.op?.meses || []).map(m => {
+    const delMes = costos.filter(c => c.mes === m.mes).reduce((a, c) => a + (Number(convertir(n(c.valor), c.moneda)) || 0), 0);
+    return { ...m, delMes, cuenta: m.diasMes ? delMes * m.dias / m.diasMes : 0 };
+  });
+  const operativos = meses.reduce((a, m) => a + m.cuenta, 0);
+  const delta = (meta + tiktok + operativos) - ((Number(r.publicidad) || 0) + (Number(r.operativos) || 0));
+
+  Object.assign(r, { gastoMeta: meta, gastoTiktok: tiktok, publicidad: meta + tiktok, operativos, gananciaNeta: r.gananciaNeta - delta });
+  r.margenNeto = r.ingreso > 0 ? r.gananciaNeta / r.ingreso * 100 : 0;
+  if (r.desglose) r.desglose = { ...r.desglose, publicidad: meta + tiktok, operativos, neta: r.gananciaNeta };
+  if (r.proyeccion) r.proyeccion = { ...r.proyeccion, netaFinal: r.proyeccion.netaFinal - delta };
+  if (r.escenarios) {
+    const e = { ...r.escenarios };
+    for (const k of ["optimista", "actual", "pesimista"]) {
+      const neta = e[k].neta - delta, venta = r.ingreso + e.ventaRodando * e[k].pct / 100;
+      e[k] = { ...e[k], neta, margen: venta > 0 ? neta / venta * 100 : 0 };
+    }
+    r.escenarios = e;
+  }
+  // Rentabilidad por producto
+  let rent = datos.rent || null;
+  if (rent?.filas) {
+    const filas = rent.filas.map(f => (pautaProd[f.clave] ? rentDerivados({ ...f, pauta: n(pautaProd[f.clave].meta) + n(pautaProd[f.clave].tiktok) }) : f)).sort((a, b) => b.neta - a.neta);
+    const t = {};
+    for (const f of filas) for (const k of ["pedidos", "entregados", "devueltos", "cancelados", "rodando", "venta", "producto", "flete", "otros", "devoluciones", "pauta", "bruta"]) t[k] = (t[k] || 0) + (Number(f[k]) || 0);
+    rent = { filas, total: rentDerivados({ ...t, nombre: "Total" }) };
+  }
+  return { ...datos, r, rent, costos, pautaProd, otros: { meta: n(otros.meta), tiktok: n(otros.tiktok) }, op: { total: operativos, meses } };
+}
+
+// =============================================
 // LOGÍSTICA
 // =============================================
 export function logistica(lineas, { desde, hasta, grupos = [], ahora = new Date(), metaEntrega = 70 } = {}) {

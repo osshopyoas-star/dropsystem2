@@ -9,7 +9,7 @@ import { formatear } from "../core/costeo.js";
 import { leerExcel } from "../core/excel.js";
 import {
   leerReporteDropi, controlDiario, totalesControl, reporteFinanciero, logistica, rentabilidadProductos,
-  nombresProductos, claveProducto, NOMBRE_GRUPO, costosPeriodo, mesesEntre
+  nombresProductos, claveProducto, NOMBRE_GRUPO, costosPeriodo, mesesEntre, editarReporte
 } from "../core/finanzas.js";
 
 const $ = (id) => document.getElementById(id);
@@ -949,8 +949,11 @@ function renderReporte(view) {
     ${cabecera(clave ? `Resumen: ${esc(G ? G.producto : nombreDe(clave))}` : "Reporte Financiero", "Lo que de verdad entra a tu wallet de Dropi por lo entregado, menos devoluciones y publicidad.", "bar-chart-3")}
     ${G ? `
     <section class="fz-guardado">
-      <span><i data-lucide="folder-open"></i> Estás viendo el reporte guardado <b>${esc(G.nombre)}</b> · ${fechaCorta(G.desde)} a ${fechaCorta(G.hasta)} · guardado ${fechaLarga(G.creado)}</span>
-      <button class="fz-btn claro chico" onclick="fzVolverActual()"><i data-lucide="arrow-left"></i> Volver a mi reporte actual</button>
+      <span><i data-lucide="folder-open"></i> Estás viendo el reporte guardado <b>${esc(G.nombre)}</b> · ${fechaCorta(G.desde)} a ${fechaCorta(G.hasta)} · guardado ${fechaLarga(G.creado)}${G.editado ? ` · editado ${fechaLarga(G.editado)}` : ""}</span>
+      <span class="fz-rep-botones">
+        <button class="fz-btn chico" onclick="fzEditarReporte()"><i data-lucide="pencil"></i> Editar reporte</button>
+        <button class="fz-btn claro chico" onclick="fzVolverActual()"><i data-lucide="arrow-left"></i> Volver a mi reporte actual</button>
+      </span>
     </section>` : ""}
     ${!r ? vacio() : `
     <section class="fz-card fz-filtros">
@@ -1156,14 +1159,26 @@ function datosReporte() {
   const G = st.rep.guardado;
   if (G) return { nombre: G.nombre, desde: G.desde, hasta: G.hasta, clave: G.clave, producto: G.producto, ...G.datos };
   const [desde, hasta] = periodo(st.rep.periodo, st.rep.desde, st.rep.hasta);
-  const clave = st.rep.clave;
+  return datosEnVivo(desde, hasta, st.rep.clave);
+}
+// Las cifras de hoy (último Excel + pauta) de un periodo y producto
+function datosEnVivo(desde, hasta, clave) {
   const op = operativosPeriodo(desde, hasta);
+  const pautaProd = {};
+  let otros = { meta: 0, tiktok: 0 };
+  if (clave) pautaProd[clave] = gastoRango(desde, hasta, clave);
+  else for (const p of Object.values(st.pauta)) {
+    if (p.fecha < desde || p.fecha > hasta) continue;
+    const x = p.clave ? (pautaProd[p.clave] ||= { meta: 0, tiktok: 0 }) : otros;
+    x.meta += Number(p.meta) || 0; x.tiktok += Number(p.tiktok) || 0;
+  }
+  const gasto = gastoRango(desde, hasta, clave);
   return {
     desde, hasta, clave, producto: clave ? nombreDe(clave) : "",
-    r: reporteActual(desde, hasta), op,
+    r: reporteFinanciero(st.lineas, { desde, hasta, clave, grupos: grupos(), gastoMeta: gasto.meta, gastoTiktok: gasto.tiktok, costosOperativos: clave ? 0 : op.total, referenciaEntrega: st.rep.referencia }), op,
     costos: clave ? [] : costosOp().filter(x => op.meses.some(m => m.mes === x.mes)).map(({ desc, mes, valor, moneda }) => ({ desc, mes, valor, moneda })),
     rent: clave ? null : rentabilidadProductos(st.lineas, { desde, hasta, grupos: grupos(), pauta: Object.values(st.pauta) }),
-    moneda: MONEDA_LOCAL(), trm: trmUso()
+    pautaProd, otros, moneda: MONEDA_LOCAL(), trm: trmUso(), estadosDe: st.config?.ultimaImportacion || null
   };
 }
 
@@ -1251,6 +1266,7 @@ window.fzReportesGuardados = async () => {
             <small>${fechaCorta(x.desde)} a ${fechaCorta(x.hasta)}${x.producto ? ` · ${esc(x.producto)}` : ""} · guardado ${fechaLarga(x.creado)}</small>
             <span>${x.resumen?.pedidos ?? 0} pedidos · entrega ${pct(x.resumen?.tasaEntrega)} · neta <em class="${(x.resumen?.gananciaNeta || 0) < 0 ? "rojo" : "verde"}">${$$s(x.resumen?.gananciaNeta)}</em> · margen ${pct(x.resumen?.margenNeto)}</span>
           </button>
+          <button class="fz-icono" title="Editar" onclick="fzEditarReporte('${x.id}')"><i data-lucide="pencil"></i></button>
           <button class="fz-icono peligro" title="Borrar" onclick="fzBorrarReporte('${x.id}')"><i data-lucide="trash-2"></i></button>
         </li>`).join("") || `<li class="vacia">Aún no guardas reportes. Dale <b>Guardar reporte</b> cuando cierres un mes.</li>`}</ul>
       <div class="fz-modal-pie"><button class="fz-btn claro" onclick="fzCerrarModalRep()">Cerrar</button></div>`;
@@ -1278,6 +1294,156 @@ window.fzBorrarReporte = async (id) => {
     avisar("Reporte borrado ✓");
     fzReportesGuardados();
   } catch (err) { avisar(err.message, "error"); }
+};
+
+// ---------- Editar un reporte guardado (nombre, publicidad por producto, costos operativos, estados de hoy) ----------
+let ed = null;   // borrador: { G, base, nombre, pautaProd, otros, costos, refrescado }
+// Reportes guardados antes de que existiera la edición: la pauta por producto sale de la rentabilidad
+function pautaDeGuardado(d, clave) {
+  if (d.pautaProd) return { pautaProd: structuredClone(d.pautaProd), otros: { meta: 0, tiktok: 0, ...(d.otros || {}) } };
+  const pautaProd = {};
+  if (clave) pautaProd[clave] = { meta: d.r.gastoMeta || 0, tiktok: d.r.gastoTiktok || 0 };
+  else for (const f of d.rent?.filas || []) if (f.pauta) pautaProd[f.clave] = { meta: f.pauta, tiktok: 0 };
+  const suma = Object.values(pautaProd).reduce((a, x) => a + x.meta + x.tiktok, 0);
+  return { pautaProd, otros: { meta: Math.max(0, (d.r.publicidad || 0) - suma), tiktok: 0 } };
+}
+window.fzEditarReporte = async (id) => {
+  try {
+    const G = id && st.rep.guardado?.id !== id ? await api("GET", `/api/finanzas/reportes/${encodeURIComponent(id)}`) : st.rep.guardado;
+    if (!G?.datos?.r) throw new Error("Este reporte está vacío");
+    ed = { G, base: G.datos, nombre: G.nombre, ...pautaDeGuardado(G.datos, G.clave), costos: (G.datos.costos || []).map(c => ({ ...c, id: idNuevo() })), refrescado: false };
+    modalReporte("");
+    pintarEditor();
+  } catch (err) { avisar(err.message, "error"); }
+};
+const filasPauta = () => {
+  const b = ed.base;
+  if (ed.G.clave) return [{ clave: ed.G.clave, nombre: ed.G.producto || "Producto" }];
+  const vistos = new Set();
+  const out = [];
+  for (const f of b.rent?.filas || []) { vistos.add(f.clave); out.push({ clave: f.clave, nombre: f.nombre }); }
+  for (const k of Object.keys(ed.pautaProd)) if (!vistos.has(k)) out.push({ clave: k, nombre: nombreDe(k) });
+  return out.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+};
+const datosEditados = () => editarReporte(ed.base, { pautaProd: ed.pautaProd, otros: ed.otros, costos: ed.costos.filter(c => c.desc || c.valor > 0).map(({ id, ...c }) => c), convertir: (v, m) => conTrm(v, m, ed.base.trm) });
+const conTrm = (v, moneda, trm) => { const t = Number(trm) || trmUso(); return moneda === MONEDA_LOCAL() ? v : moneda === "USD" ? v * t : v / t; };
+
+function pintarEditor() {
+  const box = document.querySelector(".fz-modal-rep .fz-modal-box");
+  if (!box || !ed) return;
+  const b = ed.base, meses = (b.op?.meses || []).map(m => m.mes);
+  const otraMoneda = MONEDA_LOCAL() === "COP" ? "USD" : "COP";
+  const celda = (k, campo, v) => `<input type="number" min="0" step="any" value="${v ? Math.round(v * 100) / 100 : ""}" placeholder="0" oninput="fzEdPauta('${esc(k)}', '${campo}', this.value)">`;
+  box.classList.remove("chico");
+  box.innerHTML = `
+    <h3><i data-lucide="pencil"></i> Editar reporte</h3>
+    <p class="fz-mini">Cambia lo que quieras y dale <b>Guardar cambios</b>. Los pedidos no se tocan; solo se vuelven a hacer las cuentas.</p>
+    <label class="fz-mini" for="fzEdNombre">Nombre del reporte</label>
+    <input id="fzEdNombre" class="fz-rep-nombre" maxlength="80" value="${esc(ed.nombre)}" oninput="fzEdNombre(this.value)">
+
+    <div class="fz-ed-bloque fz-ed-estados">
+      <div><b>Traer los estados de hoy</b>
+        <p class="fz-mini">Vuelve a mirar en qué va cada pedido del ${fechaCorta(ed.G.desde)} al ${fechaCorta(ed.G.hasta)} con tu último Excel de Dropi${st.config?.ultimaImportacion ? ` (subido ${hace(st.config.ultimaImportacion)})` : ""}. Tu publicidad y tus costos de aquí abajo se quedan como están.${ed.refrescado ? ` <b class="verde">Listo: estados de hoy. Dale Guardar cambios.</b>` : ""}</p></div>
+      <button class="fz-btn claro chico" onclick="fzEdEstados()" ${st.pais === ed.G.pais || !ed.G.pais ? "" : "disabled"}><i data-lucide="refresh-cw"></i> Actualizar estados</button>
+    </div>
+
+    <h4><i data-lucide="megaphone"></i> Inversión en publicidad por producto</h4>
+    <p class="fz-mini">Lo que invertiste en el periodo, en ${MONEDA_LOCAL()}.</p>
+    <div class="fz-scroll"><table class="fz-tabla fz-costos">
+      <thead><tr><th>Producto</th><th class="n">Meta Ads</th><th class="n">TikTok Ads</th><th class="n">Total</th></tr></thead>
+      <tbody>
+        ${filasPauta().map(f => { const v = ed.pautaProd[f.clave] || {}; return `<tr><td>${esc(f.nombre)}</td><td class="n">${celda(f.clave, "meta", v.meta)}</td><td class="n">${celda(f.clave, "tiktok", v.tiktok)}</td><td class="n" data-tot="${esc(f.clave)}">${$$((v.meta || 0) + (v.tiktok || 0))}</td></tr>`; }).join("")}
+        ${ed.G.clave ? "" : `<tr><td>Otros <small class="gris">(calentamiento, interacción…)</small></td><td class="n">${celda("__otros", "meta", ed.otros.meta)}</td><td class="n">${celda("__otros", "tiktok", ed.otros.tiktok)}</td><td class="n" data-tot="__otros">${$$(ed.otros.meta + ed.otros.tiktok)}</td></tr>`}
+      </tbody>
+      <tfoot><tr class="fz-total"><td><b>Total</b></td><td class="n" id="fzEdTotMeta"></td><td class="n" id="fzEdTotTik"></td><td class="n"><b id="fzEdTotPub"></b></td></tr></tfoot>
+    </table></div>
+
+    ${ed.G.clave || !meses.length ? "" : `
+    <h4><i data-lucide="building-2"></i> Costos operativos</h4>
+    <p class="fz-mini">Shopify, checkout, apps, IA, edición, salarios… del periodo del reporte.</p>
+    <div class="fz-scroll"><table class="fz-tabla fz-costos">
+      <thead><tr><th>Descripción</th>${meses.length > 1 ? "<th>Mes</th>" : ""}<th class="n">Valor</th><th>Moneda</th><th></th></tr></thead>
+      <tbody>${ed.costos.map(c => `<tr>
+        <td><input type="text" maxlength="80" value="${esc(c.desc)}" placeholder="Ej: Shopify, Releasit, salario…" oninput="fzEdCosto('${c.id}', 'desc', this.value)"></td>
+        ${meses.length > 1 ? `<td><select onchange="fzEdCosto('${c.id}', 'mes', this.value)">${meses.map(m => `<option value="${m}" ${c.mes === m ? "selected" : ""}>${NOMBRE_MES(m)}</option>`).join("")}</select></td>` : ""}
+        <td class="n"><input type="number" min="0" step="any" value="${c.valor || ""}" placeholder="0" oninput="fzEdCosto('${c.id}', 'valor', this.value)"></td>
+        <td><select onchange="fzEdCosto('${c.id}', 'moneda', this.value)">${[MONEDA_LOCAL(), otraMoneda].map(m => `<option ${c.moneda === m ? "selected" : ""}>${m}</option>`).join("")}</select></td>
+        <td><button class="fz-x" title="Quitar" onclick="fzEdCostoQuitar('${c.id}')">×</button></td></tr>`).join("") || `<tr><td colspan="${meses.length > 1 ? 5 : 4}" class="fz-sin">Sin costos operativos.</td></tr>`}</tbody>
+      <tfoot><tr class="fz-total"><td colspan="${meses.length > 1 ? 2 : 1}"><b>Cuentan en el reporte</b></td><td class="n"><b id="fzEdTotOp"></b></td><td colspan="2"></td></tr></tfoot>
+    </table></div>
+    <div class="fz-costos-acc"><button class="fz-btn claro chico" onclick="fzEdCostoAgregar()"><i data-lucide="plus"></i> Agregar costo</button></div>`}
+
+    <div class="fz-ed-res" id="fzEdRes"></div>
+    <div class="fz-modal-pie">
+      <button class="fz-btn claro" onclick="fzCerrarModalRep()">Cancelar</button>
+      <button class="fz-btn" id="fzBtnEdGuardar" onclick="fzEdGuardar()"><i data-lucide="check-circle"></i> Guardar cambios</button>
+    </div>`;
+  iconos();
+  totalesEditor();
+}
+// Totales y resultado sin repintar (para no perder lo que estás escribiendo)
+function totalesEditor() {
+  if (!ed) return;
+  const d = datosEditados(), r = d.r;
+  const set = (id, v) => { const el = $(id); if (el) el.textContent = v; };
+  set("fzEdTotMeta", $$(r.gastoMeta)); set("fzEdTotTik", $$(r.gastoTiktok)); set("fzEdTotPub", $$(r.publicidad)); set("fzEdTotOp", $$(r.operativos));
+  for (const el of document.querySelectorAll(".fz-modal-rep [data-tot]")) {
+    const v = el.dataset.tot === "__otros" ? ed.otros : ed.pautaProd[el.dataset.tot] || {};
+    el.textContent = $$((Number(v.meta) || 0) + (Number(v.tiktok) || 0));
+  }
+  const antes = ed.G.datos.r.gananciaNeta;
+  const res = $("fzEdRes");
+  if (res) res.innerHTML = `Ganancia neta: <b class="${r.gananciaNeta < 0 ? "rojo" : "verde"}">${$$s(r.gananciaNeta)}</b> · margen ${pct(r.margenNeto)}${Math.round(r.gananciaNeta) !== Math.round(antes) ? ` <small class="gris">(antes ${$$s(antes)})</small>` : ""}`;
+}
+window.fzEdNombre = (v) => { ed.nombre = v; };
+window.fzEdPauta = (k, campo, v) => {
+  const x = k === "__otros" ? ed.otros : (ed.pautaProd[k] ||= { meta: 0, tiktok: 0 });
+  x[campo] = Math.max(0, Number(v) || 0);
+  totalesEditor();
+};
+window.fzEdCosto = (id, campo, v) => {
+  const c = ed.costos.find(x => x.id === id);
+  if (!c) return;
+  c[campo] = campo === "valor" ? Math.max(0, Number(v) || 0) : campo === "moneda" ? (v === "USD" ? "USD" : "COP") : String(v).slice(0, 80);
+  totalesEditor();
+};
+window.fzEdCostoAgregar = () => {
+  const meses = (ed.base.op?.meses || []).map(m => m.mes);
+  ed.costos.push({ id: idNuevo(), mes: meses[meses.length - 1], desc: "", valor: 0, moneda: MONEDA_LOCAL() });
+  pintarEditor();
+  const inputs = document.querySelectorAll(".fz-modal-rep tbody input[type=text]");
+  inputs[inputs.length - 1]?.focus();
+};
+window.fzEdCostoQuitar = (id) => { ed.costos = ed.costos.filter(x => x.id !== id); pintarEditor(); };
+// Estados de hoy: pedidos y fletes del último Excel; se quedan los días de cada mes del reporte
+window.fzEdEstados = async () => {
+  try {
+    if (!st.lineas.length) throw new Error("Primero sube tu Excel de Dropi");
+    const vivo = datosEnVivo(ed.G.desde, ed.G.hasta, ed.G.clave);
+    ed.base = { ...vivo, op: { ...vivo.op, meses: ed.base.op?.meses || vivo.op.meses }, trm: ed.base.trm || vivo.trm };
+    for (const k of Object.keys(vivo.pautaProd)) if (!ed.pautaProd[k]) ed.pautaProd[k] = vivo.pautaProd[k];
+    ed.refrescado = true;
+    pintarEditor();
+    avisar(`Estados de hoy: ${vivo.r.entregados} entregados de ${vivo.r.despachados} despachados`);
+  } catch (err) { avisar(err.message, "error"); }
+};
+window.fzEdGuardar = async () => {
+  const b = $("fzBtnEdGuardar");
+  if (b?.disabled) return;
+  const nombre = ed.nombre.trim();
+  if (!nombre) return avisar("Ponle un nombre al reporte", "error");
+  const { desde, hasta, clave, producto, nombre: _n, ...datos } = { ...datosEditados() };
+  if (b) { b.disabled = true; b.innerHTML = `<span class="est-spin"></span> Guardando...`; }
+  try {
+    const x = await api("PUT", `/api/finanzas/reportes/${encodeURIComponent(ed.G.id)}`, { nombre, datos });
+    fzCerrarModalRep();
+    ed = null;
+    if (st.pagina === "reporte-financiero") { st.rep.guardado = x; renderReporte($("view")); window.scrollTo(0, 0); }
+    avisar("Cambios guardados ✓");
+  } catch (err) {
+    avisar(err.message, "error");
+    if (b && document.body.contains(b)) { b.disabled = false; b.innerHTML = `<i data-lucide="check-circle"></i> Guardar cambios`; iconos(); }
+  }
 };
 window.fzVolverActual = () => { st.rep.guardado = null; renderReporte($("view")); window.scrollTo(0, 0); };
 

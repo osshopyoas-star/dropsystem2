@@ -88,12 +88,19 @@ const reporteGuardadoSchema = new mongoose.Schema({
   nombre: String, desde: String, hasta: String, clave: { type: String, default: "" }, producto: { type: String, default: "" },
   resumen: { type: mongoose.Schema.Types.Mixed, default: {} },   // { pedidos, entregados, tasaEntrega, gananciaNeta, margenNeto }
   datos: { type: mongoose.Schema.Types.Mixed, default: {} },     // lo que se ve en pantalla (cifras ya calculadas, sin datos de clientes)
-  creado: { type: Date, default: Date.now }
+  creado: { type: Date, default: Date.now },
+  editado: { type: Date, default: null }
 });
 reporteGuardadoSchema.index({ owner: 1, pais: 1, creado: -1 });
 export const ReporteGuardado = mongoose.model("ReporteGuardado", reporteGuardadoSchema);
 export const MAX_REPORTES = 100;
 const MAX_DATOS_REPORTE = 400000;   // caracteres del JSON
+const limpiarNombreReporte = (v) => String(v || "").replace(/[\u0000-\u001f]+/g, " ").trim().slice(0, 80);
+function resumenReporte(r = {}) {
+  const n = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+  return { pedidos: n(r.pedidos), entregados: n(r.entregados), tasaEntrega: n(r.tasaEntrega), gananciaNeta: n(r.gananciaNeta), margenNeto: n(r.margenNeto) };
+}
+const datosInvalidos = (d) => (!d || typeof d !== "object" || !d.r ? "El reporte está vacío" : JSON.stringify(d).length > MAX_DATOS_REPORTE ? "El reporte es muy grande para guardarlo" : "");
 
 // ---------- Limpieza de lo que llega del navegador ----------
 const CAMPOS_TEXTO = {
@@ -289,7 +296,7 @@ Sin rodeos, sin inventar datos que no estén en las cifras. Si la publicidad est
   app.get("/api/finanzas/reportes", async (req, res) => {
     try {
       const lista = await ReporteGuardado.find({ owner: req.user.uid, pais: pais(req.query.pais) })
-        .select("nombre desde hasta clave producto resumen creado").sort({ creado: -1 }).limit(MAX_REPORTES).lean();
+        .select("nombre desde hasta clave producto resumen creado editado").sort({ creado: -1 }).limit(MAX_REPORTES).lean();
       res.json(lista.map(({ _id, ...x }) => ({ id: String(_id), ...x })));
     } catch (err) {
       console.error("Error leyendo reportes guardados:", err);
@@ -316,22 +323,45 @@ Sin rodeos, sin inventar datos que no estén en las cifras. Si la publicidad est
       const p = pais(b.pais);
       const desde = fechaQ(b.desde), hasta = fechaQ(b.hasta);
       if (!desde || !hasta) return res.status(400).json({ error: "El reporte no tiene fechas" });
-      if (!b.datos || typeof b.datos !== "object" || !b.datos.r) return res.status(400).json({ error: "El reporte está vacío" });
-      if (JSON.stringify(b.datos).length > MAX_DATOS_REPORTE) return res.status(400).json({ error: "El reporte es muy grande para guardarlo" });
+      const malo = datosInvalidos(b.datos);
+      if (malo) return res.status(400).json({ error: malo });
       if (await ReporteGuardado.countDocuments({ owner: req.user.uid, pais: p }) >= MAX_REPORTES) return res.status(400).json({ error: `Ya tienes ${MAX_REPORTES} reportes guardados. Borra alguno viejo.` });
-      const n = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
-      const r = b.datos.r;
       const x = await ReporteGuardado.create({
         owner: req.user.uid, pais: p, desde, hasta,
-        nombre: String(b.nombre || "").replace(/[\u0000-\u001f]+/g, " ").trim().slice(0, 80) || `${desde} a ${hasta}`,
+        nombre: limpiarNombreReporte(b.nombre) || `${desde} a ${hasta}`,
         clave: String(b.clave || "").slice(0, 60), producto: String(b.producto || "").slice(0, 200),
-        resumen: { pedidos: n(r.pedidos), entregados: n(r.entregados), tasaEntrega: n(r.tasaEntrega), gananciaNeta: n(r.gananciaNeta), margenNeto: n(r.margenNeto) },
-        datos: b.datos
+        resumen: resumenReporte(b.datos.r), datos: b.datos
       });
       res.json({ ok: true, id: String(x._id), creado: x.creado });
     } catch (err) {
       console.error("Error guardando reporte:", err);
       res.status(500).json({ error: "No se pudo guardar el reporte" });
+    }
+  });
+
+  // Editar un reporte guardado: nombre, publicidad, costos operativos o los estados de hoy
+  app.put("/api/finanzas/reportes/:id", async (req, res) => {
+    try {
+      if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ error: "Ese reporte no existe" });
+      const b = req.body || {};
+      const set = { editado: new Date() };
+      if (b.nombre !== undefined) {
+        const nombre = limpiarNombreReporte(b.nombre);
+        if (!nombre) return res.status(400).json({ error: "Ponle un nombre al reporte" });
+        set.nombre = nombre;
+      }
+      if (b.datos !== undefined) {
+        const malo = datosInvalidos(b.datos);
+        if (malo) return res.status(400).json({ error: malo });
+        set.datos = b.datos; set.resumen = resumenReporte(b.datos.r);
+      }
+      const x = await ReporteGuardado.findOneAndUpdate({ _id: req.params.id, owner: req.user.uid }, { $set: set }, { new: true }).select("-owner -__v").lean();
+      if (!x) return res.status(404).json({ error: "Ese reporte no existe" });
+      const { _id, ...resto } = x;
+      res.json({ id: String(_id), ...resto });
+    } catch (err) {
+      console.error("Error editando reporte guardado:", err);
+      res.status(500).json({ error: "No se pudo guardar el cambio" });
     }
   });
 
