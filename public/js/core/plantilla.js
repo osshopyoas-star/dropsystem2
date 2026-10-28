@@ -220,7 +220,7 @@ export const SECCIONES = {
   },
   resenas: {
     titulo: "Reseñas de clientes", formatos: ["ban", "normal"],
-    def: "Las reseñas REALES que el dueño escribió en la Ficha, textuales: foto que mandó el cliente (o el producto en uso si no hay; en vez de cara, un círculo con las iniciales), nombre o iniciales, ciudad, estrellas que dio y su texto. Si la Ficha no tiene reseñas: título y tarjetas blancas LISAS donde el dueño pega capturas. Nunca se inventa nada.",
+    def: "Las reseñas REALES que el dueño escribió en la Ficha, textuales: foto que mandó el cliente (o el producto en uso si no hay; en vez de cara, un círculo con las iniciales), nombre o iniciales, ciudad, estrellas que dio y su texto. Si la Ficha no tiene reseñas: el prompt le pide a Gemini que ponga las que el dueño le pase al hacer la imagen (capturas de WhatsApp o texto). Nunca se inventa nada.",
     variantes: [
       { id: "dos_columnas", nombre: "Tarjetas en dos columnas", desc: "Cuadrícula de tarjetas en dos columnas; cada una con la foto del cliente arriba, su nombre y ciudad, las estrellas y el texto.",
         dibujo: [T(6), ["r", 6, 13, 23, 30, "w", 3], ["r", 31, 13, 23, 30, "w", 3], ["r", 6, 46, 23, 30, "w", 3], ["r", 31, 46, 23, 30, "w", 3]] },
@@ -393,7 +393,7 @@ export const SECCIONES = {
   },
   moda_chats: {
     titulo: "Lo que nos escriben (chats)", formatos: ["ban", "normal"], tipos: ["producto", "moda"],
-    def: "Burbujas de chat tipo WhatsApp con los mensajes REALES que el dueño escribió en la Ficha (reseñas), textuales: el mensaje del cliente, su nombre o iniciales y la hora. Si la Ficha no tiene reseñas: burbujas blancas LISAS donde el dueño pega capturas. Nunca se inventa nada.",
+    def: "Burbujas de chat tipo WhatsApp con los mensajes REALES que el dueño escribió en la Ficha (reseñas), textuales: el mensaje del cliente, su nombre o iniciales y la hora. Si la Ficha no tiene reseñas: el prompt le pide a Gemini que ponga los chats que el dueño le pase al hacer la imagen (capturas o texto). Nunca se inventa nada.",
     variantes: [
       { id: "telefono", nombre: "Dentro de un celular", desc: "Un celular dibujado con un chat de 3 o 4 mensajes de clientes (burbujas con su texto) y el título 'Lo que nos escriben'.",
         dibujo: [T(6), ["r", 14, 12, 32, 70, "d", 6], ["r", 17, 18, 26, 62, "g", 3], ["r", 19, 22, 18, 7, "w", 3], ["r", 23, 33, 18, 7, "w", 3], ["r", 19, 44, 18, 7, "w", 3], ["r", 23, 55, 18, 7, "w", 3]] },

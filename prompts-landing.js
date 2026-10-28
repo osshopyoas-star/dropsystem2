@@ -41,7 +41,7 @@ export const REGLAS_APRENDIDAS = [
   "Si es un pack o kit, muéstralo completo y en grande en la imagen de oferta, con el precio por unidad si aplica.",
   "El producto nunca queda tapado: titulares compactos, el producto es el protagonista y se ve grande.",
   "Estilo de VENTA DIRECTA que invita a comprar por impulso, no estilo editorial ni de revista.",
-  "NUNCA pidas recuadros, marcos ni círculos vacíos para GIF, logo, botones o transportadoras: la IA los dibuja como cajas feas. Si el dueño va a pegar algo después, deja esa zona con el MISMO fondo de la imagen, lisa y sin bordes. Única excepción: las secciones de reseñas y de chats, que llevan tarjetas o burbujas blancas lisas (sin borde doble ni líneas por dentro).",
+  "NUNCA pidas recuadros, marcos ni círculos vacíos para GIF, logo, botones o transportadoras: la IA los dibuja como cajas feas. Si el dueño va a pegar algo después, deja esa zona con el MISMO fondo de la imagen, lisa y sin bordes. Única excepción: las secciones de reseñas y de chats, que llevan tarjetas o burbujas blancas (sin borde doble ni líneas por dentro), SIEMPRE llenas con el texto de cada cliente.",
   "No pidas pegar ropa o piezas de otra foto: pide 'recolorea' o describe la prenda.",
   "Para lencería o productos sensibles: genera una modelo adulta nueva, sin poses sugestivas ni desnudez.",
   "Nombres de tipografías (Bebas Neue, Montserrat, etc.) y nombres de colores o códigos hex son instrucciones de diseño: NUNCA aparecen escritos en la imagen. En la imagen solo va el texto que está entre comillas.",
@@ -58,7 +58,7 @@ export const REGLAS_APRENDIDAS = [
 ];
 
 export const LIMITES = [
-  "Reseñas y testimonios: usa SOLO las reseñas reales que el dueño escribió en la Ficha, textuales (mismo nombre o iniciales, ciudad, estrellas y texto, sin mejorarlas). NUNCA inventes reseñas, rostros, nombres, ciudades, calificaciones promedio ('4.8/5'), cantidades de comentarios ni 'compra verificada'. Si la Ficha no tiene reseñas, la sección lleva solo el título y tarjetas blancas lisas donde el dueño pega capturas reales.",
+  "Reseñas y testimonios: usa SOLO las reseñas reales que el dueño escribió en la Ficha, textuales (mismo nombre o iniciales, ciudad, estrellas y texto, sin mejorarlas). NUNCA inventes reseñas, rostros, nombres, ciudades, calificaciones promedio ('4.8/5'), cantidades de comentarios ni 'compra verificada'. Si la Ficha no tiene reseñas, el dueño se las pasa a Gemini al hacer la imagen (capturas de WhatsApp o texto pegado al final del prompt) y Gemini las pone tal cual; nunca se rellenan con reseñas inventadas.",
   "Cifras de prueba social (entregas, clientes, ciudades, calificación, % que recomienda): SOLO las que vienen en 'PRUEBA SOCIAL REAL', exactas, sin redondear hacia arriba ni agregar otras ('+10.000 mamás', 'miles ya compraron'). Si no hay, ninguna cifra.",
   "Sellos y logos de entidades: NUNCA pongas logos de la Superintendencia de Industria y Comercio, la Cámara de Comercio Electrónico, bancos, transportadoras u otras entidades, ni 'tienda verificada', 'compra verificada' o certificados. La confianza sale de lo que es verdad: pagas al recibir, envío a todo el país, tiempo de entrega, garantía si existe y tus números reales.",
   "Producto real: la imagen muestra exactamente lo que llega. No agregues detalles, piezas, logos ni empaques de marca que no existan.",
@@ -80,11 +80,27 @@ export const METODO_AIDA = `MÉTODO DE VENTA (AIDA + la causa real):
 - DESEO: muéstrale por qué ESTE producto ataca justo esa causa (el mecanismo) y cómo se ve su vida con el resultado. Solo lo que la ficha permite prometer.
 - ACCIÓN: precio claro, pago contra entrega, garantía solo si existe, y una instrucción simple. Sin gritar ni urgencia falsa.`;
 
+// Sin reseñas en la Ficha: el dueño se las pasa a Gemini al hacer la imagen (capturas o texto), y Gemini las pone tal cual
+function resenasEnGemini(tipo) {
+  const chat = tipo === "chats";
+  return `
+${chat ? "CHATS" : "RESEÑAS"}: la Ficha no tiene reseñas escritas. El dueño se las va a pasar a Gemini al hacer la imagen: adjunta las capturas de WhatsApp o las fotos de sus clientes, y/o las pega como texto al final del prompt. Escribe el prompt así:
+- Pide ${chat ? "burbujas de chat tipo WhatsApp LLENAS, una por mensaje" : "tarjetas LLENAS, una por reseña"} (máximo 4) con lo que el dueño le pase: ${chat ? "el mensaje del cliente, su nombre o iniciales pequeño arriba y una hora abajo a la derecha" : "nombre o iniciales, ciudad si viene, estrellas si vienen y el texto"}, copiados TAL CUAL (puede corregir tildes, no cambiar palabras). Letra grande y legible.
+- Si el dueño adjunta capturas, que Gemini LEA el texto de cada captura y lo pase limpio a su ${chat ? "burbuja" : "tarjeta"} (no pegue la captura borrosa). Si adjunta fotos de clientes, que las use recortadas en las tarjetas sin cambiar a la persona.
+- Sin foto del cliente: junto al nombre un círculo de color con sus iniciales, nunca una cara inventada. Sin promedio ni "verificado".
+- Si le pasan menos de 4, haz solo esas; NUNCA inventes ni completes reseñas, nombres, ciudades o estrellas que no le pasaron.
+- El titular es genérico ("LO QUE DICEN NUESTROS CLIENTES" / "${chat ? "LO QUE NOS ESCRIBEN" : "CLIENTES REALES"}"); nada de "resultados reales" ni cifras.
+- Termina el prompt EXACTAMENTE con este bloque para que el dueño lo llene antes de enviarlo:
+${chat ? "CHATS DE MIS CLIENTES" : "RESEÑAS DE MIS CLIENTES"} (copia cada una tal cual; si adjunté capturas, léelas de ahí):
+1. Nombre: ___ · Ciudad: ___ · Estrellas: ___ · Texto: "___"
+2. Nombre: ___ · Ciudad: ___ · Estrellas: ___ · Texto: "___"
+3. Nombre: ___ · Ciudad: ___ · Estrellas: ___ · Texto: "___"`;
+}
+
 // Chats de clientes: los mismos mensajes reales de la Ficha, como burbujas de WhatsApp
 function bloqueChats(p) {
   const rs = resenasReales(p).filter(r => String(r.texto || "").trim()).slice(0, 4);
-  if (!rs.length) return `
-CHATS: la Ficha no tiene reseñas reales todavía. Haz SOLO el título y burbujas de chat blancas lisas vacías (sin texto ni nombres) donde el dueño pegará capturas.`;
+  if (!rs.length) return resenasEnGemini("chats");
   return `
 CHATS REALES (una burbuja por mensaje, EXACTAMENTE estos ${rs.length}, textuales; no cambies ni una palabra ni agregues otros). Cada burbuja: nombre o iniciales pequeño arriba, el mensaje y una hora pequeña abajo a la derecha (ej. 10:42). Letra grande y legible:
 ${rs.map((r, i) => `${i + 1}. "${limpio(r.nombre, 40) || "Cliente"}": "${limpio(r.texto, 200)}"`).join("\n")}`;
@@ -139,8 +155,7 @@ export function resenasReales(p) {
 }
 function bloqueResenas(p) {
   const rs = resenasReales(p);
-  if (!rs.length) return `
-RESEÑAS: la Ficha no tiene reseñas reales todavía. Haz SOLO el título y tarjetas blancas lisas vacías (sin texto, sin estrellas, sin nombres ni caras) donde el dueño pegará capturas.`;
+  if (!rs.length) return resenasEnGemini("resenas");
   let foto = 1;
   const lineas = rs.map((r, i) => {
     const conFoto = !!r.foto;
@@ -212,7 +227,11 @@ ${c.promedio ? `- Nota: "${String(c.promedio).replace(".", ",")}" con 5 estrella
   const citas = frases.length
     ? `FRASES REALES DE CLIENTES (textuales; puedes acortarlas quitando palabras del final, nunca cambiarlas ni agregar):
 ${frases.map((r, i) => `${i + 1}. "${limpio(r.texto, 160)}" — ${limpio(r.nombre, 40) || "sin nombre (no escribas ninguno)"}${r.ciudad ? `, ${limpio(r.ciudad, 40)}` : ""}${Number(r.estrellas) ? ` · ${Number(r.estrellas)} estrellas` : ""}`).join("\n")}`
-    : `FRASES: la Ficha no tiene textos de clientes: las tarjetas o burbujas van blancas y lisas, sin texto, para que el dueño pegue capturas reales.`;
+    : `FRASES: la Ficha no tiene textos de clientes. El dueño se los pasa a Gemini al hacer la imagen (capturas o texto): pide burbujas LLENAS con esas frases tal cual (máximo 4, nunca inventadas) y termina el prompt con este bloque para que el dueño lo llene:
+FRASES DE MIS CLIENTES (tal cual; si adjunté capturas, léelas de ahí):
+1. "___" — Nombre: ___
+2. "___" — Nombre: ___
+3. "___" — Nombre: ___`;
   return `
 ${cabeza}
 ${citas}
@@ -480,7 +499,7 @@ PRODUCTO: usa EXACTAMENTE el producto de la foto adjunta: ${r.descripcionFisica 
 TAMAÑO REAL: ${f.medidas || r.tamano || "(indicar medidas)"}. ${referenciaTamano(f.medidas || r.tamano)} Respeta esa escala exacta junto a manos, personas y muebles.
 PERSONAS: ${e.personas || (PARA_QUIEN[paraQuienDe(p)].personas ? `${PARA_QUIEN[paraQuienDe(p)].personas}, de ${pais.nombre}, aspecto latino natural` : `adultos de ${pais.nombre}, aspecto latino natural`)}.${esMenor(p) ? " Los menores siempre con ropa normal y completa, en escenas cotidianas y familiares; nada sugestivo." : ""}
 TEXTO: escribe los textos exactamente como te los doy, con tildes y signos de español, sin errores ni texto extra, y cada uno UNA sola vez. Los nombres de letras, colores y estas instrucciones NO se escriben en la imagen.
-NADA VACÍO: no dibujes recuadros, círculos ni marcos vacíos (salvo las tarjetas lisas de la sección de reseñas o chats).`);
+NADA VACÍO: no dibujes recuadros, círculos ni marcos vacíos. Las tarjetas de reseñas y chats van blancas y LLENAS con el texto de cada cliente.`);
 }
 
 // ---------- Paso 4: proponer secciones ----------

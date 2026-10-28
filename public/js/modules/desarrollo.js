@@ -593,7 +593,7 @@ function pasoFicha() {
 
       <div class="est-resenas">
         <div class="est-card-row"><h4>Reseñas reales de clientes</h4><small class="est-muted">hasta 6</small></div>
-        <p class="est-hint">Las fotos que te mandan los clientes y lo que te escriben o dicen (WhatsApp, nota de voz, al recibir el video). <b>Si solo tienes la foto, súbela sola</b>: la tarjeta sale con la foto, la ciudad y las estrellas, sin inventar texto ni nombre. Puedes corregir la ortografía, pero no le pongas palabras que el cliente no dijo. Sin reseñas aquí, la sección sale con tarjetas vacías.</p>
+        <p class="est-hint">Las fotos que te mandan los clientes y lo que te escriben o dicen (WhatsApp, nota de voz, al recibir el video). <b>Si solo tienes la foto, súbela sola</b>: la tarjeta sale con la foto, la ciudad y las estrellas, sin inventar texto ni nombre. Puedes corregir la ortografía, pero no le pongas palabras que el cliente no dijo. Si no las escribes aquí, el prompt de la sección de reseñas te deja un espacio al final para pegarlas, o adjuntas las capturas de WhatsApp en Gemini y él las pone en las tarjetas.</p>
         <div id="fResenas">${listaResenas()}</div>
       </div>
 
