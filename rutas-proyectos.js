@@ -140,18 +140,28 @@ function limpiarGuiones(lista, av) {
 }
 
 // Copys de anuncios
+const ENFOQUES_COPYS = ["aida", "pas", "beneficio", "prueba_social", "problema", "curiosidad"];
 function limpiarCopys(c) {
   if (!c || typeof c !== "object") return null;
   const txt = (v, n) => String(v || "").slice(0, n);
-  const enfoques = ["problema", "beneficio", "curiosidad"];
+  const lista = (v, n, max) => (Array.isArray(v) ? v : []).map(x => txt(x, max).trim()).filter(Boolean).slice(0, n);
+  const sinHashtags = (v) => String(v || "").replace(/#\S+/g, "").replace(/[{}]/g, "").replace(/\s{2,}/g, " ").trim();
+  const meta = (Array.isArray(c.meta) ? c.meta : []).slice(0, 4);
+  // tiktok: antes era solo la frase; ahora { texto, caption, ganchos, pantalla }
+  const tk = c.tiktok && typeof c.tiktok === "object" ? c.tiktok : { texto: c.tiktok };
+  const extra = c.tiktokExtra && typeof c.tiktokExtra === "object" ? c.tiktokExtra : tk;
+  const a = c.analisis && typeof c.analisis === "object" ? c.analisis : null;
   return {
-    meta: (Array.isArray(c.meta) ? c.meta : []).slice(0, 3).map((v, i) => ({
-      enfoque: enfoques.includes(v?.enfoque) ? v.enfoque : enfoques[i] || "problema",
-      texto_principal: txt(v?.texto_principal, 1500),
+    analisis: a ? { uvp: txt(a.uvp, 500), dolores: lista(a.dolores, 6, 200), angulos: lista(a.angulos, 6, 200), alertas: lista(a.alertas, 8, 300) } : null,
+    meta: meta.map((v, i) => ({
+      enfoque: ENFOQUES_COPYS.includes(v?.enfoque) ? v.enfoque : ENFOQUES_COPYS[i] || "aida",
+      texto_principal: txt(v?.texto_principal, 2500),
       titulo: txt(v?.titulo, 80),
       descripcion: txt(v?.descripcion, 60)
     })),
-    tiktok: txt(c.tiktok, 200).replace(/[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}\u{FE0F}\u{200D}]/gu, "").replace(/#\S+/g, "").replace(/\s{2,}/g, " ").trim(),
+    tiktok: sinHashtags(txt(tk.texto, 200)),
+    tiktokExtra: { caption: txt(extra.caption, 300).replace(/[{}]/g, "").trim(), ganchos: lista(extra.ganchos, 5, 120), pantalla: lista(extra.pantalla, 5, 60) },
+    testeo: txt(c.testeo, 800),
     opciones: {
       envio: !!c.opciones?.envio, contraEntrega: c.opciones?.contraEntrega !== false, precio: !!c.opciones?.precio
     }

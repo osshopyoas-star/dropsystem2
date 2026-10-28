@@ -72,7 +72,21 @@ export const ESTRUCTURAS_AD = {
 };
 
 export const ENFOQUES_COPY = {
+  aida: "AIDA",
+  pas: "PAS · problema, agitación, solución",
+  beneficio: "Beneficio directo",
+  prueba_social: "Prueba social / regalo",
+  // copys viejos
   problema: "Problema → causa real → solución",
-  beneficio: "Beneficio principal",
   curiosidad: "Curiosidad / gancho"
 };
+
+// Largo como lo cuenta TikTok: cada emoji ocupa 2 caracteres
+const esEmoji = (g) => /\p{Extended_Pictographic}|\p{Regional_Indicator}/u.test(g);
+export function largoTiktok(texto = "") {
+  const t = String(texto);
+  const partes = typeof Intl !== "undefined" && Intl.Segmenter ? [...new Intl.Segmenter("es", { granularity: "grapheme" }).segment(t)].map(x => x.segment) : [...t];
+  return partes.reduce((a, g) => a + (esEmoji(g) ? 2 : 1), 0);
+}
+// Datos sin confirmar que la IA dejó entre [corchetes] para que los revises
+export const corchetes = (texto = "") => String(texto).match(/\[[^\]\n]{1,120}\]/g) || [];

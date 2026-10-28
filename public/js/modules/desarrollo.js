@@ -7,7 +7,7 @@ import { state } from "../state.js";
 import { registrarRuta } from "./navegacion.js";
 import { escapeHTML } from "../core/utils.js";
 import { SECCIONES, FORMATOS, tiposDe, varianteDe, elegirVariante, formatoImagen, claveDe, ETAPAS_AIDA, etapaDe } from "../core/plantilla.js";
-import { ESTRUCTURAS_AD, FORMATOS_AD, ENFOQUES_COPY, MAX_ADS } from "../core/anuncios.js";
+import { ESTRUCTURAS_AD, FORMATOS_AD, ENFOQUES_COPY, MAX_ADS, largoTiktok, corchetes } from "../core/anuncios.js";
 import { dibujar } from "./plantilla.js";
 import { construirLanding, numerarCapas } from "../core/landing-html.js";
 import { VERSION_SECCION } from "../core/seccion-shopify.js";
@@ -1477,17 +1477,22 @@ window.estSubAnuncio = (k) => {
 };
 
 // ---------- Copys ----------
+// Repinta los contadores y avisos sin moverte de donde estás
+const repintarAqui = () => { const y = window.scrollY; renderPaso(); window.scrollTo(0, y); };
+const avisoCorchetes = (t) => { const c = corchetes(t); return c.length ? `<p class="est-copy-aviso"><i data-lucide="alert-triangle"></i> Confirma o borra antes de publicar: ${c.map(x => `<b>${esc(x)}</b>`).join(" · ")}</p>` : ""; };
+const contador = (n, max) => `<small class="${n > max ? "rojo" : ""}">${n}/${max}</small>`;
 function pasoCopys() {
   const r = R();
   const c = r.copys;
   const op = c?.opciones || { contraEntrega: true, envio: !!proyecto.ficha?.promesas?.envioGratis, precio: false };
   const envioReal = !!proyecto.ficha?.promesas?.envioGratis;
+  const a = c?.analisis, tk = c?.tiktokExtra || {};
   return `
   <div class="est-card">
     <div class="est-card-row">
       <div>
         <h3>Copys para Meta y TikTok ${avTag()}</h3>
-        <p class="est-muted">3 textos para Meta Ads (problema, beneficio y curiosidad) y una frase para TikTok, hablándole a ${esc(resumenAvatar(avatarActual()))}. Escritos para que Meta no los rechace.</p>
+        <p class="est-muted">Como un media buyer: primero analiza el producto (propuesta de valor, dolores, ángulos y riesgos de políticas) y luego escribe 4 copys con emojis para Meta (AIDA, PAS, beneficio directo y prueba social) y lo de TikTok (texto, caption, ganchos y textos en pantalla), hablándole a ${esc(resumenAvatar(avatarActual()))}. Respeta las políticas de Meta y TikTok, y la prueba social sale solo de tus reseñas y números reales.</p>
       </div>
       <button id="estBtnCopys" class="est-btn ${c ? "" : "primary"}" onclick="estGenerarCopys()"><i data-lucide="sparkles"></i> ${c ? "Escribir otros" : "Escribir copys"}</button>
     </div>
@@ -1498,27 +1503,48 @@ function pasoCopys() {
     </div>
   </div>
   ${c ? `
+    ${a ? `
+    <details class="est-card est-analisis" open>
+      <summary><h3><i data-lucide="search"></i> Análisis del producto</h3></summary>
+      ${a.uvp ? `<p><b>Propuesta de valor:</b> ${esc(a.uvp)}</p>` : ""}
+      <div class="est-analisis-cols">
+        ${a.dolores.length ? `<div><b>Dolores y deseos</b><ul>${a.dolores.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
+        ${a.angulos.length ? `<div><b>Ángulos</b><ul>${a.angulos.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
+      </div>
+      ${a.alertas.length ? `<div class="est-alert warn"><strong>Ojo con las políticas de Meta y TikTok:</strong><ul>${a.alertas.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
+      ${c.testeo ? `<p><b>Cómo testearlos:</b> ${esc(c.testeo)}</p>` : ""}
+    </details>` : ""}
     <div class="est-copys">
       ${c.meta.map((v, i) => `
         <article class="est-copy">
           <span class="est-chip">${esc(ENFOQUES_COPY[v.enfoque] || v.enfoque)}</span>
           <label class="est-label">Texto principal <button class="est-mini-btn" onclick="estCopiarCopy(${i}, 'texto_principal')"><i data-lucide="copy"></i> Copiar</button></label>
-          <textarea class="est-code" rows="7" onchange="estEditarCopy(${i}, 'texto_principal', this.value)">${esc(v.texto_principal)}</textarea>
-          <label class="est-label">Título <small>${(v.titulo || "").length}/40</small> <button class="est-mini-btn" onclick="estCopiarCopy(${i}, 'titulo')"><i data-lucide="copy"></i></button></label>
+          <textarea class="est-code" rows="12" onchange="estEditarCopy(${i}, 'texto_principal', this.value)">${esc(v.texto_principal)}</textarea>
+          ${avisoCorchetes(v.texto_principal + " " + v.titulo + " " + v.descripcion)}
+          <label class="est-label">Título ${contador((v.titulo || "").length, 40)} <button class="est-mini-btn" onclick="estCopiarCopy(${i}, 'titulo')"><i data-lucide="copy"></i></button></label>
           <input class="est-input" value="${esc(v.titulo)}" maxlength="80" onchange="estEditarCopy(${i}, 'titulo', this.value)">
-          <label class="est-label">Descripción <small>${(v.descripcion || "").length}/30</small> <button class="est-mini-btn" onclick="estCopiarCopy(${i}, 'descripcion')"><i data-lucide="copy"></i></button></label>
+          <label class="est-label">Descripción ${contador((v.descripcion || "").length, 30)} <button class="est-mini-btn" onclick="estCopiarCopy(${i}, 'descripcion')"><i data-lucide="copy"></i></button></label>
           <input class="est-input" value="${esc(v.descripcion)}" maxlength="60" onchange="estEditarCopy(${i}, 'descripcion', this.value)">
         </article>`).join("")}
     </div>
-    <div class="est-card">
-      <div class="est-card-row"><h3>TikTok</h3><button class="est-mini-btn" onclick="estCopiarTiktok()"><i data-lucide="copy"></i> Copiar</button></div>
-      <input class="est-input" value="${esc(c.tiktok)}" maxlength="200" onchange="estEditarTiktok(this.value)">
+    <div class="est-card est-tiktok">
+      <h3><i data-lucide="music-2"></i> TikTok</h3>
+      <label class="est-label">Texto del anuncio ${contador(largoTiktok(c.tiktok), 100)} <small class="est-muted">cada emoji cuenta 2</small> <button class="est-mini-btn" onclick="estCopiarTiktok('texto')"><i data-lucide="copy"></i> Copiar</button></label>
+      <input class="est-input" value="${esc(c.tiktok)}" maxlength="200" onchange="estEditarTiktok('texto', this.value)">
+      ${tk.caption !== undefined ? `
+      <label class="est-label">Caption para Spark Ads ${contador(largoTiktok(tk.caption), 150)} <button class="est-mini-btn" onclick="estCopiarTiktok('caption')"><i data-lucide="copy"></i> Copiar</button></label>
+      <input class="est-input" value="${esc(tk.caption)}" maxlength="300" onchange="estEditarTiktok('caption', this.value)">
+      ${avisoCorchetes(c.tiktok + " " + tk.caption)}
+      <div class="est-analisis-cols">
+        ${(tk.ganchos || []).length ? `<div><b>Ganchos para los primeros 3 segundos</b><ol>${tk.ganchos.map(x => `<li>${esc(x)}</li>`).join("")}</ol></div>` : ""}
+        ${(tk.pantalla || []).length ? `<div><b>Textos en pantalla</b><ol>${tk.pantalla.map(x => `<li>${esc(x)}</li>`).join("")}</ol></div>` : ""}
+      </div>` : `<p class="est-hint">Dale <b>Escribir otros</b> para que también te escriba el caption de Spark Ads, los ganchos y los textos en pantalla.</p>`}
     </div>` : ""}
   <div class="est-next"><button class="est-btn primary" onclick="estSubAnuncio('ads')">Seguir con los ads estáticos <i data-lucide="arrow-right"></i></button></div>`;
 }
 
-window.estCopiarTiktok = () => copiar(R().copys?.tiktok || "");
-window.estGenerarCopys = () => conCarga("estBtnCopys", "Escribiendo...", async () => {
+window.estCopiarTiktok = (campo = "texto") => copiar(campo === "caption" ? R().copys?.tiktokExtra?.caption || "" : R().copys?.tiktok || "");
+window.estGenerarCopys = () => conCarga("estBtnCopys", "Analizando y escribiendo...", async () => {
   const { rama } = await api("POST", urlRama("ia/copys"), {
     contraEntrega: !!$("cpContra")?.checked, envio: !!$("cpEnvio")?.checked, precio: !!$("cpPrecio")?.checked
   });
@@ -1526,11 +1552,16 @@ window.estGenerarCopys = () => conCarga("estBtnCopys", "Escribiendo...", async (
   renderPaso();
 });
 window.estCopiarCopy = (i, campo) => copiar(R().copys?.meta?.[i]?.[campo] || "");
-window.estEditarCopy = (i, campo, v) => {
+window.estEditarCopy = async (i, campo, v) => {
   const c = R().copys; if (!c) return;
-  guardarRama({ copys: { ...c, meta: c.meta.map((x, j) => j === i ? { ...x, [campo]: v } : x) } });
+  await guardarRama({ copys: { ...c, meta: c.meta.map((x, j) => j === i ? { ...x, [campo]: v } : x) } });
+  repintarAqui();
 };
-window.estEditarTiktok = (v) => { const c = R().copys; if (c) guardarRama({ copys: { ...c, tiktok: v } }); };
+window.estEditarTiktok = async (campo, v) => {
+  const c = R().copys; if (!c) return;
+  await guardarRama({ copys: campo === "caption" ? { ...c, tiktokExtra: { ...(c.tiktokExtra || {}), caption: v } } : { ...c, tiktok: v } });
+  repintarAqui();
+};
 
 // ---------- Ads estáticos ----------
 function pasoAds() {

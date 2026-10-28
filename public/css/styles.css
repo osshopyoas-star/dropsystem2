@@ -4769,7 +4769,7 @@ main:has(.pl-page) { overflow-x: clip; overflow-y: visible; }
 .est-subtabs button:hover:not(.activa) { background: #f1f5f9; }
 .est-subtabs button.activa, .est-subtabs button.activa:hover { background: #0f172a; color: #fff; border-color: #0f172a; }
 .est-checks.inline { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 12px; }
-.est-copys { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.est-copys { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .est-copy { background: var(--est-bg, #0f172a); border: 1px solid rgba(255,255,255,.08); border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 6px; min-width: 0; color: #e2e8f0; }
 .est-copy .est-chip { align-self: flex-start; }
 .est-label { display: flex; align-items: center; gap: 8px; justify-content: space-between; font-size: 12px; font-weight: 700; color: #a5b4fc; margin-top: 6px; }
@@ -5439,3 +5439,14 @@ body.fz-sin-scroll { overflow: hidden; }
 .est-prueba-vista { margin: 0; padding: 8px 12px; border-radius: 10px; background: #eff6ff; color: #1e3a8a; font-size: 13px; }
 .est-prueba-app { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 @media (max-width: 600px) { .est-prueba-app { grid-template-columns: 1fr; } }
+
+/* Desarrollo · Copys con análisis */
+.est-analisis summary { list-style: none; cursor: pointer; }
+.est-analisis summary::-webkit-details-marker { display: none; }
+.est-analisis summary h3 { display: flex; align-items: center; gap: 8px; margin: 0; }
+.est-analisis p { margin: 10px 0 0; font-size: 14px; }
+.est-analisis-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 10px; font-size: 13px; }
+.est-analisis-cols ul, .est-analisis-cols ol { margin: 6px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.est-copy-aviso { display: flex; gap: 6px; align-items: flex-start; flex-wrap: wrap; margin: 4px 0 0; padding: 8px 10px; border-radius: 8px; background: #fffbeb; color: #92400e; font-size: 12px; }
+.est-copy-aviso svg { width: 14px; height: 14px; flex: none; }
+.est-label small.rojo { color: #dc2626; font-weight: 700; }

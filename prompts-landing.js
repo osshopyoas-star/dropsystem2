@@ -658,40 +658,89 @@ Responde SOLO este JSON válido:
 }
 
 // ---------- Anuncios: copys para Meta y TikTok ----------
+// Método de media buyer: análisis (UVP, dolores, ángulos, alertas de políticas) → 4 copys con marcos distintos → TikTok
+export const REGLAS_META = [
+  "Sin atributos personales: nada de '¿Sufres de…?', '¿Estás cansado de…?', 'tu sobrepeso', 'tu edad', '¿eres soltera?'. El problema se plantea en general o en tercera persona ('Hay días que…', 'Mucha gente…', 'Ese cajón lleno de…').",
+  "Sin promesas que no se puedan comprobar: nada de 'garantizado 100%', 'antirrobo', 'quita el dolor', 'cura', 'resultados en X días' ni resultados milagrosos.",
+  "Cero palabras gatillo de rechazo: 'ganar dinero rápido', 'bajar de peso ya', 'sexy', 'seducir', 'provocativa', 'milagro'.",
+  "Salud y cuerpo (la categoría más delicada): usa 'soporte', 'acompaña tu movimiento', 'estabilidad', 'cuidado'; nunca 'elimina molestias', 'recuperación', 'tratamiento'. Sin antes/después del cuerpo.",
+  "Propiedad intelectual: 'inspirado en…', nunca 'oficial', 'original' ni 'el mismo del video' si la ficha no dice que es original. No nombres marcas ajenas.",
+  "Productos sexuales o para adultos (juguetes, lubricantes, retardantes): Meta y TikTok NO permiten anunciarlos. Dilo en las alertas. Lencería sí, sin lenguaje ni poses sugestivas.",
+  "Meta también revisa la landing: si el título del producto en Shopify promete un resultado de salud o algo que no se puede comprobar, el anuncio puede ser rechazado aunque el copy esté bien. Avísalo en las alertas si aplica."
+];
+export const REGLAS_TIKTOK = [
+  "Texto del anuncio: máximo 100 caracteres (más que eso se corta con 'ver más'). Cada emoji cuenta como 2 caracteres: máximo 2 emojis. Sin llaves { } y sin hashtags en el texto del anuncio.",
+  "Caption para Spark Ads (cuando se pauta un video orgánico): máximo 150 caracteres, puede llevar emojis y 2 o 3 hashtags al final.",
+  "Prohibido el antes/después (peso, piel, cabello, cuerpo) y cualquier mensaje que haga sentir a la persona fea, insegura o 'menos' sin el producto.",
+  "Sin atributos personales ('¿tienes acné?', '¿estás gorda?') ni preguntas que señalen a la persona.",
+  "Sin afirmaciones absolutas o exageradas ('el mejor', 'número 1', 'garantizado', 'resultados inmediatos') ni clickbait ('no vas a creer lo que pasó').",
+  "Sin urgencia falsa ni contadores; sin testimonios inventados ni personas creadas con IA recomendando el producto.",
+  "Lo que dice el anuncio (precio, oferta, regalo, envío) tiene que ser igual a lo que dice la landing.",
+  "Productos sexuales: prohibidos. Bajar de peso: muy restringido (solo +18 y sin resultados irreales). Lencería: sin desnudez ni poses sexuales.",
+  "Tono TikTok: natural, como lo diría una persona en un video, no como aviso de televisión. El gancho de los primeros 3 segundos decide todo."
+];
+export const ENFOQUES_META = {
+  aida: "AIDA: gancho que detiene el scroll → interés (la causa real o el deseo) → deseo (beneficios con emojis) → acción.",
+  pas: "PAS: Problema (la situación del día a día, sin señalar a la persona) → Agitación (lo que molesta, lo que ya probó y no sirvió) → Solución (el producto, por qué sí, beneficios) → acción.",
+  beneficio: "BENEFICIO DIRECTO: arranca con el resultado o la función estrella en la primera línea, lista de beneficios con ✅ o emojis, y para qué momentos sirve.",
+  prueba_social: "PRUEBA SOCIAL / REGALO: arranca con lo que viven otros o con el regalo; usa SOLO la prueba social real que se te da (reseñas textuales, entregas reales, calificación real); 'Lo que recibes:' con emojis; cierra con acción."
+};
+
 export function promptCopys(p, avatar, opciones = {}) {
   const pais = PAISES[p.pais] || PAISES.CO;
   const precio = formatoPrecio(p.ficha?.precio, p.pais);
   const mencionar = [
-    opciones.envio && p.ficha?.promesas?.envioGratis ? "envío gratis" : null,
+    opciones.envio && p.ficha?.promesas?.envioGratis ? "envío gratis" : `"${pais.envio}"`,
     opciones.contraEntrega !== false ? "pago contra entrega" : null,
     opciones.precio && precio ? `el precio (${precio})` : null
   ].filter(Boolean);
+  const reales = resenasReales(p).filter(r => String(r.texto || "").trim()).slice(0, 3);
   return `${contextoProducto(p)}
 
 ${bloqueAvatar(avatar, "AVATAR AL QUE LE HABLA")}
 
 ${METODO_AIDA}
 
-TAREA: Escribe los textos de anuncio para Meta Ads (Facebook e Instagram) y TikTok para este avatar en ${pais.nombre}.
-- 3 variantes para Meta, una por enfoque, y TODAS siguen el orden AIDA (gancho → causa real → por qué esto sí → acción):
-  - "problema": arranca con SUS palabras y gasta la mayor parte en explicar la causa real ("No es X, es Y").
-  - "beneficio": arranca con el resultado que desea y luego explica por qué lo logra (la causa que ataca).
-  - "curiosidad": arranca con una pregunta o dato curioso sobre la causa ("¿Sabías por qué…?") y lo resuelve.
-  Cada una con:
-  - texto_principal: 4 a 7 líneas cortas en orden AIDA, fácil de escanear, CON emojis (3 a 6, bien puestos: al inicio de las líneas de beneficios y en el gancho) y saltos de línea. La primera línea es el gancho.
-  - titulo: máximo 40 caracteres (va debajo de la imagen).
-  - descripcion: máximo 30 caracteres.
-- tiktok: 1 frase corta (máximo 100 caracteres) para el texto del anuncio en TikTok, SIN emojis y sin hashtags (solo texto).
-- Menciona: ${mencionar.join(", ") || "nada extra"}.${!opciones.precio ? " NO pongas el precio." : ""}
+ROL: actúa como un Media Buyer / Trafficker Digital de nivel élite especializado en Meta Ads (Facebook e Instagram) y TikTok Ads, y en copywriting de respuesta directa para pago contra entrega en ${pais.nombre}.
 
-REGLAS DE META (para que no rechacen el anuncio ni bloqueen la cuenta):
-- No le digas a la persona que tiene una condición o atributo personal ("¿sufres de…?", "tu sobrepeso", "tu edad"). Habla de la situación, no de la persona.
-- Sin promesas médicas ni resultados garantizados, sin antes/después exagerados, sin "original" u "oficial" si la ficha no lo dice.
-- Sin urgencia falsa ("últimas unidades", "solo hoy") ni cifras inventadas (clientes, reseñas, ventas).
-- Solo promesas verdaderas según la ficha.
+PASO 1 · ANÁLISIS (con la ficha y el avatar, no inventes nada):
+- uvp: la propuesta única de valor en 1 o 2 frases.
+- dolores: 3 o 4 dolores o deseos del cliente, planteados en general (sin señalar a la persona).
+- angulos: 3 ángulos de venta posibles.
+- alertas: riesgos de políticas de Meta y TikTok para ESTE producto y cómo evitarlos (palabras a evitar, cómo debe ser el creativo, si el título de la landing puede causar rechazo). Si es un producto que Meta o TikTok no permiten anunciar, dilo claro aquí.
+
+PASO 2 · 4 COPYS PARA META, uno por marco de persuasión:
+${Object.entries(ENFOQUES_META).map(([k, v]) => `- "${k}": ${v}`).join("\n")}
+Cada copy:
+- texto_principal: 8 a 14 líneas cortas con saltos de línea, ESTRUCTURADO CON EMOJIS relevantes al producto (✨ 💫 🎁 📦 💳 👉 ✅ ✔️ 🔹 1️⃣ 2️⃣ 3️⃣ y los del producto): un emoji en el gancho, uno al inicio de cada línea de beneficio y 👉 en la llamada a la acción. La PRIMERA línea es un gancho que detiene el scroll. Incluye una lista de 3 o 4 beneficios o "Lo que recibes:". Cierra con la acción ("👉 Elige tu color y pide el tuyo hoy.") y una línea de confianza con ${mencionar.join(" · ")}${opciones.precio && precio ? "" : " (NO pongas el precio)"}.
+- titulo: claro, llamativo y orientado a la acción, máximo 40 caracteres (puede llevar 1 emoji).
+- descripcion: refuerza la oferta, el regalo o la confianza, máximo 30 caracteres.
+Español de ${pais.nombre} con TÚ, natural, como habla la gente; nada de voseo.
+
+PRUEBA SOCIAL REAL PARA LOS COPYS (úsala tal cual; si no hay, no inventes ninguna):
+${reales.length ? `Reseñas textuales (cítalas EXACTAS, con ⭐ según sus estrellas y el nombre o iniciales que trae; si no trae nombre, sin nombre):\n${reales.map(r => `- "${limpio(r.texto, 200)}"${limpio(r.nombre, 40) ? ` – ${limpio(r.nombre, 40)}` : ""}${r.ciudad ? `, ${limpio(r.ciudad, 40)}` : ""}${Number(r.estrellas) ? ` (${Number(r.estrellas)} estrellas)` : ""}`).join("\n")}` : "Reseñas: no hay. NO escribas testimonios, ni de ejemplo ni entre corchetes."}
+${textoPruebaSocial(p)}
+
+DATOS SIN CONFIRMAR: si un dato ayudaría al copy pero NO está en la ficha (material, tiempo de entrega, colores, si resiste el agua…), escríbelo entre [corchetes] para que el dueño lo confirme o lo borre antes de publicar. Lo que la ficha dice que NO es verdad no se escribe ni entre corchetes. Testimonios y cifras nunca van entre corchetes: o son reales o no van.
+
+REGLAS DE META (estricto cumplimiento):
+${lista(REGLAS_META)}
+
+PASO 3 · TIKTOK:
+- texto: el texto del anuncio, máximo 100 caracteres contando cada emoji como 2, con 0 a 2 emojis y sin hashtags.
+- caption: caption para Spark Ads, máximo 150 caracteres, con emojis y 2 o 3 hashtags al final (en español, del producto o del nicho; nada de #fyp ni hashtags de marcas ajenas).
+- ganchos: 3 ganchos hablados para los primeros 3 segundos del video (máximo 10 palabras cada uno), distintos entre sí.
+- pantalla: 3 textos cortos para poner encima del video (máximo 6 palabras cada uno).
+REGLAS DE TIKTOK (estricto cumplimiento):
+${lista(REGLAS_TIKTOK)}
+
+PASO 4 · TESTEO: en 2 o 3 frases, cómo testear estos copys (cuáles juntos en el mismo conjunto de anuncios, cuál escala con qué público, qué creativo usar en los primeros 3 segundos).
 
 Responde SOLO este JSON válido:
-{ "meta": [ { "enfoque": "problema", "texto_principal": "", "titulo": "", "descripcion": "" }, { "enfoque": "beneficio", "texto_principal": "", "titulo": "", "descripcion": "" }, { "enfoque": "curiosidad", "texto_principal": "", "titulo": "", "descripcion": "" } ], "tiktok": "" }`;
+{ "analisis": { "uvp": "", "dolores": [], "angulos": [], "alertas": [] },
+  "meta": [ ${Object.keys(ENFOQUES_META).map(k => `{ "enfoque": "${k}", "texto_principal": "", "titulo": "", "descripcion": "" }`).join(", ")} ],
+  "tiktok": { "texto": "", "caption": "", "ganchos": [], "pantalla": [] },
+  "testeo": "" }`;
 }
 
 // ---------- Anuncios: prompt de un ad estático ----------
