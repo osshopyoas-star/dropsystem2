@@ -18,7 +18,7 @@ import {
   promptGuion,
   promptTextosShopify,
   promptCopys,
-  conCierreResenas,
+  cierreSeccion,
   promptAd,
   seccionesFijas
 } from "./prompts-landing.js";
@@ -654,7 +654,7 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
       });
       const crudo = String(reply || "").replace(/^```[a-z]*\n?|```$/gim, "").trim();
       if (!crudo) return res.status(502).json({ error: "La IA no devolvió el prompt" });
-      const texto = conCierreResenas(crudo, x.vista, sec.tipo, sec.variante);   // reseñas y chats: reglas fijas al final para Gemini
+      const texto = cierreSeccion(crudo, x.vista, sec);   // reglas fijas al final: reseñas, chats y margen de abajo
 
       let lista = null;
       const r = await actualizarRama(x.p, x.av, (actual) => {

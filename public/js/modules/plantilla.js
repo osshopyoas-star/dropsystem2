@@ -5,7 +5,7 @@
 // =============================================
 import { registrarRuta } from "./navegacion.js";
 import { escapeHTML } from "../core/utils.js";
-import { SECCIONES, FORMATOS, esFija, plantillaPorDefecto, normalizarPlantilla, CLAVES, claveDe, TIPOS_PRODUCTO, ACABADOS } from "../core/plantilla.js";
+import { SECCIONES, FORMATOS, esFija, plantillaPorDefecto, normalizarPlantilla, CLAVES, claveDe, TIPOS_PRODUCTO, ACABADOS, MARGENES_ABAJO } from "../core/plantilla.js";
 import { ejemploDe } from "../core/ejemplos.js";
 
 const $ = (id) => document.getElementById(id);
@@ -190,6 +190,23 @@ function render() {
         <section class="pl-card">
           <div class="pl-card-head">
             <div>
+              <h2>Margen abajo para el botón de compra</h2>
+              <p>El botón fijo de Releasit o de Shopify ("ORDENA AHORA, PAGAS EN CASA") tapa la parte de abajo de cada imagen. Este espacio queda solo con el fondo, y la barra de confianza sube encima.</p>
+            </div>
+          </div>
+          <div class="pl-margenes">
+            ${MARGENES_ABAJO.map(m => `
+              <button class="pl-margen ${p.margenAbajo === m ? "elegido" : ""}" onclick="plMargen(${m})">
+                <span class="pl-margen-muestra"><i style="height:${m * 2.2}%"></i><b style="bottom:${m * 2.2 + 6}%"></b></span>
+                <strong>${m ? `${m}%` : "Sin margen"}</strong>
+                <small>${m === 0 ? "La imagen usa todo el alto" : m === 8 ? "Botón delgado" : m === 12 ? "Botón normal de Releasit" : "Botón grande o con texto debajo"}</small>
+              </button>`).join("")}
+          </div>
+        </section>
+
+        <section class="pl-card">
+          <div class="pl-card-head">
+            <div>
               <h2>Colores</h2>
               <p>Si los fijas, todas tus landings nuevas de ${esc(FORMATOS[base()].nombre)} usan estos colores (por ejemplo, los de tu marca). Si no, salen del estilo que elijas para cada producto, como hasta ahora.</p>
             </div>
@@ -283,6 +300,7 @@ window.plEstilo = (tipo, id) => {
   const bloque = pantalla?.querySelector(`[data-tipo="${tipo}"]`);
   if (pantalla && bloque) pantalla.scrollTop = bloque.offsetTop - pantalla.offsetTop - 8;
 };
+window.plMargen = (m) => cambio(p => { p.margenAbajo = MARGENES_ABAJO.includes(Number(m)) ? Number(m) : 12; });
 window.plAcabado = (k) => cambio(p => { p.acabado = ACABADOS[k] ? k : "impacto"; });
 window.plModoColores = (modo) => cambio(p => { p.colores.modo = modo; });
 

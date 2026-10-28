@@ -5450,3 +5450,14 @@ body.fz-sin-scroll { overflow: hidden; }
 .est-copy-aviso { display: flex; gap: 6px; align-items: flex-start; flex-wrap: wrap; margin: 4px 0 0; padding: 8px 10px; border-radius: 8px; background: #fffbeb; color: #92400e; font-size: 12px; }
 .est-copy-aviso svg { width: 14px; height: 14px; flex: none; }
 .est-label small.rojo { color: #dc2626; font-weight: 700; }
+
+/* Mi plantilla · Margen abajo para el botón de compra */
+.pl-margenes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.pl-margen { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 8px; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; color: #0f172a; cursor: pointer; font: inherit; text-align: center; }
+.pl-margen strong { color: #0f172a; font-size: 14px; }
+.pl-margen.elegido { border-color: #3b82f6; background: #eff6ff; box-shadow: 0 0 0 2px rgba(59,130,246,.2); }
+.pl-margen small { color: #64748b; font-size: 11px; }
+.pl-margen-muestra { position: relative; width: 44px; height: 78px; border-radius: 6px; background: linear-gradient(#cbd5e1, #e2e8f0); overflow: hidden; display: block; }
+.pl-margen-muestra i { position: absolute; left: 0; right: 0; bottom: 0; background: #22c55e; opacity: .85; }
+.pl-margen-muestra b { position: absolute; left: 4px; right: 4px; height: 6px; background: #fff; border-radius: 2px; }
+@media (max-width: 640px) { .pl-margenes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

@@ -553,6 +553,11 @@ function pasoFicha() {
           <div><label>Precio "antes"</label><input id="fPrecioAntes" type="number" step="any" min="0" value="${esc(f.precioAntes)}" oninput="estVerDescuento()"></div>
         </div>
         <button class="est-btn est-calc-btn" onclick="estAbrirCalculadora()"><i data-lucide="calculator"></i> ${f.costeoId ? "Ver costeo en la calculadora" : "Calcular precio y paquetes en la calculadora"}</button>
+        <label>¿Dónde va el precio en la landing?</label>
+        <select id="fPrecioEn" class="est-input">
+          ${[["portada", "En la portada, paquetes y oferta de cierre (como siempre)"], ["releasit", "No en la portada: va en el formulario de Releasit, paquetes y cierre"], ["solo_releasit", "Solo en el formulario de Releasit: ninguna imagen lleva precio"]]
+            .map(([k, t]) => `<option value="${k}" ${(f.precioEn || "portada") === k ? "selected" : ""}>${t}</option>`).join("")}
+        </select>
         <p id="fDescuento" class="est-hint">${descuento ? `Se verá: ${formatoPrecio(f.precio, p.pais)} antes ${formatoPrecio(f.precioAntes, p.pais)} · ${descuento}% de descuento` : "Escribe el precio y el 'antes' para calcular el descuento."}</p>
 
         <label>¿Para quién es? <small class="est-hint">(quién lo USA; los avatares son quienes lo COMPRAN)</small></label>
@@ -585,6 +590,8 @@ function pasoFicha() {
         <input id="fGarantia" value="${esc(pr.garantia)}" placeholder="Vacío = no hay garantía. Ej: 30 días">
         <label>Tiempo de entrega</label>
         <input id="fEntrega" value="${esc(pr.entrega)}" placeholder="Ej: 3 a 5 días hábiles">
+        <label>Transportadoras con las que envías</label>
+        <input id="fTransportadoras" value="${esc(pr.transportadoras)}" placeholder="Ej: Servientrega, Interrapidísimo, Envía">
         <label>Estilo que prefieres (opcional)</label>
         <input id="fEstiloPref" value="${esc(f.estiloPreferido)}" placeholder="Ej: estilo gym, algo femenino y elegante...">
         <label>Notas para la IA (opcional)</label>
@@ -823,6 +830,7 @@ function leerFicha() {
     precioAntes: num("fPrecioAntes"),
     medidas: val("fMedidas"),
     paraQuien: val("fParaQuien") || "adultos",
+    precioEn: ["portada", "releasit", "solo_releasit"].includes(val("fPrecioEn")) ? val("fPrecioEn") : (proyecto.ficha?.precioEn || "portada"),
     noTiene: val("fNoTiene"),
     variantes: val("fVariantes"),
     regalo: val("fRegalo"),
@@ -833,7 +841,8 @@ function leerFicha() {
       envioGratis: !!$("fEnvioGratis")?.checked,
       original: !!$("fOriginal")?.checked,
       garantia: val("fGarantia"),
-      entrega: val("fEntrega")
+      entrega: val("fEntrega"),
+      transportadoras: $("fTransportadoras") ? val("fTransportadoras").slice(0, 120) : (proyecto.ficha?.promesas?.transportadoras || "")
     }
   };
 }

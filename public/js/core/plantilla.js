@@ -41,7 +41,9 @@ export const SECCIONES = {
       { id: "titular", nombre: "Titular primero", desc: "Titular enorme de 2 líneas arriba ocupando el primer tercio, debajo el producto grande sobre fondo limpio y un sello de precio circular grande en una esquina.",
         dibujo: [["t", 6, 8, 48, "d"], ["t", 6, 14, 48, "a"], ["t", 12, 20, 36, "m"], ["r", 8, 26, 44, 48, "g", 4], ["c", 46, 70, 9, "a"], ["t", 41, 69, 10, "w"]] },
       { id: "polaroid", nombre: "Polaroid", desc: "La foto del producto dentro de un marco blanco tipo polaroid, un poco inclinado, con el titular escrito en la parte blanca de abajo del marco; precio en sello al lado.",
-        dibujo: [["r", 9, 8, 42, 56, "w", 1], ["r", 12, 11, 36, 38, "g"], ["t", 15, 53, 30, "d"], ["t", 19, 58, 22, "m"], ["r", 14, 70, 32, 10, "a", 3]] }
+        dibujo: [["r", 9, 8, 42, 56, "w", 1], ["r", 12, 11, 36, 38, "g"], ["t", 15, 53, 30, "d"], ["t", 19, 58, 22, "m"], ["r", 14, 70, 32, 10, "a", 3]] },
+      { id: "sin_precio", nombre: "Sin precio (el precio va en Releasit)", desc: "Para venta por impulso SIN mostrar el precio: titular enorme de 2 líneas con el beneficio, el producto EN USO grande, 3 chips con ícono y beneficio corto unidos al producto con líneas finas, un sello circular de descuento solo si hay precio 'antes' (ej. '-31%', sin el número del precio), y abajo una franja llamativa 'PAGAS AL RECIBIR' con una flecha hacia abajo y 'PÍDELO AQUÍ ABAJO'. Ningún número de precio.",
+        dibujo: [T(6, 46), T(13, 40, 10, "a"), ["r", 4, 22, 30, 44, "g", 3], ["r", 38, 24, 18, 8, "w", 3], ["r", 38, 35, 18, 8, "w", 3], ["r", 38, 46, 18, 8, "w", 3], ["c", 50, 60, 5, "a"], ["r", 6, 70, 48, 8, "a", 3], ["x", 30, 79, 30, 84, "a"]] }
     ]
   },
   galeria: {
@@ -284,7 +286,7 @@ export const SECCIONES = {
   },
   confianza: {
     titulo: "Garantía y confianza", formatos: ["ban", "normal"],
-    def: "Garantía (solo si existe), sellos de confianza y 'Envío con transportadoras nacionales' y una franja lisa donde el dueño pega los logos de las transportadoras (sin banderines ni recuadros vacíos).",
+    def: "Garantía (solo si existe), sellos de confianza y las transportadoras con las que de verdad envías (de la Ficha, como 'Enviamos con Servientrega · Interrapidísimo'); si la Ficha no las tiene, 'Envío con transportadoras nacionales'. Sin banderines ni recuadros vacíos.",
     variantes: [
       { id: "centrada", nombre: "Tarjeta centrada", desc: "Tarjeta centrada con un sello grande arriba, el título de la garantía y una lista corta de lo que cubre.",
         dibujo: [["r", 8, 10, 44, 66, "w", 4], ["c", 30, 22, 7, "a"], T(36, 30), ["t", 14, 44, 32, "m"], ["t", 14, 50, 32, "m"], ["t", 14, 56, 32, "m"]] },
@@ -508,9 +510,14 @@ export const ACABADOS = {
   }
 };
 
+// Margen de abajo libre (en % del alto) para que el botón fijo de compra (Releasit / Shopify) no tape nada
+export const MARGENES_ABAJO = [0, 8, 12, 15];
+const margenBase = (clave) => (formatoValido(clave) === "ban" ? 12 : 0);
+
 export function plantillaPorDefecto(clave) {
   const f = claveValida(clave);
   return {
+    margenAbajo: margenBase(f),   // % de abajo de cada imagen que va solo con fondo
     usarOrden: false,
     orden: ORDEN_BASE[f].map(([tipo, visible]) => ({ tipo, visible: !!visible })),
     estilos: {},                  // tipo → id de variante (sin valor = "Al azar")
@@ -559,7 +566,8 @@ export function normalizarPlantilla(clave, raw = {}) {
     acento: hexValido(c.acento, COLORES_BASE.acento)
   };
 
-  return { usarOrden: !!r.usarOrden, orden, estilos, colores, acabado: ACABADOS[r.acabado] ? r.acabado : "impacto" };
+  const margenAbajo = MARGENES_ABAJO.includes(Number(r.margenAbajo)) ? Number(r.margenAbajo) : margenBase(f);
+  return { usarOrden: !!r.usarOrden, orden, estilos, colores, acabado: ACABADOS[r.acabado] ? r.acabado : "impacto", margenAbajo };
 }
 
 export const varianteDe = (tipo, id) => (SECCIONES[tipo]?.variantes || []).find(v => v.id === id) || null;

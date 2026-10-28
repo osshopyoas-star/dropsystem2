@@ -60,7 +60,7 @@ export const REGLAS_APRENDIDAS = [
 export const LIMITES = [
   "Reseñas y testimonios: usa SOLO las reseñas reales que el dueño escribió en la Ficha, textuales (mismo nombre o iniciales, ciudad, estrellas y texto, sin mejorarlas). NUNCA inventes reseñas, rostros, nombres, ciudades, calificaciones promedio ('4.8/5'), cantidades de comentarios ni 'compra verificada'. Si la Ficha no tiene reseñas, el dueño se las pasa a Gemini al hacer la imagen (capturas de WhatsApp o texto pegado al final del prompt) y Gemini las pone tal cual; nunca se rellenan con reseñas inventadas.",
   "Cifras de prueba social (entregas, clientes, ciudades, calificación, % que recomienda): SOLO las que vienen en 'PRUEBA SOCIAL REAL', exactas, sin redondear hacia arriba ni agregar otras ('+10.000 mamás', 'miles ya compraron'). Si no hay, ninguna cifra.",
-  "Sellos y logos de entidades: NUNCA pongas logos de la Superintendencia de Industria y Comercio, la Cámara de Comercio Electrónico, bancos, transportadoras u otras entidades, ni 'tienda verificada', 'compra verificada' o certificados. La confianza sale de lo que es verdad: pagas al recibir, envío a todo el país, tiempo de entrega, garantía si existe y tus números reales.",
+  "Sellos y logos de entidades: NUNCA pongas logos de la Superintendencia de Industria y Comercio, la Cámara de Comercio Electrónico, el INVIMA, bancos u otras entidades, ni 'tienda verificada', 'compra verificada' o certificados. Transportadoras: solo las que la ficha dice, como 'Enviamos con…' (nunca 'aliadas', 'oficial' ni convenios). La confianza sale de lo que es verdad: pagas al recibir, envío a todo el país, tiempo de entrega, garantía si existe y tus números reales.",
   "Producto real: la imagen muestra exactamente lo que llega. No agregues detalles, piezas, logos ni empaques de marca que no existan.",
   "Promesas médicas: prohibido 'cura', 'elimina', 'reduce el dolor', 'indoloro' o porcentajes sin prueba. Usa 'soporte', 'molestias', 'calor leve', 'apoyo' y menciona para quién no es si aplica.",
   "Marcas ajenas: no escribas nombres de otras marcas (Nike, IKEA, etc.) ni digas que es el producto original u oficial de una marca, salvo que la ficha diga que es original o licenciado. Pide logos de terceros borrosos o sin logo.",
@@ -289,7 +289,7 @@ LO QUE ES VERDAD Y VA EN ESTA IMAGEN (nada más):
 - "PAGAS AL RECIBIR": primero recibe el producto en su casa y luego paga
 - "${pr.envioGratis ? pais.envio.replace("Envío", "Envío gratis") : pais.envio}"
 ${pr.entrega ? `- Tiempo de entrega: "${limpio(pr.entrega, 60)}"
-` : "- Sin tiempo de entrega en la Ficha: no escribas días\n"}${pr.garantia ? `- Garantía: "${limpio(pr.garantia, 60)}"
+` : "- Sin tiempo de entrega en la Ficha: no escribas días\n"}${pr.transportadoras ? `- "Enviamos con ${limpio(pr.transportadoras, 120)}" (sus nombres en círculos o chips; nunca "aliadas" ni "oficial")\n` : ""}${pr.garantia ? `- Garantía: "${limpio(pr.garantia, 60)}"
 ` : "- NO hay garantía: no la menciones\n"}${n ? `- Entregas reales: "${n.entregas} entregas exitosas en ${n.pais.toLowerCase().replace(/\b(colombia|ecuador)\b/, (x) => x[0].toUpperCase() + x.slice(1))}"
 ` : ""}Sin logos de entidades, sellos de 'tienda verificada', 'compra 100% garantizada' ni urgencia ('solo por hoy').`;
 }
@@ -352,7 +352,8 @@ export function contextoProducto(p) {
     "Pago contra entrega",
     pr.garantia ? `Garantía: ${limpio(pr.garantia, 60)}` : "NO hay garantía: no la menciones",
     pr.original ? "El producto es original/licenciado (se puede decir)" : "NO digas 'original' ni 'oficial'",
-    pr.entrega ? `Tiempo de entrega: ${limpio(pr.entrega, 60)}` : null
+    pr.entrega ? `Tiempo de entrega: ${limpio(pr.entrega, 60)}` : null,
+    pr.transportadoras ? `Enviamos con: ${limpio(pr.transportadoras, 120)} (escríbelo "Enviamos con …" o sus nombres en círculos; nunca "aliadas", "oficial" ni convenio)` : null
   ].filter(Boolean);
 
   return `
@@ -365,7 +366,7 @@ DESCRIPCIÓN FÍSICA VERIFICADA: ${limpio(r.descripcionFisica, 2000) || "(aún n
 TAMAÑO REAL: ${limpio(f.medidas || r.tamano, 300) || "(sin medidas: pídelas en las notas)"}
 LO QUE NO TIENE NI TRAE: ${limpio(listaNoTiene(f.noTiene, r.noTiene).join("; "), 800) || "(no indicado)"}
 VARIANTES / TALLAS / COLORES: ${limpio(f.variantes, 300) || "(una sola versión)"}
-PRECIO: ${precio || "(sin precio)"}${antes ? ` · ANTES: ${antes}` : ""}${desc ? ` · DESCUENTO: ${desc}%` : ""}
+PRECIO: ${precio || "(sin precio)"}${antes ? ` · ANTES: ${antes}` : ""}${desc ? ` · DESCUENTO: ${desc}%` : ""}${f.precioEn === "releasit" ? " · DÓNDE VA: NO en la portada (va en el formulario de Releasit, paquetes y oferta de cierre)" : f.precioEn === "solo_releasit" ? " · DÓNDE VA: en NINGUNA imagen (solo en el formulario de Releasit)" : ""}
 PAQUETES: ${limpio(f.paquetes, 500) || "(no hay paquetes)"}
 REGALO: ${limpio(f.regalo, 200) || "(no hay regalo)"}
 PROMESAS QUE SÍ SON VERDAD (no inventes otras):
@@ -602,7 +603,29 @@ const NOMBRE_FORMATO = { "9:16": "vertical 9:16 (1080x1920)", "1:1": "cuadrada 1
 
 // Secciones que llevan precio. En el resto el precio no va: repetido en cada imagen le quita espacio al mensaje.
 export const SECCIONES_CON_PRECIO = new Set(["oferta", "moda_portada", "moda_precio_tallas", "paquetes", "oferta_cierre"]);
-export const llevaPrecio = (tipo, normal = false) => normal ? ["paquetes", "oferta_cierre", "moda_precio_tallas"].includes(tipo) : SECCIONES_CON_PRECIO.has(tipo);
+// precioEn (Ficha): "portada" (como siempre) · "releasit" (no en la portada) · "solo_releasit" (en ninguna imagen)
+const PORTADAS = new Set(["oferta", "moda_portada", "galeria"]);
+export const llevaPrecio = (tipo, normal = false, precioEn = "portada") => {
+  if (precioEn === "solo_releasit") return false;
+  if (precioEn === "releasit" && PORTADAS.has(tipo)) return false;
+  return normal ? ["paquetes", "oferta_cierre", "moda_precio_tallas"].includes(tipo) : SECCIONES_CON_PRECIO.has(tipo);
+};
+const dondeVaPrecio = (normal, precioEn) => precioEn === "solo_releasit" ? "el formulario de Releasit (ninguna imagen lo lleva)"
+  : precioEn === "releasit" ? "Paquetes, Oferta de cierre y el formulario de Releasit (la portada no)"
+  : normal ? "Paquetes y Oferta de cierre" : "la portada, Paquetes y Oferta de cierre";
+
+// ---------- Lo que CoDropX pega al final de cada prompt de sección (no lo escribe la IA, así siempre se cumple) ----------
+export function margenAbajo(p, formato = "9:16") {
+  const m = Number(p?.plantilla?.margenAbajo) || 0;
+  if (!m) return "";
+  const alto = formato === "1:1" ? 1080 : formato === "16:9" ? 1080 : formato === "4:5" ? 1350 : 1920;
+  return `\n\nMARGEN ABAJO (el botón de compra de la tienda tapa esa parte): el ${m}% de abajo de la imagen (unos ${Math.round(alto * m / 100)} px de ${alto}) va SOLO con el fondo de la escena, continuo y sin nada encima: sin textos, íconos, barra de confianza, precio, botones ni producto. La barra de confianza va justo ENCIMA de ese margen, nunca pegada al borde de abajo.`;
+}
+export function cierreSeccion(texto, p, seccion = {}) {
+  const base = conCierreResenas(texto, p, seccion.tipo, seccion.variante);
+  const galeria = p?.formato === "normal" && seccion.tipo === "galeria";
+  return galeria ? base : String(base).replace(/\n+MARGEN ABAJO[\s\S]*?(?=\n\n|$)/, "").trimEnd() + margenAbajo(p, seccion.formato || (p?.formato === "normal" ? "1:1" : "9:16"));
+}
 
 export function promptSeccion(p, seccion, avatar, otras = []) {
   const tipo = CATALOGO_SECCIONES[seccion.tipo];
@@ -611,11 +634,13 @@ export function promptSeccion(p, seccion, avatar, otras = []) {
   const formato = seccion.formato && seccion.formato !== formatoBase && NOMBRE_FORMATO[seccion.formato]
     ? `\nIMPORTANTE: esta imagen NO es ${formatoBase}, es ${NOMBRE_FORMATO[seccion.formato]}. Escríbelo al inicio del prompt.`
     : "";
-  const variante = varianteDe(seccion.tipo, seccion.variante);
+  const precioEn = p.ficha?.precioEn || "portada";
+  const conPrecio = llevaPrecio(seccion.tipo, normal, precioEn);
+  // Portada sin precio (la Ficha lo pide): si el diseño elegido es de los que llevan precio, se usa el F
+  const variante = seccion.tipo === "oferta" && !conPrecio ? varianteDe("oferta", "sin_precio") : varianteDe(seccion.tipo, seccion.variante);
   const diseno = variante ? `\nDISEÑO OBLIGATORIO DE ESTA SECCIÓN (Mi plantilla: "${variante.nombre}"): ${variante.desc}` : "";
   const galeria = normal && seccion.tipo === "galeria";
   const deslizador = normal && seccion.tipo === "antes_despues";
-  const conPrecio = llevaPrecio(seccion.tipo, normal);
   return `${contextoProducto(p)}
 
 ${avatar ? `${bloqueAvatar(avatar, "ESTA IMAGEN LE HABLA AL AVATAR")}
@@ -666,7 +691,7 @@ FOTOGRAFÍA REAL (no dibujo, no animación).
 COMPOSICIÓN: [una ESCENA concreta: quién (edad, aspecto, ropa), haciendo qué acción exacta, en qué lugar, desde qué ángulo de cámara, con qué luz y qué emoción. El producto PUESTO o EN USO, bien visible y a su TAMAÑO REAL comparado con las personas (para que se vea más, acerca la cámara; nunca lo agrandes ni lo compares con algo más grande que él), y di de qué color/variante es en esta imagen. Luego los elementos gráficos y dónde va cada uno (arriba, a la izquierda, abajo…)]
 TEXTOS:
 - Titular: "[línea 1]" (color, tamaño) / "[línea 2]" (color, tamaño: di cuál es lo más grande de la imagen)
-- [subtítulo, tarjetas o chips con ícono, etiquetas${conPrecio ? ", precio (con 'antes' tachado y, si es pack, el precio por unidad), sello de descuento" : ""}${normal ? "" : ", barra inferior"}: cada texto entre comillas, con su color, tamaño y posición]
+- [subtítulo, tarjetas o chips con ícono, etiquetas${conPrecio ? ", precio (con 'antes' tachado y, si es pack, el precio por unidad), sello de descuento" : ""}${normal ? "" : ", barra de confianza (encima del margen de abajo, si lo hay)"}: cada texto entre comillas, con su color, tamaño y posición]
 ZONA LIBRE: [si el dueño debe pegar algo después (GIF, logo, reseñas, transportadoras), di DÓNDE queda una zona lisa del mismo fondo, SIN dibujar recuadros, círculos ni marcos; si no aplica escribe "ninguna"]`}
 ${normal && !galeria ? `
 Al final agrega el texto que va AL LADO de la imagen en Shopify (sección "Imagen con texto"), con este formato:
@@ -677,7 +702,8 @@ Texto: "[2 o 3 frases cortas, vendedoras, sin repetir lo que ya dice la imagen]"
 Reglas para esta imagen:
 - Titulares cortos (máximo 4 o 5 palabras por línea). Poco texto. El producto sin tapar y a su tamaño real.${conPrecio ? `
 - Esta imagen SÍ lleva el precio, protagonista.` : `
-- Esta imagen NO lleva precio: nada de precio, "antes" tachado, sello de descuento ni porcentaje (aunque el bloque de estilo hable de la caja del precio). El precio solo va en ${normal ? "Paquetes y Oferta de cierre" : "la portada, Paquetes y Oferta de cierre"}. La barra de confianza${normal ? "" : " abajo"} sí puede ir.`}
+- Esta imagen NO lleva precio: nada de precio ni "antes" tachado (aunque el bloque de estilo hable de la caja del precio)${PORTADAS.has(seccion.tipo) && porcentajeDescuento(p.ficha?.precioAntes, p.ficha?.precio) ? `; SÍ puede llevar el sello "-${porcentajeDescuento(p.ficha.precioAntes, p.ficha.precio)}%"` : "; tampoco sello de descuento ni porcentaje"}. El precio solo va en ${dondeVaPrecio(normal, precioEn)}. La barra de confianza sí puede ir.${PORTADAS.has(seccion.tipo) ? `
+- VENTA POR IMPULSO SIN PRECIO: que dé ganas de pedirlo ya: beneficio enorme, producto en uso, "PAGAS AL RECIBIR" bien visible y una flecha hacia abajo con "PÍDELO AQUÍ ABAJO" (ahí está el formulario). Sin urgencia falsa.` : ""}`}
 ${conPrecio ? `- Usa los precios exactamente así: ${formatoPrecio(p.ficha?.precio, p.pais) || "(sin precio)"}${p.ficha?.precioAntes ? ` y antes ${formatoPrecio(p.ficha.precioAntes, p.pais)}` : ""}${porcentajeDescuento(p.ficha?.precioAntes, p.ficha?.precio) ? ` (${porcentajeDescuento(p.ficha.precioAntes, p.ficha.precio)}% de descuento)` : ""}. No inventes otros.` : `- Ningún número de precio en esta imagen.`}
 - Solo promesas que sean verdad según la ficha.
 - Recuerda decir lo que el producto NO tiene si hay riesgo de que la IA lo invente en esta escena.`;
