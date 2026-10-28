@@ -270,7 +270,39 @@ export function totalesControl(filas) {
 // =============================================
 // REPORTE FINANCIERO (lo que entra a la wallet)
 // =============================================
-export function reporteFinanciero(lineas, { desde, hasta, clave = "", grupos = [], gastoMeta = 0, gastoTiktok = 0, referenciaEntrega = 70 } = {}) {
+// =============================================
+// COSTOS OPERATIVOS (Shopify, Releasit, IA, edición, salarios...) por mes
+// costos: [{ mes: "2026-09", desc, valor, moneda }]. Cada mes se reparte por días:
+// si miras solo una parte del mes, cuenta la parte de esos días (completos = meses enteros).
+// convertir(valor, moneda) pasa cada valor a la moneda del país.
+// =============================================
+const diasDelMes = (mes) => new Date(Date.UTC(+mes.slice(0, 4), +mes.slice(5, 7), 0)).getUTCDate();
+export function mesesEntre(desde, hasta) {
+  if (!desde || !hasta || desde > hasta) return [];
+  const out = [];
+  let [y, m] = [+desde.slice(0, 4), +desde.slice(5, 7)];
+  const fin = hasta.slice(0, 7);
+  while (out.length < 36) {
+    const mes = `${y}-${String(m).padStart(2, "0")}`;
+    out.push(mes);
+    if (mes >= fin) break;
+    if (++m > 12) { m = 1; y++; }
+  }
+  return out;
+}
+export function costosPeriodo(costos = [], { desde, hasta, completos = false, convertir = (v) => v } = {}) {
+  const meses = mesesEntre(desde, hasta).map(mes => {
+    const dm = diasDelMes(mes);
+    const ini = desde > `${mes}-01` ? +desde.slice(8, 10) : 1;
+    const fin = hasta < `${mes}-${dm}` ? +hasta.slice(8, 10) : dm;
+    const dias = completos ? dm : Math.max(0, fin - ini + 1);
+    const delMes = costos.filter(c => c.mes === mes).reduce((a, c) => a + (Number(convertir(Number(c.valor) || 0, c.moneda)) || 0), 0);
+    return { mes, dias, diasMes: dm, delMes, cuenta: delMes * dias / dm };
+  });
+  return { total: meses.reduce((a, x) => a + x.cuenta, 0), meses };
+}
+
+export function reporteFinanciero(lineas, { desde, hasta, clave = "", grupos = [], gastoMeta = 0, gastoTiktok = 0, costosOperativos = 0, referenciaEntrega = 70 } = {}) {
   const sel = lineas.filter(l => (!desde || l.fecha >= desde) && (!hasta || l.fecha <= hasta) && (!clave || claveProducto(l.productoId, grupos) === clave));
   const ordenes = porOrden(sel);
   const cuenta = (g) => ordenes.filter(o => o.grupo === g);
@@ -287,7 +319,8 @@ export function reporteFinanciero(lineas, { desde, hasta, clave = "", grupos = [
   const valorEntregado = entregados.reduce((a, o) => a + (o.gananciaNula ? o.total - o.proveedor - o.flete - o.comision : o.ganancia), 0);
   const gananciaBruta = valorEntregado - costoDevoluciones;
   const publicidad = (Number(gastoMeta) || 0) + (Number(gastoTiktok) || 0);
-  const gananciaNeta = gananciaBruta - publicidad;
+  const operativos = Math.max(0, Number(costosOperativos) || 0);
+  const gananciaNeta = gananciaBruta - publicidad - operativos;
 
   // Proyección: si de los que siguen rodando se entrega el X%
   const rodando = [...transito, ...novedades];
@@ -336,8 +369,9 @@ export function reporteFinanciero(lineas, { desde, hasta, clave = "", grupos = [
     tasaEntrega: despachados.length ? entregados.length / despachados.length * 100 : 0,
     facturado: suma(despachados, "total"),
     ingreso, costoProductos, fletesEntregados, costoDevoluciones, valorEntregado, gananciaBruta,
-    gastoMeta: Number(gastoMeta) || 0, gastoTiktok: Number(gastoTiktok) || 0, publicidad, gananciaNeta,
+    gastoMeta: Number(gastoMeta) || 0, gastoTiktok: Number(gastoTiktok) || 0, publicidad, operativos, gananciaNeta,
     margenNeto: ingreso > 0 ? gananciaNeta / ingreso * 100 : 0,
+    margenBruto: ingreso > 0 ? gananciaBruta / ingreso * 100 : 0,
     proyeccion: {
       rodando: rodando.length, referencia: p * 100,
       seEntregan: Math.round(rodando.length * p), seDevuelven: rodando.length - Math.round(rodando.length * p),
@@ -348,7 +382,7 @@ export function reporteFinanciero(lineas, { desde, hasta, clave = "", grupos = [
       tasaCerrada, rodando: rodando.length, ventaRodando,
       optimista: escenario(1), actual: escenario(pActual), pesimista: escenario(0)
     } : null,
-    desglose: { ingreso, producto: costoProductos, flete: fletesEntregados, otros, devoluciones: costoDevoluciones, publicidad, neta: gananciaNeta },
+    desglose: { ingreso, producto: costoProductos, flete: fletesEntregados, otros, devoluciones: costoDevoluciones, publicidad, operativos, neta: gananciaNeta },
     fletes: {
       envios: fletes.length, promedio: prom(fletes), min: fletes[0] || 0, max: fletes[fletes.length - 1] || 0,
       mediana: fletes.length ? fletes[Math.floor(fletes.length / 2)] : 0,

@@ -5398,3 +5398,13 @@ body.fz-sin-scroll { overflow: hidden; }
 .fz-notas-rapidas { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
 .fz-notas-rapidas .fz-chip { font-size: 12px; }
 .fz-modal-pie { gap: 8px; }
+
+/* Reporte Financiero · Costos operativos */
+.fz-costos td { vertical-align: middle; }
+.fz-costos input, .fz-costos select { width: 100%; padding: 8px 10px; border: 1px solid #d5dce6; border-radius: 8px; font: inherit; background: #fff; }
+.fz-costos input[type=number] { text-align: right; min-width: 110px; }
+.fz-costos select { min-width: 76px; }
+.fz-costos td:first-child { min-width: 200px; }
+.fz-x { border: 0; background: none; color: #94a3b8; font-size: 18px; cursor: pointer; padding: 4px 8px; border-radius: 6px; }
+.fz-x:hover { color: #dc2626; background: #fef2f2; }
+.fz-costos-acc { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }

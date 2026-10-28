@@ -74,6 +74,7 @@ const configSchema = new mongoose.Schema({
   metaCampanas: { type: mongoose.Schema.Types.Mixed, default: {} }, // { campanaId: clave | "x" (no es de ningún producto) }
   trm: { type: Number, default: null },                           // 1 USD en COP que tú fijaste (si no, la TRM del día)
   trmManual: { type: Boolean, default: false },
+  costosOperativos: { type: [mongoose.Schema.Types.Mixed], default: [] },   // { id, mes: "2026-09", desc, valor, moneda }
   ultimaImportacion: { type: Date, default: null },
   actualizado: { type: Date, default: Date.now }
 });
@@ -104,6 +105,19 @@ export function limpiarLinea(l = {}) {
   return out;
 }
 
+// Costos operativos del mes (Shopify, Releasit, IA, salarios...): solo lo que tú escribes
+export const MAX_COSTOS_OP = 300;
+export function limpiarCostosOperativos(lista) {
+  if (!Array.isArray(lista)) return [];
+  return lista.slice(0, MAX_COSTOS_OP).map(c => ({
+    id: String(c?.id || "").replace(/[^a-z0-9]/gi, "").slice(0, 16) || Math.random().toString(36).slice(2, 10),
+    mes: /^\d{4}-(0[1-9]|1[0-2])$/.test(String(c?.mes)) ? String(c.mes) : "",
+    desc: String(c?.desc ?? "").replace(/[\u0000-\u001f]+/g, " ").trim().slice(0, 80),
+    valor: Math.min(1e12, Math.max(0, Number(c?.valor) || 0)),
+    moneda: c?.moneda === "USD" ? "USD" : "COP"
+  })).filter(c => c.mes && (c.desc || c.valor > 0));
+}
+
 const publicaPauta = (d) => ({ fecha: d.fecha, clave: d.clave, nombre: d.nombre, meta: d.meta, tiktok: d.tiktok, devPct: d.devPct, tipo: d.tipo, fallido: d.fallido, metaAuto: !!d.metaAuto, metaManual: !!d.metaManual });
 const MONEDA = { CO: "COP", EC: "USD" };
 const cacheMeta = new Map();
@@ -113,7 +127,7 @@ let trmCache = { t: 0, valor: null, fecha: "" };
 export async function trmHoy() {
   if (trmCache.valor && Date.now() - trmCache.t < 6 * 36e5) return trmCache;
   try {
-    const r = await fetch("https://www.datos.gov.co/resource/32sa-8pi3.json?$limit=1&$order=vigenciadesde%20DESC", { headers: { Accept: "application/json" } });
+    const r = await fetch("https://www.datos.gov.co/resource/32sa-8pi3.json?$limit=1&$order=vigenciadesde%20DESC", { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(4000) });
     const d = await r.json();
     const valor = Number(d?.[0]?.valor);
     if (valor > 1000 && valor < 20000) trmCache = { t: Date.now(), valor, fecha: String(d[0].vigenciadesde || "").slice(0, 10) };
@@ -212,10 +226,12 @@ Sin rodeos, sin inventar datos que no estén en las cifras. Si la publicidad est
       const cfg = await FinanzasConfig.findOne({ owner: req.user.uid, pais: p }).lean();
       const fechas = await DropiLinea.find({ owner: req.user.uid, pais: p }).select("fecha -_id").lean();
       const dias = [...new Set(fechas.map(f => f.fecha))].sort();
+      const oficial = await trmHoy();
       res.json({
         pais: p, cuenta: cfg?.cuenta || "", devPct: cfg?.devPct ?? 25, metaEntrega: cfg?.metaEntrega ?? 70,
         grupos: cfg?.grupos || [], ultimaImportacion: cfg?.ultimaImportacion || null,
         metaCuentas: cfg?.metaCuentas || [], trm: cfg?.trmManual ? cfg.trm : null,
+        trmDia: oficial.valor || null, costosOperativos: cfg?.costosOperativos || [],
         dias, desde: dias[0] || null, hasta: dias[dias.length - 1] || null
       });
     } catch (err) {
@@ -237,6 +253,7 @@ Sin rodeos, sin inventar datos que no estén en las cifras. Si la publicidad est
         if (req.body.trm === null || req.body.trm === "" || !(v > 0)) { set.trm = null; set.trmManual = false; }
         else { set.trm = Math.min(20000, Math.max(100, v)); set.trmManual = true; }
       }
+      if (Array.isArray(req.body?.costosOperativos)) set.costosOperativos = limpiarCostosOperativos(req.body.costosOperativos);
       if (Array.isArray(req.body?.grupos)) {
         set.grupos = req.body.grupos.slice(0, 100).map(g => ({
           id: String(g?.id || Math.random().toString(36).slice(2, 10)).slice(0, 20),
@@ -247,7 +264,7 @@ Sin rodeos, sin inventar datos que no estén en las cifras. Si la publicidad est
       const cfg = await FinanzasConfig.findOneAndUpdate(
         { owner: req.user.uid, pais: p }, { $set: set, $setOnInsert: { owner: req.user.uid, pais: p } }, { upsert: true, new: true }
       ).lean();
-      res.json({ ok: true, devPct: cfg.devPct, metaEntrega: cfg.metaEntrega, grupos: cfg.grupos || [], cuenta: cfg.cuenta || "", metaCuentas: cfg.metaCuentas || [], trm: cfg.trmManual ? cfg.trm : null });
+      res.json({ ok: true, devPct: cfg.devPct, metaEntrega: cfg.metaEntrega, grupos: cfg.grupos || [], cuenta: cfg.cuenta || "", metaCuentas: cfg.metaCuentas || [], trm: cfg.trmManual ? cfg.trm : null, costosOperativos: cfg.costosOperativos || [] });
     } catch (err) {
       console.error("Error guardando ajustes de finanzas:", err);
       res.status(500).json({ error: "No se pudo guardar" });
