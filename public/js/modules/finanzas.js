@@ -78,11 +78,13 @@ const hace = (fecha) => {
 // ---------- Carga de datos ----------
 async function cargar(forzar = false) {
   if (!forzar && st.cargadoPais === st.pais && st.config) return;
-  const [config, lineas, pauta] = await Promise.all([
+  const [config, lineas, pauta, notas] = await Promise.all([
     api("GET", `/api/finanzas/config?pais=${st.pais}`),
     api("GET", `/api/finanzas/lineas?pais=${st.pais}`),
-    api("GET", `/api/finanzas/pauta?pais=${st.pais}`)
+    api("GET", `/api/finanzas/pauta?pais=${st.pais}`),
+    api("GET", `/api/finanzas/notas?pais=${st.pais}`).catch(() => ({}))
   ]);
+  st.notas = notas || {};
   st.config = config;
   st.lineas = lineas;
   st.meta.sync = null; st.meta.rango = null; st.meta.error = "";
@@ -1307,11 +1309,12 @@ function tablaSeguimiento(r) {
     activos: (o) => o.grupo !== "pendiente",
     mov24: (o) => (o.horasSinMovimiento ?? 0) > 24,
     novedades: (o) => o.grupo === "novedad",
-    pendientes: (o) => o.grupo === "pendiente"
+    pendientes: (o) => o.grupo === "pendiente",
+    conNotas: (o) => (st.notas?.[o.ordenId] || []).length > 0
   };
   const b = L.buscar.trim().toLowerCase();
   let lista = r.seguimiento.filter(filtros[L.filtro] || filtros.activos)
-    .filter(o => !b || [o.producto, o.guia, o.ciudad, o.ordenId, o.transportadora].some(v => String(v || "").toLowerCase().includes(b)));
+    .filter(o => !b || [o.producto, o.guia, o.ciudad, o.ordenId, o.transportadora, ...(st.notas?.[o.ordenId] || []).map(n => n.texto)].some(v => String(v || "").toLowerCase().includes(b)));
   const paginas = Math.max(1, Math.ceil(lista.length / L.porPagina));
   if (L.pagina > paginas) L.pagina = paginas;
   const ini = (L.pagina - 1) * L.porPagina;
@@ -1321,18 +1324,19 @@ function tablaSeguimiento(r) {
     <h3>Seguimiento de pedidos</h3><p class="fz-mini">${cuenta("activos")} activos de ${r.pedidos} pedidos</p>
     <div class="fz-chips">
       <input class="fz-buscar" placeholder="Buscar guía, producto, ciudad u orden..." value="${esc(L.buscar)}" oninput="fzLogBuscar(this.value)" id="fzLogBuscar">
-      ${[["activos", "Activos"], ["mov24", "+24h sin mov."], ["novedades", "Solo novedades"], ["pendientes", "Pendiente confirmación"]].map(([k, t]) => `<button class="fz-chip ${L.filtro === k ? "activo" : ""}" onclick="fzLogFiltro('${k}', true)">${t} (${cuenta(k)})</button>`).join("")}
+      ${[["activos", "Activos"], ["mov24", "+24h sin mov."], ["novedades", "Solo novedades"], ["pendientes", "Pendiente confirmación"], ["conNotas", "Con notas"]].map(([k, t]) => `<button class="fz-chip ${L.filtro === k ? "activo" : ""}" onclick="fzLogFiltro('${k}', true)">${t} (${cuenta(k)})</button>`).join("")}
       <button class="fz-btn claro chico" onclick="fzExportarSeguimiento()"><i data-lucide="download"></i> Exportar</button>
     </div>
     <div class="fz-scroll"><table class="fz-tabla">
-      <thead><tr><th>Fecha</th><th>Orden</th><th>Producto</th><th>Ciudad</th><th>Estatus</th><th>Guía</th><th>Transportadora</th><th>Últ. movimiento</th></tr></thead>
+      <thead><tr><th>Fecha</th><th>Orden</th><th>Producto</th><th>Ciudad</th><th>Estatus</th><th>Guía</th><th>Notas</th><th>Transportadora</th><th>Últ. movimiento</th></tr></thead>
       <tbody>${lista.slice(ini, ini + L.porPagina).map(o => `<tr>
         <td>${fechaCorta(o.fecha)}</td><td class="gris">${esc(o.ordenId)}</td><td><b>${esc(o.producto)}</b></td><td>${esc(o.ciudad)}</td>
         <td><span class="fz-tag ${o.grupo}">${o.grupo === "novedad" ? "NOVEDAD" : esc(o.estatus)}</span>${o.novedad ? `<small class="morado">${esc(o.novedad)}</small>` : ""}</td>
         <td>${o.guia ? `<button class="fz-guia" title="Copiar guía" onclick="fzCopiar('${esc(o.guia)}')">${esc(o.guia)} <i data-lucide="copy"></i></button>` : "—"}</td>
+        <td>${celdaNotas(o)}</td>
         <td>${esc(o.transportadora)}</td>
         <td>${fechaCorta(o.fechaUltMov)}${o.horasSinMovimiento > 24 ? ` <small class="ambar">${Math.floor(o.horasSinMovimiento / 24)}d sin mov.</small>` : ""}<small>${esc(o.ultimoMovimiento)}</small></td>
-      </tr>`).join("") || `<tr><td colspan="8" class="fz-sin">Nada por aquí.</td></tr>`}</tbody>
+      </tr>`).join("") || `<tr><td colspan="9" class="fz-sin">Nada por aquí.</td></tr>`}</tbody>
     </table></div>
     <div class="fz-pie-tabla">
       <span>Mostrando ${lista.length ? ini + 1 : 0}–${Math.min(lista.length, ini + L.porPagina)} de ${lista.length}</span>
@@ -1362,12 +1366,110 @@ window.fzCiudadPriorizar = (v) => { st.log.priorizar = v; reLog(); };
 window.fzCiudadN = (n) => { st.log.ciudadesN = n; st.log.ciudadesPag = 1; reLog(); };
 window.fzCiudadPag = (d) => { st.log.ciudadesPag += d; reLog(); };
 window.fzCopiar = async (t) => { try { await navigator.clipboard.writeText(t); avisar("Guía copiada ✓"); } catch { avisar(t); } };
+// ---------- Notas por pedido (seguimiento) ----------
+const NOTAS_RAPIDAS = ["Llamé al cliente", "No contesta", "Confirmó que recibe", "Reprogramada la entrega", "Cambio de dirección", "Escribí por WhatsApp", "Pidió devolución", "Reclamo a la transportadora"];
+const fechaNota = (iso) => new Date(iso).toLocaleString("es-CO", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+function celdaNotas(o) {
+  const ns = st.notas?.[o.ordenId] || [];
+  const id = esc(o.ordenId);
+  if (!ns.length) return `<button class="fz-nota-add" onclick="fzNotas('${id}')" title="Agregar una nota a este pedido"><i data-lucide="plus"></i> Nota</button>`;
+  const u = ns[ns.length - 1];
+  return `<button class="fz-nota-celda" onclick="fzNotas('${id}')" title="Ver, editar o borrar las notas">
+    <span>${esc(u.texto)}</span>
+    <small>${fechaNota(u.editada || u.fecha)}${ns.length > 1 ? ` · ${ns.length} notas` : ""}</small>
+  </button>`;
+}
+const notaEdit = { orden: "", editando: null };
+function pedidoDe(ordenId) {
+  const ls = st.lineas.filter(l => l.ordenId === ordenId);
+  return ls.length ? { ordenId, producto: ls.map(l => l.producto).join(" + "), guia: ls[0].guia, ciudad: ls[0].ciudad, transportadora: ls[0].transportadora, estatus: ls[0].estatus } : { ordenId };
+}
+function pintarModalNotas() {
+  const m = document.querySelector(".fz-modal-notas");
+  if (!m) return;
+  const o = pedidoDe(notaEdit.orden);
+  const ns = st.notas?.[notaEdit.orden] || [];
+  m.querySelector(".fz-modal-box").innerHTML = `
+    <h3><i data-lucide="sticky-note"></i> Notas del pedido ${esc(o.ordenId)}</h3>
+    <p class="fz-mini">${esc(o.producto || "")}${o.ciudad ? ` · ${esc(o.ciudad)}` : ""}${o.guia ? ` · Guía ${esc(o.guia)}` : ""}${o.transportadora ? ` · ${esc(o.transportadora)}` : ""}${o.estatus ? ` · ${esc(o.estatus)}` : ""}</p>
+    <ul class="fz-notas">${ns.map(n => `
+      <li>
+        ${notaEdit.editando === n.id ? `
+          <textarea id="fzNotaEdit" rows="3" maxlength="500">${esc(n.texto)}</textarea>
+          <div class="fz-notas-acc"><button class="fz-btn chico" onclick="fzNotaGuardarEdit('${n.id}')">Guardar</button><button class="fz-btn claro chico" onclick="fzNotaEditar(null)">Cancelar</button></div>` : `
+          <p>${esc(n.texto).replace(/\n/g, "<br>")}</p>
+          <small>${fechaNota(n.fecha)}${n.editada ? ` · editada ${fechaNota(n.editada)}` : ""}</small>
+          <div class="fz-notas-acc">
+            <button class="fz-icono" title="Editar" onclick="fzNotaEditar('${n.id}')"><i data-lucide="pencil"></i></button>
+            <button class="fz-icono peligro" title="Borrar" onclick="fzNotaBorrar('${n.id}')"><i data-lucide="trash-2"></i></button>
+          </div>`}
+      </li>`).join("") || `<li class="vacia">Todavía no hay notas en este pedido.</li>`}</ul>
+    <label class="fz-mini">Nueva nota</label>
+    <div class="fz-notas-rapidas">${NOTAS_RAPIDAS.map((t, i) => `<button class="fz-chip" onclick="fzNotaRapida(${i})">${esc(t)}</button>`).join("")}</div>
+    <textarea id="fzNotaNueva" rows="3" maxlength="500" placeholder="Ej: llamé a las 3 pm, dice que mañana está en casa"></textarea>
+    <div class="fz-modal-pie">
+      <button class="fz-btn claro" onclick="fzCerrarNotas()">Cerrar</button>
+      <button class="fz-btn" onclick="fzNotaAgregar()"><i data-lucide="plus"></i> Agregar nota</button>
+    </div>`;
+  iconos();
+}
+async function guardarNotas(ordenId, notas) {
+  const r = await api("PUT", "/api/finanzas/notas", { pais: st.pais, ordenId, notas });
+  st.notas = { ...(st.notas || {}) };
+  if (r.notas?.length) st.notas[ordenId] = r.notas; else delete st.notas[ordenId];
+  pintarModalNotas();
+  if (st.pagina === "logistica") reLog();
+}
+window.fzNotas = (ordenId) => {
+  notaEdit.orden = ordenId; notaEdit.editando = null;
+  document.querySelector(".fz-modal-notas")?.remove();
+  const modal = document.createElement("div");
+  modal.className = "modal-overlay fz-modal fz-modal-notas";
+  modal.innerHTML = `<div class="modal-box fz-modal-box chico"></div>`;
+  modal.addEventListener("click", (e) => { if (e.target === modal) modal.remove(); });
+  document.body.appendChild(modal);
+  pintarModalNotas();
+  setTimeout(() => $("fzNotaNueva")?.focus(), 50);
+};
+window.fzCerrarNotas = () => document.querySelector(".fz-modal-notas")?.remove();
+window.fzNotaRapida = (i) => {
+  const t = $("fzNotaNueva"); if (!t) return;
+  t.value = (t.value.trim() ? t.value.trim() + ". " : "") + NOTAS_RAPIDAS[i];
+  t.focus();
+};
+window.fzNotaAgregar = async () => {
+  const texto = $("fzNotaNueva")?.value.trim();
+  if (!texto) return avisar("Escribe la nota", "error");
+  try {
+    await guardarNotas(notaEdit.orden, [...(st.notas?.[notaEdit.orden] || []), { id: Math.random().toString(36).slice(2, 10), texto, fecha: new Date().toISOString() }]);
+    avisar("Nota guardada ✓");
+  } catch (err) { avisar(err.message, "error"); }
+};
+window.fzNotaEditar = (id) => { notaEdit.editando = id; pintarModalNotas(); setTimeout(() => $("fzNotaEdit")?.focus(), 30); };
+window.fzNotaGuardarEdit = async (id) => {
+  const texto = $("fzNotaEdit")?.value.trim();
+  if (!texto) return avisar("La nota no puede quedar vacía. Si no la quieres, bórrala.", "error");
+  notaEdit.editando = null;
+  try {
+    await guardarNotas(notaEdit.orden, (st.notas?.[notaEdit.orden] || []).map(n => n.id === id ? { ...n, texto, editada: new Date().toISOString() } : n));
+    avisar("Nota editada ✓");
+  } catch (err) { avisar(err.message, "error"); }
+};
+window.fzNotaBorrar = async (id) => {
+  if (!confirm("¿Borrar esta nota?")) return;
+  try {
+    await guardarNotas(notaEdit.orden, (st.notas?.[notaEdit.orden] || []).filter(n => n.id !== id));
+    avisar("Nota borrada");
+  } catch (err) { avisar(err.message, "error"); }
+};
+
 window.fzExportarSeguimiento = () => {
   const [desde, hasta] = periodo(st.log.periodo, st.log.desde, st.log.hasta);
   const r = logistica(st.lineas, { desde, hasta, grupos: grupos(), ahora: new Date(st.config?.ultimaImportacion || Date.now()) });
   descargarCSV(`seguimiento-${st.pais}-${hoyISO()}.csv`, [
-    ["Fecha", "Orden", "Producto", "Ciudad", "Estatus", "Novedad", "Guía", "Transportadora", "Último movimiento", "Fecha últ. mov.", "Horas sin movimiento"],
-    ...r.seguimiento.map(o => [o.fecha, o.ordenId, o.producto, o.ciudad, o.estatus, o.novedad, o.guia, o.transportadora, o.ultimoMovimiento, o.fechaUltMov, o.horasSinMovimiento === null ? "" : Math.round(o.horasSinMovimiento)])
+    ["Fecha", "Orden", "Producto", "Ciudad", "Estatus", "Novedad", "Guía", "Transportadora", "Último movimiento", "Fecha últ. mov.", "Horas sin movimiento", "Notas"],
+    ...r.seguimiento.map(o => [o.fecha, o.ordenId, o.producto, o.ciudad, o.estatus, o.novedad, o.guia, o.transportadora, o.ultimoMovimiento, o.fechaUltMov, o.horasSinMovimiento === null ? "" : Math.round(o.horasSinMovimiento),
+      (st.notas?.[o.ordenId] || []).map(n => `${fechaNota(n.fecha)}: ${n.texto}`).join(" | ")])
   ]);
 };
 

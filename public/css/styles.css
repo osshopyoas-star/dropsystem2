@@ -5375,3 +5375,26 @@ body.fz-sin-scroll { overflow: hidden; }
 .fz-esc-linea span.act { color: #2563eb; font-weight: 800; top: -4px; }
 .fz-tabla tr.fz-total td { border-top: 1.5px solid #0f172a; background: #f8fafc; font-weight: 700; }
 @media (max-width: 760px) { .fz-escs { grid-template-columns: 1fr; } }
+
+/* ---------- Notas por pedido (Seguimiento) ---------- */
+.fz-nota-add { display: inline-flex; align-items: center; gap: 4px; border: 1px dashed #cbd5e1; background: #fff; color: #64748b; border-radius: 8px; padding: 4px 9px; font: inherit; font-size: 12.5px; cursor: pointer; white-space: nowrap; }
+.fz-nota-add:hover { border-color: #2563eb; color: #2563eb; }
+.fz-nota-add svg { width: 13px; height: 13px; }
+.fz-nota-celda { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; max-width: 220px; border: 1px solid #fde68a; background: #fffbeb; border-radius: 8px; padding: 5px 8px; font: inherit; text-align: left; cursor: pointer; }
+.fz-nota-celda:hover { border-color: #f59e0b; }
+.fz-nota-celda span { font-size: 12.5px; color: #0f172a; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.fz-nota-celda small { font-size: 11px; color: #92400e; }
+.fz-modal-box.chico { width: 560px; }
+.fz-notas { list-style: none; margin: 10px 0 14px; padding: 0; display: flex; flex-direction: column; gap: 8px; max-height: 340px; overflow-y: auto; }
+.fz-notas li { position: relative; border: 1px solid #e2e8f0; border-left: 4px solid #f59e0b; border-radius: 10px; padding: 8px 80px 8px 12px; background: #fffdf5; }
+.fz-notas li.vacia { border-left-color: #e2e8f0; color: #64748b; font-size: 13px; padding-right: 12px; background: #f8fafc; }
+.fz-notas li p { margin: 0 0 2px; font-size: 13.5px; color: #0f172a; white-space: normal; overflow-wrap: anywhere; }
+.fz-notas li small { font-size: 11.5px; color: #92400e; }
+.fz-notas li textarea, #fzNotaNueva { width: 100%; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 10px; font: inherit; font-size: 13.5px; resize: vertical; }
+.fz-notas-acc { position: absolute; top: 8px; right: 8px; display: flex; gap: 6px; }
+.fz-notas li textarea + .fz-notas-acc { position: static; margin-top: 6px; }
+.fz-notas-acc .fz-icono { width: 28px; height: 28px; }
+.fz-notas-acc svg { width: 14px; height: 14px; }
+.fz-notas-rapidas { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+.fz-notas-rapidas .fz-chip { font-size: 12px; }
+.fz-modal-pie { gap: 8px; }

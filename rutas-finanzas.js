@@ -41,6 +41,28 @@ const pautaSchema = new mongoose.Schema({
 pautaSchema.index({ owner: 1, pais: 1, fecha: 1, clave: 1 }, { unique: true });
 export const PautaDia = mongoose.model("PautaDia", pautaSchema);
 
+// Notas de seguimiento por pedido (Logística → Seguimiento de pedidos): lo que hablaste con el cliente o la transportadora
+const notaPedidoSchema = new mongoose.Schema({
+  owner: { type: mongoose.Schema.Types.ObjectId, ref: "Usuario", index: true },
+  pais: { type: String, enum: PAISES, default: "CO" },
+  ordenId: String,
+  notas: { type: [mongoose.Schema.Types.Mixed], default: [] },     // { id, texto, fecha, editada }
+  actualizado: { type: Date, default: Date.now }
+});
+notaPedidoSchema.index({ owner: 1, pais: 1, ordenId: 1 }, { unique: true });
+export const NotaPedido = mongoose.model("NotaPedido", notaPedidoSchema);
+export const MAX_NOTAS_PEDIDO = 30;
+export function limpiarNotasPedido(lista) {
+  if (!Array.isArray(lista)) return [];
+  const fecha = (v) => { const d = new Date(v); return isNaN(d) ? new Date().toISOString() : d.toISOString(); };
+  return lista.slice(-MAX_NOTAS_PEDIDO).map(n => ({
+    id: String(n?.id || Math.random().toString(36).slice(2, 10)).replace(/[^a-z0-9]/gi, "").slice(0, 16) || Math.random().toString(36).slice(2, 10),
+    texto: String(n?.texto ?? "").replace(/[\u0000-\u0008\u000b-\u001f]+/g, " ").trim().slice(0, 500),
+    fecha: fecha(n?.fecha),
+    editada: n?.editada ? fecha(n.editada) : null
+  })).filter(n => n.texto);
+}
+
 const configSchema = new mongoose.Schema({
   owner: { type: mongoose.Schema.Types.ObjectId, ref: "Usuario", index: true },
   pais: { type: String, enum: PAISES, default: "CO" },
@@ -294,6 +316,41 @@ Sin rodeos, sin inventar datos que no estén en las cifras. Si la publicidad est
     } catch (err) {
       console.error("Error borrando pauta:", err);
       res.status(500).json({ error: "No se pudo borrar" });
+    }
+  });
+
+  // ---------- Notas de seguimiento por pedido ----------
+  app.get("/api/finanzas/notas", async (req, res) => {
+    try {
+      const lista = await NotaPedido.find({ owner: req.user.uid, pais: pais(req.query.pais) }).select("ordenId notas").lean();
+      res.json(Object.fromEntries(lista.filter(x => x.notas?.length).map(x => [x.ordenId, x.notas])));
+    } catch (err) {
+      console.error("Error leyendo notas:", err);
+      res.status(500).json({ error: "No se pudieron cargar las notas" });
+    }
+  });
+
+  // Guarda la lista completa de notas de un pedido (agregar, editar o borrar). Lista vacía = se borra.
+  app.put("/api/finanzas/notas", async (req, res) => {
+    try {
+      const b = req.body || {};
+      const p = pais(b.pais);
+      const ordenId = String(b.ordenId || "").trim().slice(0, 60);
+      if (!ordenId) return res.status(400).json({ error: "Falta el pedido" });
+      const notas = limpiarNotasPedido(b.notas);
+      if (!notas.length) {
+        await NotaPedido.deleteOne({ owner: req.user.uid, pais: p, ordenId });
+        return res.json({ ok: true, notas: [] });
+      }
+      await NotaPedido.findOneAndUpdate(
+        { owner: req.user.uid, pais: p, ordenId },
+        { $set: { notas, actualizado: new Date() }, $setOnInsert: { owner: req.user.uid, pais: p, ordenId } },
+        { upsert: true, new: true }
+      );
+      res.json({ ok: true, notas });
+    } catch (err) {
+      console.error("Error guardando notas:", err);
+      res.status(500).json({ error: "No se pudieron guardar las notas" });
     }
   });
 
