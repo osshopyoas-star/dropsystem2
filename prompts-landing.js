@@ -86,10 +86,12 @@ function resenasEnGemini(tipo) {
   return `
 ${chat ? "CHATS" : "RESEÑAS"}: la Ficha no tiene reseñas escritas. El dueño se las va a pasar a Gemini al hacer la imagen: adjunta las capturas de WhatsApp o las fotos de sus clientes, y/o las pega como texto al final del prompt. Escribe el prompt así:
 - Pide ${chat ? "burbujas de chat tipo WhatsApp LLENAS, una por mensaje" : "tarjetas LLENAS, una por reseña"} (máximo 4) con lo que el dueño le pase: ${chat ? "el mensaje del cliente, su nombre o iniciales pequeño arriba y una hora abajo a la derecha" : "nombre o iniciales, ciudad si viene, estrellas si vienen y el texto"}, copiados TAL CUAL (puede corregir tildes, no cambiar palabras). Letra grande y legible.
-- Si el dueño adjunta capturas, que Gemini LEA el texto de cada captura y lo pase limpio a su ${chat ? "burbuja" : "tarjeta"} (no pegue la captura borrosa). Si adjunta fotos de clientes, que las use recortadas en las tarjetas sin cambiar a la persona.
+- Si el dueño adjunta capturas, que Gemini LEA el texto de cada captura y lo pase limpio a su ${chat ? "burbuja" : "tarjeta"} (no pegue la captura borrosa).${chat ? "" : `
+- FOTOS (obligatorio, para que se vea como el diseño elegido): CADA tarjeta lleva una foto grande en su parte de arriba o a un lado, según el diseño. Escribe en el prompt, con estas palabras: "La PRIMERA imagen adjunta es el producto. TODAS las demás imágenes adjuntas son fotos REALES de mis clientes: pon UNA en cada tarjeta, en el orden que quieras (no importa cuál va con cuál reseña), recortada para que se vea bien, sin cambiar a la persona, el lugar ni el producto. No dejes ninguna foto de cliente sin usar. Si hay más tarjetas que fotos de clientes, esas tarjetas llevan una foto del producto en uso (manos o el lugar, sin cara)."`}
 - Sin foto del cliente: junto al nombre un círculo de color con sus iniciales, nunca una cara inventada. Sin promedio ni "verificado".
 - Si le pasan menos de 4, haz solo esas; NUNCA inventes ni completes reseñas, nombres, ciudades o estrellas que no le pasaron.
 - El titular es genérico ("LO QUE DICEN NUESTROS CLIENTES" / "${chat ? "LO QUE NOS ESCRIBEN" : "CLIENTES REALES"}"); nada de "resultados reales" ni cifras.
+- Nada de zona libre ni espacios para pegar: la imagen sale TERMINADA, con fotos y textos.
 - Termina el prompt EXACTAMENTE con este bloque para que el dueño lo llene antes de enviarlo:
 ${chat ? "CHATS DE MIS CLIENTES" : "RESEÑAS DE MIS CLIENTES"} (copia cada una tal cual; si adjunté capturas, léelas de ahí):
 1. Nombre: ___ · Ciudad: ___ · Estrellas: ___ · Texto: "___"
@@ -169,7 +171,8 @@ function bloqueResenas(p) {
 RESEÑAS REALES (pon EXACTAMENTE estas ${rs.length}, una por tarjeta, LLENAS con lo que se indica: foto, nombre, ciudad, estrellas y texto cuando existan; no cambies ni una palabra, no agregues otras, no pongas promedio ni "verificado"). Las tarjetas NUNCA van vacías.
 El titular de la sección es genérico (ej. "LO QUE DICEN" / "NUESTROS CLIENTES" o "FOTOS REALES DE CLIENTES"); nunca una cita inventada de un cliente.
 ${lineas.join("\n")}
-${foto > 1 ? `Al pegar este prompt en Gemini el dueño adjunta: #1 la foto del producto y luego las fotos de los clientes en este orden. Usa cada foto de cliente tal cual (recórtala para la tarjeta), sin cambiar a la persona ni el lugar.` : ""}`;
+${foto > 1 ? `Escribe en el prompt, con estas palabras: "La PRIMERA imagen adjunta es el producto. TODAS las demás imágenes adjuntas son fotos REALES de mis clientes: pon UNA en cada tarjeta que dice 'foto del cliente' (si no coinciden en orden, no importa), recortada para que se vea bien, sin cambiar a la persona, el lugar ni el producto. No dejes ninguna sin usar."` : ""}
+CADA tarjeta lleva foto como en el diseño elegido: la del cliente o, si no tiene, el producto en uso (manos o el lugar, sin cara). La imagen sale TERMINADA: nada de zona libre ni espacios para pegar.`;
 }
 
 // ---------- Prueba social con números reales (Ficha → pruebaSocial, traídos de Dropi y de tu app de reseñas) ----------
