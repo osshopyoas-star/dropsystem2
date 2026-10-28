@@ -772,7 +772,7 @@ function listaResenas() {
       <button class="est-link" title="Quitar" onclick="estQuitarResena(${i})">✕</button>
     </div>`).join("")}
     ${rs.length < 6 ? `<div class="est-sec-actions">
-      <label class="est-btn chico primary" title="Elige varias fotos de clientes a la vez: cada una queda como reseña con 5 estrellas, sin escribir nada">
+      <label class="est-btn chico primary" title="Elige varias fotos de clientes a la vez: cada una queda como reseña con su foto, sin escribir nada (las estrellas las pones tú si el cliente te las dio)">
         <i data-lucide="images"></i> Subir fotos de clientes (varias)
         <input type="file" accept="image/png,image/jpeg,image/webp" multiple hidden onchange="estResenasFotos(this.files); this.value=''">
       </label>
@@ -786,14 +786,14 @@ const guardarResenasLuego = () => { clearTimeout(tGuardarResenas); tGuardarResen
 window.estAgregarResena = () => { resenas().push({ nombre: "", ciudad: "", estrellas: 5, texto: "", foto: "" }); pintarResenas(); };
 window.estResena = (i, campo, v) => { const r = resenas()[i]; if (!r) return; r[campo] = campo === "estrellas" ? Number(v) : String(v); if (r.texto?.trim() || r.foto) guardarResenasLuego(); };
 window.estQuitarResena = (i) => { resenas().splice(i, 1); pintarResenas(); guardarResenasLuego(); };
-// Varias fotos de una: cada foto = una reseña (5 estrellas, sin nombre ni texto). Nada que escribir.
+// Varias fotos de una: cada foto = una reseña (sin estrellas, nombre ni texto). Nada que escribir.
 window.estResenasFotos = async (files) => {
   const lista = [...(files || [])].slice(0, 6 - resenas().length);
   if (!lista.length) return;
   try {
     for (const f of lista) {
       const { dataUrl } = await comprimirImagen(f, 600, 0.8);
-      resenas().push({ nombre: "", ciudad: "", estrellas: 5, texto: "", foto: dataUrl });
+      resenas().push({ nombre: "", ciudad: "", estrellas: 0, texto: "", foto: dataUrl });   // sin estrellas: solo las que dio el cliente
     }
     pintarResenas();
     guardarResenasLuego();
@@ -1354,9 +1354,11 @@ window.estGenerarTodos = async () => {
   avisar(errores ? `Listo con ${errores} error(es). Puedes reintentar las que faltan.` : `${hechos} prompts listos ✓`, errores ? "error" : "ok");
 };
 
+// Bloques de estilo viejos pedían "tarjetas lisas" (vacías) en reseñas: ahora van llenas
+const estiloAlDia = (b) => String(b || "").replace("(salvo las tarjetas lisas de la sección de reseñas o chats).", "Las tarjetas de reseñas y chats van blancas y LLENAS con el texto de cada cliente.");
 window.estCopiarSeccion = (i) => {
   const r = R();
-  copiar(limpiarFuentes(`${r.bloqueEstilo}\n\n${r.secciones[i].prompt}`));
+  copiar(limpiarFuentes(`${estiloAlDia(r.bloqueEstilo)}\n\n${r.secciones[i].prompt}`));
 };
 
 const cambiarSecciones = (fn) => guardarRama({ secciones: fn([...R().secciones]) });

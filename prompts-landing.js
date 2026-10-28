@@ -84,27 +84,46 @@ export const METODO_AIDA = `MÉTODO DE VENTA (AIDA + la causa real):
 function resenasEnGemini(tipo) {
   const chat = tipo === "chats";
   return `
-${chat ? "CHATS" : "RESEÑAS"}: la Ficha no tiene reseñas escritas. El dueño se las va a pasar a Gemini al hacer la imagen: adjunta las capturas de WhatsApp o las fotos de sus clientes, y/o las pega como texto al final del prompt. Escribe el prompt así:
-- Pide ${chat ? "burbujas de chat tipo WhatsApp LLENAS, una por mensaje" : "tarjetas LLENAS, una por reseña"} (máximo 4) con lo que el dueño le pase: ${chat ? "el mensaje del cliente, su nombre o iniciales pequeño arriba y una hora abajo a la derecha" : "nombre o iniciales, ciudad si viene, estrellas si vienen y el texto"}, copiados TAL CUAL (puede corregir tildes, no cambiar palabras). Letra grande y legible.
-- Si el dueño adjunta capturas, que Gemini LEA el texto de cada captura y lo pase limpio a su ${chat ? "burbuja" : "tarjeta"} (no pegue la captura borrosa).${chat ? "" : `
-- FOTOS (obligatorio, para que se vea como el diseño elegido): CADA tarjeta lleva una foto grande en su parte de arriba o a un lado, según el diseño. Escribe en el prompt, con estas palabras: "La PRIMERA imagen adjunta es el producto. TODAS las demás imágenes adjuntas son fotos REALES de mis clientes: pon UNA en cada tarjeta, en el orden que quieras (no importa cuál va con cuál reseña), recortada para que se vea bien, sin cambiar a la persona, el lugar ni el producto. No dejes ninguna foto de cliente sin usar. Si hay más tarjetas que fotos de clientes, esas tarjetas llevan una foto del producto en uso (manos o el lugar, sin cara)."`}
-- Sin foto del cliente: junto al nombre un círculo de color con sus iniciales, nunca una cara inventada. Sin promedio ni "verificado".
-- Si le pasan menos de 4, haz solo esas; NUNCA inventes ni completes reseñas, nombres, ciudades o estrellas que no le pasaron.
-- El titular es genérico ("LO QUE DICEN NUESTROS CLIENTES" / "${chat ? "LO QUE NOS ESCRIBEN" : "CLIENTES REALES"}"); nada de "resultados reales" ni cifras.
-- Nada de zona libre ni espacios para pegar: la imagen sale TERMINADA, con fotos y textos.
-- Termina el prompt EXACTAMENTE con este bloque para que el dueño lo llene antes de enviarlo:
-${chat ? "CHATS DE MIS CLIENTES" : "RESEÑAS DE MIS CLIENTES"} (copia cada una tal cual; si adjunté capturas, léelas de ahí):
-1. Nombre: ___ · Ciudad: ___ · Estrellas: ___ · Texto: "___"
-2. Nombre: ___ · Ciudad: ___ · Estrellas: ___ · Texto: "___"
-3. Nombre: ___ · Ciudad: ___ · Estrellas: ___ · Texto: "___"`;
+${chat ? "CHATS" : "RESEÑAS"}: la Ficha no tiene reseñas escritas. El dueño se las pasa a Gemini al hacer la imagen (${chat ? "capturas de WhatsApp" : "fotos reales que le mandaron sus clientes y/o capturas de WhatsApp"}), y CoDropX agrega al final del prompt el bloque "FOTOS Y RESEÑAS" con las reglas y el espacio para escribirlas. Tú NO escribas ese bloque ni ningún texto de reseña.
+- Diseña ${chat ? "las burbujas de chat (máximo 4)" : "de 3 a 6 tarjetas"} según el diseño elegido, todas LLENAS (nada de zona libre ni espacios para pegar).${chat ? "" : `
+- Cada tarjeta lleva una foto grande arriba o a un lado, según el diseño. En la COMPOSICIÓN escribe solo "tarjeta 1: foto adjunta de cliente", "tarjeta 2: foto adjunta de cliente"…, SIN describir a ninguna persona ni lo que hay en esas fotos (Gemini usa las fotos adjuntas tal cual; si las describes, las inventa).`}
+- En TEXTOS pon solo el titular genérico ("LO QUE DICEN NUESTROS CLIENTES" / "${chat ? "LO QUE NOS ESCRIBEN" : "CLIENTES REALES"}") y la barra inferior: los nombres, ciudades, estrellas y textos de los clientes van en el bloque final.
+- Sin foto del cliente: junto al nombre un círculo de color con sus iniciales, nunca una cara inventada. Sin promedio ni "verificado".`;
 }
+
+// Bloque FIJO al final del prompt de reseñas y chats (lo pone CoDropX, no la IA): Gemini usa tus fotos tal cual y no inventa nada
+export const TIPOS_CON_RESENAS = ["resenas", "moda_chats", "resumen_resenas"];
+const FINAL_RESENAS = /\n+(FOTOS Y RESEÑAS|RESEÑAS DE MIS CLIENTES|CHATS DE MIS CLIENTES|FRASES DE MIS CLIENTES)[\s\S]*$/;
+export function cierreResenas(p, tipo) {
+  if (!TIPOS_CON_RESENAS.includes(tipo)) return "";
+  const chat = tipo === "moda_chats";
+  const rs = resenasReales(p).slice(0, chat ? 4 : 6);
+  const fotosFicha = rs.filter(r => r.foto).length;
+  const campo = (v, vacio) => (limpio(v, 260) || vacio);
+  const reglas = [
+    chat ? null : "- La PRIMERA imagen adjunta es el producto. TODAS las demás imágenes adjuntas son fotos REALES que me mandaron mis clientes.",
+    chat ? null : "- Pon cada foto de cliente TAL CUAL en su propia tarjeta: solo recórtala para que encaje. NO la cambies, NO la mejores, NO crees otras personas ni otras fotos de clientes. Una tarjeta por foto, en el orden que quieras, y no dejes ninguna sin usar.",
+    chat ? null : "- Si hay más tarjetas que fotos de clientes, esas tarjetas llevan la foto del producto en uso (manos o el lugar, sin cara).",
+    "- Si alguna imagen adjunta es una captura de WhatsApp o de un comentario, no la pongas como foto: lee su texto y úsalo como reseña, tal cual.",
+    "- El texto de cada tarjeta es SOLO el que escribo abajo o el de mis capturas, copiado tal cual (puedes corregir tildes). Lo que esté vacío o con ___ NO se escribe: NO inventes nombres, ciudades, estrellas ni frases.",
+    chat ? "- Si no hay ningún mensaje, haz solo el título." : "- Si no hay ningún texto, cada tarjeta lleva solo su foto y debajo la etiqueta \"Foto real de cliente\" (sin nombre, sin estrellas, sin frase), y el titular dice \"ASÍ LES LLEGÓ A NUESTROS CLIENTES\".",
+    "- Sin promedio, sin \"verificado\" y sin caras inventadas: si no hay foto del cliente, un círculo de color con sus iniciales."
+  ].filter(Boolean);
+  const titulo = chat ? "CHATS DE MIS CLIENTES" : "RESEÑAS DE MIS CLIENTES";
+  const datos = rs.length
+    ? `${titulo} (tal cual):\n${rs.map((r, i) => `${i + 1}. Nombre: ${campo(r.nombre, "___")} · Ciudad: ${campo(r.ciudad, "___")} · Estrellas: ${Number(r.estrellas) || "___"} · Texto: ${limpio(r.texto, 260) ? `"${limpio(r.texto, 260)}"` : "___"}${!chat && r.foto ? " · con foto" : ""}`).join("\n")}${fotosFicha ? `\n(Las ${fotosFicha} fotos de clientes van adjuntas después de la foto del producto.)` : ""}`
+    : `${titulo} (llena las que tengas y borra las demás; si solo tienes fotos o capturas, déjalo así):\n${[1, 2, 3, 4].map(n => `${n}. Nombre: ___ · Ciudad: ___ · Estrellas: ___ · Texto: ___`).join("\n")}`;
+  return `\n\nFOTOS Y RESEÑAS (lo más importante de esta imagen):\n${reglas.join("\n")}\n\n${datos}`;
+}
+// La IA a veces escribe su propio bloque final: se quita y se pone el fijo
+export const conCierreResenas = (texto, p, tipo) => (TIPOS_CON_RESENAS.includes(tipo) ? String(texto).replace(FINAL_RESENAS, "").trimEnd() + cierreResenas(p, tipo) : texto);
 
 // Chats de clientes: los mismos mensajes reales de la Ficha, como burbujas de WhatsApp
 function bloqueChats(p) {
   const rs = resenasReales(p).filter(r => String(r.texto || "").trim()).slice(0, 4);
   if (!rs.length) return resenasEnGemini("chats");
   return `
-CHATS REALES (una burbuja por mensaje, EXACTAMENTE estos ${rs.length}, textuales; no cambies ni una palabra ni agregues otros). Cada burbuja: nombre o iniciales pequeño arriba, el mensaje y una hora pequeña abajo a la derecha (ej. 10:42). Letra grande y legible:
+CHATS REALES (son ${rs.length}: diseña una burbuja por mensaje; los textos los agrega CoDropX al final en el bloque "FOTOS Y RESEÑAS", tú no los escribas en TEXTOS). Cada burbuja: nombre o iniciales pequeño arriba, el mensaje y una hora pequeña abajo a la derecha (ej. 10:42). Letra grande y legible:
 ${rs.map((r, i) => `${i + 1}. "${limpio(r.nombre, 40) || "Cliente"}": "${limpio(r.texto, 200)}"`).join("\n")}`;
 }
 
@@ -168,11 +187,10 @@ function bloqueResenas(p) {
     return `${i + 1}. ${nombre}${r.ciudad ? ` · Ciudad: "${limpio(r.ciudad, 40)}"` : ""} · ${estrellas} · ${texto} · ${ref}`;
   });
   return `
-RESEÑAS REALES (pon EXACTAMENTE estas ${rs.length}, una por tarjeta, LLENAS con lo que se indica: foto, nombre, ciudad, estrellas y texto cuando existan; no cambies ni una palabra, no agregues otras, no pongas promedio ni "verificado"). Las tarjetas NUNCA van vacías.
+RESEÑAS REALES (son ${rs.length}: diseña una tarjeta por cada una, LLENAS con lo que se indica: foto, nombre, ciudad, estrellas y texto cuando existan; no cambies ni una palabra, no agregues otras, no pongas promedio ni "verificado"). Las tarjetas NUNCA van vacías.
 El titular de la sección es genérico (ej. "LO QUE DICEN" / "NUESTROS CLIENTES" o "FOTOS REALES DE CLIENTES"); nunca una cita inventada de un cliente.
 ${lineas.join("\n")}
-${foto > 1 ? `Escribe en el prompt, con estas palabras: "La PRIMERA imagen adjunta es el producto. TODAS las demás imágenes adjuntas son fotos REALES de mis clientes: pon UNA en cada tarjeta que dice 'foto del cliente' (si no coinciden en orden, no importa), recortada para que se vea bien, sin cambiar a la persona, el lugar ni el producto. No dejes ninguna sin usar."` : ""}
-CADA tarjeta lleva foto como en el diseño elegido: la del cliente o, si no tiene, el producto en uso (manos o el lugar, sin cara). La imagen sale TERMINADA: nada de zona libre ni espacios para pegar.`;
+CADA tarjeta lleva foto como en el diseño elegido: la del cliente o, si no tiene, el producto en uso (manos o el lugar, sin cara). En la COMPOSICIÓN, para las que tienen foto del cliente escribe solo "tarjeta N: foto adjunta de cliente", SIN describir a la persona ni la escena (Gemini usa la foto adjunta tal cual). Los textos de las reseñas NO los escribas en TEXTOS: CoDropX los agrega al final en el bloque "FOTOS Y RESEÑAS". La imagen sale TERMINADA: nada de zona libre ni espacios para pegar.`;
 }
 
 // ---------- Prueba social con números reales (Ficha → pruebaSocial, traídos de Dropi y de tu app de reseñas) ----------
@@ -230,11 +248,7 @@ ${c.promedio ? `- Nota: "${String(c.promedio).replace(".", ",")}" con 5 estrella
   const citas = frases.length
     ? `FRASES REALES DE CLIENTES (textuales; puedes acortarlas quitando palabras del final, nunca cambiarlas ni agregar):
 ${frases.map((r, i) => `${i + 1}. "${limpio(r.texto, 160)}" — ${limpio(r.nombre, 40) || "sin nombre (no escribas ninguno)"}${r.ciudad ? `, ${limpio(r.ciudad, 40)}` : ""}${Number(r.estrellas) ? ` · ${Number(r.estrellas)} estrellas` : ""}`).join("\n")}`
-    : `FRASES: la Ficha no tiene textos de clientes. El dueño se los pasa a Gemini al hacer la imagen (capturas o texto): pide burbujas LLENAS con esas frases tal cual (máximo 4, nunca inventadas) y termina el prompt con este bloque para que el dueño lo llene:
-FRASES DE MIS CLIENTES (tal cual; si adjunté capturas, léelas de ahí):
-1. "___" — Nombre: ___
-2. "___" — Nombre: ___
-3. "___" — Nombre: ___`;
+    : `FRASES: la Ficha no tiene textos de clientes. El dueño se los pasa a Gemini al hacer la imagen, y CoDropX agrega al final el bloque "FOTOS Y RESEÑAS": tú no escribas frases de clientes; diseña de 2 a 4 burbujas LLENAS.`;
   return `
 ${cabeza}
 ${citas}

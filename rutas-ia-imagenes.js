@@ -62,6 +62,7 @@ export const aspectoDe = (formato) => {
 
 // El producto va primero y al final: la IA tiende a obedecer lo que más se repite
 export function armarPrompt({ bloqueEstilo, prompt, referencias, descripcion = "", noTiene = "", clientes = 0 }) {
+  bloqueEstilo = String(bloqueEstilo || "").replace("(salvo las tarjetas lisas de la sección de reseñas o chats).", "Las tarjetas de reseñas y chats van blancas y LLENAS con el texto de cada cliente.");
   // Las últimas "clientes" referencias son fotos reales de clientes (sección de reseñas), no del producto
   const total = referencias;
   referencias = Math.max(0, referencias - clientes);
