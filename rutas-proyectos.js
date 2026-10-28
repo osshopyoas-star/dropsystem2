@@ -403,7 +403,9 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
           ads: (r.ads || []).length, adsHechos: (r.ads || []).filter(x => x.hecha).length,
           guiones: (r.guiones || []).length,
           copys: r.copys?.meta?.length ? r.copys.meta : [],
-          tiktok: r.copys?.tiktok || ""
+          tiktok: r.copys?.tiktok || "",
+          tiktokExtra: r.copys?.tiktokExtra || null,
+          copysOpciones: r.copys?.opciones || null
         };
       })
     };

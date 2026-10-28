@@ -7,6 +7,7 @@ import { registrarRuta } from "./navegacion.js";
 import { escapeHTML } from "../core/utils.js";
 import { formatear } from "../core/costeo.js";
 import { claveDeProducto, metricasProducto, decidirTesteo, ACCIONES_TESTEO } from "../core/finanzas.js";
+import { ENFOQUES_COPY } from "../core/anuncios.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (v) => escapeHTML(v ?? "");
@@ -164,7 +165,7 @@ function tarjetaListo(p) {
   const cuerpo = !pr ? `<p class="ts-kit-nota">No tiene proyecto en Desarrollo.</p>`
     : kit === "cargando" ? `<p class="ts-kit-nota">Cargando links y copys…</p>`
     : kit?.error ? `<p class="ts-kit-nota rojo">${esc(kit.error)}</p>`
-    : `<div class="ts-kit-avs">${(kit.avatares || []).map(a => avatarKit(a, pais)).join("") || `<p class="ts-kit-nota">Sin avatares trabajados.</p>`}</div>`;
+    : `<div class="ts-kit-avs">${(kit.avatares || []).map(a => avatarKit(a, pais, pr._id)).join("") || `<p class="ts-kit-nota">Sin avatares trabajados.</p>`}</div>`;
   return `
   <article class="ts-listo">
     <div class="ts-listo-top">
@@ -180,7 +181,7 @@ function tarjetaListo(p) {
     ${cuerpo}
   </article>`;
 }
-function avatarKit(a, pais) {
+function avatarKit(a, pais, proyectoId) {
   const pubs = a.publicaciones || [];
   const links = pubs.length ? pubs.map(x => {
     const tienda = x.dominio && x.handle ? `https://${x.dominio}/products/${x.handle}` : "";
@@ -194,7 +195,7 @@ function avatarKit(a, pais) {
   }).join("") : `<p class="ts-kit-nota rojo">No está publicado en Shopify.</p>`;
   const copys = (a.copys || []).map((c, i) => `
     <div class="ts-copy">
-      <div class="ts-copy-top"><b>Copy ${i + 1}</b> <small>enfoque ${esc(c.enfoque)}</small></div>
+      <div class="ts-copy-top"><b>Copy ${i + 1}</b> <small>${esc(ENFOQUES_COPY[c.enfoque] || c.enfoque)}</small></div>
       <p>${esc(c.texto_principal).replace(/\n/g, "<br>")}</p>
       ${c.titulo ? `<small>Título: <b>${esc(c.titulo)}</b></small>` : ""}${c.descripcion ? `<small>Descripción: ${esc(c.descripcion)}</small>` : ""}
       <div class="ts-copy-btns">${copiar(c.texto_principal, "Copiar texto")}${copiar(c.titulo, "Copiar título")}${copiar(c.descripcion, "Copiar descripción")}</div>
@@ -204,9 +205,46 @@ function avatarKit(a, pais) {
     <div class="ts-kit-av-top"><span class="ts-av">Avatar ${esc(a.id)}</span>${a.quien ? `<small>${esc(a.quien)}</small>` : ""}</div>
     ${links}
     <p class="ts-kit-crea"><i data-lucide="image"></i> ${a.ads} creativo${a.ads === 1 ? "" : "s"} estático${a.ads === 1 ? "" : "s"}${a.adsHechos ? ` (${a.adsHechos} hechos)` : ""} · ${a.guiones} guion${a.guiones === 1 ? "" : "es"} de video</p>
-    ${copys ? `<details class="ts-kit-copys"><summary>Copys para Meta (${a.copys.length})</summary>${copys}</details>` : `<p class="ts-kit-nota rojo">Sin copys de Meta.</p>`}
+    ${copys ? `<details class="ts-kit-copys" ${copysAbiertos.has(`${proyectoId}|${a.id}`) ? "open" : ""} ontoggle="tsCopysAbiertos('${esc(proyectoId)}', '${esc(a.id)}', this.open)"><summary>Copys para Meta (${a.copys.length})${a.tiktok ? " y TikTok" : ""}</summary>${copys}${tiktokKit(a)}</details>` : `<p class="ts-kit-nota rojo">Sin copys de Meta.</p>`}
+    <div class="ts-copy-btns"><button class="ts-btn claro chico" id="tsCopys-${esc(proyectoId)}-${esc(a.id)}" onclick="tsEscribirCopys('${esc(proyectoId)}', '${esc(a.id)}', ${copys ? "true" : "false"})"><i data-lucide="sparkles"></i> ${copys ? "Escribir otros copys" : "Escribir copys"}</button></div>
   </div>`;
 }
+// TikTok del kit: texto del anuncio, caption de Spark Ads y ganchos
+function tiktokKit(a) {
+  const x = a.tiktokExtra || {};
+  if (!a.tiktok && !x.caption) return "";
+  return `
+    <div class="ts-copy">
+      <div class="ts-copy-top"><b>TikTok</b></div>
+      ${a.tiktok ? `<small>Texto del anuncio:</small><p>${esc(a.tiktok)}</p>` : ""}
+      ${x.caption ? `<small>Caption para Spark Ads:</small><p>${esc(x.caption)}</p>` : ""}
+      ${(x.ganchos || []).length ? `<small>Ganchos para los primeros 3 segundos:</small><p>${x.ganchos.map((g, i) => `${i + 1}. ${esc(g)}`).join("<br>")}</p>` : ""}
+      <div class="ts-copy-btns">${copiar(a.tiktok, "Copiar texto")}${copiar(x.caption, "Copiar caption")}${copiar((x.ganchos || []).join("\n"), "Copiar ganchos")}</div>
+    </div>`;
+}
+const copysAbiertos = new Set();
+window.tsCopysAbiertos = (id, av, abierto) => { const k = `${id}|${av}`; if (abierto) copysAbiertos.add(k); else copysAbiertos.delete(k); };
+// Escribe copys nuevos para un avatar (las mismas opciones con que se hicieron) sin ir a Desarrollo
+window.tsEscribirCopys = async (proyectoId, av, reemplaza) => {
+  if (reemplaza && !confirm(`¿Escribir copys nuevos para el avatar ${av}? Los de ahora se reemplazan.`)) return;
+  const b = document.getElementById(`tsCopys-${proyectoId}-${av}`);
+  if (b?.disabled) return;
+  if (b) { b.disabled = true; b.innerHTML = `<span class="est-spin"></span> Analizando y escribiendo...`; }
+  try {
+    const kit = kits.get(String(proyectoId));
+    const op = (kit?.avatares || []).find(x => x.id === av)?.copysOpciones || { contraEntrega: true };
+    await api("POST", `/api/proyectos/${proyectoId}/rama/${encodeURIComponent(av)}/ia/copys`, { contraEntrega: op.contraEntrega !== false, envio: !!op.envio, precio: !!op.precio });
+    copysAbiertos.add(`${proyectoId}|${av}`);
+    const nuevo = await api("GET", `/api/proyectos/${proyectoId}/kit`);
+    kits.set(String(proyectoId), nuevo);
+    const y = window.scrollY; render(); window.scrollTo(0, y);
+    avisar(`Copys nuevos para el avatar ${av} ✓`);
+  } catch (err) {
+    avisar(err.message, "error");
+    if (b && document.body.contains(b)) { b.disabled = false; b.innerHTML = `<i data-lucide="sparkles"></i> Escribir otros copys`; if (window.lucide) lucide.createIcons(); }
+  }
+};
+
 window.tsCopiar = async (i, btn) => {
   try { await navigator.clipboard.writeText(copias[i] || ""); }
   catch { const t = document.createElement("textarea"); t.value = copias[i] || ""; document.body.appendChild(t); t.select(); document.execCommand("copy"); t.remove(); }
