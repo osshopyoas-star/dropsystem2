@@ -5408,3 +5408,20 @@ body.fz-sin-scroll { overflow: hidden; }
 .fz-x { border: 0; background: none; color: #94a3b8; font-size: 18px; cursor: pointer; padding: 4px 8px; border-radius: 6px; }
 .fz-x:hover { color: #dc2626; background: #fef2f2; }
 .fz-costos-acc { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+
+/* Reporte Financiero · Reportes guardados */
+.fz-rep-botones { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+.fz-guardado { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 10px 14px; margin-bottom: 14px; border: 1px solid #bfdbfe; background: #eff6ff; border-radius: 12px; font-size: 13px; color: #1e3a8a; }
+.fz-guardado > span { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.fz-guardado svg { width: 15px; height: 15px; }
+.fz-rep-nombre { width: 100%; min-height: 40px; border: 1px solid #cbd5e1; border-radius: 10px; padding: 0 12px; font: inherit; margin: 4px 0 8px; box-sizing: border-box; }
+.fz-rep-nombre:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,.15); }
+.fz-reps { list-style: none; padding: 0; margin: 10px 0 0; display: flex; flex-direction: column; gap: 8px; max-height: 60vh; overflow-y: auto; }
+.fz-reps li { display: flex; align-items: center; gap: 8px; border: 1px solid #e2e8f0; border-radius: 12px; padding: 4px 8px 4px 4px; }
+.fz-reps li.activo { border-color: #3b82f6; background: #eff6ff; }
+.fz-reps li.vacia { padding: 14px; color: #64748b; font-size: 13px; }
+.fz-rep-abrir { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; text-align: left; border: 0; background: none; padding: 8px 10px; border-radius: 10px; cursor: pointer; font: inherit; color: #0f172a; }
+.fz-rep-abrir:hover { background: #f8fafc; }
+.fz-rep-abrir small { color: #64748b; font-size: 12px; }
+.fz-rep-abrir span { font-size: 12px; color: #334155; }
+.fz-rep-abrir em { font-style: normal; font-weight: 700; }

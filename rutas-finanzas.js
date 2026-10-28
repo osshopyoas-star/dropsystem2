@@ -81,6 +81,20 @@ const configSchema = new mongoose.Schema({
 configSchema.index({ owner: 1, pais: 1 }, { unique: true });
 export const FinanzasConfig = mongoose.model("FinanzasConfig", configSchema);
 
+// Reportes guardados: una foto del Reporte Financiero de un periodo (los números no cambian aunque subas otro Excel)
+const reporteGuardadoSchema = new mongoose.Schema({
+  owner: { type: mongoose.Schema.Types.ObjectId, ref: "Usuario", index: true },
+  pais: { type: String, enum: PAISES, default: "CO" },
+  nombre: String, desde: String, hasta: String, clave: { type: String, default: "" }, producto: { type: String, default: "" },
+  resumen: { type: mongoose.Schema.Types.Mixed, default: {} },   // { pedidos, entregados, tasaEntrega, gananciaNeta, margenNeto }
+  datos: { type: mongoose.Schema.Types.Mixed, default: {} },     // lo que se ve en pantalla (cifras ya calculadas, sin datos de clientes)
+  creado: { type: Date, default: Date.now }
+});
+reporteGuardadoSchema.index({ owner: 1, pais: 1, creado: -1 });
+export const ReporteGuardado = mongoose.model("ReporteGuardado", reporteGuardadoSchema);
+export const MAX_REPORTES = 100;
+const MAX_DATOS_REPORTE = 400000;   // caracteres del JSON
+
 // ---------- Limpieza de lo que llega del navegador ----------
 const CAMPOS_TEXTO = {
   ordenId: 40, productoId: 40, variacionId: 40, fecha: 10, hora: 5, guia: 60, estatus: 60, tipoEnvio: 30,
@@ -268,6 +282,67 @@ Sin rodeos, sin inventar datos que no estén en las cifras. Si la publicidad est
     } catch (err) {
       console.error("Error guardando ajustes de finanzas:", err);
       res.status(500).json({ error: "No se pudo guardar" });
+    }
+  });
+
+  // ---------- Reportes guardados ----------
+  app.get("/api/finanzas/reportes", async (req, res) => {
+    try {
+      const lista = await ReporteGuardado.find({ owner: req.user.uid, pais: pais(req.query.pais) })
+        .select("nombre desde hasta clave producto resumen creado").sort({ creado: -1 }).limit(MAX_REPORTES).lean();
+      res.json(lista.map(({ _id, ...x }) => ({ id: String(_id), ...x })));
+    } catch (err) {
+      console.error("Error leyendo reportes guardados:", err);
+      res.status(500).json({ error: "No se pudieron cargar tus reportes guardados" });
+    }
+  });
+
+  app.get("/api/finanzas/reportes/:id", async (req, res) => {
+    try {
+      if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ error: "Ese reporte no existe" });
+      const x = await ReporteGuardado.findOne({ _id: req.params.id, owner: req.user.uid }).select("-owner -__v").lean();
+      if (!x) return res.status(404).json({ error: "Ese reporte no existe" });
+      const { _id, ...resto } = x;
+      res.json({ id: String(_id), ...resto });
+    } catch (err) {
+      console.error("Error leyendo reporte guardado:", err);
+      res.status(500).json({ error: "No se pudo abrir el reporte" });
+    }
+  });
+
+  app.post("/api/finanzas/reportes", async (req, res) => {
+    try {
+      const b = req.body || {};
+      const p = pais(b.pais);
+      const desde = fechaQ(b.desde), hasta = fechaQ(b.hasta);
+      if (!desde || !hasta) return res.status(400).json({ error: "El reporte no tiene fechas" });
+      if (!b.datos || typeof b.datos !== "object" || !b.datos.r) return res.status(400).json({ error: "El reporte está vacío" });
+      if (JSON.stringify(b.datos).length > MAX_DATOS_REPORTE) return res.status(400).json({ error: "El reporte es muy grande para guardarlo" });
+      if (await ReporteGuardado.countDocuments({ owner: req.user.uid, pais: p }) >= MAX_REPORTES) return res.status(400).json({ error: `Ya tienes ${MAX_REPORTES} reportes guardados. Borra alguno viejo.` });
+      const n = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+      const r = b.datos.r;
+      const x = await ReporteGuardado.create({
+        owner: req.user.uid, pais: p, desde, hasta,
+        nombre: String(b.nombre || "").replace(/[\u0000-\u001f]+/g, " ").trim().slice(0, 80) || `${desde} a ${hasta}`,
+        clave: String(b.clave || "").slice(0, 60), producto: String(b.producto || "").slice(0, 200),
+        resumen: { pedidos: n(r.pedidos), entregados: n(r.entregados), tasaEntrega: n(r.tasaEntrega), gananciaNeta: n(r.gananciaNeta), margenNeto: n(r.margenNeto) },
+        datos: b.datos
+      });
+      res.json({ ok: true, id: String(x._id), creado: x.creado });
+    } catch (err) {
+      console.error("Error guardando reporte:", err);
+      res.status(500).json({ error: "No se pudo guardar el reporte" });
+    }
+  });
+
+  app.delete("/api/finanzas/reportes/:id", async (req, res) => {
+    try {
+      if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ error: "Ese reporte no existe" });
+      const r = await ReporteGuardado.deleteOne({ _id: req.params.id, owner: req.user.uid });
+      res.json({ ok: true, borrados: r.deletedCount || 0 });
+    } catch (err) {
+      console.error("Error borrando reporte guardado:", err);
+      res.status(500).json({ error: "No se pudo borrar el reporte" });
     }
   });
 
