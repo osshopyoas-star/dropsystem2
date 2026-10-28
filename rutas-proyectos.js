@@ -654,7 +654,7 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
       });
       const crudo = String(reply || "").replace(/^```[a-z]*\n?|```$/gim, "").trim();
       if (!crudo) return res.status(502).json({ error: "La IA no devolvió el prompt" });
-      const texto = conCierreResenas(crudo, x.vista, sec.tipo);   // reseñas y chats: reglas fijas al final para Gemini
+      const texto = conCierreResenas(crudo, x.vista, sec.tipo, sec.variante);   // reseñas y chats: reglas fijas al final para Gemini
 
       let lista = null;
       const r = await actualizarRama(x.p, x.av, (actual) => {
@@ -738,7 +738,7 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
       });
       const crudo = String(reply || "").replace(/^```[a-z]*\n?|```$/gim, "").trim();
       if (!crudo) return res.status(502).json({ error: "La IA no devolvió el prompt" });
-      const texto = conCierreResenas(crudo, x.vista, sec.tipo);   // reseñas y chats: reglas fijas al final para Gemini
+      const texto = conCierreResenas(crudo, x.vista, sec.tipo, sec.variante);   // reseñas y chats: reglas fijas al final para Gemini
       const nuevos = [...ads];
       nuevos[idx] = { ...ad, prompt: texto.slice(0, 6000), hecha: false };
       const r = { ...x.r, ads: nuevos };

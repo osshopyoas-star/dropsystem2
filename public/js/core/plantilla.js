@@ -224,7 +224,7 @@ export const SECCIONES = {
     variantes: [
       { id: "dos_columnas", nombre: "Tarjetas en dos columnas", desc: "Cuadrícula de tarjetas en dos columnas; cada una con la foto del cliente arriba, su nombre y ciudad, las estrellas y el texto.",
         dibujo: [T(6), ["r", 6, 13, 23, 30, "w", 3], ["r", 31, 13, 23, 30, "w", 3], ["r", 6, 46, 23, 30, "w", 3], ["r", 31, 46, 23, 30, "w", 3]] },
-      { id: "carrusel", nombre: "Carrusel", desc: "Una tarjeta grande al centro (foto del cliente, nombre, ciudad, estrellas y texto) y las de los lados asomando, como un carrusel con puntos abajo.",
+      { id: "carrusel", nombre: "Carrusel", desc: "3 tarjetas en fila horizontal: una grande al centro (foto del cliente, nombre, ciudad, estrellas y texto) y las de los lados más pequeñas, asomando cortadas por el borde, como un carrusel con puntos abajo.",
         dibujo: [T(6), ["r", 0, 20, 8, 44, "w", 3], ["r", 11, 16, 38, 52, "w", 3], ["r", 52, 20, 8, 44, "w", 3], ["c", 26, 74, 1.5, "d"], ["c", 30, 74, 1.5, "m"], ["c", 34, 74, 1.5, "m"]] },
       { id: "columna", nombre: "Citas en columna", desc: "Tarjetas anchas una debajo de otra con una barra de color a la izquierda: foto pequeña del cliente en círculo, nombre, ciudad, estrellas y la cita entre comillas.",
         dibujo: [T(6), ["r", 6, 13, 48, 20, "w", 3], ["r", 6, 13, 2, 20, "a"], ["r", 6, 36, 48, 20, "w", 3], ["r", 6, 36, 2, 20, "a"], ["r", 6, 59, 48, 20, "w", 3], ["r", 6, 59, 2, 20, "a"]] },
