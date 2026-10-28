@@ -456,6 +456,38 @@ export function rentabilidadProductos(lineas, { desde, hasta, grupos = [], pauta
 }
 
 // =============================================
+// PRUEBA SOCIAL CON NÚMEROS REALES (para la landing): pedidos entregados y ciudades, de tus Excel de Dropi
+// dropiId: el producto del proyecto (con su grupo, si lo agrupaste en Finanzas). Nada de datos de clientes.
+// =============================================
+export function numerosReales(lineas, { dropiId = "", grupos = [] } = {}) {
+  const cuenta = (sel) => {
+    const ent = porOrden(sel).filter(o => o.grupo === "entregado");
+    const fechas = ent.map(o => o.fecha).filter(Boolean).sort();
+    return {
+      entregados: ent.length,
+      ciudades: new Set(ent.map(o => sinTildes(o.ciudad)).filter(Boolean)).size,
+      departamentos: new Set(ent.map(o => sinTildes(o.departamento)).filter(Boolean)).size,
+      desde: fechas[0] || null, hasta: fechas[fechas.length - 1] || null
+    };
+  };
+  const id = String(dropiId || "").trim();
+  let producto = null;
+  if (id) {
+    const clave = claveProducto(id, grupos);
+    const sel = lineas.filter(l => claveProducto(l.productoId, grupos) === clave);
+    producto = sel.length ? cuenta(sel) : null;
+  }
+  return { tienda: cuenta(lineas), producto };
+}
+// "+5.500": redondeado hacia ABAJO para que siempre sea verdad
+export function cifraPrueba(n) {
+  const v = Math.floor(Number(n) || 0);
+  if (v < 100) return v;
+  const paso = v >= 10000 ? 1000 : v >= 1000 ? 100 : 10;
+  return Math.floor(v / paso) * paso;
+}
+
+// =============================================
 // EDITAR UN REPORTE GUARDADO: cambiar la publicidad por producto y los costos operativos
 // sin volver a leer los pedidos. datos = { r, op, rent, costos, pautaProd }.
 // pautaProd: { clave: { meta, tiktok } } · otros: { meta, tiktok } (pauta que no es de un producto)

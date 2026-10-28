@@ -96,6 +96,7 @@ function limpiarCambios(body = {}) {
   }
   if (out.avatares !== undefined && !Array.isArray(out.avatares)) delete out.avatares;
   if (out.ficha && typeof out.ficha === "object" && out.ficha.resenas !== undefined) out.ficha = { ...out.ficha, resenas: limpiarResenas(out.ficha.resenas) };
+  if (out.ficha && typeof out.ficha === "object" && out.ficha.pruebaSocial !== undefined) out.ficha = { ...out.ficha, pruebaSocial: limpiarPruebaSocial(out.ficha.pruebaSocial) };
   return out;
 }
 
@@ -109,6 +110,23 @@ export function limpiarResenas(lista) {
     const foto = typeof r?.foto === "string" && /^data:image\/(png|jpe?g|webp);base64,/.test(r.foto) && r.foto.length <= MAX_FOTO_RESENA ? r.foto : "";
     return { nombre: txt(r?.nombre, 40), ciudad: txt(r?.ciudad, 40), texto: txt(r?.texto, 300), estrellas: e >= 1 && e <= 5 ? e : 0, foto };
   }).filter(r => r.texto || r.foto);     // una reseña puede ser solo la foto que mandó el cliente
+}
+
+// Prueba social con números reales: entregas de Dropi (las trae CoDropX) y el resumen de tu app de reseñas
+export function limpiarPruebaSocial(x) {
+  if (!x || typeof x !== "object") return null;
+  const entero = (v, max) => { const n = Math.floor(Number(v)); return Number.isFinite(n) && n > 0 ? Math.min(n, max) : 0; };
+  const fecha = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v || "")) ? String(v) : null);
+  const nums = (n) => (n && typeof n === "object" ? { entregados: entero(n.entregados, 1e7), ciudades: entero(n.ciudades, 5000), departamentos: entero(n.departamentos, 100), desde: fecha(n.desde), hasta: fecha(n.hasta) } : null);
+  const a = x.app && typeof x.app === "object" ? x.app : {};
+  const promedio = Math.round(Number(a.promedio) * 10) / 10;
+  const actualizado = new Date(x.actualizado);
+  return {
+    mostrar: ["tienda", "producto", "no"].includes(x.mostrar) ? x.mostrar : "tienda",
+    tienda: nums(x.tienda), producto: nums(x.producto),
+    actualizado: isNaN(actualizado) ? null : actualizado.toISOString(),
+    app: { total: entero(a.total, 1e7), promedio: promedio >= 1 && promedio <= 5 ? promedio : 0, recomiendan: Math.min(100, entero(a.recomiendan, 100)) }
+  };
 }
 
 function limpiarGuiones(lista, av) {

@@ -12,6 +12,7 @@ import { dibujar } from "./plantilla.js";
 import { construirLanding, numerarCapas } from "../core/landing-html.js";
 import { VERSION_SECCION } from "../core/seccion-shopify.js";
 import { limpiarFuentes } from "../core/fuentes.js";
+import { cifraPrueba } from "../core/finanzas.js";
 
 const PASOS = [
   { n: 1, titulo: "Ficha", icono: "clipboard-list" },
@@ -596,6 +597,8 @@ function pasoFicha() {
         <div id="fResenas">${listaResenas()}</div>
       </div>
 
+      <div class="est-resenas" id="fPrueba">${cajaPruebaSocial()}</div>
+
       <div class="est-actions">
         <button id="estBtnGuardarFicha" class="est-btn" onclick="estGuardarFicha()"><i data-lucide="save"></i> Guardar</button>
         <button id="estBtnRevisar" class="est-btn primary" onclick="estRevisarFicha()"><i data-lucide="scan-search"></i> ${tieneRevision ? "Volver a revisar" : "Revisar con IA"}</button>
@@ -700,6 +703,51 @@ window.estAplicarImportado = () => conCarga("estBtnAplicarImport", "Guardando...
   avisar("Ficha actualizada desde el link ✓");
 });
 
+// ---------- Prueba social con números reales (entregas de Dropi + tu app de reseñas) ----------
+const pruebaSocial = () => (proyecto.ficha ||= {}, proyecto.ficha.pruebaSocial ||= { mostrar: "tienda", tienda: null, producto: null, actualizado: null, app: {} });
+const milesCO = (n) => Math.round(n).toLocaleString("es-CO").replace(/,/g, ".");
+const fechaCO = (iso) => (iso ? iso.split("-").reverse().join("/") : "");
+function cajaPruebaSocial() {
+  const ps = pruebaSocial(), a = ps.app || {};
+  const pais = proyecto.pais === "EC" ? "TODO ECUADOR" : "TODA COLOMBIA";
+  const linea = (n, titulo) => n?.entregados
+    ? `<li><b>${titulo}:</b> ${milesCO(n.entregados)} pedidos entregados${n.ciudades ? ` en ${milesCO(n.ciudades)} ciudades` : ""} <small class="est-muted">(${fechaCO(n.desde)} a ${fechaCO(n.hasta)})</small></li>`
+    : `<li><b>${titulo}:</b> <span class="est-muted">${titulo === "Este producto" && !proyecto.dropiId ? "el producto no tiene ID de Dropi" : "aún no hay entregas"}</span></li>`;
+  const elegido = ps.mostrar === "producto" ? ps.producto : ps.mostrar === "tienda" ? ps.tienda : null;
+  return `
+    <div class="est-card-row"><h4>Tus números reales (prueba social)</h4>${ps.actualizado ? `<small class="est-muted">traídos el ${new Date(ps.actualizado).toLocaleDateString("es-CO")}</small>` : ""}</div>
+    <p class="est-hint">La gente compra cuando ve que otros ya compraron. CoDropX saca estos números de tus Excel de Dropi (Finanzas): <b>solo pedidos entregados</b>, y los redondea hacia abajo (5.540 → +5.500) para que siempre sean verdad. Salen en la sección "Tus números reales" y en la barra de confianza.</p>
+    ${ps.tienda || ps.producto ? `<ul class="est-prueba-lista">${linea(ps.tienda, "Toda la tienda")}${linea(ps.producto, "Este producto")}</ul>` : ""}
+    <div class="est-prueba-fila">
+      <button id="estBtnPrueba" class="est-btn chico" onclick="estTraerNumeros()"><i data-lucide="refresh-cw"></i> ${ps.actualizado ? "Actualizar" : "Traer"} mis números de Dropi</button>
+      <select class="est-input" onchange="estPruebaMostrar(this.value)" title="Qué número sale en la landing">
+        <option value="tienda" ${ps.mostrar === "tienda" ? "selected" : ""} ${ps.tienda?.entregados ? "" : "disabled"}>Mostrar las entregas de toda la tienda</option>
+        <option value="producto" ${ps.mostrar === "producto" ? "selected" : ""} ${ps.producto?.entregados ? "" : "disabled"}>Mostrar las entregas de este producto</option>
+        <option value="no" ${ps.mostrar === "no" ? "selected" : ""}>No mostrar números</option>
+      </select>
+    </div>
+    ${elegido?.entregados ? `<p class="est-prueba-vista">Así sale: <b>+${milesCO(cifraPrueba(elegido.entregados))} ENTREGAS EXITOSAS EN ${pais}</b>${elegido.ciudades >= 5 ? ` · +${milesCO(cifraPrueba(elegido.ciudades))} ciudades` : ""} · PAGAS AL RECIBIR</p>` : ""}
+    <label class="est-hint"><b>Calificación de tu app de reseñas</b> (opcional): cópiala tal cual de tu app de Shopify (Judge.me, Loox…). Si la dejas vacía, se calcula con las reseñas de arriba.</label>
+    <div class="est-row est-prueba-app">
+      <div><label>Total de reseñas</label><input id="fAppTotal" type="number" min="0" step="1" value="${a.total || ""}" placeholder="Ej: 85" onchange="estPruebaApp()"></div>
+      <div><label>Promedio (1 a 5)</label><input id="fAppPromedio" type="number" min="1" max="5" step="0.1" value="${a.promedio || ""}" placeholder="Ej: 4.8" onchange="estPruebaApp()"></div>
+      <div><label>% que recomienda</label><input id="fAppRecomienda" type="number" min="0" max="100" step="1" value="${a.recomiendan || ""}" placeholder="Ej: 97" onchange="estPruebaApp()"></div>
+    </div>`;
+}
+const pintarPrueba = () => { const el = $("fPrueba"); if (el) { el.innerHTML = cajaPruebaSocial(); if (window.lucide) lucide.createIcons(); } };
+window.estTraerNumeros = () => conCarga("estBtnPrueba", "Trayendo...", async () => {
+  const n = await api("GET", `/api/finanzas/prueba-social?pais=${proyecto.pais === "EC" ? "EC" : "CO"}&dropiId=${encodeURIComponent(proyecto.dropiId || "")}`);
+  const ps = pruebaSocial();
+  Object.assign(ps, { tienda: n.tienda, producto: n.producto, actualizado: new Date().toISOString() });
+  if (ps.mostrar === "producto" && !n.producto?.entregados) ps.mostrar = "tienda";
+  if (ps.mostrar === "tienda" && !n.tienda?.entregados) ps.mostrar = "no";
+  await guardar({ ficha: leerFicha() });
+  pintarPrueba();
+  avisar(n.tienda?.entregados ? `${milesCO(n.tienda.entregados)} entregas en la tienda${n.producto?.entregados ? ` · ${milesCO(n.producto.entregados)} de este producto` : ""} ✓` : "Aún no hay pedidos entregados. Sube tu Excel de Dropi en Finanzas.", n.tienda?.entregados ? "ok" : "error");
+});
+window.estPruebaMostrar = (v) => { pruebaSocial().mostrar = ["tienda", "producto", "no"].includes(v) ? v : "no"; pintarPrueba(); guardar({ ficha: leerFicha() }).catch(err => avisar(err.message, "error")); };
+window.estPruebaApp = () => { guardar({ ficha: leerFicha() }).catch(err => avisar(err.message, "error")); };
+
 // ---------- Reseñas reales (Ficha) ----------
 const resenas = () => (proyecto.ficha ||= {}, proyecto.ficha.resenas ||= []);
 function listaResenas() {
@@ -766,8 +814,10 @@ window.estResenaFoto = async (i, files) => {
 function leerFicha() {
   const val = (id) => $(id)?.value?.trim() ?? "";
   const num = (id) => { const n = Number($(id)?.value); return Number.isFinite(n) && n > 0 ? n : null; };
+  const app = $("fAppTotal") ? { total: num("fAppTotal") || 0, promedio: num("fAppPromedio") || 0, recomiendan: num("fAppRecomienda") || 0 } : proyecto.ficha?.pruebaSocial?.app;
   return {
     ...proyecto.ficha,
+    ...(proyecto.ficha?.pruebaSocial || app ? { pruebaSocial: { ...(proyecto.ficha?.pruebaSocial || { mostrar: "tienda" }), app: app || {} } } : {}),
     descripcion: val("fDescripcion"),
     precio: num("fPrecio"),
     precioAntes: num("fPrecioAntes"),

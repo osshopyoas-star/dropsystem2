@@ -5431,3 +5431,11 @@ body.fz-sin-scroll { overflow: hidden; }
 .fz-modal-rep h4 { display: flex; align-items: center; gap: 6px; margin: 18px 0 2px; }
 .fz-modal-rep h4 svg { width: 16px; height: 16px; color: #2563eb; }
 .fz-ed-res { margin-top: 14px; padding: 10px 14px; border-radius: 10px; background: #eff6ff; font-size: 14px; }
+
+/* Ficha · Prueba social con números reales */
+.est-prueba-lista { margin: 0; padding-left: 18px; font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
+.est-prueba-fila { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.est-prueba-fila select { flex: 1 1 220px; width: auto; }
+.est-prueba-vista { margin: 0; padding: 8px 12px; border-radius: 10px; background: #eff6ff; color: #1e3a8a; font-size: 13px; }
+.est-prueba-app { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 600px) { .est-prueba-app { grid-template-columns: 1fr; } }

@@ -220,7 +220,7 @@ export const SECCIONES = {
   },
   resenas: {
     titulo: "Reseñas de clientes", formatos: ["ban", "normal"],
-    def: "Las reseñas REALES que el dueño escribió en la Ficha, textuales: foto que mandó el cliente (o el producto si no hay), nombre o iniciales, ciudad, estrellas que dio y su texto. Si la Ficha no tiene reseñas: título y tarjetas blancas LISAS donde el dueño pega capturas. Nunca se inventa nada.",
+    def: "Las reseñas REALES que el dueño escribió en la Ficha, textuales: foto que mandó el cliente (o el producto en uso si no hay; en vez de cara, un círculo con las iniciales), nombre o iniciales, ciudad, estrellas que dio y su texto. Si la Ficha no tiene reseñas: título y tarjetas blancas LISAS donde el dueño pega capturas. Nunca se inventa nada.",
     variantes: [
       { id: "dos_columnas", nombre: "Tarjetas en dos columnas", desc: "Cuadrícula de tarjetas en dos columnas; cada una con la foto del cliente arriba, su nombre y ciudad, las estrellas y el texto.",
         dibujo: [T(6), ["r", 6, 13, 23, 30, "w", 3], ["r", 31, 13, 23, 30, "w", 3], ["r", 6, 46, 23, 30, "w", 3], ["r", 31, 46, 23, 30, "w", 3]] },
@@ -230,6 +230,44 @@ export const SECCIONES = {
         dibujo: [T(6), ["r", 6, 13, 48, 20, "w", 3], ["r", 6, 13, 2, 20, "a"], ["r", 6, 36, 48, 20, "w", 3], ["r", 6, 36, 2, 20, "a"], ["r", 6, 59, 48, 20, "w", 3], ["r", 6, 59, 2, 20, "a"]] },
       { id: "destacada", nombre: "Destacada y compactas", desc: "Una reseña grande arriba con la foto del cliente usando el producto, y debajo 2 o 3 reseñas compactas (nombre, ciudad, estrellas y una frase).",
         dibujo: [T(6), ["r", 6, 13, 48, 34, "w", 3], ["r", 6, 50, 48, 9, "w", 2], ["r", 6, 62, 48, 9, "w", 2], ["r", 6, 74, 48, 9, "w", 2]] }
+    ]
+  },
+  resumen_resenas: {
+    titulo: "Calificación de tus clientes", formatos: ["ban", "normal"],
+    def: "Resumen REAL de lo que opinan tus clientes: el promedio, el total y el % que recomienda de TU app de reseñas (lo escribes en la Ficha) o, si no lo tienes, cuántas de las reseñas de la Ficha dieron 5 estrellas; con 2 a 4 frases cortas textuales de esas reseñas. Sin caras inventadas. Sin datos: no se pone ningún número.",
+    variantes: [
+      { id: "porcentaje", nombre: "Porcentaje y tarjetas", desc: "Titular arriba con la cifra real (ej. 'El 97% nos recomienda'), y debajo una cuadrícula de 4 tarjetas: foto del producto en uso y encima una burbuja blanca con las estrellas y la frase real del cliente con su nombre o iniciales.",
+        dibujo: [T(6, 44), ["r", 4, 14, 25, 33, "g", 3], ["r", 7, 32, 19, 11, "w", 3], ["r", 31, 14, 25, 33, "g", 3], ["r", 34, 32, 19, 11, "w", 3], ["r", 4, 50, 25, 33, "g", 3], ["r", 7, 68, 19, 11, "w", 3], ["r", 31, 50, 25, 33, "g", 3], ["r", 34, 68, 19, 11, "w", 3]] },
+      { id: "nota", nombre: "Nota grande", desc: "La nota promedio gigante (ej. '4,8') con 5 estrellas al lado, debajo 'de N reseñas' y 3 frases cortas de clientes en tarjetas anchas.",
+        dibujo: [["t", 14, 10, 20, "a"], ["r", 18, 16, 24, 14, "a", 3], ["t", 16, 35, 28, "m"], ["r", 6, 42, 48, 11, "w", 3], ["r", 6, 56, 48, 11, "w", 3], ["r", 6, 70, 48, 11, "w", 3]] },
+      { id: "historias", nombre: "Círculos tipo historias", desc: "Arriba las estrellas con la calificación real; al centro 3 círculos con borde de color tipo historias de Instagram con fotos del producto en uso y, debajo de cada uno, 2 o 3 palabras sacadas tal cual de una reseña real.",
+        dibujo: [T(8), ["t", 18, 16, 24, "a"], ["o", 12, 40, 8, "a"], ["c", 12, 40, 6.5, "g"], ["o", 30, 40, 8, "a"], ["c", 30, 40, 6.5, "g"], ["o", 48, 40, 8, "a"], ["c", 48, 40, 6.5, "g"], ["t", 6, 53, 12, "m"], ["t", 24, 53, 12, "m"], ["t", 42, 53, 12, "m"]] }
+    ]
+  },
+  numeros_reales: {
+    titulo: "Tus números reales (entregas)", formatos: ["ban", "normal"],
+    def: "Prueba social con los números REALES de tus pedidos de Dropi que trae CoDropX: '+N entregas en toda Colombia', a cuántas ciudades has entregado y 'Pagas al recibir'. Si la Ficha no tiene números: solo 'Pagas al recibir · Envío a todo el país'. Nunca se inventa ni se sube un número; sin logos de entidades ni sellos de 'tienda verificada'.",
+    variantes: [
+      { id: "franja", nombre: "Franja de entregas", desc: "Franja de color de borde a borde con la cifra grande ('+5.500 ENTREGAS EXITOSAS'), debajo 'EN TODA COLOMBIA' con la bandera, y otra franja 'PAGAS AL RECIBIR TU PEDIDO'; el producto en uso arriba.",
+        dibujo: [["r", 6, 6, 48, 30, "g", 3], ["r", 0, 40, 60, 16, "a"], ["t", 10, 45, 40, "d"], ["t", 16, 51, 28, "d"], ["r", 0, 60, 60, 10, "d"], ["t", 12, 64, 36, "w"], ["c", 14, 80, 4, "g"], ["c", 30, 80, 4, "g"], ["c", 46, 80, 4, "g"]] },
+      { id: "mapa", nombre: "Mapa de entregas", desc: "Silueta sencilla del mapa del país con puntos de luz en las ciudades, la cifra grande de entregas arriba y 'Hemos entregado en N ciudades' abajo.",
+        dibujo: [["t", 10, 8, 40, "a"], T(15, 30), ["r", 16, 22, 28, 46, "g", 10], ["c", 26, 34, 1.5, "a"], ["c", 34, 42, 1.5, "a"], ["c", 24, 50, 1.5, "a"], ["c", 32, 58, 1.5, "a"], ["c", 22, 40, 1.5, "a"], T(76, 40)] },
+      { id: "contador", nombre: "Contador gigante", desc: "Número gigante al centro como un marcador ('+5.500'), las palabras 'PEDIDOS ENTREGADOS' debajo y una fila de 3 íconos: pagas al recibir, envío a todo el país y días de entrega.",
+        dibujo: [["r", 8, 18, 44, 22, "a", 4], T(46, 40), ["c", 14, 62, 6, "w"], ["c", 30, 62, 6, "w"], ["c", 46, 62, 6, "w"], ["t", 8, 72, 12, "m"], ["t", 24, 72, 12, "m"], ["t", 40, 72, 12, "m"]] },
+      { id: "bodega", nombre: "Pedidos saliendo", desc: "Foto real de cajas listas para despachar en una bodega pequeña (sin guías, nombres ni direcciones legibles), con la cifra de entregas encima en grande y la frase 'Así salen tus pedidos'.",
+        dibujo: [["r", 0, 0, 60, 90, "g"], ["r", 8, 46, 14, 12, "m", 1], ["r", 24, 50, 14, 12, "m", 1], ["r", 40, 46, 14, 12, "m", 1], ["r", 16, 36, 14, 12, "m", 1], ["r", 8, 10, 44, 16, "a", 3], T(30, 34), ["r", 0, 76, 60, 10, "d"]] }
+    ]
+  },
+  pagas_al_recibir: {
+    titulo: "Pagas al recibir (compra segura)", formatos: ["ban", "normal"],
+    def: "Le quita el miedo de comprar contra entrega: primero recibe y luego paga, envío a todo el país, el tiempo de entrega real de la Ficha, la garantía solo si existe y, si la Ficha los tiene, las entregas reales de Dropi. Sin logos de entidades del gobierno ni de gremios, ni sellos de 'tienda verificada'.",
+    variantes: [
+      { id: "franja", nombre: "Franja con camión", desc: "Arriba 'PAGAS AL RECIBIR' en grande; al centro una franja de color de borde a borde con un camión de reparto y el tiempo de entrega ('ENTREGA DE 2 A 5 DÍAS HÁBILES'); abajo 3 íconos de confianza en fila.",
+        dibujo: [T(10, 44), T(17, 30), ["r", 0, 30, 60, 22, "a"], ["r", 8, 36, 14, 10, "d", 2], ["t", 26, 38, 26, "d"], ["t", 26, 44, 20, "d"], ["c", 14, 66, 6, "w"], ["c", 30, 66, 6, "w"], ["c", 46, 66, 6, "w"]] },
+      { id: "escena", nombre: "Recibe y paga", desc: "Foto real de una persona en la puerta de su casa recibiendo la caja del domiciliario y pagando en efectivo, con el titular 'Primero lo recibes, luego pagas' y 3 chips abajo (pago contra entrega, envío a todo el país, días de entrega).",
+        dibujo: [["r", 0, 0, 60, 90, "g"], T(8, 44, 8, "w"), ["r", 10, 22, 18, 44, "m", 3], ["r", 32, 30, 16, 14, "d", 1], ["r", 6, 72, 15, 7, "w", 4], ["r", 23, 72, 15, 7, "w", 4], ["r", 40, 72, 15, 7, "w", 4]] },
+      { id: "escudo", nombre: "Escudo y puntos", desc: "Un escudo grande de compra segura al centro y a su alrededor 4 puntos con ícono: pagas al recibir, envío a todo el país, días de entrega y garantía (solo si existe).",
+        dibujo: [T(8), ["r", 22, 26, 16, 22, "a", 6], ["c", 10, 24, 5, "w"], ["c", 50, 24, 5, "w"], ["c", 10, 56, 5, "w"], ["c", 50, 56, 5, "w"], ["t", 4, 32, 12, "m"], ["t", 44, 32, 12, "m"], ["t", 4, 64, 12, "m"], ["t", 44, 64, 12, "m"]] }
     ]
   },
   preguntas: {
@@ -354,7 +392,7 @@ export const SECCIONES = {
     ]
   },
   moda_chats: {
-    titulo: "Lo que nos escriben (chats)", formatos: ["ban", "normal"], tipos: ["moda"],
+    titulo: "Lo que nos escriben (chats)", formatos: ["ban", "normal"], tipos: ["producto", "moda"],
     def: "Burbujas de chat tipo WhatsApp con los mensajes REALES que el dueño escribió en la Ficha (reseñas), textuales: el mensaje del cliente, su nombre o iniciales y la hora. Si la Ficha no tiene reseñas: burbujas blancas LISAS donde el dueño pega capturas. Nunca se inventa nada.",
     variantes: [
       { id: "telefono", nombre: "Dentro de un celular", desc: "Un celular dibujado con un chat de 3 o 4 mensajes de clientes (burbujas con su texto) y el título 'Lo que nos escriben'.",
@@ -399,35 +437,35 @@ export const ETAPAS_AIDA = {
 export const ETAPA_AIDA = {
   oferta: "A", galeria: "A", moda_portada: "A",
   dolor: "I", causa: "I", identificacion: "I", para_quien: "I",
-  funcion_estrella: "D", antes_despues: "D", como_se_usa: "D", detalles: "D", que_incluye: "D", tamano_variantes: "D", resenas: "D",
+  funcion_estrella: "D", antes_despues: "D", como_se_usa: "D", detalles: "D", que_incluye: "D", tamano_variantes: "D", resenas: "D", resumen_resenas: "D",
   moda_vistas: "D", moda_material: "D", moda_ficha: "D", moda_fuera_estudio: "D", moda_tres_formas: "D", moda_chats: "D", moda_por_que: "D", moda_guia_tallas: "D",
-  paquetes: "C", como_funciona: "C", por_que_aqui: "C", preguntas: "C", confianza: "C", oferta_cierre: "C", moda_precio_tallas: "C", moda_cambio_talla: "C"
+  paquetes: "C", numeros_reales: "C", pagas_al_recibir: "C", como_funciona: "C", por_que_aqui: "C", preguntas: "C", confianza: "C", oferta_cierre: "C", moda_precio_tallas: "C", moda_cambio_talla: "C"
 };
 export const etapaDe = (tipo) => ETAPA_AIDA[tipo] || "D";
 
 // Orden de siempre (lo que se ve sin tocar nada) y qué va prendido de entrada
 export const ORDEN_BASE = {
   ban: [
-    ["oferta", 1], ["dolor", 1], ["causa", 1], ["identificacion", 0], ["funcion_estrella", 1], ["detalles", 1], ["que_incluye", 1],
-    ["tamano_variantes", 1], ["como_se_usa", 1], ["para_quien", 1], ["antes_despues", 0], ["paquetes", 1],
-    ["como_funciona", 1], ["por_que_aqui", 1], ["resenas", 0], ["preguntas", 1], ["confianza", 0], ["oferta_cierre", 0]
+    ["oferta", 1], ["dolor", 1], ["causa", 1], ["identificacion", 0], ["funcion_estrella", 1], ["resenas", 1], ["detalles", 1], ["que_incluye", 1],
+    ["tamano_variantes", 1], ["como_se_usa", 1], ["para_quien", 1], ["antes_despues", 0], ["moda_chats", 0], ["resumen_resenas", 0], ["numeros_reales", 1], ["paquetes", 1],
+    ["como_funciona", 1], ["pagas_al_recibir", 0], ["por_que_aqui", 1], ["preguntas", 1], ["confianza", 0], ["oferta_cierre", 0]
   ],
   normal: [
-    ["galeria", 1], ["dolor", 1], ["causa", 1], ["funcion_estrella", 1], ["antes_despues", 1], ["como_se_usa", 1], ["detalles", 1],
-    ["para_quien", 1], ["que_incluye", 0], ["tamano_variantes", 0], ["identificacion", 0], ["paquetes", 0],
-    ["como_funciona", 1], ["por_que_aqui", 1], ["resenas", 0], ["confianza", 0], ["preguntas", 0], ["oferta_cierre", 0]
+    ["galeria", 1], ["dolor", 1], ["causa", 1], ["funcion_estrella", 1], ["resenas", 1], ["antes_despues", 1], ["como_se_usa", 1], ["detalles", 1],
+    ["para_quien", 1], ["que_incluye", 0], ["tamano_variantes", 0], ["identificacion", 0], ["moda_chats", 0], ["resumen_resenas", 0], ["numeros_reales", 1], ["paquetes", 0],
+    ["como_funciona", 1], ["pagas_al_recibir", 0], ["por_que_aqui", 1], ["confianza", 0], ["preguntas", 0], ["oferta_cierre", 0]
   ],
   moda_ban: [
     ["moda_portada", 1], ["moda_precio_tallas", 1], ["moda_vistas", 1], ["moda_material", 1], ["moda_ficha", 0],
-    ["moda_fuera_estudio", 1], ["moda_tres_formas", 0], ["moda_guia_tallas", 1], ["moda_chats", 0], ["moda_por_que", 1],
-    ["moda_cambio_talla", 1], ["dolor", 0], ["identificacion", 0], ["para_quien", 0], ["paquetes", 0], ["como_funciona", 1],
-    ["resenas", 0], ["preguntas", 1], ["confianza", 0], ["oferta_cierre", 0]
+    ["moda_fuera_estudio", 1], ["resenas", 1], ["moda_tres_formas", 0], ["moda_guia_tallas", 1], ["moda_chats", 0], ["moda_por_que", 1],
+    ["moda_cambio_talla", 1], ["dolor", 0], ["identificacion", 0], ["para_quien", 0], ["resumen_resenas", 0], ["numeros_reales", 1], ["paquetes", 0], ["como_funciona", 1],
+    ["pagas_al_recibir", 0], ["preguntas", 1], ["confianza", 0], ["oferta_cierre", 0]
   ],
   moda_normal: [
-    ["galeria", 1], ["moda_vistas", 1], ["moda_material", 1], ["moda_fuera_estudio", 1], ["moda_guia_tallas", 1],
+    ["galeria", 1], ["moda_vistas", 1], ["moda_material", 1], ["moda_fuera_estudio", 1], ["resenas", 1], ["moda_guia_tallas", 1],
     ["moda_precio_tallas", 0], ["moda_ficha", 0], ["moda_tres_formas", 0], ["moda_chats", 0], ["moda_por_que", 1],
-    ["moda_cambio_talla", 1], ["dolor", 0], ["identificacion", 0], ["para_quien", 0], ["paquetes", 0], ["como_funciona", 1],
-    ["resenas", 0], ["preguntas", 0], ["confianza", 0], ["oferta_cierre", 0]
+    ["moda_cambio_talla", 1], ["dolor", 0], ["identificacion", 0], ["para_quien", 0], ["resumen_resenas", 0], ["numeros_reales", 1], ["paquetes", 0], ["como_funciona", 1],
+    ["pagas_al_recibir", 0], ["preguntas", 0], ["confianza", 0], ["oferta_cierre", 0]
   ]
 };
 

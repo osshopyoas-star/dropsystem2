@@ -7,6 +7,7 @@ import { limpiarFuentes } from "./public/js/core/fuentes.js";
 // =============================================
 
 import { SECCIONES, FORMATOS, varianteDe, tiposDe, claveDe, ACABADOS, ETAPAS_AIDA, etapaDe } from "./public/js/core/plantilla.js";
+import { cifraPrueba } from "./public/js/core/finanzas.js";
 
 const limpio = (v, max = 3000) => String(v ?? "").slice(0, max).trim();
 
@@ -58,11 +59,13 @@ export const REGLAS_APRENDIDAS = [
 
 export const LIMITES = [
   "Reseñas y testimonios: usa SOLO las reseñas reales que el dueño escribió en la Ficha, textuales (mismo nombre o iniciales, ciudad, estrellas y texto, sin mejorarlas). NUNCA inventes reseñas, rostros, nombres, ciudades, calificaciones promedio ('4.8/5'), cantidades de comentarios ni 'compra verificada'. Si la Ficha no tiene reseñas, la sección lleva solo el título y tarjetas blancas lisas donde el dueño pega capturas reales.",
+  "Cifras de prueba social (entregas, clientes, ciudades, calificación, % que recomienda): SOLO las que vienen en 'PRUEBA SOCIAL REAL', exactas, sin redondear hacia arriba ni agregar otras ('+10.000 mamás', 'miles ya compraron'). Si no hay, ninguna cifra.",
+  "Sellos y logos de entidades: NUNCA pongas logos de la Superintendencia de Industria y Comercio, la Cámara de Comercio Electrónico, bancos, transportadoras u otras entidades, ni 'tienda verificada', 'compra verificada' o certificados. La confianza sale de lo que es verdad: pagas al recibir, envío a todo el país, tiempo de entrega, garantía si existe y tus números reales.",
   "Producto real: la imagen muestra exactamente lo que llega. No agregues detalles, piezas, logos ni empaques de marca que no existan.",
   "Promesas médicas: prohibido 'cura', 'elimina', 'reduce el dolor', 'indoloro' o porcentajes sin prueba. Usa 'soporte', 'molestias', 'calor leve', 'apoyo' y menciona para quién no es si aplica.",
   "Marcas ajenas: no escribas nombres de otras marcas (Nike, IKEA, etc.) ni digas que es el producto original u oficial de una marca, salvo que la ficha diga que es original o licenciado. Pide logos de terceros borrosos o sin logo.",
   "Personas reales: no uses ni recrees personas famosas, jugadores, ni animales o personas de noticias.",
-  "Promesas comerciales: 'envío gratis', 'garantía', 'original', 'quedan pocas' SOLO si la ficha dice que son verdad.",
+  "Promesas comerciales: 'envío gratis', 'garantía', 'original', 'quedan pocas', 'solo por hoy', contadores regresivos SOLO si la ficha dice que son verdad.",
   "La causa real se explica en palabras simples y generales, que el cliente pueda comprobar en su vida diaria. Nada de diagnósticos, enfermedades, estudios, porcentajes ni 'científicamente probado' inventados. En salud y belleza habla de hábitos, uso o cuidado (no de curar), y nunca le digas a la persona que tiene una condición.",
 ];
 
@@ -141,7 +144,7 @@ RESEÑAS: la Ficha no tiene reseñas reales todavía. Haz SOLO el título y tarj
   let foto = 1;
   const lineas = rs.map((r, i) => {
     const conFoto = !!r.foto;
-    const ref = conFoto ? `foto del cliente: la imagen adjunta #${++foto}` : "sin foto del cliente: usa el producto en una escena real, sin personas";
+    const ref = conFoto ? `foto del cliente: la imagen adjunta #${++foto}` : "sin foto del cliente: usa el producto en una escena real, sin personas, y junto al nombre un círculo de color con sus iniciales (nunca una cara inventada)";
     const estrellas = Number(r.estrellas) >= 1 && Number(r.estrellas) <= 5 ? `${Number(r.estrellas)} estrellas` : "sin estrellas";
     const nombre = limpio(r.nombre, 40) ? `Nombre: "${limpio(r.nombre, 40)}"` : "SIN nombre (no escribas ningún nombre)";
     const texto = limpio(r.texto, 260) ? `Texto: "${limpio(r.texto, 260)}"` : "SIN texto: tarjeta solo con la foto (no escribas ninguna cita ni frase del cliente)";
@@ -152,6 +155,81 @@ RESEÑAS REALES (pon EXACTAMENTE estas ${rs.length}, una por tarjeta, LLENAS con
 El titular de la sección es genérico (ej. "LO QUE DICEN" / "NUESTROS CLIENTES" o "FOTOS REALES DE CLIENTES"); nunca una cita inventada de un cliente.
 ${lineas.join("\n")}
 ${foto > 1 ? `Al pegar este prompt en Gemini el dueño adjunta: #1 la foto del producto y luego las fotos de los clientes en este orden. Usa cada foto de cliente tal cual (recórtala para la tarjeta), sin cambiar a la persona ni el lugar.` : ""}`;
+}
+
+// ---------- Prueba social con números reales (Ficha → pruebaSocial, traídos de Dropi y de tu app de reseñas) ----------
+const miles = (n) => Math.round(n).toLocaleString("es-CO").replace(/,/g, ".");
+export function numerosPrueba(p) {
+  const ps = p?.ficha?.pruebaSocial;
+  if (!ps || ps.mostrar === "no") return null;
+  const n = ps.mostrar === "producto" ? ps.producto : ps.tienda;
+  if (!(n?.entregados > 0)) return null;
+  const pais = PAISES[p.pais] || PAISES.CO;
+  return {
+    entregas: `+${miles(cifraPrueba(n.entregados))}`,
+    ciudades: n.ciudades >= 5 ? `+${miles(cifraPrueba(n.ciudades))}` : "",
+    de: ps.mostrar === "producto" ? "de este producto" : "de la tienda",
+    pais: p.pais === "EC" ? "TODO ECUADOR" : "TODA COLOMBIA"   // "en toda Colombia" · "en todo Ecuador"
+  };
+}
+// Calificación real: la de tu app de reseñas o, si no, la de las reseñas de la Ficha
+export function calificacionReal(p) {
+  const a = p?.ficha?.pruebaSocial?.app || {};
+  if (a.total > 0 && (a.promedio > 0 || a.recomiendan > 0)) {
+    return { fuente: "tu app de reseñas", total: a.total, promedio: a.promedio || null, recomiendan: a.recomiendan || null };
+  }
+  const con = (p?.ficha?.resenas || []).map(r => Number(r?.estrellas)).filter(e => e >= 1 && e <= 5);
+  if (con.length < 3) return null;
+  return { fuente: "las reseñas de la Ficha", total: con.length, promedio: Math.round(con.reduce((x, y) => x + y, 0) / con.length * 10) / 10, cincoEstrellas: con.filter(e => e === 5).length };
+}
+function textoPruebaSocial(p) {
+  const n = numerosPrueba(p), c = calificacionReal(p);
+  const partes = [];
+  if (n) partes.push(`Entregas reales (Dropi, ${n.de}): "${n.entregas} ENTREGAS EXITOSAS EN ${n.pais}"${n.ciudades ? ` · "${n.ciudades} ciudades"` : ""}`);
+  if (c) partes.push(`Calificación real (${c.fuente}): ${c.promedio ? `promedio "${String(c.promedio).replace(".", ",")}" de 5` : ""}${c.recomiendan ? ` · "el ${c.recomiendan}% nos recomienda"` : ""}${c.cincoEstrellas !== undefined ? ` · "${c.cincoEstrellas} de ${c.total} clientes nos dieron 5 estrellas"` : ` · de ${miles(c.total)} reseñas`}`);
+  return partes.length ? partes.join("\n") : "No hay cifras reales de ventas, clientes ni calificación: no pongas NINGUNA cifra de esas.";
+}
+function bloqueNumeros(p) {
+  const n = numerosPrueba(p);
+  if (!n) return `
+NÚMEROS: la Ficha no tiene números reales de Dropi. NO escribas ninguna cifra de entregas, clientes, ventas ni ciudades. La sección dice solo "PAGAS AL RECIBIR" y "${(PAISES[p.pais] || PAISES.CO).envio}", con el producto en uso.`;
+  return `
+NÚMEROS REALES (de los pedidos entregados en Dropi, ${n.de}). Úsalos EXACTAMENTE así, sin cambiarlos, sin subirlos y sin agregar otros:
+- Cifra principal: "${n.entregas}" con "ENTREGAS EXITOSAS" y "EN ${n.pais}"
+${n.ciudades ? `- Ciudades: "${n.ciudades} ciudades" (por ejemplo "Hemos entregado en ${n.ciudades} ciudades")
+` : ""}- Siempre junto a: "PAGAS AL RECIBIR TU PEDIDO"
+La cifra es lo más grande de la imagen. Nada de "clientes felices", "miles" ni otros números.`;
+}
+function bloqueCalificacion(p) {
+  const c = calificacionReal(p);
+  const frases = resenasReales(p).filter(r => String(r.texto || "").trim()).slice(0, 4);
+  const cabeza = c
+    ? `CALIFICACIÓN REAL (${c.fuente}), escríbela EXACTAMENTE así:
+${c.promedio ? `- Nota: "${String(c.promedio).replace(".", ",")}" con 5 estrellas (rellena solo las que correspondan a esa nota)
+` : ""}${c.recomiendan ? `- "El ${c.recomiendan}% de nuestros clientes nos recomienda"
+` : ""}${c.cincoEstrellas !== undefined ? `- "${c.cincoEstrellas} de ${c.total} clientes nos dieron 5 estrellas"` : `- "de ${miles(c.total)} reseñas"`}`
+    : `CALIFICACIÓN: no hay datos reales. NO pongas nota, porcentaje, número de reseñas ni estrellas promedio. El titular es genérico ("LO QUE DICEN NUESTROS CLIENTES").`;
+  const citas = frases.length
+    ? `FRASES REALES DE CLIENTES (textuales; puedes acortarlas quitando palabras del final, nunca cambiarlas ni agregar):
+${frases.map((r, i) => `${i + 1}. "${limpio(r.texto, 160)}" — ${limpio(r.nombre, 40) || "sin nombre (no escribas ninguno)"}${r.ciudad ? `, ${limpio(r.ciudad, 40)}` : ""}${Number(r.estrellas) ? ` · ${Number(r.estrellas)} estrellas` : ""}`).join("\n")}`
+    : `FRASES: la Ficha no tiene textos de clientes: las tarjetas o burbujas van blancas y lisas, sin texto, para que el dueño pegue capturas reales.`;
+  return `
+${cabeza}
+${citas}
+Las fotos son del producto en uso (manos, pies o el lugar, sin caras reconocibles) y NO se presentan como fotos de clientes. Junto a cada nombre, un círculo de color con sus iniciales, nunca una cara inventada.`;
+}
+function bloquePagasAlRecibir(p) {
+  const pr = p?.ficha?.promesas || {};
+  const pais = PAISES[p.pais] || PAISES.CO;
+  const n = numerosPrueba(p);
+  return `
+LO QUE ES VERDAD Y VA EN ESTA IMAGEN (nada más):
+- "PAGAS AL RECIBIR": primero recibe el producto en su casa y luego paga
+- "${pr.envioGratis ? pais.envio.replace("Envío", "Envío gratis") : pais.envio}"
+${pr.entrega ? `- Tiempo de entrega: "${limpio(pr.entrega, 60)}"
+` : "- Sin tiempo de entrega en la Ficha: no escribas días\n"}${pr.garantia ? `- Garantía: "${limpio(pr.garantia, 60)}"
+` : "- NO hay garantía: no la menciones\n"}${n ? `- Entregas reales: "${n.entregas} entregas exitosas en ${n.pais.toLowerCase().replace(/\b(colombia|ecuador)\b/, (x) => x[0].toUpperCase() + x.slice(1))}"
+` : ""}Sin logos de entidades, sellos de 'tienda verificada', 'compra 100% garantizada' ni urgencia ('solo por hoy').`;
 }
 
 // El avatar en un bloque (para todos los prompts)
@@ -230,6 +308,8 @@ PAQUETES: ${limpio(f.paquetes, 500) || "(no hay paquetes)"}
 REGALO: ${limpio(f.regalo, 200) || "(no hay regalo)"}
 PROMESAS QUE SÍ SON VERDAD (no inventes otras):
 ${lista(verdades)}
+PRUEBA SOCIAL REAL (solo estas cifras, exactas; se pueden usar en la barra de confianza):
+${textoPruebaSocial(p)}
 FORMATO DE LA LANDING: ${textoFormato(p)}
 ${bloqueParaQuien(p) ? bloqueParaQuien(p) + "\n" : ""}${p.tipo === "moda" ? `TIPO DE PRODUCTO: MODA (ropa, calzado o accesorio). Las fotos muestran la pieza PUESTA en ${esMenor(p) ? `${({ bebes: "un bebé de 0 a 2 años", ninos: "un niño o niña de 3 a 12 años", adolescentes: "un adolescente de 13 a 17 años" })[paraQuienDe(p)]} real, natural y contento, en una escena cotidiana` : "una persona adulta real, natural, sin poses sugestivas"}; la talla, el color y el corte deben ser EXACTAMENTE los de la foto adjunta. Lista de tallas y colores siempre completa y en orden. No inventes medidas.
 ` : ""}PREFERENCIA DE ESTILO DEL DUEÑO: ${limpio(f.estiloPreferido, 300) || "(ninguna)"}
@@ -427,10 +507,10 @@ Para cada una escribe un título propio para este producto, su propósito y una 
     : normal
       ? `TAREA: Arma la estructura de la LANDING NORMAL de 6 a 8 secciones para este producto, eligiendo del catálogo.
 - La primera SIEMPRE es "galeria" (las fotos cuadradas de la galería de Shopify).
-- Orden base recomendado: ${moda ? "galeria, moda_vistas, moda_material, moda_fuera_estudio, moda_guia_tallas, moda_por_que, moda_cambio_talla, como_funciona" : "galeria, dolor, causa, funcion_estrella, antes_despues, como_se_usa, detalles, para_quien, como_funciona, por_que_aqui"}. Ajústalo al producto.
+- Orden base recomendado: ${moda ? "galeria, moda_vistas, moda_material, moda_fuera_estudio, resenas, moda_guia_tallas, moda_por_que, moda_cambio_talla, numeros_reales, como_funciona" : "galeria, dolor, causa, funcion_estrella, resenas, antes_despues, como_se_usa, detalles, para_quien, numeros_reales, como_funciona, por_que_aqui"}. Ajústalo al producto.
 - Las preguntas frecuentes van como texto en Shopify: no las pongas como imagen salvo que aporten mucho.`
       : `TAREA: Arma la estructura de la landing de 8 a 9 secciones para este producto, eligiendo del catálogo.
-${moda ? `Es MODA. La primera SIEMPRE es "moda_portada". Orden base recomendado: moda_portada, moda_precio_tallas, moda_vistas, moda_material, moda_fuera_estudio, moda_guia_tallas, moda_por_que, moda_cambio_talla, preguntas.` : `Orden base recomendado: oferta, dolor, causa (la verdadera causa), función estrella, detalles o qué incluye, tamaño/variantes, cómo se usa, para quién es, por qué comprar aquí, preguntas frecuentes.`} Ajústalo al producto:
+${moda ? `Es MODA. La primera SIEMPRE es "moda_portada". Orden base recomendado: moda_portada, moda_precio_tallas, moda_vistas, moda_material, moda_fuera_estudio, resenas, moda_guia_tallas, moda_por_que, moda_cambio_talla, numeros_reales, preguntas.` : `Orden base recomendado: oferta, dolor, causa (la verdadera causa), función estrella, reseñas, detalles o qué incluye, tamaño/variantes, cómo se usa, para quién es, números reales (entregas), por qué comprar aquí, preguntas frecuentes.`} Ajústalo al producto:
 - La última o penúltima es "preguntas".`;
 
   return `${contextoProducto(p)}
@@ -445,7 +525,8 @@ ${catalogo}
 
 ${estructura}
 ${fijas ? "" : `- Sigue el orden AIDA (cada tipo del catálogo dice su etapa): primero ATENCIÓN, luego INTERÉS (el problema con sus palabras y "causa": la causa real), luego DESEO (por qué esto sí lo resuelve) y al final ACCIÓN (precio, cómo llega, garantía, dudas). ${moda ? "" : `Incluye "causa" justo después de "dolor" salvo que el producto no resuelva ningún problema (regalo, decoración).`}
-`}- "paquetes" solo si hay paquetes; "tamano_variantes" solo si hay tallas, colores o el tamaño importa; "que_incluye" si llegan varias piezas o hay regalo.
+`}- PRUEBA SOCIAL: la gente compra cuando ve que otros ya compraron. Incluye "resenas" temprano (justo después de la función estrella o del antes y después), y "numeros_reales" antes de paquetes o del cierre. "resumen_resenas" solo si hay calificación real o al menos 3 reseñas con estrellas.
+- "paquetes" solo si hay paquetes; "tamano_variantes" solo si hay tallas, colores o el tamaño importa; "que_incluye" si llegan varias piezas o hay regalo.
 ${n === 2 ? `- Hay 2 landings (A y B) que SOLO cambian en lo que le habla al avatar. Marca grupo "A/B" en: ${normal ? "galeria" : (moda ? "moda_portada" : "oferta")}, dolor (o identificación) y para_quien. Todo lo demás es grupo "compartida".` : `- Hay una sola landing: todas las secciones son grupo "compartida".`}
 - Asigna a cada sección una COMPOSICIÓN distinta para que no se vea plana ni repetida (diagonal, franjas, collage, cuadrícula, zigzag, primer plano, partida en dos, producto central con círculos, tarjetas apiladas...). No repitas composición en secciones seguidas.
 - formato: ${normal ? `"1:1" siempre (imágenes cuadradas de Shopify)` : `"9:16" casi siempre; "1:1" o "16:9" solo si la sección lo necesita (por ejemplo un antes/después cuadrado)`}.
@@ -495,7 +576,7 @@ ${EJEMPLO_NIVEL}
 SECCIÓN A ESCRIBIR: ${seccion.titulo} [tipo: ${seccion.tipo}]
 Qué debe tener: ${tipo?.def || seccion.proposito || ""}
 Propósito: ${seccion.proposito || ""}
-Composición asignada: ${seccion.composicion || "elige una que no se repita"}${diseno}${formato}${seccion.tipo === "resenas" ? bloqueResenas(p) : ""}${seccion.tipo === "moda_chats" ? bloqueChats(p) : ""}${seccion.tipo === "causa" ? `
+Composición asignada: ${seccion.composicion || "elige una que no se repita"}${diseno}${formato}${seccion.tipo === "resenas" ? bloqueResenas(p) : ""}${seccion.tipo === "moda_chats" ? bloqueChats(p) : ""}${seccion.tipo === "numeros_reales" ? bloqueNumeros(p) : ""}${seccion.tipo === "resumen_resenas" ? bloqueCalificacion(p) : ""}${seccion.tipo === "pagas_al_recibir" ? bloquePagasAlRecibir(p) : ""}${seccion.tipo === "causa" ? `
 CÓMO HACER "LA VERDADERA CAUSA": foto real de la escena con un gráfico MUY simple encima (líneas tipo tiza, flecha, lupa o etiquetas tachadas). Titular tipo "No es X, es Y" o "El problema no es lo que crees". Máximo 3 textos cortos además del titular. Cierra con la frase puente al producto. Nada de anatomía detallada, nada médico.` : ""}${diseno ? `
 (El diseño de Mi plantilla define DÓNDE van los bloques; la imagen sigue siendo una escena de foto real con vida, no un catálogo plano.)` : ""}
 

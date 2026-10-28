@@ -7,7 +7,7 @@
 import mongoose from "mongoose";
 import fetch from "node-fetch";
 import { gastoCampanas } from "./rutas-meta.js";
-import { claveProducto, emparejarCampana } from "./public/js/core/finanzas.js";
+import { claveProducto, emparejarCampana, numerosReales } from "./public/js/core/finanzas.js";
 
 const PAISES = ["CO", "EC"];
 const MAX_LINEAS = 20000;
@@ -289,6 +289,22 @@ Sin rodeos, sin inventar datos que no estén en las cifras. Si la publicidad est
     } catch (err) {
       console.error("Error guardando ajustes de finanzas:", err);
       res.status(500).json({ error: "No se pudo guardar" });
+    }
+  });
+
+  // Números reales para la prueba social de la landing: entregas y ciudades (de toda la tienda y del producto)
+  app.get("/api/finanzas/prueba-social", async (req, res) => {
+    try {
+      const p = pais(req.query.pais);
+      const [lineas, cfg] = await Promise.all([
+        DropiLinea.find({ owner: req.user.uid, pais: p }).select("ordenId productoId fecha estatus ciudad departamento -_id").limit(60000).lean(),
+        FinanzasConfig.findOne({ owner: req.user.uid, pais: p }).select("grupos ultimaImportacion").lean()
+      ]);
+      const n = numerosReales(lineas, { dropiId: String(req.query.dropiId || "").slice(0, 40), grupos: cfg?.grupos || [] });
+      res.json({ pais: p, ...n, ultimaImportacion: cfg?.ultimaImportacion || null });
+    } catch (err) {
+      console.error("Error leyendo números de prueba social:", err);
+      res.status(500).json({ error: "No se pudieron leer tus números de Dropi" });
     }
   });
 
