@@ -292,8 +292,26 @@ export function reporteFinanciero(lineas, { desde, hasta, clave = "", grupos = [
   // Proyección: si de los que siguen rodando se entrega el X%
   const rodando = [...transito, ...novedades];
   const p = Math.min(100, Math.max(0, Number(referenciaEntrega) || 0)) / 100;
-  const ganaRodando = rodando.reduce((a, o) => a + (o.total - o.proveedor - o.flete), 0) * p;
-  const pierdeRodando = rodando.reduce((a, o) => a + o.flete, 0) * (1 - p);
+  // Lo que deja cada pedido rodando si se entrega, y lo que cuesta si se devuelve
+  // (el costo real de devolución que ya te cobró Dropi en el periodo; si aún no hay, el flete de ida)
+  const devPromReal = prom(devoluciones.map(o => o.costoDevolucion).filter(x => x > 0));
+  const G = rodando.reduce((a, o) => a + (o.total - o.proveedor - o.flete), 0);
+  const F = rodando.reduce((a, o) => a + (devPromReal || o.flete), 0);
+  const ventaRodando = rodando.reduce((a, o) => a + o.total, 0);
+  const ganaRodando = G * p;
+  const pierdeRodando = F * (1 - p);
+  const cerrados = entregados.length + devoluciones.length;
+  const tasaCerrada = cerrados ? entregados.length / cerrados * 100 : null;
+  const escenario = (pp) => {
+    const gana = G * pp, pierde = F * (1 - pp), neta = gananciaNetaBase(pp);
+    const venta = ingreso + ventaRodando * pp;
+    return { pct: Math.round(pp * 1000) / 10, seEntregan: Math.round(rodando.length * pp), seDevuelven: rodando.length - Math.round(rodando.length * pp), gana, pierde, neta, margen: venta > 0 ? neta / venta * 100 : 0 };
+  };
+
+  function gananciaNetaBase(pp) { return gananciaNeta + G * pp - F * (1 - pp); }
+  const pActual = (tasaCerrada ?? (Number(referenciaEntrega) || 0)) / 100;
+  // Lo que se lleva cada peso que entra por lo entregado
+  const otros = Math.max(0, ingreso - costoProductos - fletesEntregados - valorEntregado);   // comisiones y descuentos de Dropi
 
   const fletes = despachados.map(o => o.flete).filter(x => x > 0).sort((a, b) => a - b);
   const porDia = {};
@@ -325,6 +343,12 @@ export function reporteFinanciero(lineas, { desde, hasta, clave = "", grupos = [
       seEntregan: Math.round(rodando.length * p), seDevuelven: rodando.length - Math.round(rodando.length * p),
       gana: ganaRodando, pierde: pierdeRodando, netaFinal: gananciaNeta + ganaRodando - pierdeRodando
     },
+    // Tres escenarios de lo que sigue rodando: se entrega todo · tu tasa real (entregados ÷ cerrados) · se devuelve todo
+    escenarios: rodando.length ? {
+      tasaCerrada, rodando: rodando.length, ventaRodando,
+      optimista: escenario(1), actual: escenario(pActual), pesimista: escenario(0)
+    } : null,
+    desglose: { ingreso, producto: costoProductos, flete: fletesEntregados, otros, devoluciones: costoDevoluciones, publicidad, neta: gananciaNeta },
     fletes: {
       envios: fletes.length, promedio: prom(fletes), min: fletes[0] || 0, max: fletes[fletes.length - 1] || 0,
       mediana: fletes.length ? fletes[Math.floor(fletes.length / 2)] : 0,
@@ -333,6 +357,68 @@ export function reporteFinanciero(lineas, { desde, hasta, clave = "", grupos = [
     porDia: Object.entries(porDia).sort(([a], [b]) => a.localeCompare(b)),
     cobro: { contraEntrega: cobro(true), prepagado: cobro(false) }
   };
+}
+
+// =============================================
+// RENTABILIDAD POR PRODUCTO: venta, costos, pauta, utilidad, margen, ticket, CPA y ROAS
+// pauta: lista de { fecha, clave, meta, tiktok } (lo del Control Diario)
+// =============================================
+export function rentabilidadProductos(lineas, { desde, hasta, grupos = [], pauta = [] } = {}) {
+  const sel = lineas.filter(l => (!desde || l.fecha >= desde) && (!hasta || l.fecha <= hasta));
+  const nombres = nombresProductos(sel, grupos);
+  const m = new Map();
+  const fila = (k, nombre) => {
+    if (!m.has(k)) m.set(k, { clave: k, nombre, ordenes: new Set(), ent: new Set(), dev: new Set(), can: new Set(), rod: new Set(), venta: 0, producto: 0, flete: 0, otros: 0, devoluciones: 0, bruta: 0, pauta: 0 });
+    return m.get(k);
+  };
+  for (const l of sel) {
+    const g = grupoEstado(l);
+    if (g === "reemplazada") continue;
+    const k = claveProducto(l.productoId, grupos);
+    const f = fila(k, nombres.get(k)?.nombre || l.producto);
+    f.ordenes.add(l.ordenId);
+    if (g === "entregado") {
+      f.ent.add(l.ordenId);
+      const gan = l.ganancia ?? (l.total - l.proveedor - l.flete);
+      f.venta += l.total; f.producto += l.proveedor; f.flete += l.flete;
+      f.otros += Math.max(0, l.total - l.proveedor - l.flete - gan);
+      f.bruta += gan;
+    } else if (g === "devolucion") { f.dev.add(l.ordenId); f.devoluciones += l.costoDevolucion; f.bruta -= l.costoDevolucion; }
+    else if (g === "cancelado") f.can.add(l.ordenId);
+    else if (g !== "pendiente") f.rod.add(l.ordenId);
+  }
+  for (const x of pauta || []) {
+    if ((desde && x.fecha < desde) || (hasta && x.fecha > hasta) || !x.clave) continue;
+    const g = (Number(x.meta) || 0) + (Number(x.tiktok) || 0);
+    if (!g) continue;
+    const f = m.get(x.clave) || fila(x.clave, nombres.get(x.clave)?.nombre || "Producto");
+    f.pauta += g;
+  }
+  const calc = (f) => {
+    const pedidos = f.ordenes.size, entregados = f.ent.size, neta = f.bruta - f.pauta;
+    return {
+      clave: f.clave, nombre: f.nombre, pedidos, entregados, devueltos: f.dev.size, cancelados: f.can.size, rodando: f.rod.size,
+      venta: f.venta, producto: f.producto, flete: f.flete, otros: f.otros, devoluciones: f.devoluciones, pauta: f.pauta,
+      bruta: f.bruta, neta,
+      margen: f.venta > 0 ? neta / f.venta * 100 : null,
+      ticket: entregados ? f.venta / entregados : null,
+      cpa: f.pauta && pedidos ? f.pauta / pedidos : null,                 // lo que te cuesta cada pedido en pauta
+      cpaReal: f.pauta && entregados ? f.pauta / entregados : null,       // lo que te cuesta cada pedido ENTREGADO
+      roas: f.pauta ? f.venta / f.pauta : null                            // ventas entregadas por cada peso de pauta
+    };
+  };
+  const filas = [...m.values()].map(calc).filter(r => r.pedidos || r.pauta).sort((a, b) => b.neta - a.neta);
+  const t = filas.reduce((a, r) => {
+    for (const k of ["pedidos", "entregados", "devueltos", "cancelados", "rodando", "venta", "producto", "flete", "otros", "devoluciones", "pauta", "bruta", "neta"]) a[k] = (a[k] || 0) + r[k];
+    return a;
+  }, {});
+  const total = {
+    ...t, nombre: "Total",
+    margen: t.venta > 0 ? t.neta / t.venta * 100 : null, ticket: t.entregados ? t.venta / t.entregados : null,
+    cpa: t.pauta && t.pedidos ? t.pauta / t.pedidos : null, cpaReal: t.pauta && t.entregados ? t.pauta / t.entregados : null,
+    roas: t.pauta ? t.venta / t.pauta : null
+  };
+  return { filas, total };
 }
 
 // =============================================
@@ -365,9 +451,10 @@ export function logistica(lineas, { desde, hasta, grupos = [], ahora = new Date(
   const solucionadas = conNovedad.filter(o => o.novedadSolucionada);
   const dias = solucionadas.map(o => o.fechaNovedad && o.fechaSolucion ? (new Date(o.fechaSolucion) - new Date(o.fechaNovedad)) / 864e5 : null).filter(x => x !== null && x >= 0);
 
-  const tabla = (k) => {
+  const tabla = (k, filtro = null) => {
     const m = new Map();
     for (const o of despachados.concat(ordenes.filter(x => x.grupo === "cancelado"))) {
+      if (filtro && !filtro(o)) continue;
       const v = o[k] || "Sin dato";
       if (!m.has(v)) m.set(v, { nombre: v, total: 0, despachados: 0, entregados: 0, transito: 0, novedades: 0, cancelados: 0, devoluciones: 0 });
       const r = m.get(v);
@@ -424,6 +511,21 @@ export function logistica(lineas, { desde, hasta, grupos = [], ahora = new Date(
     },
     transportadoras: tabla("transportadora"),
     ciudades: tabla("ciudad"),
+    // Ciudades de cada transportadora (para ver dónde entrega bien cada una)
+    ciudadesPorTransportadora: Object.fromEntries(tabla("transportadora").map(t => [t.nombre, tabla("ciudad", o => (o.transportadora || "Sin dato") === t.nombre)])),
+    // Mes a mes: tasa de entrega de cada transportadora (sobre pedidos ya cerrados: entregados ÷ entregados + devueltos)
+    transportadorasMes: (() => {
+      const meses = [...new Set(despachados.map(o => o.fecha.slice(0, 7)))].sort();
+      const filas = tabla("transportadora").map(t => ({
+        nombre: t.nombre,
+        meses: meses.map(mes => {
+          const os = despachados.filter(o => (o.transportadora || "Sin dato") === t.nombre && o.fecha.startsWith(mes));
+          const ent = os.filter(o => o.grupo === "entregado").length, dev = os.filter(o => o.grupo === "devolucion").length;
+          return { mes, despachados: os.length, entregados: ent, devueltos: dev, tasa: ent + dev ? ent / (ent + dev) * 100 : null };
+        })
+      }));
+      return { meses, filas };
+    })(),
     productos,
     seguimiento: activos.concat(ordenes.filter(o => o.grupo === "pendiente")).map(o => ({
       ordenId: o.ordenId, fecha: o.fecha, producto: o.lineas.map(l => l.producto).join(" + "), ciudad: o.ciudad,

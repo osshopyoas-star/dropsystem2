@@ -5344,3 +5344,34 @@ body.fz-sin-scroll { overflow: hidden; }
 .ts-copy-btns { display: flex; flex-wrap: wrap; gap: 6px; }
 .ts-copiar { display: inline-flex; align-items: center; gap: 4px; border: 1px solid #bfdbfe; background: #eff6ff; color: #1d4ed8; border-radius: 8px; padding: 3px 8px; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
 .ts-copiar:hover { background: #dbeafe; }
+
+/* ---------- Reporte: a dónde se va la plata · escenarios · rentabilidad ---------- */
+.fz-card-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.fz-card-row select { margin-left: 6px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 4px 8px; font: inherit; font-size: 13px; background: #fff; }
+.fz-desglose { display: flex; height: 26px; border-radius: 8px; overflow: hidden; margin: 12px 0 10px; background: #f1f5f9; }
+.fz-desglose i { display: block; min-width: 3px; }
+.fz-desglose-ley { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 6px 18px; }
+.fz-desglose-ley li { display: grid; grid-template-columns: 12px 1fr auto auto; align-items: center; gap: 2px 8px; font-size: 13px; color: #334155; }
+.fz-desglose-ley li > i { width: 12px; height: 12px; border-radius: 3px; }
+.fz-desglose-ley li small { color: #64748b; }
+.fz-desglose-ley li em { grid-column: 2 / -1; font-style: normal; font-size: 11.5px; color: #94a3b8; }
+.fz-escs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 12px 0; }
+.fz-esc { border: 1px solid #e2e8f0; border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 2px; background: #fff; min-width: 0; }
+.fz-esc small { font-size: 11px; font-weight: 800; letter-spacing: .05em; color: #64748b; }
+.fz-esc b { font-size: 22px; color: #0f172a; }
+.fz-esc > span { font-size: 12.5px; color: #475569; }
+.fz-esc p { margin: 4px 0; font-size: 12.5px; color: #64748b; }
+.fz-esc dl { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; margin: 6px 0 0; font-size: 12.5px; }
+.fz-esc dd { margin: 0; text-align: right; font-weight: 700; }
+.fz-esc.pesimista { border-top: 4px solid #dc2626; }
+.fz-esc.actual { border-top: 4px solid #2563eb; background: #f8fbff; box-shadow: 0 0 0 2px rgba(37,99,235,.12); }
+.fz-esc.optimista { border-top: 4px solid #16a34a; }
+.fz-esc-linea { position: relative; height: 46px; margin: 4px 14px 16px; background: linear-gradient(90deg, #fecaca, #bfdbfe 50%, #bbf7d0) center / 100% 8px no-repeat; }
+.fz-esc-linea i { position: absolute; top: 15px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: #94a3b8; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+.fz-esc-linea i.act { background: #2563eb; width: 18px; height: 18px; margin-left: -9px; top: 13px; }
+.fz-esc-linea span { position: absolute; top: 32px; transform: translateX(-50%); font-size: 11.5px; color: #64748b; white-space: nowrap; }
+.fz-esc-linea span:first-of-type { transform: none; }
+.fz-esc-linea span:last-of-type { transform: translateX(-100%); }
+.fz-esc-linea span.act { color: #2563eb; font-weight: 800; top: -4px; }
+.fz-tabla tr.fz-total td { border-top: 1.5px solid #0f172a; background: #f8fafc; font-weight: 700; }
+@media (max-width: 760px) { .fz-escs { grid-template-columns: 1fr; } }

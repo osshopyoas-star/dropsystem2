@@ -8,7 +8,7 @@ import { escapeHTML } from "../core/utils.js";
 import { formatear } from "../core/costeo.js";
 import { leerExcel } from "../core/excel.js";
 import {
-  leerReporteDropi, controlDiario, totalesControl, reporteFinanciero, logistica,
+  leerReporteDropi, controlDiario, totalesControl, reporteFinanciero, logistica, rentabilidadProductos,
   nombresProductos, claveProducto, NOMBRE_GRUPO
 } from "../core/finanzas.js";
 
@@ -27,8 +27,8 @@ const st = {
   lineas: [], config: null, pauta: {}, cargadoPais: null,
   dia: null,
   rango: { modo: "7d", desde: "", hasta: "", clave: "", porProducto: false },
-  rep: { periodo: "todo", desde: "", hasta: "", clave: "", referencia: 70 },
-  log: { periodo: "todo", desde: "", hasta: "", filtro: "activos", buscar: "", pagina: 1, porPagina: 25, ciudadesN: 5, ciudadesPag: 1, ciudadOrden: "total", priorizar: true, prodBuscar: "" },
+  rep: { periodo: "todo", desde: "", hasta: "", clave: "", referencia: 70, rentOrden: "neta" },
+  log: { periodo: "todo", desde: "", hasta: "", filtro: "activos", buscar: "", pagina: 1, porPagina: 25, ciudadesN: 5, ciudadesPag: 1, ciudadOrden: "total", priorizar: true, prodBuscar: "", ciudadTransp: "" },
   pagina: null
 };
 
@@ -1015,18 +1015,14 @@ function renderReporte(view) {
           <dt class="total">Ganancia neta <small>margen ${pct(r.margenNeto)} · incluye publicidad</small></dt><dd class="total ${r.gananciaNeta < 0 ? "rojo" : "verde"}">${$$s(r.gananciaNeta)}</dd>
         </dl>
         ${r.publicidad === 0 ? `<p class="fz-mini">La publicidad sale de lo que escribas en el Control Diario (o de Meta cuando esté conectado).</p>` : ""}
-        <div class="fz-proy">
-          <b>Y si de los ${r.proyeccion.rodando} que siguen rodando…</b>
-          <div class="fz-slider"><strong>${R.referencia}%</strong><input type="range" min="0" max="100" step="5" value="${R.referencia}" oninput="fzRepReferencia(this.value)"></div>
-          <p class="fz-mini">se entregan ${r.proyeccion.seEntregan} y se devuelven ${r.proyeccion.seDevuelven}</p>
-          <dl class="fz-pyg">
-            <dt>Los que se entregan · venta − producto − flete</dt><dd class="verde">+${$$(r.proyeccion.gana)}</dd>
-            <dt>Los que se devuelven · costo de devolución</dt><dd class="rojo">-${$$(r.proyeccion.pierde)}</dd>
-            <dt class="total">Ganancia neta si cierra así</dt><dd class="total">${$$s(r.proyeccion.netaFinal)}</dd>
-          </dl>
+        ${r.escenarios ? `<p class="fz-mini">Ojo: ${r.escenarios.rodando} pedidos siguen rodando. Mira abajo en <b>Simulador de escenarios</b> cómo cerraría el periodo.</p>` : ""}
         </div>
       </section>
     </div>
+
+    ${seccionDesglose(r)}
+    ${seccionEscenarios(r, R)}
+    ${R.clave ? "" : seccionRentabilidad(desde, hasta)}
 
     <section class="fz-card">
       <h3><i data-lucide="sparkles"></i> Análisis con IA</h3>
@@ -1040,6 +1036,88 @@ function renderReporte(view) {
   iconos();
 }
 
+// ---------- ¿A dónde se va tu plata? ----------
+const COLOR_COSTO = { producto: "#2563eb", flete: "#f59e0b", otros: "#94a3b8", devoluciones: "#dc2626", publicidad: "#7c3aed", neta: "#16a34a" };
+const NOMBRE_COSTO = { producto: "Producto (proveedor)", flete: "Fletes de entregados", otros: "Comisiones y otros de Dropi", devoluciones: "Devoluciones", publicidad: "Publicidad (Meta + TikTok)", neta: "Te queda (utilidad neta)" };
+function seccionDesglose(r) {
+  const d = r.desglose;
+  if (!d || !d.ingreso) return "";
+  const partes = ["producto", "flete", "otros", "devoluciones", "publicidad"].map(k => [k, d[k]]).filter(([, v]) => v > 0);
+  if (d.neta > 0) partes.push(["neta", d.neta]);
+  const base = Math.max(d.ingreso, partes.reduce((a, [, v]) => a + v, 0));
+  return `
+  <section class="fz-card">
+    <h3><i data-lucide="pie-chart"></i> ¿A dónde se va tu plata?</h3>
+    <p class="fz-mini">De cada ${$$(100000)} que te pagan por lo entregado (${$$(d.ingreso)} en total en el periodo).${d.neta < 0 ? ` <b class="rojo">Los costos superan lo que entra: pierdes ${$$(-d.neta)}.</b>` : ""}</p>
+    <div class="fz-desglose">${partes.map(([k, v]) => `<i style="flex:${v};background:${COLOR_COSTO[k]}" title="${NOMBRE_COSTO[k]}: ${$$(v)}"></i>`).join("")}</div>
+    <ul class="fz-desglose-ley">${partes.map(([k, v]) => `
+      <li><i style="background:${COLOR_COSTO[k]}"></i><span>${NOMBRE_COSTO[k]}</span><b>${$$(v)}</b><small>${pct(v / base * 100)}</small><em>${$$(v / d.ingreso * 100000)} de cada ${$$(100000)}</em></li>`).join("")}</ul>
+  </section>`;
+}
+
+// ---------- Simulador de escenarios: lo que sigue rodando todavía no es plata tuya ----------
+function seccionEscenarios(r, R) {
+  const e = r.escenarios;
+  if (!e) return `<section class="fz-card"><h3><i data-lucide="git-branch"></i> Simulador de escenarios</h3><p class="fz-mini">No tienes pedidos rodando en este periodo: la ganancia neta de arriba ya es la final.</p></section>`;
+  const tarjeta = (k, titulo, sub, x) => `
+    <div class="fz-esc ${k}">
+      <small>${titulo}</small>
+      <b class="${x.neta < 0 ? "rojo" : ""}">${$$s(x.neta)}</b>
+      <span>margen ${pct(x.margen)}</span>
+      <p>${sub}</p>
+      <dl><dt>Se entregan</dt><dd>${x.seEntregan}</dd><dt>Se devuelven</dt><dd>${x.seDevuelven}</dd><dt>Ganas</dt><dd class="verde">+${$$(x.gana)}</dd><dt>Pierdes</dt><dd class="rojo">-${$$(x.pierde)}</dd></dl>
+    </div>`;
+  const min = e.pesimista.neta, max = e.optimista.neta, rango = Math.max(1, max - min);
+  const pos = (v) => Math.min(100, Math.max(0, (v - min) / rango * 100));
+  const ref = Math.min(100, Math.max(0, Number(R.referencia) || 0)) / 100;
+  const libre = { neta: r.gananciaNeta + (e.optimista.gana) * ref - e.pesimista.pierde * (1 - ref), seEntregan: Math.round(e.rodando * ref) };
+  return `
+  <section class="fz-card">
+    <h3><i data-lucide="git-branch"></i> Simulador de escenarios</h3>
+    <p class="fz-mini">Tienes <b>${e.rodando} pedidos rodando</b> (en tránsito y con novedad) por ${$$(e.ventaRodando)}. Hasta que se entreguen esa plata no es tuya. Así cerraría tu ganancia neta del periodo:</p>
+    <div class="fz-escs">
+      ${tarjeta("pesimista", "PESIMISTA", "Se devuelve todo lo que está rodando.", e.pesimista)}
+      ${tarjeta("actual", `ACTUAL · ${pct(e.actual.pct, 0)}`, e.tasaCerrada === null ? "Con tu referencia de entrega (aún no hay pedidos cerrados)." : `Con tu entrega real: ${pct(e.tasaCerrada, 0)} de los pedidos que ya cerraron se entregaron.`, e.actual)}
+      ${tarjeta("optimista", "OPTIMISTA", "Se entrega todo lo que está rodando.", e.optimista)}
+    </div>
+    <div class="fz-esc-linea"><i style="left:0"></i><i class="act" style="left:${pos(e.actual.neta)}%"></i><i style="left:100%"></i>
+      <span style="left:0">${$$s(min)}</span><span class="act" style="left:${pos(e.actual.neta)}%">${$$s(e.actual.neta)}</span><span style="left:100%">${$$s(max)}</span></div>
+    <div class="fz-proy">
+      <b>Prueba tu propio %: si de los ${e.rodando} rodando se entrega…</b>
+      <div class="fz-slider"><strong>${R.referencia}%</strong><input type="range" min="0" max="100" step="5" value="${R.referencia}" oninput="fzRepReferencia(this.value)"></div>
+      <p class="fz-mini">se entregan ${libre.seEntregan} y se devuelven ${e.rodando - libre.seEntregan} → ganancia neta <b class="${libre.neta < 0 ? "rojo" : "verde"}">${$$s(libre.neta)}</b></p>
+    </div>
+  </section>`;
+}
+
+// ---------- Rentabilidad por producto: margen, ticket, CPA y ROAS ----------
+function seccionRentabilidad(desde, hasta) {
+  const { filas, total } = rentabilidadProductos(st.lineas, { desde, hasta, grupos: grupos(), pauta: Object.values(st.pauta) });
+  if (!filas.length) return "";
+  const orden = st.rep.rentOrden || "neta";
+  const val = (x) => (x[orden] === null || x[orden] === undefined ? -Infinity : x[orden]);
+  const lista = [...filas].sort((a, b) => val(b) - val(a));
+  const th = (k, t, tip) => `<th class="n clic ${orden === k ? "activo" : ""}" title="${tip}" onclick="fzRentOrden('${k}')">${t}</th>`;
+  const roas = (v) => (v === null ? "—" : `${v.toFixed(2)}x`);
+  const fila = (x, tot = false) => `<tr class="${tot ? "fz-total" : ""}">
+    <td>${tot ? "<b>Total</b>" : `<b>${esc(x.nombre)}</b>`}${x.rodando ? `<small class="gris"> · ${x.rodando} rodando</small>` : ""}</td>
+    <td class="n">${x.pedidos}</td><td class="n">${x.entregados}</td><td class="n">${$$(x.venta)}</td><td class="n">${$$(x.ticket)}</td>
+    <td class="n">${$$(x.pauta)}</td><td class="n">${$$(x.cpa)}</td><td class="n">${$$(x.cpaReal)}</td>
+    <td class="n ${x.roas !== null && x.roas < 1.5 ? "rojo" : ""}">${roas(x.roas)}</td>
+    <td class="n ${x.neta < 0 ? "rojo" : "verde"}"><b>${$$s(x.neta)}</b></td><td class="n ${x.margen !== null && x.margen < 10 ? "rojo" : ""}">${pct(x.margen)}</td></tr>`;
+  return `
+  <section class="fz-card">
+    <h3><i data-lucide="table-2"></i> Rentabilidad por producto</h3>
+    <p class="fz-mini">Venta y costos de lo <b>entregado</b>, menos devoluciones y la pauta del Control Diario. <b>CPA</b>: pauta ÷ pedidos. <b>CPA real</b>: pauta ÷ entregados. <b>ROAS</b>: venta entregada ÷ pauta. Toca un título para ordenar.</p>
+    <div class="fz-scroll"><table class="fz-tabla">
+      <thead><tr><th>Producto</th>${th("pedidos", "Pedidos", "Pedidos del periodo")}${th("entregados", "Entreg.", "Pedidos entregados")}${th("venta", "Venta entregada", "Lo que pagaron los clientes por lo entregado")}${th("ticket", "Ticket", "Venta ÷ entregados")}${th("pauta", "Pauta", "Meta + TikTok del Control Diario")}${th("cpa", "CPA", "Pauta ÷ pedidos")}${th("cpaReal", "CPA real", "Pauta ÷ entregados")}${th("roas", "ROAS", "Venta entregada ÷ pauta")}${th("neta", "Utilidad neta", "Ganancia de lo entregado − devoluciones − pauta")}${th("margen", "Margen", "Utilidad neta ÷ venta entregada")}</tr></thead>
+      <tbody>${lista.map(x => fila(x)).join("")}${fila(total, true)}</tbody>
+    </table></div>
+  </section>`;
+}
+window.fzRentOrden = (k) => { st.rep.rentOrden = k; const y = window.scrollY; renderReporte($("view")); window.scrollTo(0, y); };
+
+window.fzCiudadTransp = (v) => { st.log.ciudadTransp = v; st.log.ciudadesPag = 1; const y = window.scrollY; renderLogistica($("view")); window.scrollTo(0, y); };
 window.fzRepProducto = (v) => { st.rep.clave = v; renderReporte($("view")); };
 window.fzRepPeriodo = (p, d, h) => { st.rep.periodo = p; if (d) st.rep.desde = d; if (h) st.rep.hasta = h; renderReporte($("view")); };
 let tRef = null;
@@ -1137,6 +1215,7 @@ function renderLogistica(view) {
         </div>`).join("")}
     </section>
 
+    ${tablaTranspMes(r)}
     ${tablaCiudades(r)}
     ${tablaProductos(r)}
     ${tablaSeguimiento(r)}
@@ -1150,9 +1229,34 @@ function barraApilada(estados, total) {
   return `<div class="fz-apilada full">${["entregado", "devolucion", "cancelado", "pendiente", "transito", "novedad"].map(k => estados[k] ? `<i style="flex:${estados[k]};background:${COLOR[k]}"></i>` : "").join("")}</div><span>${total ? "repartidos en las seis tarjetas" : ""}</span>`;
 }
 
+// Mes a mes: tasa de entrega de cada transportadora (sobre lo que ya cerró)
+function tablaTranspMes(r) {
+  const { meses, filas } = r.transportadorasMes || {};
+  if (!meses || meses.length < 2 || !filas?.length) return "";
+  const ult = meses.slice(-6);
+  const nombreMes = (m) => new Date(m + "-15T12:00:00").toLocaleDateString("es-CO", { month: "short", year: "2-digit" });
+  return `<section class="fz-card">
+    <h3><i data-lucide="calendar-range"></i> Transportadoras mes a mes</h3>
+    <p class="fz-mini">Tasa de entrega de cada mes sobre los pedidos que ya cerraron (entregados ÷ entregados + devueltos). La flecha compara con el mes anterior.</p>
+    <div class="fz-scroll"><table class="fz-tabla">
+      <thead><tr><th>Transportadora</th>${ult.map(m => `<th class="n">${nombreMes(m)}</th>`).join("")}</tr></thead>
+      <tbody>${filas.map(t => {
+        const ms = t.meses.filter(x => ult.includes(x.mes));
+        return `<tr><td><b>${esc(t.nombre)}</b></td>${ms.map((x, i) => {
+          const ant = i > 0 ? ms[i - 1].tasa : null;
+          const flecha = x.tasa !== null && ant !== null ? (x.tasa - ant >= 3 ? `<em class="verde">▲</em>` : ant - x.tasa >= 3 ? `<em class="rojo">▼</em>` : "") : "";
+          return `<td class="n">${x.tasa === null ? `<span class="gris">${x.despachados ? `${x.despachados} rodando` : "—"}</span>` : `<b class="${x.tasa >= 70 ? "verde" : x.tasa >= 55 ? "ambar" : "rojo"}">${pct(x.tasa, 0)}</b> ${flecha}<small class="gris"> ${x.entregados + x.devueltos}${x.entregados + x.devueltos < 10 ? " ⚠" : ""}</small>`}</td>`;
+        }).join("")}</tr>`;
+      }).join("")}</tbody>
+    </table></div>
+    <p class="fz-mini">El número pequeño son los pedidos cerrados de ese mes; con ⚠ hay menos de 10 y el porcentaje todavía no es confiable.</p>
+  </section>`;
+}
+
 function tablaCiudades(r) {
   const L = st.log;
-  let lista = [...r.ciudades];
+  const tr = L.ciudadTransp && r.ciudadesPorTransportadora?.[L.ciudadTransp] ? L.ciudadTransp : "";
+  let lista = [...(tr ? r.ciudadesPorTransportadora[tr] : r.ciudades)];
   const orden = { total: (a, b) => b.total - a.total, tasa: (a, b) => b.tasa - a.tasa, tasaAsc: (a, b) => a.tasa - b.tasa, devoluciones: (a, b) => b.devoluciones - a.devoluciones };
   lista.sort(orden[L.ciudadOrden] || orden.total);
   if (L.priorizar && L.ciudadOrden.startsWith("tasa")) lista.sort((a, b) => (b.despachados >= 10) - (a.despachados >= 10));
@@ -1161,7 +1265,8 @@ function tablaCiudades(r) {
   const ini = (L.ciudadesPag - 1) * L.ciudadesN;
   const th = (k, t) => `<th class="n clic ${L.ciudadOrden === k ? "activo" : ""}" onclick="fzCiudadOrden('${k}')">${t}</th>`;
   return `<section class="fz-card">
-    <h3>Ciudades por volumen</h3><p class="fz-mini">${lista.length} ciudades · tasa de entrega por ciudad</p>
+    <div class="fz-card-row"><div><h3>Ciudades por volumen</h3><p class="fz-mini">${lista.length} ciudades · tasa de entrega por ciudad${tr ? ` con <b>${esc(tr)}</b>` : ""}</p></div>
+      <label class="fz-mini">Transportadora <select onchange="fzCiudadTransp(this.value)"><option value="">Todas</option>${r.transportadoras.map(t => `<option value="${esc(t.nombre)}" ${tr === t.nombre ? "selected" : ""}>${esc(t.nombre)}</option>`).join("")}</select></label></div>
     <div class="fz-scroll"><table class="fz-tabla">
       <thead><tr><th>#</th><th>Ciudad</th>${th("total", "Total")}<th class="n">Entregados</th><th class="n">Tránsito</th><th class="n">Novedades</th><th class="n">Cancelados</th>${th("devoluciones", "Devolución")}<th></th>${th(L.ciudadOrden === "tasa" ? "tasaAsc" : "tasa", "Tasa " + (L.ciudadOrden === "tasaAsc" ? "↑" : "↓"))}</tr></thead>
       <tbody>${lista.slice(ini, ini + L.ciudadesN).map((x, i) => `<tr>
