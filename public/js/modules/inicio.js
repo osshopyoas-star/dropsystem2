@@ -8,6 +8,7 @@ import { escapeHTML } from "../core/utils.js";
 import { formatear } from "../core/costeo.js";
 import { controlDiario, totalesControl, reporteFinanciero, logistica } from "../core/finanzas.js";
 import { numerosTesteo } from "./testeos.js";
+import { proximasTemporadas } from "../core/temporadas.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (v) => escapeHTML(v ?? "");
@@ -219,6 +220,8 @@ function render(view) {
       </section>
     </div>
 
+    ${tarjetaTemporadas()}
+
     <section class="ih-accesos">
       ${[
         ["calculator", "Costear un producto", "goTo('calculadora')"],
@@ -247,6 +250,12 @@ function loQueToca(n, testeos) {
   if (n.lg.novedadesActivas.total) t.push({ icono: "alert-triangle", tipo: "morado", ir: "goTo('logistica')", texto: `<b>Gestionar ${n.lg.novedadesActivas.total} novedad${n.lg.novedadesActivas.total === 1 ? "" : "es"}</b>${n.lg.novedadesActivas.porTipo.length ? ` · ${n.lg.novedadesActivas.porTipo.slice(0, 2).map(([k, c]) => `${esc(k)} (${c})`).join(", ")}` : ""}` });
   if (n.lg.sinMovimiento.total) t.push({ icono: "clock", tipo: "ambar", ir: "goTo('logistica')", texto: `<b>Revisar ${n.lg.sinMovimiento.total} pedido${n.lg.sinMovimiento.total === 1 ? "" : "s"} sin movimiento</b> hace más de 24 h` });
   if (n.filasDia.length && n.delDia.gasto === 0) t.push({ icono: "pencil", tipo: "azul", ir: "goTo('control-diario')", texto: `<b>Registrar la pauta ${ayer ? "de ayer" : `del ${fechaCorta(n.dia)}`}</b> para ver la utilidad real` });
+  // Temporadas: ya es hora de testear (o lo será esta semana)
+  for (const x of proximasTemporadas(st.pais, hoyISO(), 6)) {
+    const enDias = Math.round((new Date(x.testearDesde + "T12:00:00Z") - new Date(hoyISO() + "T12:00:00Z")) / 864e5);
+    if (x.faltan > 3 && enDias <= 7) t.push({ icono: "calendar-clock", tipo: "azul", ir: "document.getElementById('ihTemporadas')?.scrollIntoView({ behavior: 'smooth' })",
+      texto: `<b>${enDias <= 0 ? "Testea ya" : `En ${enDias} día${enDias === 1 ? "" : "s"} empieza a testear`} para ${esc(x.nombre)}</b> · faltan ${x.faltan} días` });
+  }
   const dias = diasDesde(n.f.config.ultimaImportacion);
   if (dias !== null && dias >= 1) t.push({ icono: "upload", tipo: "gris", ir: "goTo('control-diario')", texto: `<b>Subir el Excel de Dropi</b> · el último es de hace ${dias} día${dias === 1 ? "" : "s"}` });
   return t;
@@ -291,6 +300,26 @@ window.ihCopiarResumen = async () => {
   const b = document.querySelector(".ih-resumen .ih-btn");
   if (b) { const antes = b.innerHTML; b.innerHTML = "✓ Copiado"; setTimeout(() => { b.innerHTML = antes; iconos(); }, 1500); }
 };
+
+// ---------- Próximas temporadas ----------
+function tarjetaTemporadas() {
+  const lista = proximasTemporadas(st.pais, hoyISO(), 5);
+  if (!lista.length) return "";
+  const fechaLarga = (iso) => new Date(iso + "T12:00:00Z").toLocaleDateString("es-CO", { weekday: "short", day: "numeric", month: "long", timeZone: "UTC" });
+  return `
+  <section class="ih-card" id="ihTemporadas">
+    <div class="ih-card-head"><h3><i data-lucide="calendar-days"></i> Próximas temporadas en ${st.pais === "EC" ? "Ecuador" : "Colombia"}</h3></div>
+    <ul class="ih-temporadas">${lista.map(x => `
+      <li class="${x.yaTestear ? "ya" : ""}">
+        <div class="ih-temp-fecha"><b>${x.faltan === 0 ? "Hoy" : x.faltan}</b><small>${x.faltan === 0 ? "" : x.faltan === 1 ? "día" : "días"}</small></div>
+        <div class="ih-temp-info">
+          <strong>${esc(x.nombre)}</strong> <small>${fechaLarga(x.fecha)}${x.aprox ? " (aprox.)" : ""}</small>
+          <p>${esc(x.ideas)}</p>
+          <em>${x.yaTestear ? (x.faltan <= 7 ? "Ya es tarde para testear algo nuevo: escala lo que ya te funciona." : "Ya deberías estar testeando para esta fecha.") : `Empieza a testear el ${fechaLarga(x.testearDesde)} (${x.testear} días antes).`}</em>
+        </div>
+      </li>`).join("")}</ul>
+  </section>`;
+}
 
 function variacion(ahora, antes) {
   if (!antes) return ahora ? "nuevo" : "—";
