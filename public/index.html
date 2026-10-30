@@ -6,6 +6,13 @@
   <title>CoDropX</title>
 
   <link rel="icon" type="image/png" href="/assets/favicon.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#2563eb">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="CoDropX">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -32,5 +39,10 @@
   </div>
 </div>
 
+  <script>
+    if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
+    // Android/Chrome: guardar el aviso de instalación para el botón "Instalar en el celular" del Inicio
+    addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); window.__instalarApp = e; });
+  </script>
 </body>
 </html>

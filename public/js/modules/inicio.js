@@ -235,7 +235,7 @@ function render(view) {
         ["layout-template", "Mi plantilla", "goTo('plantilla')"],
         ["radar", "Buscar tendencias", "goTo('tendencias')"],
         ["plug", "Integraciones", "goTo('integraciones')"]
-      ].map(([i, t, f]) => `<button onclick="${f}"><i data-lucide="${i}"></i>${t}</button>`).join("")}
+      ].concat(yaInstalada() ? [] : [["smartphone", "Instalar en el celular", "ihInstalar()"]]).map(([i, t, f]) => `<button onclick="${f}"><i data-lucide="${i}"></i>${t}</button>`).join("")}
     </section>
   </div>`;
   iconos();
@@ -403,6 +403,23 @@ function avisos(n) {
   if (lanzadosSinCosteo.length) a.push({ tipo: "gris", icono: "calculator", texto: `${lanzadosSinCosteo.length} producto(s) lanzados sin costeo: ${lanzadosSinCosteo.slice(0, 2).map(p => esc(p.nombre)).join(", ")}${lanzadosSinCosteo.length > 2 ? "…" : ""}`, ir: "goTo('calculadora')" });
   return a.slice(0, 4);
 }
+
+// ---------- CoDropX como app en el celular ----------
+const yaInstalada = () => window.matchMedia?.("(display-mode: standalone)").matches || window.navigator.standalone === true;
+window.ihInstalar = async () => {
+  const e = window.__instalarApp;
+  if (e) {
+    e.prompt();
+    const r = await e.userChoice.catch(() => null);
+    window.__instalarApp = null;
+    if (r?.outcome === "accepted") render($("view"));
+    return;
+  }
+  const iphone = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  alert(iphone
+    ? "En iPhone: abre codropx.com en Safari, toca el botón Compartir (el cuadrito con la flecha hacia arriba) y elige \"Agregar a pantalla de inicio\"."
+    : "En Android: abre codropx.com en Chrome, toca el menú ⋮ (arriba a la derecha) y elige \"Instalar app\" o \"Agregar a pantalla principal\".\n\nEn el computador: en Chrome, el ícono de instalar aparece a la derecha de la barra de direcciones.");
+};
 
 window.ihPais = async (p) => {
   st.pais = p === "EC" ? "EC" : "CO";
