@@ -5484,3 +5484,19 @@ body.fz-sin-scroll { overflow: hidden; }
 .ih-toca li.morado svg:first-child { color: #7c3aed; } .ih-toca li.ambar svg:first-child { color: #d97706; }
 .ih-toca li.azul svg:first-child { color: #2563eb; } .ih-toca li.gris svg:first-child { color: #64748b; }
 .ih-toca li:hover { background: #f8fafc; }
+
+/* Mis testeos · Avatar A vs B y Biblioteca de ganadores */
+.ts-ab-veredicto { display: flex; gap: 8px; align-items: flex-start; padding: 12px 14px; border-radius: 10px; margin: 10px 0; font-size: 14px; background: #f1f5f9; color: #334155; }
+.ts-ab-veredicto svg { width: 18px; height: 18px; flex: none; }
+.ts-ab-veredicto.cpa, .ts-ab-veredicto.ctr { background: #ecfdf5; color: #065f46; }
+.ts-ab-veredicto.empate { background: #eff6ff; color: #1e3a8a; }
+.ts-ab td.gana, .ts-ab th.gana { background: #ecfdf5; font-weight: 700; }
+.ts-ab-ads { margin-top: 8px; font-size: 13px; }
+.ts-ab-ads summary { cursor: pointer; font-weight: 600; }
+.ts-ab-ads ul { list-style: none; padding: 0; margin: 6px 0 0; display: flex; flex-direction: column; gap: 4px; }
+.ts-ab-ads li { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 6px 8px; border: 1px solid #e2e8f0; border-radius: 8px; }
+.ts-ab-ads li small { color: #64748b; display: block; }
+.ts-ganador { border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 14px; margin-top: 10px; background: #fff; }
+.ts-ganador summary { cursor: pointer; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.ts-ganador summary small { color: #64748b; }
+.ts-ganador-nota { margin: 10px 0; padding: 8px 12px; background: #fffbeb; border-radius: 8px; font-size: 13px; }

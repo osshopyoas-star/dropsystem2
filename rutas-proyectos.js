@@ -23,7 +23,9 @@ import {
   seccionesFijas
 } from "./prompts-landing.js";
 import { obtenerPlantilla } from "./rutas-plantilla.js";
-import { ESTRUCTURAS_AD, FORMATOS_AD, MAX_ADS } from "./public/js/core/anuncios.js";
+import { ESTRUCTURAS_AD, FORMATOS_AD, MAX_ADS, compararAvatares } from "./public/js/core/anuncios.js";
+import { metricasAnuncios } from "./rutas-meta.js";
+import { FinanzasConfig, trmHoy } from "./rutas-finanzas.js";
 import { ImagenLanding } from "./modelo-imagenes.js";
 import { tiposDe, elegirVariante, formatoImagen, varianteDe, claveDe } from "./public/js/core/plantilla.js";
 
@@ -412,6 +414,54 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
     };
   };
 
+  // ---------- Mis testeos: avatar A vs B con los anuncios de Meta (según la landing a la que lleva cada anuncio) ----------
+  const cacheAvatares = new Map();   // owner|proyecto|desde → { t, datos } (10 min: no gastar el límite de Meta)
+  app.get("/api/proyectos/:id/meta-avatares", async (req, res) => {
+    try {
+      const p = await cargar(req, res); if (!p) return;
+      const o = plano(p);
+      const pais = o.pais === "EC" ? "EC" : "CO";
+      const hoy = new Date(Date.now() - 5 * 36e5).toISOString().slice(0, 10);
+      const desde = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.desde || "")) && req.query.desde <= hoy ? String(req.query.desde) : new Date(Date.now() - 5 * 36e5 - 29 * 864e5).toISOString().slice(0, 10);
+      const avatares = Object.entries(o.ramas || {}).filter(([av]) => AVATARES_VALIDOS.includes(av)).sort(([a], [b]) => a.localeCompare(b))
+        .map(([id, r]) => ({ id, handles: [...new Set(Object.values(r.publicaciones || {}).map(x => String(x.handle || "")).filter(Boolean))] }));
+      if (!avatares.some(a => a.handles.length)) return res.json({ desde, hasta: hoy, sinLanding: true, filas: [], veredicto: { tipo: "falta", texto: "Publica las landings en Shopify desde Desarrollo para poder comparar los avatares." } });
+      const cfg = await FinanzasConfig.findOne({ owner: req.user.uid, pais }).lean();
+      const cuentas = cfg?.metaCuentas || [];
+      if (!cuentas.length) return res.json({ desde, hasta: hoy, sinCuentas: true, filas: [], veredicto: { tipo: "falta", texto: `Elige tus cuentas publicitarias de ${pais === "EC" ? "Ecuador" : "Colombia"} en Finanzas → Control Diario.` } });
+      const k = `${req.user.uid}|${o._id}|${desde}|${cuentas.join(",")}`;
+      const c = cacheAvatares.get(k);
+      if (c && Date.now() - c.t < 10 * 6e4 && req.query.forzar !== "1") return res.json(c.datos);
+      const m = await metricasAnuncios(req.user.uid, cuentas, desde, hoy);
+      const moneda = pais === "EC" ? "USD" : "COP";
+      const oficial = await trmHoy();
+      const trm = cfg?.trmManual && cfg?.trm ? cfg.trm : oficial.valor || 4000;
+      const convertir = (v, mon) => (mon === moneda ? v : mon === "USD" && moneda === "COP" ? v * trm : mon === "COP" && moneda === "USD" ? v / trm : v);
+      const datos = { desde, hasta: hoy, moneda, ...compararAvatares(m.anuncios, avatares, convertir), errores: m.cuentas.filter(x => x.error).map(x => x.name), actualizado: new Date() };
+      cacheAvatares.set(k, { t: Date.now(), datos });
+      res.json(datos);
+    } catch (err) {
+      console.error("Error comparando avatares:", err);
+      res.status(err.status || 500).json({ error: err.status ? err.message : "No se pudo leer Meta" });
+    }
+  });
+
+  // ---------- Biblioteca de ganadores: lo que funcionó (avatar, ángulo, copys, TikTok y lo que aprendiste) ----------
+  app.get("/api/proyectos-ganadores", async (req, res) => {
+    try {
+      const prods = await Producto.find({ owner: req.user.uid, resultado: "winner" }).select("_id nombre pais dropiId testeo").lean();
+      const proys = await Proyecto.find({ owner: req.user.uid, productoId: { $in: prods.map(x => x._id) } });
+      const porProd = new Map(proys.map(x => [String(x.productoId), x]));
+      res.json(prods.map(x => ({
+        producto: { _id: String(x._id), nombre: x.nombre, pais: x.pais || "CO", dropiId: x.dropiId || "", nota: x.testeo?.nota || "", inicio: x.testeo?.inicio || null, fin: x.testeo?.fin || null, avatar: x.testeo?.avatar || "" },
+        kit: porProd.get(String(x._id)) ? kitDe(porProd.get(String(x._id))) : null
+      })));
+    } catch (err) {
+      console.error("Error leyendo ganadores:", err);
+      res.status(500).json({ error: "No se pudo cargar la biblioteca de ganadores" });
+    }
+  });
+
   app.get("/api/proyectos/:id/kit", async (req, res) => {
     try {
       const p = await cargar(req, res); if (!p) return;
@@ -714,7 +764,18 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
       const x = await cargarRama(req, res); if (!x) return;
       const b = req.body || {};
       const opciones = { envio: !!b.envio, contraEntrega: b.contraEntrega !== false, precio: !!b.precio };
-      const reply = await llamarIA({ system: SISTEMA_LANDING, prompt: promptCopys(x.vista, x.avatar, opciones) });
+      // Copys de tus productos ganadores: referencia de tono y estructura (no se copian)
+      let referencias = [];
+      try {
+        const ganadores = await Producto.find({ owner: req.user.uid, resultado: "winner" }).select("_id nombre").limit(10).lean();
+        const proys = await Proyecto.find({ owner: req.user.uid, productoId: { $in: ganadores.map(g => g._id) }, _id: { $ne: x.p._id } }).select("productoId ramas").lean();
+        for (const pr of proys) {
+          const nombre = ganadores.find(g => String(g._id) === String(pr.productoId))?.nombre || "";
+          for (const r of Object.values(pr.ramas || {})) for (const c of r?.copys?.meta || []) if (c.texto_principal) referencias.push({ producto: nombre, enfoque: c.enfoque, texto: String(c.texto_principal).slice(0, 900) });
+        }
+        referencias = referencias.slice(0, 3);
+      } catch (e) { console.warn("No se pudieron leer los copys ganadores:", e.message); }
+      const reply = await llamarIA({ system: SISTEMA_LANDING, prompt: promptCopys(x.vista, x.avatar, { ...opciones, referencias }) });
       const copys = limpiarCopys({ ...parsearJSON(reply), opciones });
       if (!copys.meta.length) return res.status(502).json({ error: "La IA no devolvió los textos" });
       const r = { ...x.r, copys };

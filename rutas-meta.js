@@ -201,6 +201,51 @@ export async function gastoCampanas(owner, accountIds, desde, hasta) {
   return { cuentas: estado, filas, links };
 }
 
+// Números por ANUNCIO de un rango (para comparar las landings de cada avatar): gasto, impresiones, clics, compras y a dónde lleva
+// → { cuentas: [{ account_id, name, currency, error? }], anuncios: [{ adId, anuncio, campanaId, campana, url, moneda, gasto, impresiones, clics, compras }] }
+export async function metricasAnuncios(owner, accountIds, desde, hasta) {
+  const doc = await MetaConexion.findOne({ owner }).lean();
+  if (!doc) throw new ErrorMeta("Meta no está conectado. Conéctalo en Integraciones.", 0, 400);
+  const token = descifrar(doc.token);
+  const pedidas = new Set((accountIds || []).map(String));
+  const cuentas = (doc.cuentas || []).filter(c => pedidas.has(c.account_id)).slice(0, 25);
+  const anuncios = [], estado = [];
+  for (const cta of cuentas) {
+    try {
+      const datos = await todas(`act_${cta.account_id}/insights`, {
+        access_token: token, level: "ad",
+        fields: "ad_id,ad_name,campaign_id,campaign_name,spend,impressions,inline_link_clicks,actions",
+        time_range: JSON.stringify({ since: desde, until: hasta }), limit: 500
+      }, 3000);
+      const conGasto = datos.filter(d => Number(d.spend || 0) > 0);
+      const links = {};
+      const ids = conGasto.map(d => String(d.ad_id || "")).filter(Boolean);
+      for (let i = 0; i < ids.length; i += 50) {
+        try {
+          const ads = await todas(`act_${cta.account_id}/ads`, {
+            access_token: token, fields: "id,creative{object_story_spec,asset_feed_spec,link_url}",
+            filtering: JSON.stringify([{ field: "ad.id", operator: "IN", value: ids.slice(i, i + 50) }]), limit: 200
+          }, 600);
+          for (const a of ads) links[String(a.id)] = linkDeCreativo(a.creative).slice(0, 500);
+        } catch (e) { if (e.codigo === 190) throw e; console.warn("No se pudieron leer los links de anuncios:", e.message); }
+      }
+      for (const d of conGasto) {
+        const adId = String(d.ad_id || "");
+        anuncios.push({
+          adId, anuncio: String(d.ad_name || "").slice(0, 200), campanaId: String(d.campaign_id || ""), campana: String(d.campaign_name || "").slice(0, 200),
+          url: links[adId] || "", moneda: cta.currency, gasto: Number(d.spend || 0), impresiones: Number(d.impressions || 0),
+          clics: Number(d.inline_link_clicks || 0), compras: comprasDe(d.actions)
+        });
+      }
+      estado.push({ account_id: cta.account_id, name: cta.name, currency: cta.currency });
+    } catch (e) {
+      if (e.codigo === 190) throw e;
+      estado.push({ account_id: cta.account_id, name: cta.name, currency: cta.currency, error: e.message });
+    }
+  }
+  return { cuentas: estado, anuncios };
+}
+
 const publico = (doc) => doc ? {
   conectado: true,
   nombre: doc.fbNombre,

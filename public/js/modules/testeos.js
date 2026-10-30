@@ -125,6 +125,7 @@ function render() {
         ? "No hay testeos con ese filtro."
         : "Todavía no tienes testeos. Agrega un producto arriba, o pásalo a \"Lanzado\" en tu Base de Productos."}</div>`}
     </section>
+    ${bibliotecaGanadores()}
     <p class="ts-nota">Los números salen de <b>Finanzas</b>: pedidos de tus Excel de Dropi (por el ID de Dropi del producto) y la pauta de Meta que confirmaste en el Control Diario, desde la fecha de inicio del testeo. <b>ESCALAR</b>: 3+ entregas y cada una te cuesta 70% o menos de tu CPA máximo. <b>APAGAR</b>: gastó 1 CPA máximo sin ventas, o 2 y va perdiendo. <b>AGUANTAR</b>: lo demás, con cuánto más gastar. Nada cambia solo: tú marcas el resultado.</p>
   </div>`;
   iconos();
@@ -335,6 +336,7 @@ function fila(p) {
     ${celdaNumeros(p, c)}
     <div class="ts-acciones">
       <button class="ts-icono" title="Nota de lo que aprendiste" onclick="tsNota('${esc(p._id)}')"><i data-lucide="sticky-note"></i></button>
+      ${pr && r !== "listo" ? `<button class="ts-icono" title="Avatar A vs B: qué landing va ganando en Meta" onclick="tsAvatares('${esc(pr._id)}', '${esc(p._id)}')"><i data-lucide="split"></i></button>` : ""}
       ${pr ? `<button class="ts-icono" title="Abrir su proyecto en Desarrollo" onclick="bpAbrirProyecto('${esc(pr._id)}')"><i data-lucide="folder-open"></i></button>` : ""}
       <button class="ts-icono peligro" title="Quitar de Mis testeos" onclick="tsQuitar('${esc(p._id)}')"><i data-lucide="x"></i></button>
     </div>
@@ -438,6 +440,7 @@ async function guardar(id, cambios) {
 window.tsGuardar = async (id, cambios) => {
   try {
     await guardar(id, cambios);
+    if (cambios.resultado !== undefined || cambios.nota !== undefined || cambios.avatar !== undefined) ganadores = null;   // la biblioteca se vuelve a leer
     avisar("Guardado ✓");
     const y = window.scrollY; render(); window.scrollTo(0, y);
   } catch (err) { avisar(err.message, "error"); }
@@ -454,6 +457,88 @@ window.tsAgregar = async () => {
     render();
   } catch (err) { avisar(err.message, "error"); }
 };
+
+// ---------- Avatar A vs B: qué landing va ganando en Meta ----------
+function modalTs(html) {
+  document.querySelector(".ts-modal")?.remove();
+  const m = document.createElement("div");
+  m.className = "modal-overlay fz-modal ts-modal";
+  m.innerHTML = `<div class="modal-box fz-modal-box">${html}</div>`;
+  m.addEventListener("click", (e) => { if (e.target === m) m.remove(); });
+  document.body.appendChild(m);
+  iconos();
+  return m;
+}
+window.tsCerrarModal = () => document.querySelector(".ts-modal")?.remove();
+window.tsAvatares = async (proyectoId, productoId, forzar = false) => {
+  const p = productos.find(x => x._id === productoId);
+  const pais = p?.pais || "CO";
+  const desde = p?.testeo?.inicio ? new Date(p.testeo.inicio).toISOString().slice(0, 10) : "";
+  const m = modalTs(`<h3><i data-lucide="split"></i> Avatar A vs B · ${esc(p?.nombre || "")}</h3><p class="est-muted">Leyendo tus anuncios de Meta…</p>`);
+  try {
+    const r = await api("GET", `/api/proyectos/${proyectoId}/meta-avatares?desde=${desde}${forzar ? "&forzar=1" : ""}`);
+    if (!document.body.contains(m)) return;
+    const f = (v) => (v === null || v === undefined ? "—" : formatear(v, pais));
+    const pct = (v) => (v === null ? "—" : `${v.toFixed(2)}%`);
+    const g = r.veredicto?.ganador;
+    m.querySelector(".fz-modal-box").innerHTML = `
+      <h3><i data-lucide="split"></i> Avatar A vs B · ${esc(p?.nombre || "")}</h3>
+      <p class="fz-mini">Anuncios de Meta del ${esc(r.desde)} al ${esc(r.hasta)}, repartidos por la landing a la que llevan. Las <b>compras</b> son las que reporta el píxel de Meta (no las entregas de Dropi).</p>
+      <div class="ts-ab-veredicto ${r.veredicto?.tipo || ""}"><i data-lucide="${g ? "trophy" : "info"}"></i> ${esc(r.veredicto?.texto || "")}</div>
+      ${(r.filas || []).length ? `
+      <div class="fz-scroll"><table class="fz-tabla ts-ab">
+        <thead><tr><th></th>${r.filas.map(x => `<th class="n ${g === x.id ? "gana" : ""}">Avatar ${esc(x.id)}${g === x.id ? " 🏆" : ""}</th>`).join("")}</tr></thead>
+        <tbody>
+          ${[["Gasto", x => f(x.gasto)], ["Impresiones", x => x.impresiones.toLocaleString("es-CO")], ["Clics al link", x => x.clics.toLocaleString("es-CO")], ["CTR (clics ÷ impresiones)", x => pct(x.ctr)], ["Costo por clic", x => f(x.cpc)], ["Compras (píxel)", x => x.compras], ["Costo por compra", x => f(x.cpa)], ["Anuncios", x => x.anuncios.length]]
+            .map(([t, fn]) => `<tr><td>${t}</td>${r.filas.map(x => `<td class="n ${g === x.id ? "gana" : ""}">${fn(x)}</td>`).join("")}</tr>`).join("")}
+        </tbody>
+      </table></div>
+      ${r.filas.map(x => x.anuncios.length ? `<details class="ts-ab-ads"><summary>Anuncios del avatar ${esc(x.id)} (${x.anuncios.length})</summary><ul>${x.anuncios.slice(0, 15).map(a => `<li><span>${esc(a.anuncio || "Anuncio")}<small>${esc(a.campana || "")}</small></span><b>${f(a.gasto)}</b><small>${a.clics} clics · ${a.compras} compras</small></li>`).join("")}</ul></details>` : "").join("")}` : ""}
+      ${r.errores?.length ? `<p class="fz-mini rojo">No se pudo leer: ${r.errores.map(esc).join(", ")}</p>` : ""}
+      <p class="fz-mini">Para que un anuncio cuente, tiene que llevar al link de la landing de ese avatar (el que publicaste desde Desarrollo).</p>
+      <div class="fz-modal-pie"><button class="ts-btn claro" onclick="tsAvatares('${esc(proyectoId)}', '${esc(productoId)}', true)"><i data-lucide="refresh-cw"></i> Actualizar</button><button class="ts-btn" onclick="tsCerrarModal()">Cerrar</button></div>`;
+    iconos();
+  } catch (err) {
+    if (!document.body.contains(m)) return;
+    m.querySelector(".fz-modal-box").innerHTML = `<h3>Avatar A vs B</h3><p class="rojo">${esc(err.message)}</p><div class="fz-modal-pie"><button class="ts-btn" onclick="tsCerrarModal()">Cerrar</button></div>`;
+  }
+};
+
+// ---------- Biblioteca de ganadores: lo que vendió, para repetirlo ----------
+let ganadores = null;   // null = sin cargar · "cargando" · lista · { error }
+function bibliotecaGanadores() {
+  const hay = productos.some(p => p.resultado === "winner");
+  if (!hay) return "";
+  if (ganadores === null) {
+    ganadores = "cargando";
+    api("GET", "/api/proyectos-ganadores").then(l => { ganadores = l; const y = window.scrollY; render(); window.scrollTo(0, y); })
+      .catch(e => { ganadores = { error: e.message }; render(); });
+  }
+  const lista = Array.isArray(ganadores) ? ganadores.filter(g => !filtro.pais || g.producto.pais === filtro.pais) : [];
+  return `
+  <section class="ts-listos ts-ganadores">
+    <div class="ts-listos-head">
+      <h2><i data-lucide="trophy"></i> Biblioteca de ganadores <span>${Array.isArray(ganadores) ? lista.length : "…"}</span></h2>
+      <small>Lo que vendió: el avatar, el ángulo, los copys y lo que aprendiste. Úsalo para el próximo producto. Cuando escribes copys nuevos en Desarrollo, la IA mira estos como referencia de tono y estructura.</small>
+    </div>
+    ${ganadores === "cargando" ? `<p class="ts-kit-nota">Cargando ganadores…</p>` : ganadores?.error ? `<p class="ts-kit-nota rojo">${esc(ganadores.error)}</p>`
+      : lista.map(g => `
+      <details class="ts-ganador">
+        <summary><strong>${esc(g.producto.nombre)}</strong><small>${PAISES[g.producto.pais] || esc(g.producto.pais)}${g.producto.inicio ? ` · testeado desde ${esc(fechaCorta(g.producto.inicio))}` : ""}${g.producto.avatar ? ` · ganó con avatar ${esc(g.producto.avatar)}` : ""}</small></summary>
+        ${g.producto.nota ? `<p class="ts-ganador-nota">📝 ${esc(g.producto.nota)}</p>` : `<p class="ts-kit-nota">Sin nota. Anota qué aprendiste con el botón 📝 en la lista de testeos.</p>`}
+        ${g.kit ? `<div class="ts-kit-avs">${(g.kit.avatares || []).map(a => `
+          <div class="ts-kit-av">
+            <div class="ts-kit-av-top"><span class="ts-av">Avatar ${esc(a.id)}</span>${a.quien ? `<small>${esc(a.quien)}</small>` : ""}</div>
+            ${a.angulo ? `<p class="ts-kit-crea"><b>Ángulo:</b> ${esc(a.angulo)}</p>` : ""}
+            ${(a.copys || []).map((c, i) => `
+              <div class="ts-copy"><div class="ts-copy-top"><b>Copy ${i + 1}</b> <small>${esc(ENFOQUES_COPY[c.enfoque] || c.enfoque)}</small></div>
+                <p>${esc(c.texto_principal).replace(/\n/g, "<br>")}</p>
+                <div class="ts-copy-btns">${copiar(c.texto_principal, "Copiar texto")}${copiar(c.titulo, "Copiar título")}</div></div>`).join("") || `<p class="ts-kit-nota">Sin copys.</p>`}
+            ${tiktokKit(a)}
+          </div>`).join("")}</div>` : `<p class="ts-kit-nota">No tiene proyecto en Desarrollo.</p>`}
+      </details>`).join("") || `<p class="ts-kit-nota">No hay ganadores en este país.</p>`}
+  </section>`;
+}
 
 window.tsNota = async (id) => {
   const p = productos.find(x => x._id === id);

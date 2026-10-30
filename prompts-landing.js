@@ -809,6 +809,9 @@ PRUEBA SOCIAL REAL PARA LOS COPYS (úsala tal cual; si no hay, no inventes ningu
 ${reales.length ? `Reseñas textuales (cítalas EXACTAS, con ⭐ según sus estrellas y el nombre o iniciales que trae; si no trae nombre, sin nombre):\n${reales.map(r => `- "${limpio(r.texto, 200)}"${limpio(r.nombre, 40) ? ` – ${limpio(r.nombre, 40)}` : ""}${r.ciudad ? `, ${limpio(r.ciudad, 40)}` : ""}${Number(r.estrellas) ? ` (${Number(r.estrellas)} estrellas)` : ""}`).join("\n")}` : "Reseñas: no hay. NO escribas testimonios, ni de ejemplo ni entre corchetes."}
 ${textoPruebaSocial(p)}
 
+${(opciones.referencias || []).length ? `COPYS DE TUS PRODUCTOS GANADORES (vendieron de verdad): úsalos SOLO como referencia de tono, largo, uso de emojis y estructura. NO copies sus frases, datos, promesas ni productos:
+${opciones.referencias.map((r, i) => `--- Ganador ${i + 1}${r.producto ? ` (${limpio(r.producto, 80)})` : ""}${r.enfoque ? ` · ${r.enfoque}` : ""}:\n${limpio(r.texto, 900)}`).join("\n")}
+` : ""}
 DATOS SIN CONFIRMAR: si un dato ayudaría al copy pero NO está en la ficha (material, tiempo de entrega, colores, si resiste el agua…), escríbelo entre [corchetes] para que el dueño lo confirme o lo borre antes de publicar. Lo que la ficha dice que NO es verdad no se escribe ni entre corchetes. Testimonios y cifras nunca van entre corchetes: o son reales o no van.
 
 REGLAS DE META (estricto cumplimiento):

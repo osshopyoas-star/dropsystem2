@@ -90,3 +90,50 @@ export function largoTiktok(texto = "") {
 }
 // Datos sin confirmar que la IA dejó entre [corchetes] para que los revises
 export const corchetes = (texto = "") => String(texto).match(/\[[^\]\n]{1,120}\]/g) || [];
+
+// =============================================
+// AVATAR A vs B: los anuncios de Meta se reparten por avatar según la landing a la que llevan
+// avatares: [{ id: "A", handles: ["cepillo-a"] }] · anuncios: los de metricasAnuncios (rutas-meta.js)
+// convertir(valor, moneda) → a la moneda del país. Las compras son las que reporta el píxel de Meta, no las entregas.
+// =============================================
+const handleDe = (url = "") => {
+  try { return decodeURIComponent((String(url).match(/\/products\/([^/?#]+)/i) || [])[1] || "").toLowerCase(); } catch { return ""; }
+};
+export function compararAvatares(anuncios = [], avatares = [], convertir = (v) => v) {
+  const por = new Map(avatares.map(a => [a.id, { id: a.id, gasto: 0, impresiones: 0, clics: 0, compras: 0, anuncios: [] }]));
+  const dueno = new Map();
+  for (const a of avatares) for (const h of a.handles || []) if (h) dueno.set(String(h).toLowerCase(), a.id);
+  for (const x of anuncios) {
+    const av = dueno.get(handleDe(x.url));
+    if (!av) continue;
+    const gasto = Number(convertir(Number(x.gasto) || 0, x.moneda)) || 0;
+    const t = por.get(av);
+    t.gasto += gasto; t.impresiones += Number(x.impresiones) || 0; t.clics += Number(x.clics) || 0; t.compras += Number(x.compras) || 0;
+    t.anuncios.push({ anuncio: x.anuncio, campana: x.campana, gasto, clics: Number(x.clics) || 0, compras: Number(x.compras) || 0 });
+  }
+  const filas = [...por.values()].map(t => ({
+    ...t,
+    ctr: t.impresiones ? t.clics / t.impresiones * 100 : null,
+    cpc: t.clics ? t.gasto / t.clics : null,
+    cpa: t.compras ? t.gasto / t.compras : null,
+    anuncios: t.anuncios.sort((a, b) => b.gasto - a.gasto)
+  }));
+  return { filas, veredicto: veredictoAvatares(filas) };
+}
+// Quién va ganando: por CPA si los dos tienen 3+ compras; si no, por CTR (señal temprana) con 1.000+ impresiones cada uno
+export function veredictoAvatares(filas) {
+  const con = filas.filter(f => f.gasto > 0);
+  if (con.length < 2) return { tipo: "falta", texto: con.length ? `Solo el avatar ${con[0].id} tiene anuncios con gasto. Para comparar, pon a correr los dos.` : "Todavía no hay anuncios con gasto que lleven a las landings de este producto." };
+  const [a, b] = con;
+  const dif = (x, y) => Math.round(Math.abs(x - y) / Math.max(x, y) * 100);
+  if (a.compras >= 3 && b.compras >= 3) {
+    const g = a.cpa <= b.cpa ? a : b, p = g === a ? b : a;
+    return { tipo: "cpa", ganador: g.id, texto: `El avatar ${g.id} va ganando: cada compra le cuesta ${dif(g.cpa, p.cpa)}% menos que al ${p.id}. Pásale más presupuesto al ${g.id}.` };
+  }
+  if (a.impresiones >= 1000 && b.impresiones >= 1000 && a.ctr !== null && b.ctr !== null) {
+    if (dif(a.ctr, b.ctr) < 15) return { tipo: "empate", texto: "Van parejos en clics. Espera a tener al menos 3 compras en cada uno para decidir." };
+    const g = a.ctr >= b.ctr ? a : b, p = g === a ? b : a;
+    return { tipo: "ctr", ganador: g.id, texto: `Señal temprana: el anuncio del avatar ${g.id} atrae ${dif(g.ctr, p.ctr)}% más clics que el ${p.id}. Todavía faltan compras para estar seguros (mínimo 3 en cada uno).` };
+  }
+  return { tipo: "falta", texto: "Aún hay pocos datos: espera a que cada avatar tenga al menos 1.000 impresiones." };
+}
