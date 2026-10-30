@@ -486,11 +486,22 @@ export function tasasReales(lineas, { dropiId = "", grupos = [] } = {}) {
     const n = (g) => os.filter(o => o.grupo === g).length;
     const ent = n("entregado"), dev = n("devolucion"), can = n("cancelado"), cerrados = ent + dev;
     const fletes = os.filter(o => !["cancelado", "pendiente"].includes(o.grupo)).map(o => o.flete).filter(x => x > 0);
+    // Unidades por pedido (sin cancelados): cuántos ya llevan 2 o más, y si se entregan igual de bien
+    const validos = os.filter(o => o.grupo !== "cancelado");
+    const uds = (o) => Math.max(1, Number(o.cantidad) || 1);
+    const entrega = (arr) => { const e = arr.filter(o => o.grupo === "entregado").length, d = arr.filter(o => o.grupo === "devolucion").length; return e + d >= 5 ? e / (e + d) * 100 : null; };
+    const uno = validos.filter(o => uds(o) === 1), dos = validos.filter(o => uds(o) === 2), tres = validos.filter(o => uds(o) >= 3);
     return {
       pedidos: os.length, cancelados: can, entregados: ent, devoluciones: dev, cerrados,
       canceladosPct: os.length ? can / os.length * 100 : null,
       devolucionesPct: cerrados ? dev / cerrados * 100 : null,
-      flete: fletes.length ? fletes.reduce((a, b) => a + b, 0) / fletes.length : null
+      flete: fletes.length ? fletes.reduce((a, b) => a + b, 0) / fletes.length : null,
+      unidades: {
+        pedidos: validos.length, uno: uno.length, dos: dos.length, tresMas: tres.length,
+        variosPct: validos.length ? (dos.length + tres.length) / validos.length * 100 : null,
+        entregaUno: entrega(uno), entregaVarios: entrega([...dos, ...tres]),
+        promedio: validos.length ? validos.reduce((a, o) => a + uds(o), 0) / validos.length : null
+      }
     };
   };
   const id = String(dropiId || "").trim();

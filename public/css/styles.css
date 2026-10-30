@@ -5533,3 +5533,6 @@ body.fz-sin-scroll { overflow: hidden; }
 .ts-ad .ts-copy-btns svg { width: 12px; height: 12px; }
 .ts-mejores-sub { display: flex; align-items: center; gap: 6px; margin: 16px 0 6px; font-size: 15px; }
 .ts-mejores-sub svg { width: 16px; height: 16px; color: #dc2626; }
+.cal-real-paq { flex-direction: column; align-items: flex-start; background: #f8fafc; border-color: #e2e8f0; }
+.cal-real-paq.verde { background: #ecfdf5; border-color: #a7f3d0; }
+.cal-real-paq > span:first-child { flex: none; }

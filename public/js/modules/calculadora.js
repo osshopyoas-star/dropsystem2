@@ -488,8 +488,27 @@ function pintarReal() {
     </div>`;
   el.innerHTML = `<p class="cal-real-tit">📊 Tus números reales en Dropi</p>
     ${prod?.dropiId ? (t.producto ? fila(t.producto, "Este producto", "producto") : `<small class="cal-hint">Este producto (Dropi ${esc(prod.dropiId)}) todavía no tiene pedidos en tus Excel.</small>`) : ""}
-    ${fila(t.tienda, "Toda la tienda", "tienda")}`;
+    ${fila(t.tienda, "Toda la tienda", "tienda")}
+    ${prod?.dropiId && t.producto ? consejoPaquetes(t.producto.unidades) : ""}`;
 }
+// ¿Vale la pena un paquete? Con lo que ya piden tus clientes de este producto
+function consejoPaquetes(u) {
+  if (!u?.pedidos) return "";
+  const pct = (v) => `${Math.round(v)}%`;
+  const varios = u.variosPct ?? 0;
+  const entregaPeor = u.entregaUno !== null && u.entregaVarios !== null && u.entregaVarios < u.entregaUno - 10;
+  const veredicto = u.pedidos < 15 ? ["gris", `Con ${u.pedidos} pedidos todavía es pronto para saberlo.`]
+    : varios >= 15 ? ["verde", `Ya el ${pct(varios)} de tus clientes lleva 2 o más: arma un paquete de ${u.tresMas >= u.dos / 2 ? "2 y otro de 3" : "2"} con un descuento que se note (abajo en Paquetes).`]
+    : varios >= 5 ? ["azul", `El ${pct(varios)} lleva 2 o más: prueba un paquete de 2 con buen descuento para subir el ticket.`]
+    : ["gris", `Casi todos llevan 1 (${pct(100 - varios)}). Un paquete puede ayudar, pero empieza con un regalo o un "lleva 2" fuerte.`];
+  return `
+    <div class="cal-real-fila cal-real-paq ${veredicto[0]}">
+      <span><b>¿Paquetes?</b> De ${u.pedidos} pedidos de este producto: <b>${u.uno}</b> con 1 unidad · <b>${u.dos}</b> con 2 · <b>${u.tresMas}</b> con 3 o más${u.promedio ? ` · promedio ${u.promedio.toFixed(2)} por pedido` : ""}.</span>
+      <span>${veredicto[1]}</span>
+      ${u.entregaVarios !== null ? `<small class="${entregaPeor ? "cal-real-ojo" : "cal-hint"}">Los de 2 o más se entregan el ${pct(u.entregaVarios)}${u.entregaUno !== null ? ` (los de 1, el ${pct(u.entregaUno)})` : ""}.${entregaPeor ? " Se devuelven más: confirma bien esos pedidos." : ""}</small>` : ""}
+    </div>`;
+}
+
 window.calUsarReal = (cual) => {
   const prod = productos.find(p => String(p._id) === String($("calProducto")?.value || ""));
   const x = tasas.get(`${pais()}|${prod?.dropiId || ""}`)?.[cual];
