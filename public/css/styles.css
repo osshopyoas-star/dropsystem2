@@ -5470,3 +5470,17 @@ body.fz-sin-scroll { overflow: hidden; }
 .cal-real-fila .cal-btn { margin-left: auto; }
 .cal-real-ojo { color: #b45309; font-size: 12px; flex: 1 1 100%; }
 .cal-btn.chico { padding: 6px 12px; font-size: 12px; min-height: 0; }
+
+/* Inicio · Lo que toca hoy */
+.ih-resumen .ih-card-head { flex-wrap: wrap; gap: 8px; }
+.ih-btn.chico { padding: 6px 12px; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+.ih-btn.chico svg { width: 14px; height: 14px; }
+.ih-toca { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ih-toca li { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; border: 1px solid #e2e8f0; background: #fff; cursor: pointer; font-size: 13px; }
+.ih-toca li span { flex: 1; }
+.ih-toca li svg { width: 16px; height: 16px; flex: none; }
+.ih-toca li svg:last-child { color: #94a3b8; }
+.ih-toca li.verde svg:first-child { color: #16a34a; } .ih-toca li.rojo svg:first-child { color: #dc2626; }
+.ih-toca li.morado svg:first-child { color: #7c3aed; } .ih-toca li.ambar svg:first-child { color: #d97706; }
+.ih-toca li.azul svg:first-child { color: #2563eb; } .ih-toca li.gris svg:first-child { color: #64748b; }
+.ih-toca li:hover { background: #f8fafc; }

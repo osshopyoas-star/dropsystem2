@@ -131,6 +131,8 @@ function render(view) {
       </div>
     </header>
 
+    ${n ? tarjetaResumen(n, testeos) : ""}
+
     ${alertas.length ? `<section class="ih-alertas">${alertas.map(a => `
       <div class="ih-alerta ${a.tipo}" ${a.ir ? `onclick="${a.ir}"` : ""}><i data-lucide="${a.icono}"></i><span>${a.texto}</span>${a.ir ? `<i data-lucide="chevron-right"></i>` : ""}</div>`).join("")}</section>` : ""}
 
@@ -230,6 +232,66 @@ function render(view) {
   iconos();
 }
 
+// ---------- Resumen de la mañana: lo que toca hoy + texto para WhatsApp ----------
+function decisionesTesteo(testeos) {
+  return testeos.map(p => ({ p, ...numerosTesteo(p, st.fin, st.costeos.get(String(p._id))) }))
+    .filter(x => x.sug && ["escalar", "apagar"].includes(x.sug.accion));
+}
+function loQueToca(n, testeos) {
+  const t = [];
+  const ayer = n.dia === sumarDias(hoyISO(), -1);
+  for (const x of decisionesTesteo(testeos)) {
+    t.push({ icono: x.sug.accion === "escalar" ? "rocket" : "power", tipo: x.sug.accion === "escalar" ? "verde" : "rojo", ir: "goTo('testeos')",
+      texto: `<b>${x.sug.accion === "escalar" ? "Escalar" : "Apagar"} ${esc(x.p.nombre)}</b>${x.sug.motivo ? ` · ${esc(x.sug.motivo)}` : ""}` });
+  }
+  if (n.lg.novedadesActivas.total) t.push({ icono: "alert-triangle", tipo: "morado", ir: "goTo('logistica')", texto: `<b>Gestionar ${n.lg.novedadesActivas.total} novedad${n.lg.novedadesActivas.total === 1 ? "" : "es"}</b>${n.lg.novedadesActivas.porTipo.length ? ` · ${n.lg.novedadesActivas.porTipo.slice(0, 2).map(([k, c]) => `${esc(k)} (${c})`).join(", ")}` : ""}` });
+  if (n.lg.sinMovimiento.total) t.push({ icono: "clock", tipo: "ambar", ir: "goTo('logistica')", texto: `<b>Revisar ${n.lg.sinMovimiento.total} pedido${n.lg.sinMovimiento.total === 1 ? "" : "s"} sin movimiento</b> hace más de 24 h` });
+  if (n.filasDia.length && n.delDia.gasto === 0) t.push({ icono: "pencil", tipo: "azul", ir: "goTo('control-diario')", texto: `<b>Registrar la pauta ${ayer ? "de ayer" : `del ${fechaCorta(n.dia)}`}</b> para ver la utilidad real` });
+  const dias = diasDesde(n.f.config.ultimaImportacion);
+  if (dias !== null && dias >= 1) t.push({ icono: "upload", tipo: "gris", ir: "goTo('control-diario')", texto: `<b>Subir el Excel de Dropi</b> · el último es de hace ${dias} día${dias === 1 ? "" : "s"}` });
+  return t;
+}
+function textoResumen(n, testeos) {
+  const pais = st.pais === "EC" ? "Ecuador 🇪🇨" : "Colombia 🇨🇴";
+  const pct = (a, b) => (!b ? "" : ` (${a >= b ? "▲" : "▼"} ${Math.abs((a - b) / Math.abs(b) * 100).toFixed(0)}%)`);
+  const ayer = n.dia === sumarDias(hoyISO(), -1) ? "Ayer" : `El ${fechaCorta(n.dia)}`;
+  const dec = decisionesTesteo(testeos);
+  const lineas = [
+    `☀️ Resumen CoDropX · ${pais}`,
+    "",
+    `📅 ${ayer}: ${n.delDia.pedidos} pedidos · gasto ${plata(n.delDia.gasto)} · utilidad ${plata(n.delDia.utilidad)}${n.delDia.gasto === 0 && n.delDia.pedidos ? " (falta la pauta)" : ""}`,
+    `📈 7 días: ${n.semana.pedidos} pedidos${pct(n.semana.pedidos, n.semanaAntes.pedidos)} · utilidad ${plata(n.semana.utilidad)}${pct(n.semana.utilidad, n.semanaAntes.utilidad)}`,
+    `🚚 Entrega 30 días: ${n.r30.tasaEntrega.toFixed(1)}% · ${n.r30.devoluciones} devoluciones`,
+    `⚠️ Por gestionar: ${n.lg.novedadesActivas.total} novedades · ${n.lg.sinMovimiento.total} sin movimiento +24 h`
+  ];
+  const top = n.filasDia.slice().sort((a, b) => b.utilidad - a.utilidad)[0];
+  if (top && top.pedidos) lineas.push(`🏆 Mejor producto ${ayer.toLowerCase()}: ${top.nombre} (${top.pedidos} pedidos · ${plata(top.utilidad)})`);
+  if (dec.length) { lineas.push("", "🧪 Testeos:"); for (const x of dec) lineas.push(`${x.sug.accion === "escalar" ? "🚀 Escalar" : "⛔ Apagar"} ${x.p.nombre}${x.sug.motivo ? `: ${x.sug.motivo}` : ""}`); }
+  lineas.push("", `Datos de Dropi hasta el ${fechaCorta(n.ultimo)}.`);
+  return lineas.join("\n");
+}
+function tarjetaResumen(n, testeos) {
+  const t = loQueToca(n, testeos);
+  return `
+  <section class="ih-card ih-resumen">
+    <div class="ih-card-head">
+      <h3><i data-lucide="sunrise"></i> Lo que toca hoy</h3>
+      <button class="ih-btn chico" onclick="ihCopiarResumen()"><i data-lucide="message-circle"></i> Copiar resumen para WhatsApp</button>
+    </div>
+    ${t.length ? `<ul class="ih-toca">${t.map(x => `<li class="${x.tipo}" onclick="${x.ir}"><i data-lucide="${x.icono}"></i><span>${x.texto}</span><i data-lucide="chevron-right"></i></li>`).join("")}</ul>`
+      : `<p class="ih-vacio">Todo al día: sin novedades, sin testeos por decidir y con la pauta registrada. 🙌</p>`}
+  </section>`;
+}
+window.ihCopiarResumen = async () => {
+  const n = numeros();
+  if (!n) return;
+  const txt = textoResumen(n, st.productos.filter(p => p.resultado === "testeando"));
+  try { await navigator.clipboard.writeText(txt); }
+  catch { const t = document.createElement("textarea"); t.value = txt; document.body.appendChild(t); t.select(); document.execCommand("copy"); t.remove(); }
+  const b = document.querySelector(".ih-resumen .ih-btn");
+  if (b) { const antes = b.innerHTML; b.innerHTML = "✓ Copiado"; setTimeout(() => { b.innerHTML = antes; iconos(); }, 1500); }
+};
+
 function variacion(ahora, antes) {
   if (!antes) return ahora ? "nuevo" : "—";
   const v = (ahora - antes) / Math.abs(antes) * 100;
@@ -250,10 +312,7 @@ function avisos(n) {
   const a = [];
   const f = st.fin[st.pais];
   if (!f?.config?.desde) return a;
-  const dias = diasDesde(f.config.ultimaImportacion);
-  if (dias !== null && dias >= 2) a.push({ tipo: "amarillo", icono: "upload", texto: `Tu último Excel de Dropi es de hace ${dias} días: súbelo de nuevo para ver los estados al día.`, ir: "goTo('control-diario')" });
-  if (n && n.filasDia.length && n.delDia.gasto === 0) a.push({ tipo: "azul", icono: "pencil", texto: `Falta registrar la pauta del ${fechaCorta(n.dia)} para ver la utilidad real.`, ir: "goTo('control-diario')" });
-  if (n && n.lg.novedadesActivas.total > 0) a.push({ tipo: "morado", icono: "alert-triangle", texto: `${n.lg.novedadesActivas.total} novedades sin resolver: gestiónalas para salvar entregas.`, ir: "goTo('logistica')" });
+  // Excel viejo, pauta pendiente y novedades van en "Lo que toca hoy"
   if (st.meta && st.meta.configurado && !st.meta.conectado) a.push({ tipo: "azul", icono: "plug", texto: "Conecta Meta Ads para que la pauta se llene sola.", ir: "goTo('integraciones')" });
   const lanzadosSinCosteo = st.productos.filter(p => p.estado === "lanzado" && (p.pais || "CO") === st.pais && !st.costeos.has(String(p._id)));
   if (lanzadosSinCosteo.length) a.push({ tipo: "gris", icono: "calculator", texto: `${lanzadosSinCosteo.length} producto(s) lanzados sin costeo: ${lanzadosSinCosteo.slice(0, 2).map(p => esc(p.nombre)).join(", ")}${lanzadosSinCosteo.length > 2 ? "…" : ""}`, ir: "goTo('calculadora')" });
