@@ -28,7 +28,7 @@ const st = {
   dia: null,
   rango: { modo: "7d", desde: "", hasta: "", clave: "", porProducto: false },
   rep: { periodo: "todo", desde: "", hasta: "", clave: "", referencia: 70, rentOrden: "neta", mesCostos: "", guardado: null },
-  log: { periodo: "todo", desde: "", hasta: "", filtro: "activos", buscar: "", pagina: 1, porPagina: 25, ciudadesN: 5, ciudadesPag: 1, ciudadOrden: "total", priorizar: true, prodBuscar: "", ciudadTransp: "" },
+  log: { periodo: "todo", desde: "", hasta: "", filtro: "activos", estatus: "", buscar: "", pagina: 1, porPagina: 25, ciudadesN: 5, ciudadesPag: 1, ciudadOrden: "total", priorizar: true, prodBuscar: "", ciudadTransp: "" },
   pagina: null
 };
 
@@ -1836,7 +1836,10 @@ function tablaSeguimiento(r) {
   };
   // Sin tildes ni mayúsculas: "oficina" encuentra "EN OFICINA", "reclamar" encuentra "RECLAMAR EN OFICINA"
   const b = sinTildesTxt(L.buscar.trim());
-  let lista = r.seguimiento.filter(filtros[L.filtro] || filtros.activos)
+  // Estatus de Dropi (como el filtro de Excel): con uno elegido se ven todos los pedidos con ese estatus
+  const estatusLista = Object.entries(r.seguimiento.reduce((a, o) => { const k = o.estatus || "SIN ESTATUS"; a[k] = (a[k] || 0) + 1; return a; }, {})).sort((x, y) => y[1] - x[1]);
+  if (L.estatus && !estatusLista.some(([k]) => k === L.estatus)) L.estatus = "";
+  let lista = (L.estatus ? r.seguimiento.filter(o => (o.estatus || "SIN ESTATUS") === L.estatus) : r.seguimiento.filter(filtros[L.filtro] || filtros.activos))
     .filter(o => !b || [o.producto, o.guia, o.ciudad, o.ordenId, o.transportadora, o.estatus, o.novedad, o.ultimoMovimiento, ...(st.notas?.[o.ordenId] || []).map(n => n.texto)].some(v => sinTildesTxt(v).includes(b)));
   const paginas = Math.max(1, Math.ceil(lista.length / L.porPagina));
   if (L.pagina > paginas) L.pagina = paginas;
@@ -1847,7 +1850,11 @@ function tablaSeguimiento(r) {
     <h3>Seguimiento de pedidos</h3><p class="fz-mini">${cuenta("activos")} activos de ${r.pedidos} pedidos</p>
     <div class="fz-chips">
       <input class="fz-buscar" placeholder="Buscar guía, producto, ciudad, orden, estatus o novedad (ej. oficina)..." value="${esc(L.buscar)}" oninput="fzLogBuscar(this.value)" id="fzLogBuscar">
-      ${[["activos", "Activos"], ["mov24", "+24h sin mov."], ["novedades", "Solo novedades"], ["oficina", "En oficina"], ["pendientes", "Pendiente confirmación"], ["conNotas", "Con notas"]].map(([k, t]) => `<button class="fz-chip ${L.filtro === k ? "activo" : ""}" onclick="fzLogFiltro('${k}', true)">${t} (${cuenta(k)})</button>`).join("")}
+      ${[["activos", "Activos"], ["mov24", "+24h sin mov."], ["novedades", "Solo novedades"], ["oficina", "En oficina"], ["pendientes", "Pendiente confirmación"], ["conNotas", "Con notas"]].map(([k, t]) => `<button class="fz-chip ${!L.estatus && L.filtro === k ? "activo" : ""}" onclick="fzLogFiltro('${k}', true)">${t} (${cuenta(k)})</button>`).join("")}
+      <select class="fz-estatus-sel ${L.estatus ? "activo" : ""}" onchange="fzLogEstatus(this.value)" title="Ver solo los pedidos con un estatus de Dropi">
+        <option value="">Estatus: todos</option>
+        ${estatusLista.map(([k, n]) => `<option value="${esc(k)}" ${L.estatus === k ? "selected" : ""}>${esc(k)} (${n})</option>`).join("")}
+      </select>
       <button class="fz-btn claro chico" onclick="fzExportarSeguimiento()"><i data-lucide="download"></i> Exportar</button>
     </div>
     <div class="fz-scroll"><table class="fz-tabla">
@@ -1876,8 +1883,9 @@ const reLog = (foco) => {
   if (foco) { const el = $(foco); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } }
 };
 window.fzLogPeriodo = (p, d, h) => { st.log.periodo = p; if (d) st.log.desde = d; if (h) st.log.hasta = h; st.log.pagina = 1; reLog(); };
+window.fzLogEstatus = (v) => { st.log.estatus = v; st.log.pagina = 1; reLog(); };
 window.fzLogFiltro = (f, quieto) => {
-  st.log.filtro = f; st.log.pagina = 1; reLog();
+  st.log.filtro = f; st.log.estatus = ""; st.log.pagina = 1; reLog();
   if (!quieto) $("fzSeguimiento")?.scrollIntoView({ behavior: "smooth", block: "start" });
 };
 window.fzLogBuscar = (v) => { st.log.buscar = v; st.log.pagina = 1; reLog("fzLogBuscar"); };

@@ -5586,3 +5586,5 @@ body.fz-sin-scroll { overflow: hidden; }
 .cal-testeo li.si { color: #166534; } .cal-testeo li.no { color: #991b1b; }
 .cal-testeo p { margin: 6px 0; }
 .cal-testeo small { color: #64748b; }
+.fz-estatus-sel { min-height: 34px; border: 1px solid #cbd5e1; border-radius: 999px; padding: 0 12px; font: inherit; font-size: 13px; background: #fff; max-width: 260px; }
+.fz-estatus-sel.activo { border-color: #2563eb; background: #eff6ff; color: #1d4ed8; font-weight: 600; }
