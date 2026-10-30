@@ -5562,3 +5562,16 @@ body.fz-sin-scroll { overflow: hidden; }
 .ih-meta.bien .ih-meta-barra i, .ih-meta.lograda .ih-meta-barra i { background: #16a34a; }
 .ih-meta.atras .ih-meta-barra i { background: #f59e0b; }
 .ih-meta-barra em { position: absolute; top: -4px; bottom: -4px; width: 2px; background: #0f172a; }
+
+/* Reportes guardados · Comparar */
+.fz-rep-chk { width: 18px; height: 18px; flex: none; margin-left: 6px; accent-color: #2563eb; }
+.fz-rep-ayuda { margin-right: auto; align-self: center; }
+.fz-comp-res { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0; font-size: 13px; }
+.fz-comp-res > div { border-radius: 10px; padding: 10px 12px; }
+.fz-comp-res .mejor { background: #ecfdf5; }
+.fz-comp-res .peor { background: #fef2f2; }
+.fz-comp-res ul { margin: 6px 0 0; padding-left: 18px; }
+.fz-comp-res p { margin: 6px 0 0; }
+.fz-comp tr.mejor td:last-child { color: #16a34a; }
+.fz-comp tr.peor td:last-child { color: #dc2626; }
+@media (max-width: 640px) { .fz-comp-res { grid-template-columns: 1fr; } }

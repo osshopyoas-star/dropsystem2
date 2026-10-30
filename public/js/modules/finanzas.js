@@ -9,7 +9,7 @@ import { formatear } from "../core/costeo.js";
 import { leerExcel } from "../core/excel.js";
 import {
   leerReporteDropi, controlDiario, totalesControl, reporteFinanciero, logistica, rentabilidadProductos, fugasDevolucion,
-  nombresProductos, claveProducto, NOMBRE_GRUPO, costosPeriodo, mesesEntre, editarReporte
+  nombresProductos, claveProducto, NOMBRE_GRUPO, costosPeriodo, mesesEntre, editarReporte, compararReportes
 } from "../core/finanzas.js";
 
 const $ = (id) => document.getElementById(id);
@@ -1261,6 +1261,7 @@ window.fzReportesGuardados = async () => {
       <p class="fz-mini">Fotos de tus reportes: ábrelos para ver cómo cerró cada periodo.</p>
       <ul class="fz-reps">${lista.map(x => `
         <li class="${st.rep.guardado?.id === x.id ? "activo" : ""}">
+          ${lista.length > 1 ? `<input type="checkbox" class="fz-rep-chk" value="${x.id}" title="Marcar para comparar" onchange="fzMarcarComparar()">` : ""}
           <button class="fz-rep-abrir" onclick="fzAbrirReporte('${x.id}')">
             <b>${esc(x.nombre)}</b>
             <small>${fechaCorta(x.desde)} a ${fechaCorta(x.hasta)}${x.producto ? ` · ${esc(x.producto)}` : ""} · guardado ${fechaLarga(x.creado)}</small>
@@ -1269,13 +1270,49 @@ window.fzReportesGuardados = async () => {
           <button class="fz-icono" title="Editar" onclick="fzEditarReporte('${x.id}')"><i data-lucide="pencil"></i></button>
           <button class="fz-icono peligro" title="Borrar" onclick="fzBorrarReporte('${x.id}')"><i data-lucide="trash-2"></i></button>
         </li>`).join("") || `<li class="vacia">Aún no guardas reportes. Dale <b>Guardar reporte</b> cuando cierres un mes.</li>`}</ul>
-      <div class="fz-modal-pie"><button class="fz-btn claro" onclick="fzCerrarModalRep()">Cerrar</button></div>`;
+      <div class="fz-modal-pie">
+        ${lista.length > 1 ? `<small class="fz-mini fz-rep-ayuda">Marca 2 para compararlos</small><button class="fz-btn" id="fzBtnComparar" onclick="fzComparar()" disabled><i data-lucide="git-compare"></i> Comparar</button>` : ""}
+        <button class="fz-btn claro" onclick="fzCerrarModalRep()">Cerrar</button>
+      </div>`;
     iconos();
   } catch (err) {
     fzCerrarModalRep();
     avisar(err.message, "error");
   }
 };
+// ---------- Comparar dos reportes guardados ----------
+window.fzMarcarComparar = () => {
+  const marcados = [...document.querySelectorAll(".fz-rep-chk:checked")];
+  for (const c of document.querySelectorAll(".fz-rep-chk")) c.disabled = marcados.length >= 2 && !c.checked;
+  const b = $("fzBtnComparar");
+  if (b) b.disabled = marcados.length !== 2;
+};
+window.fzComparar = async () => {
+  const ids = [...document.querySelectorAll(".fz-rep-chk:checked")].map(c => c.value);
+  if (ids.length !== 2) return;
+  try {
+    const [x, y] = await Promise.all(ids.map(id => api("GET", `/api/finanzas/reportes/${encodeURIComponent(id)}`)));
+    const [a, b] = [x, y].sort((p, q) => String(p.desde).localeCompare(String(q.desde)));   // antes · después
+    const c = compararReportes(a.datos.r, b.datos.r);
+    const val = (f, v) => (v === null ? "—" : f.tipo === "$" ? $$s(v) : f.tipo === "%" ? pct(v) : Math.round(v).toLocaleString("es-CO"));
+    const cambio = (f) => f.dif === null ? "—" : f.tipo === "%" ? `${f.dif > 0 ? "+" : ""}${f.dif.toFixed(1)} pts` : `${f.dif > 0 ? "+" : ""}${f.tipo === "$" ? $$s(f.dif) : Math.round(f.dif)}${f.pct !== null ? ` (${f.pct > 0 ? "+" : ""}${f.pct.toFixed(0)}%)` : ""}`;
+    const frase = (f) => `<b>${esc(f.nombre)}</b>: ${val(f, f.a)} → ${val(f, f.b)}`;
+    modalReporte(`
+      <h3><i data-lucide="git-compare"></i> ${esc(a.nombre)} vs ${esc(b.nombre)}</h3>
+      <p class="fz-mini">${fechaCorta(a.desde)} a ${fechaCorta(a.hasta)} contra ${fechaCorta(b.desde)} a ${fechaCorta(b.hasta)}. Son las fotos de cuando los guardaste.</p>
+      <div class="fz-comp-res">
+        <div class="mejor"><b>👍 Mejoró</b>${c.mejoro.length ? `<ul>${c.mejoro.map(f => `<li>${frase(f)}</li>`).join("")}</ul>` : `<p>Nada importante.</p>`}</div>
+        <div class="peor"><b>👎 Empeoró</b>${c.empeoro.length ? `<ul>${c.empeoro.map(f => `<li>${frase(f)}</li>`).join("")}</ul>` : `<p>Nada importante. 🙌</p>`}</div>
+      </div>
+      <div class="fz-scroll"><table class="fz-tabla fz-comp">
+        <thead><tr><th></th><th class="n">${esc(a.nombre)}</th><th class="n">${esc(b.nombre)}</th><th class="n">Cambio</th></tr></thead>
+        <tbody>${c.filas.map(f => `<tr class="${f.estado}"><td>${esc(f.nombre)}</td><td class="n">${val(f, f.a)}</td><td class="n">${val(f, f.b)}</td><td class="n"><b>${cambio(f)}</b></td></tr>`).join("")}</tbody>
+      </table></div>
+      <div class="fz-modal-pie"><button class="fz-btn claro" onclick="fzReportesGuardados()"><i data-lucide="arrow-left"></i> Volver a la lista</button><button class="fz-btn" onclick="fzCerrarModalRep()">Cerrar</button></div>`);
+    document.querySelector(".fz-modal-rep .fz-modal-box")?.classList.remove("chico");
+  } catch (err) { avisar(err.message, "error"); }
+};
+
 window.fzAbrirReporte = async (id) => {
   try {
     const x = await api("GET", `/api/finanzas/reportes/${encodeURIComponent(id)}`);

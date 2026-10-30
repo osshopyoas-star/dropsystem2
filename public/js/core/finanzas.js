@@ -888,3 +888,49 @@ export function emparejarCampana(nombreCampana, productos) {
   }
   return mejor && !empate ? mejor.clave : null;
 }
+
+// =============================================
+// COMPARAR DOS REPORTES GUARDADOS (por ejemplo septiembre vs octubre)
+// a = el de antes, b = el de después. mejor: "mas" (más es mejor) · "menos" (menos es mejor) · null (solo informa)
+// =============================================
+export const INDICADORES_COMPARAR = [
+  { k: "pedidos", nombre: "Pedidos", tipo: "n", mejor: "mas" },
+  { k: "tasaEntrega", nombre: "Tasa de entrega", tipo: "%", mejor: "mas" },
+  { k: "devolucionPct", nombre: "Devoluciones", tipo: "%", mejor: "menos" },
+  { k: "facturado", nombre: "Total facturado", tipo: "$", mejor: "mas" },
+  { k: "ingreso", nombre: "Ingreso por entregados", tipo: "$", mejor: "mas" },
+  { k: "ticket", nombre: "Ticket promedio entregado", tipo: "$", mejor: "mas" },
+  { k: "costoDevoluciones", nombre: "Costo de devoluciones", tipo: "$", mejor: "menos" },
+  { k: "gananciaBruta", nombre: "Ganancia bruta", tipo: "$", mejor: "mas" },
+  { k: "publicidad", nombre: "Publicidad (Meta + TikTok)", tipo: "$", mejor: null },
+  { k: "cpa", nombre: "Publicidad por pedido (CPA)", tipo: "$", mejor: "menos" },
+  { k: "operativos", nombre: "Costos operativos", tipo: "$", mejor: "menos" },
+  { k: "gananciaNeta", nombre: "Ganancia neta", tipo: "$", mejor: "mas" },
+  { k: "margenNeto", nombre: "Margen neto", tipo: "%", mejor: "mas" }
+];
+const indicadores = (r = {}) => ({
+  ...r,
+  devolucionPct: r.devoluciones + r.entregados ? r.devoluciones / (r.devoluciones + r.entregados) * 100 : null,
+  ticket: r.entregados ? r.ingreso / r.entregados : null,
+  cpa: r.pedidos ? (r.publicidad || 0) / r.pedidos : null,
+  operativos: r.operativos || 0
+});
+export function compararReportes(ra, rb) {
+  const a = indicadores(ra), b = indicadores(rb);
+  const filas = INDICADORES_COMPARAR.map(x => {
+    const va = Number.isFinite(a[x.k]) ? a[x.k] : null, vb = Number.isFinite(b[x.k]) ? b[x.k] : null;
+    const dif = va === null || vb === null ? null : vb - va;
+    const pct = dif === null || !va ? null : dif / Math.abs(va) * 100;
+    // Lo que cambió poco (menos de 3% o de 1 punto en porcentajes) no cuenta como mejora ni empeora
+    const quieto = dif === null || (x.tipo === "%" ? Math.abs(dif) < 1 : pct !== null && Math.abs(pct) < 3);
+    const estado = !x.mejor || quieto ? "igual" : (dif > 0) === (x.mejor === "mas") ? "mejor" : "peor";
+    return { ...x, a: va, b: vb, dif, pct, estado };
+  });
+  // La ganancia neta va siempre primero: es lo que de verdad te queda
+  const peso = (f) => (f.k === "gananciaNeta" ? 1e6 : 0) + (f.tipo === "%" ? Math.abs(f.dif) * 3 : Math.abs(f.pct || 0));
+  return {
+    filas,
+    mejoro: filas.filter(f => f.estado === "mejor").sort((x, y) => peso(y) - peso(x)).slice(0, 3),
+    empeoro: filas.filter(f => f.estado === "peor").sort((x, y) => peso(y) - peso(x)).slice(0, 3)
+  };
+}
