@@ -325,7 +325,19 @@ Sin rodeos, sin inventar datos que no estén en las cifras. Si la publicidad est
         DropiLinea.find({ owner: req.user.uid, pais: p }).select("ordenId productoId fecha estatus flete total proveedor costoDevolucion comision cantidad ganancia -_id").limit(60000).lean(),
         FinanzasConfig.findOne({ owner: req.user.uid, pais: p }).select("grupos ultimaImportacion").lean()
       ]);
-      res.json({ pais: p, ...tasasReales(lineas, { dropiId: String(req.query.dropiId || "").slice(0, 40), grupos: cfg?.grupos || [] }), ultimaImportacion: cfg?.ultimaImportacion || null });
+      // CPA real de los últimos 30 días con datos: pauta (Meta + TikTok) ÷ pedidos
+      const fechas = lineas.map(l => l.fecha).filter(Boolean).sort();
+      let cpa30 = null;
+      if (fechas.length) {
+        const hasta = fechas[fechas.length - 1];
+        const d = new Date(hasta + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() - 29);
+        const desde = d.toISOString().slice(0, 10);
+        const pauta = await PautaDia.find({ owner: req.user.uid, pais: p, fecha: { $gte: desde, $lte: hasta } }).select("meta tiktok -_id").lean();
+        const gasto = pauta.reduce((a, x) => a + (Number(x.meta) || 0) + (Number(x.tiktok) || 0), 0);
+        const pedidos = new Set(lineas.filter(l => l.fecha >= desde && l.fecha <= hasta).map(l => l.ordenId)).size;
+        if (gasto > 0 && pedidos) cpa30 = { cpa: gasto / pedidos, gasto, pedidos, desde, hasta };
+      }
+      res.json({ pais: p, ...tasasReales(lineas, { dropiId: String(req.query.dropiId || "").slice(0, 40), grupos: cfg?.grupos || [] }), cpa30, ultimaImportacion: cfg?.ultimaImportacion || null });
     } catch (err) {
       console.error("Error leyendo tasas reales:", err);
       res.status(500).json({ error: "No se pudieron leer tus números de Dropi" });

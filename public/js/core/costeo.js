@@ -208,3 +208,40 @@ export function calcularComplementos(base, complementos = []) {
     hayPerdida: activos.some(c => c.perdida)
   };
 }
+
+// =============================================
+// ¿LO TESTEO? Nota del producto antes de gastar en pauta, con lo que ya sabes de tu operación
+// r: resultado de calcularCosteo · cpaReal: tu CPA promedio de 30 días · devolucion/cerrados: los del producto en Dropi
+// temporada: { nombre, faltan } la próxima fecha fuerte (opcional)
+// =============================================
+export function evaluarProducto(r, { cpaReal = null, devolucion = null, cerrados = 0, proveedor = 0, temporada = null, pais = "CO" } = {}) {
+  if (!r || !(proveedor > 0) || !(r.redondeado > 0)) return null;
+  const f = (v) => formatear(v, pais);
+  const puntos = [];   // { signo: 1 | 0 | -1, texto, peso }
+  if (cpaReal > 0) {
+    const veces = r.bep / cpaReal;
+    if (r.bep <= 0) puntos.push({ signo: -1, peso: 3, texto: `Con este precio no te queda nada para pauta (CPA máximo ${f(r.bep)}).` });
+    else if (veces >= 1.5) puntos.push({ signo: 1, peso: 2, texto: `Aguanta un CPA de ${f(r.bep)} y tu CPA promedio es ${f(cpaReal)}: tienes espacio para testear.` });
+    else if (veces >= 1) puntos.push({ signo: 0, peso: 1, texto: `Aguanta un CPA de ${f(r.bep)}, apenas por encima de tu CPA promedio (${f(cpaReal)}): queda justo.` });
+    else puntos.push({ signo: -1, peso: 3, texto: `Aguanta un CPA de ${f(r.bep)} pero tu CPA promedio es ${f(cpaReal)}: con lo que pagas hoy por pedido, perderías plata.` });
+  } else puntos.push({ signo: 0, peso: 0, texto: `Aguanta un CPA de ${f(r.bep)}. Registra tu pauta en Finanzas para compararlo con tu CPA real.` });
+  const veces = r.redondeado / proveedor;
+  if (veces >= 3) puntos.push({ signo: 1, peso: 1, texto: `Se vende a ${veces.toFixed(1)} veces lo que cuesta: buen margen para aguantar devoluciones.` });
+  else if (veces < 2) puntos.push({ signo: -1, peso: 1, texto: `Se vende a solo ${veces.toFixed(1)} veces lo que cuesta: poco margen para errores.` });
+  if (r.cumpleMeta) puntos.push({ signo: 1, peso: 1, texto: `Cumple tu utilidad deseada (${r.utilidadPct.toFixed(0)}%).` });
+  else puntos.push({ signo: -1, peso: 1, texto: `No llega a tu utilidad deseada: queda en ${r.utilidadPct.toFixed(0)}%.` });
+  if (devolucion !== null && cerrados >= 20) {
+    if (devolucion >= 45) puntos.push({ signo: -1, peso: 2, texto: `Este producto ya te devuelve el ${Math.round(devolucion)}% en Dropi.` });
+    else if (devolucion <= 25) puntos.push({ signo: 1, peso: 1, texto: `Este producto se te devuelve poco en Dropi (${Math.round(devolucion)}%).` });
+  }
+  if (temporada && temporada.faltan >= 10 && temporada.faltan <= 45) puntos.push({ signo: 0, peso: 0, texto: `Viene ${temporada.nombre} en ${temporada.faltan} días: si le encaja, es buen momento.` });
+  const nota = puntos.reduce((a, p) => a + p.signo * p.peso, 0);
+  const malo = puntos.some(p => p.signo === -1 && p.peso >= 3);
+  const veredicto = malo || nota <= 0 ? "no" : nota >= 3 ? "dale" : "cuidado";
+  return {
+    veredicto, nota, puntos,
+    titulo: veredicto === "dale" ? "Dale, testéalo" : veredicto === "cuidado" ? "Testéalo con cuidado" : "Así no vale la pena",
+    // Mis testeos apaga cuando gastas 1 CPA máximo sin ventas: con 2 ya sabes si funciona
+    presupuesto: r.bep > 0 ? r.bep * 2 : null
+  };
+}

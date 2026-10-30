@@ -5575,3 +5575,14 @@ body.fz-sin-scroll { overflow: hidden; }
 .fz-comp tr.mejor td:last-child { color: #16a34a; }
 .fz-comp tr.peor td:last-child { color: #dc2626; }
 @media (max-width: 640px) { .fz-comp-res { grid-template-columns: 1fr; } }
+
+/* Calculadora · ¿Lo testeo? */
+.cal-testeo { border-radius: 12px; padding: 12px 14px; margin: 12px 0; border: 1px solid #e2e8f0; background: #f8fafc; font-size: 13px; }
+.cal-testeo.dale { background: #ecfdf5; border-color: #a7f3d0; }
+.cal-testeo.cuidado { background: #fffbeb; border-color: #fde68a; }
+.cal-testeo.no { background: #fef2f2; border-color: #fecaca; }
+.cal-testeo h3 { margin: 0 0 6px; font-size: 15px; }
+.cal-testeo ul { list-style: none; padding: 0; margin: 0 0 6px; display: flex; flex-direction: column; gap: 4px; }
+.cal-testeo li.si { color: #166534; } .cal-testeo li.no { color: #991b1b; }
+.cal-testeo p { margin: 6px 0; }
+.cal-testeo small { color: #64748b; }

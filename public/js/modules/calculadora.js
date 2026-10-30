@@ -5,7 +5,8 @@
 // =============================================
 import { registrarRuta } from "./navegacion.js";
 import { escapeHTML } from "../core/utils.js";
-import { PAISES_COSTEO, calcularCosteo, formatear, redondear, TIPOS_COMPLEMENTO, complementosPorDefecto, calcularComplementos, precioExtra } from "../core/costeo.js";
+import { PAISES_COSTEO, calcularCosteo, formatear, redondear, TIPOS_COMPLEMENTO, complementosPorDefecto, calcularComplementos, precioExtra, evaluarProducto } from "../core/costeo.js";
+import { proximasTemporadas } from "../core/temporadas.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (v) => escapeHTML(v ?? "");
@@ -272,6 +273,8 @@ window.calCalcular = function () {
     ${r.alertaEfectividad && !sinProveedor ? `
       <div class="cal-alert error">${Math.round(r.efectividadPct)}% de efectividad total — la inefectividad te cuesta <b>${fmt(r.costoInefectividad)}</b> por venta (${fmt(r.fleteExtra)} en fletes de devoluciones + ${fmt(r.cpaExtra)} de CPA extra) y está inflando tu precio. Mejora tus % de cancelados y devoluciones.</div>` : ""}
 
+    ${sinProveedor ? "" : bloqueLoTesteo(r, d)}
+
     <h3 class="cal-sub"><i data-lucide="package"></i> Ofertas de cantidad sugeridas</h3>
     <label class="cal-envio"><input type="checkbox" id="calEnvioPacks" ${envioPacks() ? "checked" : ""} onchange="calEnvioPacks(this.checked)"> Los paquetes llevan envío gratis</label>
     <div class="cal-packs">
@@ -471,7 +474,7 @@ function pintarReal() {
   if (!t) {
     tasas.set(k, "cargando");
     api("GET", `/api/finanzas/tasas?pais=${pais()}&dropiId=${encodeURIComponent(prod?.dropiId || "")}`)
-      .then(r => { tasas.set(k, r); pintarReal(); })
+      .then(r => { tasas.set(k, r); pintarReal(); calCalcular(); })
       .catch(e => { tasas.set(k, { error: e.message }); pintarReal(); });
     el.innerHTML = `<small class="cal-hint">Buscando tus números reales de Dropi…</small>`;
     return;
@@ -491,6 +494,29 @@ function pintarReal() {
     ${fila(t.tienda, "Toda la tienda", "tienda")}
     ${prod?.dropiId && t.producto ? consejoPaquetes(t.producto.unidades) : ""}`;
 }
+// ¿Lo testeo? Nota del producto con tu CPA real, tu devolución real y la próxima temporada
+function bloqueLoTesteo(r, d) {
+  const prod = productos.find(p => String(p._id) === String($("calProducto")?.value || ""));
+  const t = tasas.get(`${pais()}|${prod?.dropiId || ""}`);
+  const real = t && typeof t === "object" && !t.error ? t : null;
+  const hoy = new Date(Date.now() - 5 * 36e5).toISOString().slice(0, 10);
+  const e = evaluarProducto(r, {
+    cpaReal: real?.cpa30?.cpa || null, proveedor: Number(d.proveedor) || 0, pais: pais(),
+    devolucion: real?.producto?.devolucionesPct ?? null, cerrados: real?.producto?.cerrados || 0,
+    temporada: proximasTemporadas(pais(), hoy, 4).find(x => x.faltan >= 10) || null   // a menos de 10 días ya no da tiempo de testear
+  });
+  if (!e) return "";
+  const icono = { dale: "🟢", cuidado: "🟡", no: "🔴" }[e.veredicto];
+  return `
+    <div class="cal-testeo ${e.veredicto}">
+      <h3>${icono} ¿Lo testeo? <b>${e.titulo}</b></h3>
+      <ul>${e.puntos.map(p => `<li class="${p.signo > 0 ? "si" : p.signo < 0 ? "no" : ""}">${p.signo > 0 ? "✓" : p.signo < 0 ? "✗" : "•"} ${esc(p.texto)}</li>`).join("")}</ul>
+      ${e.presupuesto && e.veredicto !== "no" ? `<p>Presupuesto de testeo: hasta <b>${formatear(e.presupuesto, pais())}</b> en pauta (2 veces el CPA máximo). Si en 1 CPA máximo no vende nada, apágalo.</p>` : ""}
+      ${e.veredicto === "no" ? `<p>Para que valga la pena: sube el precio, busca mejor costo de proveedor o baja tus devoluciones. Prueba otro precio arriba y mira cómo cambia.</p>` : ""}
+      ${real?.cpa30 ? `<small>Tu CPA real: ${formatear(real.cpa30.cpa, pais())} por pedido (${real.cpa30.pedidos} pedidos y ${formatear(real.cpa30.gasto, pais())} de pauta del ${real.cpa30.desde.split("-").reverse().join("/")} al ${real.cpa30.hasta.split("-").reverse().join("/")}).</small>` : ""}
+    </div>`;
+}
+
 // ¿Vale la pena un paquete? Con lo que ya piden tus clientes de este producto
 function consejoPaquetes(u) {
   if (!u?.pedidos) return "";
