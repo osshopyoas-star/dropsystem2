@@ -1820,6 +1820,10 @@ function tablaProductos(r) {
   </section>`;
 }
 
+// Pedidos que esperan en la oficina de la transportadora a que el cliente los reclame (Dropi lo dice en el estatus, la novedad o el último movimiento)
+const sinTildesTxt = (v) => String(v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const enOficina = (o) => [o.estatus, o.novedad, o.ultimoMovimiento].some(v => /oficina|reclam/.test(sinTildesTxt(v)));
+
 function tablaSeguimiento(r) {
   const L = st.log;
   const filtros = {
@@ -1827,11 +1831,13 @@ function tablaSeguimiento(r) {
     mov24: (o) => (o.horasSinMovimiento ?? 0) > 24,
     novedades: (o) => o.grupo === "novedad",
     pendientes: (o) => o.grupo === "pendiente",
-    conNotas: (o) => (st.notas?.[o.ordenId] || []).length > 0
+    conNotas: (o) => (st.notas?.[o.ordenId] || []).length > 0,
+    oficina: enOficina
   };
-  const b = L.buscar.trim().toLowerCase();
+  // Sin tildes ni mayúsculas: "oficina" encuentra "EN OFICINA", "reclamar" encuentra "RECLAMAR EN OFICINA"
+  const b = sinTildesTxt(L.buscar.trim());
   let lista = r.seguimiento.filter(filtros[L.filtro] || filtros.activos)
-    .filter(o => !b || [o.producto, o.guia, o.ciudad, o.ordenId, o.transportadora, ...(st.notas?.[o.ordenId] || []).map(n => n.texto)].some(v => String(v || "").toLowerCase().includes(b)));
+    .filter(o => !b || [o.producto, o.guia, o.ciudad, o.ordenId, o.transportadora, o.estatus, o.novedad, o.ultimoMovimiento, ...(st.notas?.[o.ordenId] || []).map(n => n.texto)].some(v => sinTildesTxt(v).includes(b)));
   const paginas = Math.max(1, Math.ceil(lista.length / L.porPagina));
   if (L.pagina > paginas) L.pagina = paginas;
   const ini = (L.pagina - 1) * L.porPagina;
@@ -1840,8 +1846,8 @@ function tablaSeguimiento(r) {
   return `<section class="fz-card" id="fzSeguimiento">
     <h3>Seguimiento de pedidos</h3><p class="fz-mini">${cuenta("activos")} activos de ${r.pedidos} pedidos</p>
     <div class="fz-chips">
-      <input class="fz-buscar" placeholder="Buscar guía, producto, ciudad u orden..." value="${esc(L.buscar)}" oninput="fzLogBuscar(this.value)" id="fzLogBuscar">
-      ${[["activos", "Activos"], ["mov24", "+24h sin mov."], ["novedades", "Solo novedades"], ["pendientes", "Pendiente confirmación"], ["conNotas", "Con notas"]].map(([k, t]) => `<button class="fz-chip ${L.filtro === k ? "activo" : ""}" onclick="fzLogFiltro('${k}', true)">${t} (${cuenta(k)})</button>`).join("")}
+      <input class="fz-buscar" placeholder="Buscar guía, producto, ciudad, orden, estatus o novedad (ej. oficina)..." value="${esc(L.buscar)}" oninput="fzLogBuscar(this.value)" id="fzLogBuscar">
+      ${[["activos", "Activos"], ["mov24", "+24h sin mov."], ["novedades", "Solo novedades"], ["oficina", "En oficina"], ["pendientes", "Pendiente confirmación"], ["conNotas", "Con notas"]].map(([k, t]) => `<button class="fz-chip ${L.filtro === k ? "activo" : ""}" onclick="fzLogFiltro('${k}', true)">${t} (${cuenta(k)})</button>`).join("")}
       <button class="fz-btn claro chico" onclick="fzExportarSeguimiento()"><i data-lucide="download"></i> Exportar</button>
     </div>
     <div class="fz-scroll"><table class="fz-tabla">
