@@ -139,6 +139,14 @@ async function traerCuentas(token) {
 
 const comprasDe = (acts = []) => Number((acts.find(a => ["purchase", "offsite_conversion.fb_pixel_purchase", "omni_purchase"].includes(a.action_type)) || {}).value || 0);
 
+// Texto, título y miniatura de un anuncio (para ver qué copy funcionó)
+function textoDeCreativo(cr = {}) {
+  const o = cr.object_story_spec || {}, f = cr.asset_feed_spec || {};
+  const texto = o.link_data?.message || o.video_data?.message || f.bodies?.[0]?.text || cr.body || "";
+  const titulo = o.link_data?.name || o.video_data?.title || f.titles?.[0]?.text || cr.title || "";
+  return { texto: String(texto).slice(0, 2500), titulo: String(titulo).slice(0, 200), miniatura: String(cr.thumbnail_url || o.video_data?.image_url || o.link_data?.picture || "").slice(0, 1000) };
+}
+
 // Link de destino de un anuncio (para saber a qué producto lleva)
 function linkDeCreativo(cr = {}) {
   const o = cr.object_story_spec || {};
@@ -218,22 +226,22 @@ export async function metricasAnuncios(owner, accountIds, desde, hasta) {
         time_range: JSON.stringify({ since: desde, until: hasta }), limit: 500
       }, 3000);
       const conGasto = datos.filter(d => Number(d.spend || 0) > 0);
-      const links = {};
+      const links = {}, textos = {};
       const ids = conGasto.map(d => String(d.ad_id || "")).filter(Boolean);
       for (let i = 0; i < ids.length; i += 50) {
         try {
           const ads = await todas(`act_${cta.account_id}/ads`, {
-            access_token: token, fields: "id,creative{object_story_spec,asset_feed_spec,link_url}",
+            access_token: token, fields: "id,creative{object_story_spec,asset_feed_spec,link_url,body,title,thumbnail_url}",
             filtering: JSON.stringify([{ field: "ad.id", operator: "IN", value: ids.slice(i, i + 50) }]), limit: 200
           }, 600);
-          for (const a of ads) links[String(a.id)] = linkDeCreativo(a.creative).slice(0, 500);
+          for (const a of ads) { links[String(a.id)] = linkDeCreativo(a.creative).slice(0, 500); textos[String(a.id)] = textoDeCreativo(a.creative); }
         } catch (e) { if (e.codigo === 190) throw e; console.warn("No se pudieron leer los links de anuncios:", e.message); }
       }
       for (const d of conGasto) {
         const adId = String(d.ad_id || "");
         anuncios.push({
           adId, anuncio: String(d.ad_name || "").slice(0, 200), campanaId: String(d.campaign_id || ""), campana: String(d.campaign_name || "").slice(0, 200),
-          url: links[adId] || "", moneda: cta.currency, gasto: Number(d.spend || 0), impresiones: Number(d.impressions || 0),
+          url: links[adId] || "", ...(textos[adId] || {}), moneda: cta.currency, gasto: Number(d.spend || 0), impresiones: Number(d.impressions || 0),
           clics: Number(d.inline_link_clicks || 0), compras: comprasDe(d.actions)
         });
       }

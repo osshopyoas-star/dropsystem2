@@ -125,6 +125,7 @@ function render() {
         ? "No hay testeos con ese filtro."
         : "Todavía no tienes testeos. Agrega un producto arriba, o pásalo a \"Lanzado\" en tu Base de Productos."}</div>`}
     </section>
+    ${mejoresAnuncios()}
     ${bibliotecaGanadores()}
     <p class="ts-nota">Los números salen de <b>Finanzas</b>: pedidos de tus Excel de Dropi (por el ID de Dropi del producto) y la pauta de Meta que confirmaste en el Control Diario, desde la fecha de inicio del testeo. <b>ESCALAR</b>: 3+ entregas y cada una te cuesta 70% o menos de tu CPA máximo. <b>APAGAR</b>: gastó 1 CPA máximo sin ventas, o 2 y va perdiendo. <b>AGUANTAR</b>: lo demás, con cuánto más gastar. Nada cambia solo: tú marcas el resultado.</p>
   </div>`;
@@ -502,6 +503,58 @@ window.tsAvatares = async (proyectoId, productoId, forzar = false) => {
     if (!document.body.contains(m)) return;
     m.querySelector(".fz-modal-box").innerHTML = `<h3>Avatar A vs B</h3><p class="rojo">${esc(err.message)}</p><div class="fz-modal-pie"><button class="ts-btn" onclick="tsCerrarModal()">Cerrar</button></div>`;
   }
+};
+
+// ---------- Tus mejores anuncios de Meta (todos los productos) y los que gastan sin vender ----------
+const mejores = { pais: "CO", dias: 30, datos: null, cargando: false, error: "" };
+function mejoresAnuncios() {
+  const d = mejores.datos, pais = mejores.pais;
+  const f = (v) => (v === null || v === undefined ? "—" : formatear(v, pais));
+  const pct = (v) => (v === null ? "—" : `${v.toFixed(2)}%`);
+  const tarjeta = (a, i) => `
+    <article class="ts-ad">
+      ${a.miniatura ? `<img src="${esc(a.miniatura)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : `<div class="ts-ad-sin"><i data-lucide="image"></i></div>`}
+      <div class="ts-ad-info">
+        <div class="ts-ad-top"><b>#${i + 1} ${esc(a.producto || a.campana || "Anuncio")}</b>${a.avatar ? `<span class="ts-av">Avatar ${esc(a.avatar)}</span>` : ""}</div>
+        <small>${esc(a.anuncio || "")}${a.campana && a.producto ? ` · ${esc(a.campana)}` : ""}</small>
+        <div class="ts-ad-num"><span>Compra a <b class="verde">${f(a.cpa)}</b></span><span>${a.compras} compras</span><span>gasto ${f(a.gasto)}</span><span>CTR ${pct(a.ctr)}</span></div>
+        ${a.texto ? `<details><summary>Ver el copy</summary><p>${esc(a.texto).replace(/\n/g, "<br>")}</p>${a.titulo ? `<small>Título: <b>${esc(a.titulo)}</b></small>` : ""}</details>` : ""}
+        <div class="ts-copy-btns">${copiar(a.texto, "Copiar copy")}${a.url ? `<a href="${esc(a.url)}" target="_blank" rel="noopener noreferrer"><i data-lucide="external-link"></i> Ver landing</a>` : ""}</div>
+      </div>
+    </article>`;
+  return `
+  <section class="ts-listos ts-mejores">
+    <div class="ts-listos-head">
+      <h2><i data-lucide="flame"></i> Tus mejores anuncios en Meta</h2>
+      <small>De todos tus productos, ordenados por lo que te cuesta cada compra (las que reporta el píxel de Meta, con 2 o más compras). Abajo, los que más gastan sin vender nada.</small>
+    </div>
+    <div class="ts-mejores-filtros">
+      <select onchange="tsMejores({ pais: this.value })">${["CO", "EC"].map(x => `<option value="${x}" ${pais === x ? "selected" : ""}>${x === "CO" ? "🇨🇴 Colombia" : "🇪🇨 Ecuador"}</option>`).join("")}</select>
+      ${[7, 30, 90].map(n => `<button class="ts-chip ${mejores.dias === n ? "activo" : ""}" onclick="tsMejores({ dias: ${n} })">${n} días</button>`).join("")}
+      <button class="ts-btn chico" onclick="tsMejores({ forzar: true })" ${mejores.cargando ? "disabled" : ""}><i data-lucide="${d ? "refresh-cw" : "search"}"></i> ${mejores.cargando ? "Leyendo Meta…" : d ? "Actualizar" : "Ver mis mejores anuncios"}</button>
+    </div>
+    ${mejores.error ? `<p class="ts-kit-nota rojo">${esc(mejores.error)}</p>` : ""}
+    ${!d ? "" : d.sinCuentas ? `<p class="ts-kit-nota">Elige tus cuentas publicitarias de ${pais === "EC" ? "Ecuador" : "Colombia"} en Finanzas → Control Diario.</p>` : `
+      <p class="ts-kit-nota">${d.total.anuncios} anuncios con gasto del ${esc(d.desde)} al ${esc(d.hasta)} · gasto ${f(d.total.gasto)} · ${d.total.compras} compras${d.errores?.length ? ` · <span class="rojo">no se pudo leer: ${d.errores.map(esc).join(", ")}</span>` : ""}</p>
+      ${d.mejores.length ? `<div class="ts-ads">${d.mejores.map(tarjeta).join("")}</div>` : `<p class="ts-kit-nota">Ningún anuncio tiene 2 o más compras en este periodo.</p>`}
+      ${d.sinVender.length ? `
+      <h3 class="ts-mejores-sub"><i data-lucide="power"></i> Gastan sin vender: revisa si los apagas</h3>
+      <div class="fz-scroll"><table class="fz-tabla">
+        <thead><tr><th>Anuncio</th><th>Producto</th><th class="n">Gasto</th><th class="n">Clics</th><th class="n">CTR</th></tr></thead>
+        <tbody>${d.sinVender.map(a => `<tr><td>${esc(a.anuncio || "Anuncio")}<small class="gris"> · ${esc(a.campana || "")}</small></td><td>${esc(a.producto || "—")}${a.avatar ? ` (${esc(a.avatar)})` : ""}</td><td class="n rojo">${f(a.gasto)}</td><td class="n">${a.clics}</td><td class="n">${pct(a.ctr)}</td></tr>`).join("")}</tbody>
+      </table></div>` : ""}`}
+  </section>`;
+}
+window.tsMejores = async ({ pais, dias, forzar } = {}) => {
+  if (pais) mejores.pais = pais === "EC" ? "EC" : "CO";
+  if (dias) mejores.dias = dias;
+  mejores.cargando = true; mejores.error = "";
+  const y = window.scrollY; render(); window.scrollTo(0, y);
+  try {
+    mejores.datos = await api("GET", `/api/meta/mejores-anuncios?pais=${mejores.pais}&dias=${mejores.dias}${forzar ? "&forzar=1" : ""}`);
+  } catch (err) { mejores.error = err.message; mejores.datos = null; }
+  mejores.cargando = false;
+  const y2 = window.scrollY; render(); window.scrollTo(0, y2);
 };
 
 // ---------- Biblioteca de ganadores: lo que vendió, para repetirlo ----------

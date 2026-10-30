@@ -446,6 +446,58 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
     }
   });
 
+  // ---------- Tus mejores anuncios de Meta (de todos los productos) y los que gastan sin vender ----------
+  const cacheMejores = new Map();
+  app.get("/api/meta/mejores-anuncios", async (req, res) => {
+    try {
+      const pais = req.query.pais === "EC" ? "EC" : "CO";
+      const dias = [7, 30, 90].includes(Number(req.query.dias)) ? Number(req.query.dias) : 30;
+      const ahora = Date.now() - 5 * 36e5;
+      const hasta = new Date(ahora).toISOString().slice(0, 10), desde = new Date(ahora - (dias - 1) * 864e5).toISOString().slice(0, 10);
+      const cfg = await FinanzasConfig.findOne({ owner: req.user.uid, pais }).lean();
+      const cuentas = cfg?.metaCuentas || [];
+      if (!cuentas.length) return res.json({ desde, hasta, sinCuentas: true, mejores: [], sinVender: [] });
+      const k = `${req.user.uid}|${pais}|${dias}|${cuentas.join(",")}`;
+      const c = cacheMejores.get(k);
+      if (c && Date.now() - c.t < 10 * 6e4 && req.query.forzar !== "1") return res.json(c.datos);
+      const m = await metricasAnuncios(req.user.uid, cuentas, desde, hasta);
+      const moneda = pais === "EC" ? "USD" : "COP";
+      const oficial = await trmHoy();
+      const trm = cfg?.trmManual && cfg?.trm ? cfg.trm : oficial.valor || 4000;
+      const convertir = (v, mon) => (mon === moneda ? v : mon === "USD" && moneda === "COP" ? v * trm : mon === "COP" && moneda === "USD" ? v / trm : v);
+      // A qué producto (y avatar) lleva cada anuncio: por el link de las landings publicadas desde Desarrollo
+      const proys = await Proyecto.find({ owner: req.user.uid }).select("nombre ramas").lean();
+      const porHandle = new Map();
+      for (const pr of proys) for (const [av, r] of Object.entries(pr.ramas || {})) for (const pub of Object.values(r?.publicaciones || {})) if (pub?.handle) porHandle.set(String(pub.handle).toLowerCase(), { producto: pr.nombre, avatar: av });
+      const handleDe = (url) => { try { return decodeURIComponent((String(url).match(/\/products\/([^/?#]+)/i) || [])[1] || "").toLowerCase(); } catch { return ""; } };
+      const lista = m.anuncios.map(a => {
+        const gasto = convertir(a.gasto, a.moneda);
+        const de = porHandle.get(handleDe(a.url)) || null;
+        return {
+          anuncio: a.anuncio, campana: a.campana, url: a.url, texto: a.texto || "", titulo: a.titulo || "", miniatura: a.miniatura || "",
+          producto: de?.producto || "", avatar: de?.avatar || "",
+          gasto, impresiones: a.impresiones, clics: a.clics, compras: a.compras,
+          ctr: a.impresiones ? a.clics / a.impresiones * 100 : null, cpa: a.compras ? gasto / a.compras : null
+        };
+      });
+      const gastos = lista.map(a => a.gasto).sort((a, b) => a - b);
+      const gastoMediano = gastos.length ? gastos[Math.floor(gastos.length / 2)] : 0;
+      const datos = {
+        desde, hasta, moneda, dias,
+        mejores: lista.filter(a => a.compras >= 2).sort((a, b) => a.cpa - b.cpa).slice(0, 12),
+        // Los que más gastan sin una sola compra (para apagarlos): al menos el gasto mediano de tus anuncios
+        sinVender: lista.filter(a => !a.compras && a.gasto >= gastoMediano && a.gasto > 0).sort((a, b) => b.gasto - a.gasto).slice(0, 8),
+        total: { anuncios: lista.length, gasto: lista.reduce((x, a) => x + a.gasto, 0), compras: lista.reduce((x, a) => x + a.compras, 0) },
+        errores: m.cuentas.filter(x => x.error).map(x => x.name), actualizado: new Date()
+      };
+      cacheMejores.set(k, { t: Date.now(), datos });
+      res.json(datos);
+    } catch (err) {
+      console.error("Error leyendo mejores anuncios:", err);
+      res.status(err.status || 500).json({ error: err.status ? err.message : "No se pudo leer Meta" });
+    }
+  });
+
   // ---------- Biblioteca de ganadores: lo que funcionó (avatar, ángulo, copys, TikTok y lo que aprendiste) ----------
   app.get("/api/proyectos-ganadores", async (req, res) => {
     try {

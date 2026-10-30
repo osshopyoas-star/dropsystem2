@@ -5514,3 +5514,22 @@ body.fz-sin-scroll { overflow: hidden; }
 .fz-fugas-cambios small, .fz-fugas td small { color: #64748b; display: block; font-size: 11px; }
 .fz-fugas-acc { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
 @media (max-width: 640px) { .fz-fugas-res { grid-template-columns: 1fr; } .fz-fugas-cambios li { grid-template-columns: 1fr; } }
+
+/* Mis testeos · Tus mejores anuncios */
+.ts-mejores-filtros { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 10px 0; }
+.ts-mejores-filtros select { width: auto; min-width: 160px; flex: 0 0 auto; min-height: 34px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 0 8px; font: inherit; }
+.ts-mejores-filtros .ts-chip { border: 1px solid #cbd5e1; background: #fff; color: #0f172a; border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 13px; cursor: pointer; }
+.ts-mejores-filtros .ts-chip.activo { background: #2563eb; border-color: #2563eb; color: #fff; }
+.ts-ads { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+.ts-ad { display: flex; gap: 12px; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px; background: #fff; }
+.ts-ad > img, .ts-ad-sin { width: 84px; height: 84px; border-radius: 8px; object-fit: cover; flex: none; background: #f1f5f9; display: flex; align-items: center; justify-content: center; color: #94a3b8; }
+.ts-ad-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.ts-ad-info small { color: #64748b; }
+.ts-ad-top { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.ts-ad-num { display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.ts-ad details summary { cursor: pointer; color: #2563eb; font-weight: 600; }
+.ts-ad details p { margin: 6px 0; padding: 8px; background: #f8fafc; border-radius: 8px; max-height: 220px; overflow: auto; }
+.ts-ad .ts-copy-btns a { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #2563eb; }
+.ts-ad .ts-copy-btns svg { width: 12px; height: 12px; }
+.ts-mejores-sub { display: flex; align-items: center; gap: 6px; margin: 16px 0 6px; font-size: 15px; }
+.ts-mejores-sub svg { width: 16px; height: 16px; color: #dc2626; }
