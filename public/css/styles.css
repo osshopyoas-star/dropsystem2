@@ -5549,3 +5549,16 @@ body.fz-sin-scroll { overflow: hidden; }
 .ih-temp-info small { color: #64748b; }
 .ih-temp-info p { margin: 4px 0; color: #334155; }
 .ih-temp-info em { font-style: normal; font-size: 12px; font-weight: 600; color: #1d4ed8; }
+
+/* Inicio · Meta del mes y plata por cobrar */
+.ih-meta .ih-card-head { flex-wrap: wrap; gap: 8px; }
+.ih-meta-edit { display: inline-flex; gap: 6px; align-items: center; }
+.ih-meta-edit input { width: 150px; min-height: 34px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 0 8px; font: inherit; }
+.ih-meta-num { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.ih-meta-num b { font-size: 26px; }
+.ih-meta-num span { color: #64748b; font-size: 13px; }
+.ih-meta-barra { position: relative; height: 12px; border-radius: 999px; background: #e2e8f0; margin: 10px 0 4px; overflow: visible; }
+.ih-meta-barra i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; background: #3b82f6; }
+.ih-meta.bien .ih-meta-barra i, .ih-meta.lograda .ih-meta-barra i { background: #16a34a; }
+.ih-meta.atras .ih-meta-barra i { background: #f59e0b; }
+.ih-meta-barra em { position: absolute; top: -4px; bottom: -4px; width: 2px; background: #0f172a; }

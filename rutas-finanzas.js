@@ -75,6 +75,7 @@ const configSchema = new mongoose.Schema({
   trm: { type: Number, default: null },                           // 1 USD en COP que tú fijaste (si no, la TRM del día)
   trmManual: { type: Boolean, default: false },
   costosOperativos: { type: [mongoose.Schema.Types.Mixed], default: [] },   // { id, mes: "2026-09", desc, valor, moneda }
+  metasMes: { type: mongoose.Schema.Types.Mixed, default: {} },              // { "2026-11": 10000000 } utilidad que quieres ese mes
   ultimaImportacion: { type: Date, default: null },
   actualizado: { type: Date, default: Date.now }
 });
@@ -252,7 +253,7 @@ Sin rodeos, sin inventar datos que no estén en las cifras. Si la publicidad est
         pais: p, cuenta: cfg?.cuenta || "", devPct: cfg?.devPct ?? 25, metaEntrega: cfg?.metaEntrega ?? 70,
         grupos: cfg?.grupos || [], ultimaImportacion: cfg?.ultimaImportacion || null,
         metaCuentas: cfg?.metaCuentas || [], trm: cfg?.trmManual ? cfg.trm : null,
-        trmDia: oficial.valor || null, costosOperativos: cfg?.costosOperativos || [],
+        trmDia: oficial.valor || null, costosOperativos: cfg?.costosOperativos || [], metasMes: cfg?.metasMes || {},
         dias, desde: dias[0] || null, hasta: dias[dias.length - 1] || null
       });
     } catch (err) {
@@ -275,6 +276,13 @@ Sin rodeos, sin inventar datos que no estén en las cifras. Si la publicidad est
         else { set.trm = Math.min(20000, Math.max(100, v)); set.trmManual = true; }
       }
       if (Array.isArray(req.body?.costosOperativos)) set.costosOperativos = limpiarCostosOperativos(req.body.costosOperativos);
+      // Meta de utilidad de un mes: { mes: "2026-11", valor } (0 o vacío la borra)
+      const mm = req.body?.metaMes;
+      if (mm && /^\d{4}-(0[1-9]|1[0-2])$/.test(String(mm.mes))) {
+        const v = Math.min(1e12, Math.max(0, Number(mm.valor) || 0));
+        if (v) set[`metasMes.${mm.mes}`] = v;
+        else { set.actualizado = new Date(); (set.$unset ||= {})[`metasMes.${mm.mes}`] = ""; }
+      }
       if (Array.isArray(req.body?.grupos)) {
         set.grupos = req.body.grupos.slice(0, 100).map(g => ({
           id: String(g?.id || Math.random().toString(36).slice(2, 10)).slice(0, 20),
@@ -282,10 +290,11 @@ Sin rodeos, sin inventar datos que no estén en las cifras. Si la publicidad est
           ids: [...new Set((Array.isArray(g?.ids) ? g.ids : []).map(x => String(x).slice(0, 40)))].slice(0, 50)
         })).filter(g => g.ids.length >= 2);
       }
+      const { $unset, ...soloSet } = set;
       const cfg = await FinanzasConfig.findOneAndUpdate(
-        { owner: req.user.uid, pais: p }, { $set: set, $setOnInsert: { owner: req.user.uid, pais: p } }, { upsert: true, new: true }
+        { owner: req.user.uid, pais: p }, { $set: soloSet, ...($unset ? { $unset } : {}), $setOnInsert: { owner: req.user.uid, pais: p } }, { upsert: true, new: true }
       ).lean();
-      res.json({ ok: true, devPct: cfg.devPct, metaEntrega: cfg.metaEntrega, grupos: cfg.grupos || [], cuenta: cfg.cuenta || "", metaCuentas: cfg.metaCuentas || [], trm: cfg.trmManual ? cfg.trm : null, costosOperativos: cfg.costosOperativos || [] });
+      res.json({ ok: true, metasMes: cfg.metasMes || {}, devPct: cfg.devPct, metaEntrega: cfg.metaEntrega, grupos: cfg.grupos || [], cuenta: cfg.cuenta || "", metaCuentas: cfg.metaCuentas || [], trm: cfg.trmManual ? cfg.trm : null, costosOperativos: cfg.costosOperativos || [] });
     } catch (err) {
       console.error("Error guardando ajustes de finanzas:", err);
       res.status(500).json({ error: "No se pudo guardar" });

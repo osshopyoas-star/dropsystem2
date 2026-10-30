@@ -109,7 +109,11 @@ function numeros() {
     const t = control(d, d);
     porDia.push({ d, pedidos: t.pedidos, utilidad: t.utilidad });
   }
-  return { f, dia, delDia, filasDia, semana, semanaAntes, r30, lg, porDia, ultimo };
+  // Mes en curso (utilidad del Control Diario) y lo que sigue rodando (de los últimos 60 días)
+  const mes = hoyISO().slice(0, 7);
+  const delMes = control(`${mes}-01`, hoyISO());
+  const r60 = reporteFinanciero(f.lineas, { desde: sumarDias(ultimo, -59), hasta: ultimo, grupos, referenciaEntrega: f.config.metaEntrega || 70 });
+  return { f, dia, delDia, filasDia, semana, semanaAntes, r30, lg, porDia, ultimo, mes, delMes, r60 };
 }
 
 // ---------- Pantalla ----------
@@ -165,6 +169,8 @@ function render(view) {
         <span>lo que entró a la wallet menos devoluciones</span>
       </div>
     </section>
+
+    ${tarjetaMeta(n)}
 
     <div class="ih-dos">
       <section class="ih-card">
@@ -299,6 +305,56 @@ window.ihCopiarResumen = async () => {
   catch { const t = document.createElement("textarea"); t.value = txt; document.body.appendChild(t); t.select(); document.execCommand("copy"); t.remove(); }
   const b = document.querySelector(".ih-resumen .ih-btn");
   if (b) { const antes = b.innerHTML; b.innerHTML = "✓ Copiado"; setTimeout(() => { b.innerHTML = antes; iconos(); }, 1500); }
+};
+
+// ---------- Meta del mes y plata por cobrar ----------
+function tarjetaMeta(n) {
+  const meta = Number(n.f.config.metasMes?.[n.mes]) || 0;
+  const nombreMes = new Date(n.mes + "-15T12:00:00Z").toLocaleDateString("es-CO", { month: "long", timeZone: "UTC" });
+  const diasMes = new Date(Date.UTC(+n.mes.slice(0, 4), +n.mes.slice(5, 7), 0)).getUTCDate();
+  const hoy = Number(hoyISO().slice(8, 10));
+  const pasados = Math.max(1, hoy - 1);              // hoy todavía no termina
+  const restantes = Math.max(1, diasMes - pasados);
+  const llevas = n.delMes.utilidad;
+  const proyeccion = llevas / pasados * diasMes;
+  const avance = meta ? Math.max(0, Math.min(100, llevas / meta * 100)) : 0;
+  const esperado = pasados / diasMes * 100;
+  const porDia = meta ? Math.max(0, (meta - llevas) / restantes) : 0;
+  const va = !meta ? "" : llevas >= meta ? "lograda" : proyeccion >= meta ? "bien" : "atras";
+  const e = n.r60.escenarios;
+  return `
+  <div class="ih-dos">
+    <section class="ih-card ih-meta ${va}">
+      <div class="ih-card-head"><h3><i data-lucide="target"></i> Meta de ${nombreMes}</h3>
+        <span class="ih-meta-edit"><input id="ihMeta" type="number" min="0" step="any" value="${meta || ""}" placeholder="Tu meta de utilidad"><button class="ih-btn chico" onclick="ihGuardarMeta()">${meta ? "Cambiar" : "Poner meta"}</button></span></div>
+      ${meta ? `
+      <div class="ih-meta-num"><b>${plata(llevas)}</b><span>de ${plata(meta)} · ${avance.toFixed(0)}%</span></div>
+      <div class="ih-meta-barra"><i style="width:${avance}%"></i><em style="left:${esperado}%" title="Dónde deberías ir hoy"></em></div>
+      <p class="ih-mini">${va === "lograda" ? "¡Meta cumplida! 🎉 Todo lo que venga es extra."
+        : va === "bien" ? `Vas bien: a este ritmo cierras el mes en <b>${plata(proyeccion)}</b>.`
+        : `Vas atrás: a este ritmo cierras en <b>${plata(proyeccion)}</b>. Necesitas <b>${plata(porDia)}</b> por día los ${restantes} días que quedan.`}</p>`
+      : `<p class="ih-mini">Llevas <b>${plata(llevas)}</b> de utilidad en ${nombreMes}. Ponte una meta y te digo si vas al ritmo y cuánto necesitas por día.</p>`}
+      <p class="ih-mini">Utilidad del Control Diario (pedidos del mes, con tu % de devolución estimado y la pauta).</p>
+    </section>
+    <section class="ih-card">
+      <div class="ih-card-head"><h3><i data-lucide="wallet"></i> Plata por cobrar</h3><button class="ih-link" onclick="goTo('reporte-financiero')">Reporte →</button></div>
+      ${e ? `
+      <div class="ih-meta-num"><b class="verde">${plata(e.actual.gana)}</b><span>de ${e.rodando} pedidos rodando</span></div>
+      <p class="ih-mini">Es lo que te entra a la wallet si se entregan como vienes entregando (${e.tasaCerrada === null ? `tu meta de ${n.f.config.metaEntrega || 70}%` : `${Math.round(e.tasaCerrada)}% de los que ya cerraron`}): unos <b>${e.actual.seEntregan}</b> de ${e.rodando}. Los que se devuelvan te costarían unos <b class="rojo">${plata(e.actual.pierde)}</b>.</p>
+      <p class="ih-mini">Si se entregan todos: ${plata(e.optimista.gana)}. Gestionar las novedades a tiempo es lo que más mueve este número.</p>`
+      : `<p class="ih-vacio">No tienes pedidos rodando ahora.</p>`}
+    </section>
+  </div>`;
+}
+window.ihGuardarMeta = async () => {
+  const v = Math.max(0, Number($("ihMeta")?.value) || 0);
+  try {
+    const res = await fetch("/api/finanzas/config", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pais: st.pais, metaMes: { mes: hoyISO().slice(0, 7), valor: v } }) });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(d.error || "No se pudo guardar la meta");
+    st.fin[st.pais].config.metasMes = d.metasMes || {};
+    const y = window.scrollY; render($("view")); window.scrollTo(0, y);
+  } catch (err) { alert(err.message); }
 };
 
 // ---------- Próximas temporadas ----------
