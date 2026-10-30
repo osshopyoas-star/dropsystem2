@@ -8,7 +8,7 @@ import { escapeHTML } from "../core/utils.js";
 import { formatear } from "../core/costeo.js";
 import { leerExcel } from "../core/excel.js";
 import {
-  leerReporteDropi, controlDiario, totalesControl, reporteFinanciero, logistica, rentabilidadProductos,
+  leerReporteDropi, controlDiario, totalesControl, reporteFinanciero, logistica, rentabilidadProductos, fugasDevolucion,
   nombresProductos, claveProducto, NOMBRE_GRUPO, costosPeriodo, mesesEntre, editarReporte
 } from "../core/finanzas.js";
 
@@ -1599,6 +1599,8 @@ function renderLogistica(view) {
       <section class="fz-alerta morado"><b>${r.novedadesActivas.total}</b><div><strong>novedades sin resolver</strong><small>${r.novedadesActivas.porTipo.slice(0, 2).map(([t, n]) => `${esc(t)} (${n})`).join(" · ") || "Nada pendiente"}</small></div><button class="fz-btn chico" onclick="fzLogFiltro('novedades')">Ver pedidos</button></section>
     </div>
 
+    ${seccionFugas(desde, hasta, r.pedidos)}
+
     <div class="fz-kpis seis">
       <div class="fz-kpi grande"><small>TOTAL DE PEDIDOS</small><b>${r.pedidos}</b>${barraApilada(r.estados, r.pedidos)}</div>
       ${["entregado", "devolucion", "cancelado", "pendiente", "transito", "novedad"].map(k => `<div class="fz-kpi"><small><i style="background:${COLOR[k]}"></i>${NOMBRE_GRUPO[k].toUpperCase()}</small><b style="color:${COLOR[k]}">${r.estados[k] || 0}</b><span>${pct(r.pedidos ? (r.estados[k] || 0) / r.pedidos * 100 : 0)} del total</span></div>`).join("")}
@@ -1648,6 +1650,62 @@ function renderLogistica(view) {
   </div>`;
   iconos();
 }
+
+// ---------- ¿Dónde se te devuelven? Ciudades y transportadoras que te quitan plata ----------
+function datosFugas(desde, hasta, pedidos) {
+  const g = gastoRango(desde, hasta);
+  const cpaPromedio = pedidos ? (g.meta + g.tiktok) / pedidos : 0;
+  return { cpaPromedio, ...fugasDevolucion(st.lineas, { desde, hasta, grupos: grupos(), cpaPromedio }) };
+}
+function seccionFugas(desde, hasta, pedidos) {
+  const f = datosFugas(desde, hasta, pedidos);
+  const t = f.tienda;
+  if (!t.cerrados) return "";
+  const pierden = f.criticas.reduce((a, c) => a + Math.min(0, c.neta), 0);
+  const excluir = f.criticas.filter(c => !c.cambio);
+  const lugar = (c) => `${esc(nombrePropio(c.ciudad))}${c.departamento ? ` <small>${esc(nombrePropio(c.departamento))}</small>` : ""}`;
+  // Departamentos: solo si el problema va más allá de las ciudades que ya salen en la lista
+  const deps = f.departamentosCriticos.filter(d => d.cerrados - f.criticas.filter(c => c.departamento.toUpperCase() === d.departamento.toUpperCase()).reduce((a, c) => a + c.cerrados, 0) >= f.minimo);
+  return `
+  <section class="fz-card fz-fugas">
+    <h3><i data-lucide="map-pin-off"></i> ¿Dónde se te devuelven?</h3>
+    <p class="fz-mini">Pedidos ya cerrados (entregados + devueltos) del periodo. La plata de cada ciudad = ganancia de lo entregado − lo que Dropi te cobró por las devoluciones − la pauta de sus pedidos (CPA promedio ${$$(f.cpaPromedio)}${f.cpaPromedio ? "" : ": registra tu pauta en el Control Diario para que cuente"}).</p>
+    <div class="fz-fugas-res">
+      <div><small>DEVOLUCIONES</small><b class="${t.tasaDevolucion >= 30 ? "rojo" : ""}">${pct(t.tasaDevolucion)}</b><span>${t.devueltos} de ${t.cerrados} cerrados</span></div>
+      <div><small>TE COSTARON</small><b class="rojo">${$$(t.costoDevoluciones)}</b><span>lo que Dropi te cobró</span></div>
+      <div><small>CIUDADES QUE TE QUITAN PLATA</small><b class="${f.criticas.length ? "rojo" : "verde"}">${f.criticas.length}</b><span>${f.criticas.length ? `perdiste ${$$(-pierden)} ahí` : "ninguna con " + f.minimo + "+ cerrados"}</span></div>
+    </div>
+    ${f.cambios.length ? `
+    <h4><i data-lucide="repeat"></i> Cambia de transportadora aquí</h4>
+    <ul class="fz-fugas-cambios">${f.cambios.slice(0, 8).map(c => `
+      <li><span>${lugar(c)}</span><span>Con <b>${esc(c.cambio.de)}</b> se entrega el ${pct(c.cambio.entregaDe, 0)}; con <b class="verde">${esc(c.cambio.a)}</b>, el ${pct(c.cambio.entregaA, 0)}.</span></li>`).join("")}</ul>
+    <p class="fz-mini">En Dropi, al despachar a esas ciudades, elige la transportadora que mejor entrega allá.</p>` : ""}
+    ${f.criticas.length ? `
+    <h4><i data-lucide="ban"></i> Ciudades que te quitan plata</h4>
+    <div class="fz-scroll"><table class="fz-tabla">
+      <thead><tr><th>Ciudad</th><th class="n">Cerrados</th><th class="n">Devolución</th><th class="n">Te cobraron</th><th class="n">Plata neta</th><th>Qué hacer</th></tr></thead>
+      <tbody>${f.criticas.slice(0, 20).map(c => `<tr>
+        <td>${lugar(c)}</td><td class="n">${c.cerrados}</td><td class="n rojo">${pct(c.tasaDevolucion, 0)}</td><td class="n">${$$(c.costoDevoluciones)}</td>
+        <td class="n ${c.neta < 0 ? "rojo" : ""}"><b>${$$s(c.neta)}</b></td>
+        <td>${c.cambio ? `Cambia a <b>${esc(c.cambio.a)}</b>` : "Exclúyela en Meta"}</td></tr>`).join("")}</tbody>
+    </table></div>
+    ${excluir.length ? `<div class="fz-fugas-acc"><button class="fz-btn chico" onclick="fzCopiarExcluir()"><i data-lucide="copy"></i> Copiar ${excluir.length} ciudad${excluir.length === 1 ? "" : "es"} para excluir en Meta</button>
+      <small class="fz-mini">En Meta: conjunto de anuncios → Ubicaciones → Excluir → pega la lista. Revísala cada mes: con más pedidos puede cambiar.</small></div>` : ""}
+    ${deps.length ? `<p class="fz-mini">Departamentos completos que te quitan plata (no solo esas ciudades): ${deps.slice(0, 6).map(d => `<b>${esc(nombrePropio(d.departamento))}</b> (${pct(d.tasaDevolucion, 0)} de devolución, ${$$s(d.neta)})`).join(" · ")}.</p>` : ""}`
+    : `<p class="fz-mini verde">Ninguna ciudad con ${f.minimo} o más pedidos cerrados te está quitando plata en este periodo. 👌</p>`}
+    <p class="fz-mini">Solo cuentan ciudades con ${f.minimo} o más pedidos cerrados (con menos, puede ser mala suerte). Una ciudad entra aquí si te quita plata o devuelve más del ${pct(f.umbral, 0)} (tu promedio + 15 puntos).</p>
+  </section>`;
+}
+// "VALLE DEL CAUCA" → "Valle del Cauca"
+const nombrePropio = (t) => String(t).toLowerCase().replace(/(^|[\s-])(\S)/g, (m, a, b) => a + b.toUpperCase()).replace(/\s(Del|De|La|Las|Los|Y)\s/g, (m) => m.toLowerCase());
+window.fzCopiarExcluir = async () => {
+  const [desde, hasta] = periodo(st.log.periodo, st.log.desde, st.log.hasta);
+  const r = logistica(st.lineas, { desde, hasta, grupos: grupos() });
+  const lista = datosFugas(desde, hasta, r.pedidos).criticas.filter(c => !c.cambio)
+    .map(c => [c.ciudad, c.departamento, PAIS_NOMBRE[st.pais]].filter(Boolean).map(nombrePropio).join(", ")).join("\n");
+  try { await navigator.clipboard.writeText(lista); avisar("Lista copiada ✓ Pégala en las exclusiones de ubicación de Meta"); }
+  catch { prompt("Copia la lista:", lista); }
+};
 
 function barraApilada(estados, total) {
   return `<div class="fz-apilada full">${["entregado", "devolucion", "cancelado", "pendiente", "transito", "novedad"].map(k => estados[k] ? `<i style="flex:${estados[k]};background:${COLOR[k]}"></i>` : "").join("")}</div><span>${total ? "repartidos en las seis tarjetas" : ""}</span>`;

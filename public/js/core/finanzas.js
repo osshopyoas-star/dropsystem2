@@ -674,6 +674,68 @@ export function logistica(lineas, { desde, hasta, grupos = [], ahora = new Date(
 }
 
 // =============================================
+// ¿DÓNDE SE TE DEVUELVEN? Ciudades y transportadoras que te quitan plata
+// Solo pedidos ya cerrados (entregados + devueltos). Plata de una ciudad = ganancia de lo entregado
+// − lo que Dropi te cobró por las devoluciones − la pauta de sus pedidos (CPA promedio del periodo × pedidos).
+// =============================================
+export function fugasDevolucion(lineas, { desde, hasta, grupos = [], clave = "", cpaPromedio = 0, minimo = 8, minTransp = 5 } = {}) {
+  const sel = lineas.filter(l => (!desde || l.fecha >= desde) && (!hasta || l.fecha <= hasta) && (!clave || claveProducto(l.productoId, grupos) === clave));
+  const ordenes = porOrden(sel).filter(o => !["cancelado", "pendiente"].includes(o.grupo));
+  const cerrados = ordenes.filter(o => o.grupo === "entregado" || o.grupo === "devolucion");
+  const costoDev = (o) => (o.costoDevolucion > 0 ? o.costoDevolucion : o.flete || 0);
+  const ganancia = (o) => (o.gananciaNula ? o.total - o.proveedor - o.flete - (o.comision || 0) : o.ganancia);
+  const nuevo = (nombre, extra = {}) => ({ nombre, ...extra, pedidos: 0, cerrados: 0, entregados: 0, devueltos: 0, costoDevoluciones: 0, gananciaEntregados: 0, transp: new Map() });
+  const sumar = (r, o) => {
+    r.pedidos++;
+    if (o.grupo === "entregado") { r.cerrados++; r.entregados++; r.gananciaEntregados += ganancia(o); }
+    else if (o.grupo === "devolucion") { r.cerrados++; r.devueltos++; r.costoDevoluciones += costoDev(o); }
+    else return;
+    const t = o.transportadora || "Sin dato";
+    if (!r.transp.has(t)) r.transp.set(t, { nombre: t, cerrados: 0, entregados: 0 });
+    const x = r.transp.get(t); x.cerrados++; if (o.grupo === "entregado") x.entregados++;
+  };
+  const cierra = (r) => {
+    const pauta = cpaPromedio * r.pedidos;
+    const transportadoras = [...r.transp.values()].map(t => ({ ...t, entrega: t.cerrados ? t.entregados / t.cerrados * 100 : null })).sort((a, b) => b.cerrados - a.cerrados);
+    const comparables = transportadoras.filter(t => t.cerrados >= minTransp);
+    let cambio = null;
+    if (comparables.length >= 2) {
+      const mejor = comparables.reduce((a, b) => (b.entrega > a.entrega ? b : a)), principal = comparables[0];
+      if (mejor !== principal && mejor.entrega - principal.entrega >= 15) cambio = { de: principal.nombre, a: mejor.nombre, entregaDe: principal.entrega, entregaA: mejor.entrega };
+    }
+    const { transp, ...resto } = r;
+    return {
+      ...resto, transportadoras, cambio, pauta,
+      tasaDevolucion: r.cerrados ? r.devueltos / r.cerrados * 100 : null,
+      neta: r.gananciaEntregados - r.costoDevoluciones - pauta
+    };
+  };
+  const agrupar = (clv, extra) => {
+    const m = new Map();
+    for (const o of ordenes) {
+      const k = clv(o);
+      if (!m.has(k)) m.set(k, nuevo(k, extra(o)));
+      sumar(m.get(k), o);
+    }
+    return [...m.values()].map(cierra);
+  };
+  const tienda = cierra(ordenes.reduce((r, o) => (sumar(r, o), r), nuevo("Toda la tienda")));
+  const umbral = Math.max(50, (tienda.tasaDevolucion ?? 0) + 15);
+  const ciudades = agrupar(o => `${sinTildes(o.ciudad) || "SIN DATO"}|${sinTildes(o.departamento)}`, o => ({ ciudad: txt(o.ciudad) || "Sin dato", departamento: txt(o.departamento) }));
+  const departamentos = agrupar(o => sinTildes(o.departamento) || "SIN DATO", o => ({ departamento: txt(o.departamento) || "Sin dato" }));
+  // Críticas: suficientes pedidos cerrados y, o te quitan plata, o devuelven muy por encima de tu promedio
+  const critica = (r) => r.cerrados >= minimo && (r.neta < 0 || r.tasaDevolucion >= umbral);
+  return {
+    tienda, umbral, minimo,
+    ciudades: ciudades.sort((a, b) => a.neta - b.neta),
+    criticas: ciudades.filter(critica).sort((a, b) => a.neta - b.neta),
+    departamentosCriticos: departamentos.filter(critica).sort((a, b) => a.neta - b.neta),
+    cambios: ciudades.filter(r => r.cambio && r.cerrados >= minimo).sort((a, b) => b.cerrados - a.cerrados),
+    transportadoras: agrupar(o => o.transportadora || "Sin dato", () => ({})).filter(t => t.cerrados > 0).sort((a, b) => b.cerrados - a.cerrados)
+  };
+}
+
+// =============================================
 // TESTEOS: cómo le va a un producto en un rango (pedidos de Dropi + pauta)
 // =============================================
 const normal = (s) => sinTildes(s).replace(/[^A-Z0-9]+/g, " ").trim();

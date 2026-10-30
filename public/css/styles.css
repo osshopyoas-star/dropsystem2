@@ -5500,3 +5500,17 @@ body.fz-sin-scroll { overflow: hidden; }
 .ts-ganador summary { cursor: pointer; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
 .ts-ganador summary small { color: #64748b; }
 .ts-ganador-nota { margin: 10px 0; padding: 8px 12px; background: #fffbeb; border-radius: 8px; font-size: 13px; }
+
+/* Logística · ¿Dónde se te devuelven? */
+.fz-fugas h4 { display: flex; align-items: center; gap: 6px; margin: 16px 0 6px; }
+.fz-fugas h4 svg { width: 16px; height: 16px; }
+.fz-fugas-res { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
+.fz-fugas-res > div { border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 2px; }
+.fz-fugas-res small { font-size: 11px; color: #64748b; font-weight: 700; }
+.fz-fugas-res b { font-size: 22px; }
+.fz-fugas-res span { font-size: 12px; color: #64748b; }
+.fz-fugas-cambios { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.fz-fugas-cambios li { display: grid; grid-template-columns: minmax(140px, 220px) 1fr; gap: 10px; padding: 8px 12px; border-radius: 10px; background: #eff6ff; }
+.fz-fugas-cambios small, .fz-fugas td small { color: #64748b; display: block; font-size: 11px; }
+.fz-fugas-acc { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+@media (max-width: 640px) { .fz-fugas-res { grid-template-columns: 1fr; } .fz-fugas-cambios li { grid-template-columns: 1fr; } }
