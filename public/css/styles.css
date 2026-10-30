@@ -5461,3 +5461,12 @@ body.fz-sin-scroll { overflow: hidden; }
 .pl-margen-muestra i { position: absolute; left: 0; right: 0; bottom: 0; background: #22c55e; opacity: .85; }
 .pl-margen-muestra b { position: absolute; left: 4px; right: 4px; height: 6px; background: #fff; border-radius: 2px; }
 @media (max-width: 640px) { .pl-margenes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Calculadora · Tus números reales de Dropi */
+.cal-real { display: flex; flex-direction: column; gap: 8px; }
+.cal-real-tit { margin: 4px 0 0; font-size: 13px; font-weight: 700; }
+.cal-real-fila { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 10px 12px; border: 1px solid #bfdbfe; background: #eff6ff; border-radius: 10px; font-size: 13px; }
+.cal-real-fila > span:first-child { flex: 1 1 100%; }
+.cal-real-fila .cal-btn { margin-left: auto; }
+.cal-real-ojo { color: #b45309; font-size: 12px; flex: 1 1 100%; }
+.cal-btn.chico { padding: 6px 12px; font-size: 12px; min-height: 0; }

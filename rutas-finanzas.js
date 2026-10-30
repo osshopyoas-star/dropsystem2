@@ -7,7 +7,7 @@
 import mongoose from "mongoose";
 import fetch from "node-fetch";
 import { gastoCampanas } from "./rutas-meta.js";
-import { claveProducto, emparejarCampana, numerosReales } from "./public/js/core/finanzas.js";
+import { claveProducto, emparejarCampana, numerosReales, tasasReales } from "./public/js/core/finanzas.js";
 
 const PAISES = ["CO", "EC"];
 const MAX_LINEAS = 20000;
@@ -304,6 +304,21 @@ Sin rodeos, sin inventar datos que no estén en las cifras. Si la publicidad est
       res.json({ pais: p, ...n, ultimaImportacion: cfg?.ultimaImportacion || null });
     } catch (err) {
       console.error("Error leyendo números de prueba social:", err);
+      res.status(500).json({ error: "No se pudieron leer tus números de Dropi" });
+    }
+  });
+
+  // Tus % reales de cancelados y devoluciones, y el flete promedio (para la Calculadora)
+  app.get("/api/finanzas/tasas", async (req, res) => {
+    try {
+      const p = pais(req.query.pais);
+      const [lineas, cfg] = await Promise.all([
+        DropiLinea.find({ owner: req.user.uid, pais: p }).select("ordenId productoId fecha estatus flete total proveedor costoDevolucion comision cantidad ganancia -_id").limit(60000).lean(),
+        FinanzasConfig.findOne({ owner: req.user.uid, pais: p }).select("grupos ultimaImportacion").lean()
+      ]);
+      res.json({ pais: p, ...tasasReales(lineas, { dropiId: String(req.query.dropiId || "").slice(0, 40), grupos: cfg?.grupos || [] }), ultimaImportacion: cfg?.ultimaImportacion || null });
+    } catch (err) {
+      console.error("Error leyendo tasas reales:", err);
       res.status(500).json({ error: "No se pudieron leer tus números de Dropi" });
     }
   });

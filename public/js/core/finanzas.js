@@ -479,6 +479,26 @@ export function numerosReales(lineas, { dropiId = "", grupos = [] } = {}) {
   }
   return { tienda: cuenta(lineas), producto };
 }
+// Tus % reales para la Calculadora: cancelados sobre pedidos, devoluciones sobre los que ya cerraron (entregados + devueltos) y el flete promedio
+export function tasasReales(lineas, { dropiId = "", grupos = [] } = {}) {
+  const calc = (sel) => {
+    const os = porOrden(sel);
+    const n = (g) => os.filter(o => o.grupo === g).length;
+    const ent = n("entregado"), dev = n("devolucion"), can = n("cancelado"), cerrados = ent + dev;
+    const fletes = os.filter(o => !["cancelado", "pendiente"].includes(o.grupo)).map(o => o.flete).filter(x => x > 0);
+    return {
+      pedidos: os.length, cancelados: can, entregados: ent, devoluciones: dev, cerrados,
+      canceladosPct: os.length ? can / os.length * 100 : null,
+      devolucionesPct: cerrados ? dev / cerrados * 100 : null,
+      flete: fletes.length ? fletes.reduce((a, b) => a + b, 0) / fletes.length : null
+    };
+  };
+  const id = String(dropiId || "").trim();
+  const clave = id ? claveProducto(id, grupos) : "";
+  const delProducto = id ? lineas.filter(l => claveProducto(l.productoId, grupos) === clave) : [];
+  return { tienda: calc(lineas), producto: delProducto.length ? calc(delProducto) : null };
+}
+
 // "+5.500": redondeado hacia ABAJO para que siempre sea verdad
 export function cifraPrueba(n) {
   const v = Math.floor(Number(n) || 0);

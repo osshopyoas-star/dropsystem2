@@ -97,6 +97,7 @@ function render() {
             <input id="calDevoluciones" type="range" min="0" max="60" step="1" oninput="calCalcular()">
           </div>
           <small class="cal-hint">Usa números algo más altos que tu promedio: es mejor que el precio aguante una semana mala.</small>
+          <div id="calReal" class="cal-real"></div>
           <small id="calEfectividad" class="cal-efect"></small>
 
           <div class="cal-row">
@@ -459,11 +460,54 @@ function llenarProductos(seleccion = "") {
     delPais.map(p => `<option value="${esc(p._id)}" ${String(p._id) === String(seleccion) ? "selected" : ""}>${esc(p.nombre)}${p.dropiId ? ` · Dropi ${esc(p.dropiId)}` : ""}${conCosteo.has(String(p._id)) ? " — ✓ costeado" : ""}</option>`).join("");
 }
 
+// ---------- Tus números reales de Dropi (Finanzas): cancelados, devoluciones y flete ----------
+const tasas = new Map();   // "CO|dropiId" → respuesta | "cargando" | { error }
+function pintarReal() {
+  const el = $("calReal");
+  if (!el) return;
+  const prod = productos.find(p => String(p._id) === String($("calProducto")?.value || ""));
+  const k = `${pais()}|${prod?.dropiId || ""}`;
+  const t = tasas.get(k);
+  if (!t) {
+    tasas.set(k, "cargando");
+    api("GET", `/api/finanzas/tasas?pais=${pais()}&dropiId=${encodeURIComponent(prod?.dropiId || "")}`)
+      .then(r => { tasas.set(k, r); pintarReal(); })
+      .catch(e => { tasas.set(k, { error: e.message }); pintarReal(); });
+    el.innerHTML = `<small class="cal-hint">Buscando tus números reales de Dropi…</small>`;
+    return;
+  }
+  if (t === "cargando") return;
+  if (t.error || !t.tienda?.pedidos) { el.innerHTML = t.error ? "" : `<small class="cal-hint">Sube tu Excel de Dropi en Finanzas y aquí verás tu % real de cancelados y devoluciones.</small>`; return; }
+  const pct = (v) => (v === null ? "—" : `${Math.round(v)}%`);
+  const fila = (x, titulo, cual) => !x?.pedidos ? "" : `
+    <div class="cal-real-fila">
+      <span><b>${titulo}</b> · ${x.pedidos} pedidos</span>
+      <span>Cancelados <b>${pct(x.canceladosPct)}</b> · Devoluciones <b>${pct(x.devolucionesPct)}</b>${x.cerrados ? ` <small>(de ${x.cerrados} cerrados)</small>` : ""}${x.flete ? ` · Flete <b>${formatear(x.flete, pais())}</b>` : ""}</span>
+      ${x.cerrados < 20 ? `<small class="cal-real-ojo">Pocos pedidos cerrados: tómalo con cuidado.</small>` : ""}
+      <button type="button" class="cal-btn ghost chico" onclick="calUsarReal('${cual}')">Usar estos</button>
+    </div>`;
+  el.innerHTML = `<p class="cal-real-tit">📊 Tus números reales en Dropi</p>
+    ${prod?.dropiId ? (t.producto ? fila(t.producto, "Este producto", "producto") : `<small class="cal-hint">Este producto (Dropi ${esc(prod.dropiId)}) todavía no tiene pedidos en tus Excel.</small>`) : ""}
+    ${fila(t.tienda, "Toda la tienda", "tienda")}`;
+}
+window.calUsarReal = (cual) => {
+  const prod = productos.find(p => String(p._id) === String($("calProducto")?.value || ""));
+  const x = tasas.get(`${pais()}|${prod?.dropiId || ""}`)?.[cual];
+  if (!x) return;
+  const set = (id, v) => { const el = $(id); if (el && v !== null && v !== undefined) el.value = v; };
+  // hacia arriba: mejor que el precio aguante una semana mala
+  if (x.canceladosPct !== null) set("calCancelados", Math.min(60, Math.ceil(x.canceladosPct)));
+  if (x.devolucionesPct !== null) set("calDevoluciones", Math.min(60, Math.ceil(x.devolucionesPct)));
+  if (x.flete) set("calFlete", Math.round(x.flete));
+  calCalcular();
+};
+
 function infoProducto() {
   const id = $("calProducto")?.value;
   const info = $("calInfoProducto");
   const c = costeos.find(x => String(x.productoId) === String(id));
   if (info) info.textContent = !id ? "" : c ? `Costeo guardado el ${new Date(c.actualizado).toLocaleDateString("es-CO")} — lo cargamos.` : "Sin costeo guardado todavía.";
+  pintarReal();
 }
 
 window.calElegirProducto = function () {
@@ -651,5 +695,6 @@ registrarRuta("calculadora", async (view) => {
     llenarProductos();
     ponerDatos({});
   }
+  pintarReal();
   calCalcular();
 });
