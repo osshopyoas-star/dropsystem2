@@ -6,7 +6,7 @@
 import { registrarRuta } from "./navegacion.js";
 import { escapeHTML } from "../core/utils.js";
 import { formatear } from "../core/costeo.js";
-import { controlDiario, totalesControl, reporteFinanciero, logistica } from "../core/finanzas.js";
+import { controlDiario, totalesControl, reporteFinanciero, logistica, flujoCaja } from "../core/finanzas.js";
 import { numerosTesteo } from "./testeos.js";
 import { proximasTemporadas } from "../core/temporadas.js";
 
@@ -171,6 +171,7 @@ function render(view) {
     </section>
 
     ${tarjetaMeta(n)}
+    ${tarjetaFlujo(n)}
 
     <div class="ih-dos">
       <section class="ih-card">
@@ -309,6 +310,41 @@ window.ihCopiarResumen = async () => {
   const b = document.querySelector(".ih-resumen .ih-btn");
   if (b) { const antes = b.innerHTML; b.innerHTML = "✓ Copiado"; setTimeout(() => { b.innerHTML = antes; iconos(); }, 1500); }
 };
+
+// ---------- Flujo de caja de los próximos 7 días ----------
+const saldoGuardado = () => { try { return Number(localStorage.getItem(`ih_saldo_${st.pais}`)) || 0; } catch { return 0; } };
+function tarjetaFlujo(n) {
+  const cfg = n.f.config, hoy = hoyISO();
+  // Pauta diaria: promedio de los últimos 7 días registrados
+  let gasto = 0;
+  for (const p of Object.values(n.f.pauta)) if (p.fecha > sumarDias(hoy, -8) && p.fecha <= hoy) gasto += (Number(p.meta) || 0) + (Number(p.tiktok) || 0);
+  const gastoDiario = gasto / 7;
+  // Costos operativos del mes, por día (lo que esté en otra moneda se pasa con la TRM)
+  const moneda = st.pais === "EC" ? "USD" : "COP", trm = Number(cfg.trm || cfg.trmDia) || 4000;
+  const mes = hoy.slice(0, 7), diasMes = new Date(Date.UTC(+mes.slice(0, 4), +mes.slice(5, 7), 0)).getUTCDate();
+  const op = (cfg.costosOperativos || []).filter(c => c.mes === mes).reduce((a, c) => a + (c.moneda === moneda ? c.valor : c.moneda === "USD" ? c.valor * trm : c.valor / trm), 0) / diasMes;
+  const saldo = saldoGuardado();
+  const fc = flujoCaja(n.f.lineas, { hoy, gastoDiario, operativosDiario: op, saldo, grupos: cfg.grupos || [] });
+  const max = Math.max(1, ...fc.dias.map(d => Math.abs(d.saldo)));
+  const dia = (iso) => new Date(iso + "T12:00:00Z").toLocaleDateString("es-CO", { weekday: "short", day: "numeric", timeZone: "UTC" });
+  return `
+  <section class="ih-card ih-flujo">
+    <div class="ih-card-head"><h3><i data-lucide="landmark"></i> Flujo de caja · próximos 7 días</h3>
+      <span class="ih-meta-edit"><small>Plata que tienes hoy</small><input id="ihSaldo" type="number" step="any" value="${saldo || ""}" placeholder="Wallet + cuenta" onchange="ihSaldo(this.value)"></span></div>
+    ${!saldo ? `<p class="ih-flujo-aviso">Esta semana te entran unos <b class="verde">${plata(fc.entra)}</b> y salen unos <b class="rojo">${plata(fc.sale)}</b>. Escribe la plata que tienes hoy y te digo si te alcanza día por día.</p>`
+      : fc.primerCorto ? `<p class="ih-flujo-aviso rojo">⚠️ El <b>${dia(fc.primerCorto.fecha)}</b> te quedarías corto (${plata(fc.primerCorto.saldo)}). Baja la pauta o guarda plata para esos días.</p>`
+      : `<p class="ih-flujo-aviso verde">Te alcanza para la pauta de toda la semana. Cierras con unos <b>${plata(fc.dias[fc.dias.length - 1].saldo)}</b>.</p>`}
+    <div class="ih-flujo-dias">${fc.dias.map(d => `
+      <div title="Entra ${plata(d.entra)} · sale ${plata(d.pauta + d.operativos + d.devoluciones)} (pauta ${plata(d.pauta)}, operativos ${plata(d.operativos)}, devoluciones ${plata(d.devoluciones)})">
+        <span class="ih-flujo-barra"><i class="${d.saldo < 0 ? "neg" : ""}" style="height:${Math.abs(d.saldo) / max * 100}%"></i></span>
+        <b class="${d.saldo < 0 ? "rojo" : ""}">${plata(d.saldo)}</b>
+        <small>${dia(d.fecha)}</small>
+        <em>+${plata(d.entra)}</em>
+      </div>`).join("")}</div>
+    <p class="ih-mini">Entra: tus ${fc.rodando} pedidos rodando y los nuevos (unos ${fc.pedidosDia.toFixed(1)} al día) cuando se entreguen (tardan unos ${fc.diasEntrega} días; se entrega el ${fc.tasa.toFixed(0)}%). Sale: tu pauta (${plata(gastoDiario)} al día, promedio de la última semana), costos operativos (${plata(op)} al día) y las devoluciones. Es una estimación: Dropi puede tardar en liberarte la plata.</p>
+  </section>`;
+}
+window.ihSaldo = (v) => { try { localStorage.setItem(`ih_saldo_${st.pais}`, String(Number(v) || 0)); } catch {} const y = window.scrollY; render($("view")); window.scrollTo(0, y); };
 
 // ---------- Meta del mes y plata por cobrar ----------
 function tarjetaMeta(n) {

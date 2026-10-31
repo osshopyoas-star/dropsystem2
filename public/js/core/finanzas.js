@@ -934,3 +934,51 @@ export function compararReportes(ra, rb) {
     empeoro: filas.filter(f => f.estado === "peor").sort((x, y) => peso(y) - peso(x)).slice(0, 3)
   };
 }
+
+// =============================================
+// FLUJO DE CAJA DE LOS PRÓXIMOS DÍAS
+// Entra: la ganancia de los pedidos rodando que se entreguen (con tu tasa real), el día en que suelen entregarse
+// (fecha del pedido + tus días reales de entrega). Sale: tu pauta diaria, tus costos operativos y las devoluciones.
+// saldo: la plata que tienes hoy (wallet + cuenta). Es una estimación para no quedarte sin plata para la pauta.
+// =============================================
+export function flujoCaja(lineas, { hoy, dias = 7, gastoDiario = 0, operativosDiario = 0, saldo = 0, grupos = [] } = {}) {
+  const sumar = (iso, n) => { const d = new Date(iso + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+  const desde = sumar(hoy, -60);
+  const ordenes = porOrden(lineas.filter(l => l.fecha >= desde && l.fecha <= hoy));
+  const entregados = ordenes.filter(o => o.grupo === "entregado"), devueltos = ordenes.filter(o => o.grupo === "devolucion");
+  const cerrados = entregados.length + devueltos.length;
+  const tasa = cerrados >= 10 ? entregados.length / cerrados : 0.6;
+  // Días reales del pedido a la entrega (último movimiento de los entregados)
+  const tiempos = entregados.map(o => o.fechaUltMov ? (new Date(o.fechaUltMov) - new Date(o.fecha)) / 864e5 : null).filter(x => x !== null && x >= 0 && x <= 30).sort((a, b) => a - b);
+  const diasEntrega = tiempos.length ? Math.round(tiempos[Math.floor(tiempos.length / 2)]) : 4;
+  const devProm = prom(devueltos.map(o => o.costoDevolucion).filter(x => x > 0)) || 0;
+  const ganancia = (o) => (o.gananciaNula ? o.total - o.proveedor - o.flete - (o.comision || 0) : o.ganancia);
+  const rodando = ordenes.filter(o => o.grupo === "transito" || o.grupo === "novedad");
+  const plan = Array.from({ length: dias }, (_, i) => ({ fecha: sumar(hoy, i + 1), entra: 0, devoluciones: 0, pauta: gastoDiario, operativos: operativosDiario, pedidos: 0 }));
+  for (const o of rodando) {
+    // Si ya pasó el día en que debía llegar, se cuenta en los próximos 2 días
+    let i = Math.round((new Date(sumar(o.fecha, diasEntrega)) - new Date(sumar(hoy, 1))) / 864e5);
+    if (i < 0) i = Math.min(1, dias - 1);
+    if (i >= dias) continue;
+    plan[i].entra += ganancia(o) * tasa;
+    plan[i].devoluciones += (devProm || o.flete) * (1 - tasa);
+    plan[i].pedidos++;
+  }
+  // Pedidos nuevos (si sigues pautando igual): los de los próximos días también se entregan después de tus días de entrega
+  const semana = ordenes.filter(o => o.fecha > sumar(hoy, -7) && o.grupo !== "cancelado").length;
+  const pedidosDia = semana / 7;
+  const ganProm = prom(entregados.map(ganancia));
+  plan.forEach((d, i) => {
+    if (i + 1 <= diasEntrega || !pedidosDia || !ganProm) return;
+    d.nuevos = pedidosDia * ganProm * tasa;
+    d.entra += d.nuevos;
+    d.devoluciones += pedidosDia * (devProm || 0) * (1 - tasa);
+  });
+  let acumulado = Number(saldo) || 0;
+  for (const d of plan) { d.neto = d.entra - d.devoluciones - d.pauta - d.operativos; acumulado += d.neto; d.saldo = acumulado; }
+  return {
+    dias: plan, tasa: tasa * 100, diasEntrega, rodando: rodando.length, pedidosDia,
+    entra: plan.reduce((a, d) => a + d.entra, 0), sale: plan.reduce((a, d) => a + d.devoluciones + d.pauta + d.operativos, 0),
+    primerCorto: plan.find(d => d.saldo < 0) || null
+  };
+}
