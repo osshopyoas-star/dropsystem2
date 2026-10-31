@@ -5906,3 +5906,9 @@ main .cal-page input:focus, main .cal-page select:focus, main .pl-page input:foc
 .ih-grafica i.pierde { background: linear-gradient(180deg, #f87171, #dc2626); box-shadow: none; }
 .ih-progreso i { background: linear-gradient(90deg, var(--cx-azul2), var(--cx-neon)); }
 .bp-filtro.activo, .bp-filtro.activo:hover { background: linear-gradient(135deg, var(--cx-azul), var(--cx-azul2)); border-color: transparent; color: #fff; box-shadow: 0 4px 12px -4px rgba(37, 99, 235, .55); }
+
+/* Mis testeos · conversión de la landing */
+.ts-conv-tit { display: flex; align-items: center; gap: 6px; margin: 16px 0 6px; font-size: 14px; }
+.ts-conv-tit svg { width: 16px; height: 16px; color: var(--cx-azul2); }
+.ts-conv-diag { margin: 8px 0 0; padding-left: 18px; font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
+.ts-conv-aviso { margin: 12px 0; padding: 10px 12px; border-radius: 10px; background: #fffbeb; color: #92400e; font-size: 13px; }

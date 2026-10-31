@@ -29,6 +29,7 @@ import { ESTRUCTURAS_AD, FORMATOS_AD, MAX_ADS, compararAvatares, fatigaAnuncios 
 import { metricasAnuncios } from "./rutas-meta.js";
 import { FinanzasConfig, trmHoy } from "./rutas-finanzas.js";
 import { Costeo } from "./rutas-costeos.js";
+import { conversionLandings, tiendaDe } from "./rutas-shopify.js";
 import { ofertasTemporada } from "./public/js/core/costeo.js";
 import { ImagenLanding } from "./modelo-imagenes.js";
 import { tiposDe, elegirVariante, formatoImagen, varianteDe, claveDe } from "./public/js/core/plantilla.js";
@@ -609,6 +610,46 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
       const rama = await actualizarRama(x.p, x.av, (actual) => ({ ...actual, kitsTemporada: { ...(actual.kitsTemporada || {}), [temporada.id]: kit } }));
       res.json({ kit, bloqueEstilo: rama?.bloqueEstilo || x.r.bloqueEstilo || "" });
     } catch (err) { errorIA(res, err, "el kit de temporada"); }
+  });
+
+  // ---------- Conversión de las landings de cada avatar (visitas y compras de Shopify) ----------
+  const cacheConversion = new Map();
+  app.get("/api/proyectos/:id/conversion", async (req, res) => {
+    try {
+      const p = await cargar(req, res); if (!p) return;
+      const o = plano(p);
+      const dias = [7, 14, 30, 90].includes(Number(req.query.dias)) ? Number(req.query.dias) : 30;
+      const avatares = Object.entries(o.ramas || {}).filter(([av]) => AVATARES_VALIDOS.includes(av)).sort(([a], [b]) => a.localeCompare(b))
+        .map(([id, r]) => ({ id, pubs: Object.values(r.publicaciones || {}).filter(x => x?.handle && x?.tiendaId) }));
+      if (!avatares.some(a => a.pubs.length)) return res.json({ dias, sinLanding: true, avatares: [] });
+      const k = `${req.user.uid}|${o._id}|${dias}`;
+      const c = cacheConversion.get(k);
+      if (c && Date.now() - c.t < 30 * 6e4 && req.query.forzar !== "1") return res.json(c.datos);
+      // Una consulta por tienda
+      const porTienda = new Map();
+      for (const a of avatares) for (const x of a.pubs) porTienda.set(String(x.tiendaId), null);
+      let problema = null;
+      for (const tid of porTienda.keys()) {
+        try {
+          const t = await tiendaDe(req.user.uid, tid);
+          if (t) porTienda.set(tid, await conversionLandings(t, dias));
+        } catch (e) { problema = { motivo: e.motivo || "error", error: e.message }; }
+      }
+      const filas = avatares.map(a => {
+        let sesiones = 0, convertidas = 0;
+        for (const x of a.pubs) {
+          const d = porTienda.get(String(x.tiendaId))?.get(`/products/${String(x.handle).toLowerCase()}`);
+          if (d) { sesiones += d.sesiones; convertidas += d.convertidas; }
+        }
+        return { id: a.id, landings: a.pubs.length, sesiones, compras: Math.round(convertidas), conversion: sesiones ? convertidas / sesiones * 100 : null };
+      });
+      const datos = { dias, avatares: filas, ...(problema && !filas.some(f => f.sesiones) ? problema : {}), actualizado: new Date() };
+      if (!datos.error) cacheConversion.set(k, { t: Date.now(), datos });
+      res.json(datos);
+    } catch (err) {
+      console.error("Error leyendo conversión:", err);
+      res.status(500).json({ error: "No se pudo leer Shopify" });
+    }
   });
 
   // ---------- Biblioteca de ganadores: lo que funcionó (avatar, ángulo, copys, TikTok y lo que aprendiste) ----------

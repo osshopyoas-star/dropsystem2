@@ -13,7 +13,7 @@ import { VERSION_SECCION, versionDeSeccion } from "./public/js/core/seccion-shop
 
 export const API_VERSION = () => process.env.SHOPIFY_API_VERSION || "2026-01";
 export const PERMISOS = ["write_products", "write_files"];
-export const PERMISOS_OPCIONALES = ["read_themes", "write_publications"];     // listar plantillas del tema · poner el producto en el canal Tienda online
+export const PERMISOS_OPCIONALES = ["read_themes", "write_publications", "read_reports"];     // listar plantillas del tema · poner el producto en el canal Tienda online · visitas y conversión de las landings
 const MAX_TIENDAS = 5;
 
 const tiendaSchema = new mongoose.Schema({
@@ -130,6 +130,39 @@ export async function gql(t, query, variables = {}, intento = 0) {
     throw new ErrorShopify(`Shopify: ${msg.slice(0, 300)}`, 502);
   }
   return j.data;
+}
+
+// ---------- Visitas y conversión por landing (ShopifyQL, permiso read_reports) ----------
+// → Map("/products/handle" → { sesiones, conversion }) · conversion en % (Shopify la da en decimal: 0.016 = 1,6%)
+// Si falta el permiso o el plan de la tienda no trae sesiones, lanza ErrorShopify con motivo "permiso" o "plan".
+export async function conversionLandings(t, dias = 30) {
+  const consulta = `FROM sessions SHOW sessions, conversion_rate GROUP BY landing_page_path SINCE -${Math.max(1, Math.min(365, Math.round(dias)))}d UNTIL today ORDER BY sessions DESC LIMIT 1000`;
+  let data;
+  try {
+    data = await gql(t, `query Conversion($q: String!) { shopifyqlQuery(query: $q) { parseErrors tableData { columns { name } rows } } }`, { q: consulta });
+  } catch (e) {
+    if (/permis|scope|access/i.test(e.message || "")) { const x = new ErrorShopify("A la app de Shopify le falta el permiso read_reports para ver visitas y conversión.", 400); x.motivo = "permiso"; throw x; }
+    throw e;
+  }
+  const r = data?.shopifyqlQuery;
+  if (r?.parseErrors?.length) {
+    const x = new ErrorShopify(`Shopify no entregó las visitas: ${String(r.parseErrors.join("; ")).slice(0, 200)}`, 400);
+    x.motivo = /sessions|plan|not available|access/i.test(r.parseErrors.join(" ")) ? "plan" : "error";
+    throw x;
+  }
+  const cols = (r?.tableData?.columns || []).map(c => c.name);
+  const out = new Map();
+  for (const fila of r?.tableData?.rows || []) {
+    const v = (k) => (Array.isArray(fila) ? fila[cols.indexOf(k)] : fila?.[k]);
+    const ruta = String(v("landing_page_path") || "").toLowerCase().split("?")[0].replace(/\/$/, "");
+    if (!ruta.startsWith("/products/")) continue;
+    const previo = out.get(ruta) || { sesiones: 0, convertidas: 0 };
+    const ses = Number(v("sessions")) || 0, conv = Number(v("conversion_rate")) || 0;
+    previo.sesiones += ses; previo.convertidas += ses * conv;
+    out.set(ruta, previo);
+  }
+  for (const x of out.values()) x.conversion = x.sesiones ? x.convertidas / x.sesiones * 100 : null;
+  return out;
 }
 
 const erroresUsuario = (r) => {

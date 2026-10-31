@@ -528,7 +528,11 @@ window.tsAvatares = async (proyectoId, productoId, forzar = false) => {
   const desde = p?.testeo?.inicio ? new Date(p.testeo.inicio).toISOString().slice(0, 10) : "";
   const m = modalTs(`<h3><i data-lucide="split"></i> Avatar A vs B · ${esc(p?.nombre || "")}</h3><p class="est-muted">Leyendo tus anuncios de Meta…</p>`);
   try {
-    const r = await api("GET", `/api/proyectos/${proyectoId}/meta-avatares?desde=${desde}${forzar ? "&forzar=1" : ""}`);
+    const dias = desde ? Math.min(90, Math.max(7, Math.ceil((Date.now() - new Date(desde)) / 864e5))) : 30;
+    const [r, conv] = await Promise.all([
+      api("GET", `/api/proyectos/${proyectoId}/meta-avatares?desde=${desde}${forzar ? "&forzar=1" : ""}`),
+      api("GET", `/api/proyectos/${proyectoId}/conversion?dias=${[7, 14, 30, 90].find(d => d >= dias) || 90}${forzar ? "&forzar=1" : ""}`).catch(e => ({ error: e.message }))
+    ]);
     if (!document.body.contains(m)) return;
     const f = (v) => (v === null || v === undefined ? "—" : formatear(v, pais));
     const pct = (v) => (v === null ? "—" : `${v.toFixed(2)}%`);
@@ -545,6 +549,7 @@ window.tsAvatares = async (proyectoId, productoId, forzar = false) => {
             .map(([t, fn]) => `<tr><td>${t}</td>${r.filas.map(x => `<td class="n ${g === x.id ? "gana" : ""}">${fn(x)}</td>`).join("")}</tr>`).join("")}
         </tbody>
       </table></div>
+      ${bloqueConversion(conv, r.filas)}
       ${r.filas.map(x => x.anuncios.length ? `<details class="ts-ab-ads"><summary>Anuncios del avatar ${esc(x.id)} (${x.anuncios.length})</summary><ul>${x.anuncios.slice(0, 15).map(a => `<li><span>${esc(a.anuncio || "Anuncio")}<small>${esc(a.campana || "")}</small></span><b>${f(a.gasto)}</b><small>${a.clics} clics · ${a.compras} compras</small></li>`).join("")}</ul></details>` : "").join("")}` : ""}
       ${r.errores?.length ? `<p class="fz-mini rojo">No se pudo leer: ${r.errores.map(esc).join(", ")}</p>` : ""}
       <p class="fz-mini">Para que un anuncio cuente, tiene que llevar al link de la landing de ese avatar (el que publicaste desde Desarrollo).</p>
@@ -654,6 +659,42 @@ window.tsMejores = async ({ pais, dias, forzar } = {}) => {
   mejores.cargando = false;
   const y2 = window.scrollY; render(); window.scrollTo(0, y2);
 };
+
+// ---------- Conversión de la landing (Shopify): ¿el problema es el anuncio o la landing? ----------
+function bloqueConversion(conv, filasMeta = []) {
+  if (!conv) return "";
+  if (conv.sinLanding) return "";
+  if (conv.error && !(conv.avatares || []).some(a => a.sesiones)) {
+    const ayuda = conv.motivo === "permiso" ? "En el Dev Dashboard de tu app de Shopify agrega el permiso <b>read_reports</b> (Versions → Access scopes), dale Release y aprueba la actualización en la tienda. Luego en Integraciones dale Probar."
+      : conv.motivo === "plan" ? "Tu plan de Shopify no entrega las visitas por página a las apps. Las ves en Shopify → Análisis → Informes → Sesiones por página de destino."
+      : "";
+    return `<div class="ts-conv-aviso"><b>Visitas y conversión de la landing:</b> ${esc(conv.error)}${ayuda ? `<br>${ayuda}` : ""}</div>`;
+  }
+  const filas = conv.avatares || [];
+  if (!filas.some(a => a.sesiones)) return `<p class="ts-kit-nota">Shopify todavía no registra visitas en las landings de este producto (últimos ${conv.dias} días).</p>`;
+  const pct = (v) => (v === null || v === undefined ? "—" : `${v.toFixed(1)}%`);
+  // Diagnóstico por avatar: con el CTR del anuncio (Meta) y la conversión de la landing (Shopify)
+  const diag = (a) => {
+    const m = filasMeta.find(x => x.id === a.id);
+    if (a.sesiones < 100) return "Pocas visitas todavía para saber.";
+    const anuncioMal = m?.ctr !== null && m?.ctr !== undefined && m.impresiones >= 1000 && m.ctr < 1;
+    if (a.conversion < 1.5 && !anuncioMal) return "La gente entra pero no compra: el problema es la landing (oferta, precio, confianza, velocidad). Revisa la portada y el formulario.";
+    if (anuncioMal && a.conversion >= 2) return "La landing convierte bien, pero el anuncio atrae poca gente: cambia el gancho o el creativo.";
+    if (anuncioMal && a.conversion < 1.5) return "Ni el anuncio ni la landing están funcionando: revisa el ángulo completo.";
+    return a.conversion >= 3 ? "La landing convierte muy bien. 👌" : "La landing convierte normal (2% a 3% es lo común en contra entrega).";
+  };
+  return `
+    <h4 class="ts-conv-tit"><i data-lucide="shopping-cart"></i> En la landing (Shopify, últimos ${conv.dias} días)</h4>
+    <div class="fz-scroll"><table class="fz-tabla ts-ab">
+      <thead><tr><th></th>${filas.map(a => `<th class="n">Avatar ${esc(a.id)}</th>`).join("")}</tr></thead>
+      <tbody>
+        <tr><td>Visitas a la landing</td>${filas.map(a => `<td class="n">${a.sesiones.toLocaleString("es-CO")}</td>`).join("")}</tr>
+        <tr><td>Conversión (visitas que compran)</td>${filas.map(a => `<td class="n"><b class="${a.conversion !== null && a.conversion < 1.5 && a.sesiones >= 100 ? "rojo" : a.conversion >= 3 ? "verde" : ""}">${pct(a.conversion)}</b></td>`).join("")}</tr>
+        <tr><td>Compras (Shopify)</td>${filas.map(a => `<td class="n">${a.compras}</td>`).join("")}</tr>
+      </tbody>
+    </table></div>
+    <ul class="ts-conv-diag">${filas.filter(a => a.landings).map(a => `<li><b>Avatar ${esc(a.id)}:</b> ${esc(diag(a))}</li>`).join("")}</ul>`;
+}
 
 // ---------- Biblioteca de ganadores: lo que vendió, para repetirlo ----------
 let ganadores = null;   // null = sin cargar · "cargando" · lista · { error }
