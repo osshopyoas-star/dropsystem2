@@ -222,7 +222,7 @@ export async function metricasAnuncios(owner, accountIds, desde, hasta) {
     try {
       const datos = await todas(`act_${cta.account_id}/insights`, {
         access_token: token, level: "ad",
-        fields: "ad_id,ad_name,campaign_id,campaign_name,spend,impressions,inline_link_clicks,actions",
+        fields: "ad_id,ad_name,campaign_id,campaign_name,spend,impressions,reach,frequency,inline_link_clicks,actions",
         time_range: JSON.stringify({ since: desde, until: hasta }), limit: 500
       }, 3000);
       const conGasto = datos.filter(d => Number(d.spend || 0) > 0);
@@ -242,7 +242,8 @@ export async function metricasAnuncios(owner, accountIds, desde, hasta) {
         anuncios.push({
           adId, anuncio: String(d.ad_name || "").slice(0, 200), campanaId: String(d.campaign_id || ""), campana: String(d.campaign_name || "").slice(0, 200),
           url: links[adId] || "", ...(textos[adId] || {}), moneda: cta.currency, gasto: Number(d.spend || 0), impresiones: Number(d.impressions || 0),
-          clics: Number(d.inline_link_clicks || 0), compras: comprasDe(d.actions)
+          clics: Number(d.inline_link_clicks || 0), compras: comprasDe(d.actions),
+          alcance: Number(d.reach || 0), frecuencia: Number(d.frequency || 0)
         });
       }
       estado.push({ account_id: cta.account_id, name: cta.name, currency: cta.currency });

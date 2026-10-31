@@ -137,3 +137,27 @@ export function veredictoAvatares(filas) {
   }
   return { tipo: "falta", texto: "Aún hay pocos datos: espera a que cada avatar tenga al menos 1.000 impresiones." };
 }
+
+// =============================================
+// FATIGA DE ANUNCIOS: compara la última semana con la anterior, anuncio por anuncio
+// ahora / antes: anuncios de metricasAnuncios (rutas-meta.js) de cada semana, con el gasto ya en tu moneda
+// Fatigado si (con gasto suficiente esta semana): la gente ya lo vio 3+ veces, el CTR cayó 25%+ o la compra subió 40%+
+// =============================================
+export function fatigaAnuncios(ahora = [], antes = [], { gastoMinimo = 0 } = {}) {
+  const previo = new Map(antes.map(a => [a.adId, a]));
+  const ctr = (a) => (a?.impresiones ? a.clics / a.impresiones * 100 : null);
+  const cpa = (a) => (a?.compras ? a.gasto / a.compras : null);
+  const out = [];
+  for (const a of ahora) {
+    if (!(a.gasto > 0) || a.gasto < gastoMinimo) continue;
+    const b = previo.get(a.adId);
+    const razones = [];
+    if (a.frecuencia >= 3) razones.push(`cada persona ya lo vio ${a.frecuencia.toFixed(1)} veces esta semana`);
+    const c1 = ctr(a), c0 = ctr(b);
+    if (c1 !== null && c0 && b.impresiones >= 1000 && a.impresiones >= 1000 && c1 <= c0 * 0.75) razones.push(`el CTR bajó de ${c0.toFixed(2)}% a ${c1.toFixed(2)}%`);
+    const p1 = cpa(a), p0 = cpa(b);
+    if (p1 !== null && p0 !== null && a.compras >= 2 && b.compras >= 2 && p1 >= p0 * 1.4) razones.push(`cada compra subió ${Math.round((p1 / p0 - 1) * 100)}%`);
+    if (razones.length) out.push({ ...a, ctr: c1, ctrAntes: c0, cpa: p1, cpaAntes: p0, razones, gravedad: razones.length + (a.frecuencia >= 4 ? 1 : 0) });
+  }
+  return out.sort((x, y) => y.gravedad - x.gravedad || y.gasto - x.gasto);
+}

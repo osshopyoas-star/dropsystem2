@@ -5609,3 +5609,10 @@ body.fz-sin-scroll { overflow: hidden; }
 .ih-kit-copy pre { white-space: pre-wrap; font-size: 12px; background: #f8fafc; padding: 8px; border-radius: 8px; max-height: 260px; overflow: auto; }
 .ih-copiar { border: 1px solid #bfdbfe; background: #eff6ff; color: #1d4ed8; border-radius: 8px; padding: 4px 10px; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; margin: 2px 6px 2px 0; display: inline-flex; align-items: center; gap: 4px; }
 .ih-copiar svg { width: 12px; height: 12px; }
+
+/* Mis testeos · Se están gastando */
+.ts-fatiga { border: 1px solid #fde68a; background: #fffbeb; border-radius: 12px; padding: 10px 14px; margin-bottom: 14px; }
+.ts-fatiga ul { list-style: none; padding: 0; margin: 6px 0 0; display: flex; flex-direction: column; gap: 6px; }
+.ts-fatiga li { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; font-size: 13px; background: #fff; border-radius: 8px; padding: 8px 10px; }
+.ts-fatiga li small { display: block; color: #92400e; }
+.ts-fatiga .ts-mejores-sub svg { color: #d97706; }

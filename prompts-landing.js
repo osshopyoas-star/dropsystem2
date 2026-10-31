@@ -969,3 +969,30 @@ Responde SOLO este JSON válido:
   "prompt_banner": "",
   "ganchos_video": [] }`;
 }
+
+// ---------- Reciclar un anuncio ganador: 5 variaciones nuevas manteniendo lo que lo hizo vender ----------
+export function promptVariaciones({ texto = "", titulo = "", producto = "" } = {}, p = null) {
+  const pais = PAISES[p?.pais] || PAISES.CO;
+  return `${p ? contextoProducto(p) + "\n\n" : `PRODUCTO: ${limpio(producto, 200) || "(el del anuncio)"}\n\n`}ANUNCIO GANADOR (vendió de verdad en Meta; se está gastando porque la gente ya lo vio mucho):
+Título: ${limpio(titulo, 200) || "(sin título)"}
+Texto:
+${limpio(texto, 2500)}
+
+ROL: Media Buyer élite y copywriter de respuesta directa para pago contra entrega en ${pais.nombre}.
+
+TAREA:
+1. que_funciona: en 2 o 3 frases, qué hace que este anuncio venda (el gancho, el ángulo, la oferta, la estructura).
+2. variaciones: 5 versiones NUEVAS del anuncio que mantengan lo que funciona pero se sientan frescas, cada una con un gancho distinto:
+   - "pregunta": arranca con una situación del día a día en forma de pregunta general (sin señalar a la persona).
+   - "historia": arranca con una mini historia de alguien usando el producto.
+   - "beneficio": arranca con el resultado más fuerte.
+   - "curiosidad": arranca con un dato o detalle que despierte curiosidad.
+   - "objecion": arranca respondiendo la duda más común (por ejemplo pagar al recibir).
+   Cada una con: gancho (la primera línea), texto_principal (8 a 12 líneas con emojis, misma oferta y mismos datos del original), titulo (máx. 40 caracteres) y descripcion (máx. 30).
+REGLAS: NO inventes datos, precios, promesas, testimonios ni cifras que no estén en el anuncio original o en la ficha. Mismo precio y misma oferta. Reglas de Meta:
+${lista(REGLAS_META)}
+Español de ${pais.nombre} con TÚ.
+
+Responde SOLO este JSON válido:
+{ "que_funciona": "", "variaciones": [ { "tipo": "pregunta", "gancho": "", "texto_principal": "", "titulo": "", "descripcion": "" } ] }`;
+}

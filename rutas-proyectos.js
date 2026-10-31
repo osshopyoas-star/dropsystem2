@@ -19,12 +19,13 @@ import {
   promptTextosShopify,
   promptCopys,
   promptKitTemporada,
+  promptVariaciones,
   cierreSeccion,
   promptAd,
   seccionesFijas
 } from "./prompts-landing.js";
 import { obtenerPlantilla } from "./rutas-plantilla.js";
-import { ESTRUCTURAS_AD, FORMATOS_AD, MAX_ADS, compararAvatares } from "./public/js/core/anuncios.js";
+import { ESTRUCTURAS_AD, FORMATOS_AD, MAX_ADS, compararAvatares, fatigaAnuncios } from "./public/js/core/anuncios.js";
 import { metricasAnuncios } from "./rutas-meta.js";
 import { FinanzasConfig, trmHoy } from "./rutas-finanzas.js";
 import { Costeo } from "./rutas-costeos.js";
@@ -449,6 +450,71 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
     }
   });
 
+  // A qué producto, avatar y proyecto lleva cada anuncio (por el link de las landings publicadas desde Desarrollo)
+  const mapaLandings = async (owner) => {
+    const proys = await Proyecto.find({ owner }).select("nombre ramas").lean();
+    const m = new Map();
+    for (const pr of proys) for (const [av, r] of Object.entries(pr.ramas || {})) for (const pub of Object.values(r?.publicaciones || {})) if (pub?.handle) m.set(String(pub.handle).toLowerCase(), { producto: pr.nombre, avatar: av, proyectoId: String(pr._id) });
+    return (url) => { try { return m.get(decodeURIComponent((String(url).match(/\/products\/([^/?#]+)/i) || [])[1] || "").toLowerCase()) || null; } catch { return null; } };
+  };
+  const conversorMoneda = async (cfg, pais) => {
+    const moneda = pais === "EC" ? "USD" : "COP";
+    const oficial = await trmHoy();
+    const trm = cfg?.trmManual && cfg?.trm ? cfg.trm : oficial.valor || 4000;
+    return { moneda, convertir: (v, mon) => (mon === moneda ? v : mon === "USD" && moneda === "COP" ? v * trm : mon === "COP" && moneda === "USD" ? v / trm : v) };
+  };
+
+  // ---------- Fatiga: anuncios que se están gastando (última semana contra la anterior) ----------
+  const cacheFatiga = new Map();
+  app.get("/api/meta/fatiga", async (req, res) => {
+    try {
+      const pais = req.query.pais === "EC" ? "EC" : "CO";
+      const cfg = await FinanzasConfig.findOne({ owner: req.user.uid, pais }).lean();
+      const cuentas = cfg?.metaCuentas || [];
+      if (!cuentas.length) return res.json({ sinCuentas: true, anuncios: [] });
+      const k = `${req.user.uid}|${pais}|${cuentas.join(",")}`;
+      const c = cacheFatiga.get(k);
+      if (c && Date.now() - c.t < 30 * 6e4 && req.query.forzar !== "1") return res.json(c.datos);
+      const dia = (n) => new Date(Date.now() - 5 * 36e5 - n * 864e5).toISOString().slice(0, 10);
+      const [ahora, antes] = await Promise.all([metricasAnuncios(req.user.uid, cuentas, dia(6), dia(0)), metricasAnuncios(req.user.uid, cuentas, dia(13), dia(7))]);
+      const { moneda, convertir } = await conversorMoneda(cfg, pais);
+      const enMoneda = (l) => l.map(a => ({ ...a, gasto: convertir(a.gasto, a.moneda) }));
+      const A = enMoneda(ahora.anuncios), B = enMoneda(antes.anuncios);
+      const total = A.reduce((x, a) => x + a.gasto, 0);
+      const landing = await mapaLandings(req.user.uid);
+      const lista = fatigaAnuncios(A, B, { gastoMinimo: total * 0.05 }).slice(0, 10).map(a => ({
+        adId: a.adId, anuncio: a.anuncio, campana: a.campana, url: a.url, texto: a.texto || "", titulo: a.titulo || "", miniatura: a.miniatura || "",
+        ...(landing(a.url) || {}), gasto: a.gasto, frecuencia: a.frecuencia, ctr: a.ctr, ctrAntes: a.ctrAntes, cpa: a.cpa, cpaAntes: a.cpaAntes, razones: a.razones
+      }));
+      const datos = { moneda, desde: dia(6), hasta: dia(0), anuncios: lista, actualizado: new Date() };
+      cacheFatiga.set(k, { t: Date.now(), datos });
+      res.json(datos);
+    } catch (err) {
+      console.error("Error revisando fatiga:", err);
+      res.status(err.status || 500).json({ error: err.status ? err.message : "No se pudo leer Meta" });
+    }
+  });
+
+  // ---------- Reciclar un ganador: 5 variaciones nuevas del anuncio ----------
+  app.post("/api/meta/variaciones", iaLimiter, async (req, res) => {
+    try {
+      const b = req.body || {};
+      const texto = String(b.texto || "").slice(0, 2500);
+      if (texto.trim().length < 20) return res.status(400).json({ error: "Este anuncio no trae texto para reciclar" });
+      let vista = null;
+      if (b.proyectoId && idValido(b.proyectoId)) {
+        const pr = await Proyecto.findOne({ _id: b.proyectoId, owner: req.user.uid });
+        if (pr) vista = plano(pr);
+      }
+      const reply = await llamarIA({ system: SISTEMA_LANDING, prompt: promptVariaciones({ texto, titulo: String(b.titulo || "").slice(0, 200), producto: String(b.producto || "").slice(0, 200) }, vista) });
+      const j = parsearJSON(reply) || {};
+      const t = (v, n) => String(v || "").slice(0, n);
+      const variaciones = (Array.isArray(j.variaciones) ? j.variaciones : []).slice(0, 6).map(v => ({ tipo: t(v?.tipo, 20), gancho: t(v?.gancho, 200), texto_principal: t(v?.texto_principal, 2500), titulo: t(v?.titulo, 80), descripcion: t(v?.descripcion, 60) })).filter(v => v.texto_principal);
+      if (!variaciones.length) return res.status(502).json({ error: "La IA no devolvió las variaciones" });
+      res.json({ que_funciona: t(j.que_funciona, 800), variaciones });
+    } catch (err) { errorIA(res, err, "las variaciones"); }
+  });
+
   // ---------- Tus mejores anuncios de Meta (de todos los productos) y los que gastan sin vender ----------
   const cacheMejores = new Map();
   app.get("/api/meta/mejores-anuncios", async (req, res) => {
@@ -468,17 +534,13 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
       const oficial = await trmHoy();
       const trm = cfg?.trmManual && cfg?.trm ? cfg.trm : oficial.valor || 4000;
       const convertir = (v, mon) => (mon === moneda ? v : mon === "USD" && moneda === "COP" ? v * trm : mon === "COP" && moneda === "USD" ? v / trm : v);
-      // A qué producto (y avatar) lleva cada anuncio: por el link de las landings publicadas desde Desarrollo
-      const proys = await Proyecto.find({ owner: req.user.uid }).select("nombre ramas").lean();
-      const porHandle = new Map();
-      for (const pr of proys) for (const [av, r] of Object.entries(pr.ramas || {})) for (const pub of Object.values(r?.publicaciones || {})) if (pub?.handle) porHandle.set(String(pub.handle).toLowerCase(), { producto: pr.nombre, avatar: av });
-      const handleDe = (url) => { try { return decodeURIComponent((String(url).match(/\/products\/([^/?#]+)/i) || [])[1] || "").toLowerCase(); } catch { return ""; } };
+      const landing = await mapaLandings(req.user.uid);
       const lista = m.anuncios.map(a => {
         const gasto = convertir(a.gasto, a.moneda);
-        const de = porHandle.get(handleDe(a.url)) || null;
+        const de = landing(a.url);
         return {
           anuncio: a.anuncio, campana: a.campana, url: a.url, texto: a.texto || "", titulo: a.titulo || "", miniatura: a.miniatura || "",
-          producto: de?.producto || "", avatar: de?.avatar || "",
+          producto: de?.producto || "", avatar: de?.avatar || "", proyectoId: de?.proyectoId || "",
           gasto, impresiones: a.impresiones, clics: a.clics, compras: a.compras,
           ctr: a.impresiones ? a.clics / a.impresiones * 100 : null, cpa: a.compras ? gasto / a.compras : null
         };

@@ -256,6 +256,9 @@ function loQueToca(n, testeos) {
   if (n.lg.novedadesActivas.total) t.push({ icono: "alert-triangle", tipo: "morado", ir: "goTo('logistica')", texto: `<b>Gestionar ${n.lg.novedadesActivas.total} novedad${n.lg.novedadesActivas.total === 1 ? "" : "es"}</b>${n.lg.novedadesActivas.porTipo.length ? ` · ${n.lg.novedadesActivas.porTipo.slice(0, 2).map(([k, c]) => `${esc(k)} (${c})`).join(", ")}` : ""}` });
   if (n.lg.sinMovimiento.total) t.push({ icono: "clock", tipo: "ambar", ir: "goTo('logistica')", texto: `<b>Revisar ${n.lg.sinMovimiento.total} pedido${n.lg.sinMovimiento.total === 1 ? "" : "s"} sin movimiento</b> hace más de 24 h` });
   if (n.filasDia.length && n.delDia.gasto === 0) t.push({ icono: "pencil", tipo: "azul", ir: "goTo('control-diario')", texto: `<b>Registrar la pauta ${ayer ? "de ayer" : `del ${fechaCorta(n.dia)}`}</b> para ver la utilidad real` });
+  // Anuncios que se están gastando (Meta, guardado 30 min en el servidor)
+  for (const x of (st.fatiga?.anuncios || []).slice(0, 3)) t.push({ icono: "battery-low", tipo: "ambar", ir: "goTo('testeos')",
+    texto: `<b>Renueva el anuncio de ${esc(x.producto || x.campana || "Meta")}</b>${x.avatar ? ` (${esc(x.avatar)})` : ""} · ${esc(x.razones[0] || "")}. En Mis testeos → Hazme variaciones.` });
   // Temporadas: ya es hora de testear (o lo será esta semana)
   for (const x of proximasTemporadas(st.pais, hoyISO(), 6)) {
     const enDias = Math.round((new Date(x.testearDesde + "T12:00:00Z") - new Date(hoyISO() + "T12:00:00Z")) / 864e5);
@@ -551,6 +554,15 @@ window.ihPais = async (p) => {
 };
 window.ihAbrirProyecto = (id) => { goTo("desarrollo"); setTimeout(() => window.estAbrirProyectoEn?.(id, null), 50); };
 
+// Fatiga de anuncios: se pide aparte para no demorar el tablero (solo si Meta está conectado y hay cuentas elegidas)
+async function cargarFatiga(view) {
+  if (!st.meta?.conectado || !(st.fin[st.pais]?.config?.metaCuentas || []).length) return;
+  try {
+    st.fatiga = await api(`/api/meta/fatiga?pais=${st.pais}`);
+    if (st.fatiga?.anuncios?.length && document.body.contains(view)) { const y = window.scrollY; render(view); window.scrollTo(0, y); }
+  } catch { st.fatiga = null; }
+}
+
 registrarRuta("inicio", async (view) => {
   window.marcarMenuActivo?.("inicio");
   nuevoMensaje();      // cada vez que entras a Inicio, otro mensaje
@@ -559,6 +571,7 @@ registrarRuta("inicio", async (view) => {
   try {
     await cargar();
     render(view);
+    cargarFatiga(view);
   } catch (err) {
     view.innerHTML = `<div class="in-home"><p class="est-error">${esc(err.message)}</p></div>`;
   }

@@ -506,11 +506,14 @@ window.tsAvatares = async (proyectoId, productoId, forzar = false) => {
 };
 
 // ---------- Tus mejores anuncios de Meta (todos los productos) y los que gastan sin vender ----------
-const mejores = { pais: "CO", dias: 30, datos: null, cargando: false, error: "" };
+const mejores = { pais: "CO", dias: 30, datos: null, cargando: false, error: "", fatiga: null };
+const anunciosVistos = [];   // para el botón Hazme variaciones
 function mejoresAnuncios() {
   const d = mejores.datos, pais = mejores.pais;
   const f = (v) => (v === null || v === undefined ? "—" : formatear(v, pais));
   const pct = (v) => (v === null ? "—" : `${v.toFixed(2)}%`);
+  anunciosVistos.length = 0;
+  const reciclar = (a) => { if (!a.texto) return ""; anunciosVistos.push(a); return `<button class="ts-btn claro chico" onclick="tsVariaciones(${anunciosVistos.length - 1})"><i data-lucide="recycle"></i> Hazme variaciones</button>`; };
   const tarjeta = (a, i) => `
     <article class="ts-ad">
       ${a.miniatura ? `<img src="${esc(a.miniatura)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : `<div class="ts-ad-sin"><i data-lucide="image"></i></div>`}
@@ -519,7 +522,7 @@ function mejoresAnuncios() {
         <small>${esc(a.anuncio || "")}${a.campana && a.producto ? ` · ${esc(a.campana)}` : ""}</small>
         <div class="ts-ad-num"><span>Compra a <b class="verde">${f(a.cpa)}</b></span><span>${a.compras} compras</span><span>gasto ${f(a.gasto)}</span><span>CTR ${pct(a.ctr)}</span></div>
         ${a.texto ? `<details><summary>Ver el copy</summary><p>${esc(a.texto).replace(/\n/g, "<br>")}</p>${a.titulo ? `<small>Título: <b>${esc(a.titulo)}</b></small>` : ""}</details>` : ""}
-        <div class="ts-copy-btns">${copiar(a.texto, "Copiar copy")}${a.url ? `<a href="${esc(a.url)}" target="_blank" rel="noopener noreferrer"><i data-lucide="external-link"></i> Ver landing</a>` : ""}</div>
+        <div class="ts-copy-btns">${copiar(a.texto, "Copiar copy")}${reciclar(a)}${a.url ? `<a href="${esc(a.url)}" target="_blank" rel="noopener noreferrer"><i data-lucide="external-link"></i> Ver landing</a>` : ""}</div>
       </div>
     </article>`;
   return `
@@ -536,6 +539,7 @@ function mejoresAnuncios() {
     ${mejores.error ? `<p class="ts-kit-nota rojo">${esc(mejores.error)}</p>` : ""}
     ${!d ? "" : d.sinCuentas ? `<p class="ts-kit-nota">Elige tus cuentas publicitarias de ${pais === "EC" ? "Ecuador" : "Colombia"} en Finanzas → Control Diario.</p>` : `
       <p class="ts-kit-nota">${d.total.anuncios} anuncios con gasto del ${esc(d.desde)} al ${esc(d.hasta)} · gasto ${f(d.total.gasto)} · ${d.total.compras} compras${d.errores?.length ? ` · <span class="rojo">no se pudo leer: ${d.errores.map(esc).join(", ")}</span>` : ""}</p>
+      ${fatigaHTML(f, reciclar)}
       ${d.mejores.length ? `<div class="ts-ads">${d.mejores.map(tarjeta).join("")}</div>` : `<p class="ts-kit-nota">Ningún anuncio tiene 2 o más compras en este periodo.</p>`}
       ${d.sinVender.length ? `
       <h3 class="ts-mejores-sub"><i data-lucide="power"></i> Gastan sin vender: revisa si los apagas</h3>
@@ -545,13 +549,56 @@ function mejoresAnuncios() {
       </table></div>` : ""}`}
   </section>`;
 }
+// Anuncios que se están gastando (última semana contra la anterior)
+function fatigaHTML(f, reciclar) {
+  const x = mejores.fatiga;
+  if (!x || x.error || x.sinCuentas || !x.anuncios?.length) return x?.error ? `<p class="ts-kit-nota rojo">Fatiga: ${esc(x.error)}</p>` : "";
+  return `
+    <div class="ts-fatiga">
+      <h3 class="ts-mejores-sub"><i data-lucide="battery-low"></i> Se están gastando: sácales una versión nueva</h3>
+      <p class="ts-kit-nota">Última semana (${esc(x.desde)} al ${esc(x.hasta)}) contra la anterior. Un anuncio se gasta cuando la gente ya lo vio muchas veces: baja el CTR y sube lo que cuesta cada compra.</p>
+      <ul>${x.anuncios.map(a => `<li>
+        <span><b>${esc(a.producto || a.campana || "Anuncio")}</b>${a.avatar ? ` (${esc(a.avatar)})` : ""} · ${esc(a.anuncio || "")}<small>${a.razones.map(esc).join(" · ")} · gasto de la semana ${f(a.gasto)}</small></span>
+        ${reciclar(a)}
+      </li>`).join("")}</ul>
+    </div>`;
+}
+
+// ---------- Reciclar un ganador: 5 variaciones nuevas ----------
+window.tsVariaciones = async (i) => {
+  const a = anunciosVistos[i];
+  if (!a) return;
+  const m = modalTs(`<h3><i data-lucide="recycle"></i> Variaciones de "${esc(a.anuncio || a.producto || "tu anuncio")}"</h3><p class="est-muted">La IA está leyendo qué hace vender este anuncio y escribiendo 5 versiones nuevas…</p>`);
+  try {
+    const r = await api("POST", "/api/meta/variaciones", { texto: a.texto, titulo: a.titulo, producto: a.producto, proyectoId: a.proyectoId || "" });
+    if (!document.body.contains(m)) return;
+    m.querySelector(".fz-modal-box").innerHTML = `
+      <h3><i data-lucide="recycle"></i> Variaciones de "${esc(a.anuncio || a.producto || "tu anuncio")}"</h3>
+      ${r.que_funciona ? `<p class="ts-ganador-nota"><b>Por qué vende:</b> ${esc(r.que_funciona)}</p>` : ""}
+      ${r.variaciones.map((v, k) => `
+        <div class="ts-copy"><div class="ts-copy-top"><b>Variación ${k + 1}</b> <small>${esc(v.tipo)}</small></div>
+          <p>${esc(v.texto_principal).replace(/\n/g, "<br>")}</p>
+          <small>Título: <b>${esc(v.titulo)}</b> · Descripción: ${esc(v.descripcion)}</small>
+          <div class="ts-copy-btns">${copiar(v.texto_principal, "Copiar texto")}${copiar(v.titulo, "Copiar título")}${copiar(v.descripcion, "Copiar descripción")}</div></div>`).join("")}
+      <p class="ts-kit-nota">Súbelas como anuncios nuevos en el mismo conjunto, con el mismo creativo o uno nuevo. Las que no se pueden comprobar o cambian la oferta, no las uses.</p>
+      <div class="fz-modal-pie"><button class="ts-btn" onclick="tsCerrarModal()">Cerrar</button></div>`;
+    iconos();
+  } catch (err) {
+    if (document.body.contains(m)) m.querySelector(".fz-modal-box").innerHTML = `<h3>Variaciones</h3><p class="rojo">${esc(err.message)}</p><div class="fz-modal-pie"><button class="ts-btn" onclick="tsCerrarModal()">Cerrar</button></div>`;
+  }
+};
+
 window.tsMejores = async ({ pais, dias, forzar } = {}) => {
   if (pais) mejores.pais = pais === "EC" ? "EC" : "CO";
   if (dias) mejores.dias = dias;
   mejores.cargando = true; mejores.error = "";
   const y = window.scrollY; render(); window.scrollTo(0, y);
   try {
-    mejores.datos = await api("GET", `/api/meta/mejores-anuncios?pais=${mejores.pais}&dias=${mejores.dias}${forzar ? "&forzar=1" : ""}`);
+    const [d, fat] = await Promise.all([
+      api("GET", `/api/meta/mejores-anuncios?pais=${mejores.pais}&dias=${mejores.dias}${forzar ? "&forzar=1" : ""}`),
+      api("GET", `/api/meta/fatiga?pais=${mejores.pais}${forzar ? "&forzar=1" : ""}`).catch(e => ({ error: e.message }))
+    ]);
+    mejores.datos = d; mejores.fatiga = fat;
   } catch (err) { mejores.error = err.message; mejores.datos = null; }
   mejores.cargando = false;
   const y2 = window.scrollY; render(); window.scrollTo(0, y2);
