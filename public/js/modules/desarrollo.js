@@ -1578,7 +1578,7 @@ window.estEditarTiktok = async (campo, v) => {
 function pasoAds() {
   const r = R();
   const ads = r.ads || [];
-  const acento = r.estilo?.color2 && /^#[0-9a-f]{3,8}$/i.test(r.estilo.color2) ? r.estilo.color2 : "#6366f1";
+  const acento = r.estilo?.color2 && /^#[0-9a-f]{3,8}$/i.test(r.estilo.color2) ? r.estilo.color2 : "#3b82f6";
   const libres = Math.max(0, MAX_ADS - ads.length);
   const conPrompt = ads.filter(a => a.prompt).length;
   return `

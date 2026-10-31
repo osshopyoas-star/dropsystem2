@@ -192,7 +192,7 @@ function guardarBorrador() {
 // hasta 15% morado (bien) · 16% a 30% naranja (cuidado) · 31% o más rojo (alto)
 function colorPorcentaje(valor) {
   const v = Number(valor) || 0;
-  if (v <= 15) return "#4f46e5";
+  if (v <= 15) return "#2563eb";
   if (v <= 30) return "#ea580c";
   return "#dc2626";
 }
