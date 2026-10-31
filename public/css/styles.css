@@ -5686,9 +5686,13 @@ body.fz-sin-scroll { overflow: hidden; }
 /* Lista */
 #sidebar .sidebar-container {
   display: flex; flex-direction: column; gap: 2px; flex: 1; min-height: 0;
-  overflow-y: auto; overflow-x: hidden; padding: 0 2px 4px; margin: 0; scrollbar-width: none;
+  overflow-y: auto; overflow-x: hidden; padding: 0 2px 4px; margin: 0; scrollbar-width: thin; scrollbar-color: rgba(96, 165, 250, .25) transparent;
 }
-#sidebar .sidebar-container::-webkit-scrollbar { display: none; }
+#sidebar .sidebar-container::-webkit-scrollbar { width: 4px; }
+#sidebar .sidebar-container::-webkit-scrollbar-thumb { background: rgba(96, 165, 250, .25); border-radius: 4px; }
+/* Que nada se encoja cuando el menú no cabe en la pantalla: mejor que haga scroll (si no, los submenús quedan en 0) */
+#sidebar .sidebar-container > * { flex-shrink: 0; }
+#sidebar .submenu.open { max-height: none; overflow: visible; }
 #sidebar .sb-seccion { display: flex; align-items: center; gap: 8px; margin: 12px 8px 4px; }
 #sidebar .sb-seccion span { font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--sb-tenue); white-space: nowrap; }
 #sidebar .sb-seccion::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, rgba(100, 116, 139, .35), transparent); }
