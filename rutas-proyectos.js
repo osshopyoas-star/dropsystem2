@@ -18,6 +18,7 @@ import {
   promptGuion,
   promptTextosShopify,
   promptCopys,
+  promptKitTemporada,
   cierreSeccion,
   promptAd,
   seccionesFijas
@@ -26,6 +27,8 @@ import { obtenerPlantilla } from "./rutas-plantilla.js";
 import { ESTRUCTURAS_AD, FORMATOS_AD, MAX_ADS, compararAvatares } from "./public/js/core/anuncios.js";
 import { metricasAnuncios } from "./rutas-meta.js";
 import { FinanzasConfig, trmHoy } from "./rutas-finanzas.js";
+import { Costeo } from "./rutas-costeos.js";
+import { ofertasTemporada } from "./public/js/core/costeo.js";
 import { ImagenLanding } from "./modelo-imagenes.js";
 import { tiposDe, elegirVariante, formatoImagen, varianteDe, claveDe } from "./public/js/core/plantilla.js";
 
@@ -496,6 +499,54 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
       console.error("Error leyendo mejores anuncios:", err);
       res.status(err.status || 500).json({ error: err.status ? err.message : "No se pudo leer Meta" });
     }
+  });
+
+  // ---------- Kit de temporada: ofertas con tus costos y el kit (copys, TikTok, banner, prompt y ganchos) ----------
+  const ofertasDe = async (owner, p) => {
+    const o = plano(p);
+    const c = o.productoId ? await Costeo.findOne({ owner, productoId: o.productoId }).lean() : null;
+    const d = c?.datos || {};
+    return ofertasTemporada({ precio: Number(o.ficha?.precio) || Number(c?.resumen?.redondeado) || 0, proveedor: d.proveedor, flete: d.flete, cpa: d.cpa, cancelados: d.cancelados, devoluciones: d.devoluciones, pais: o.pais });
+  };
+  app.get("/api/proyectos/:id/ofertas-temporada", async (req, res) => {
+    try {
+      const p = await cargar(req, res); if (!p) return;
+      const r = await ofertasDe(req.user.uid, p);
+      if (!r) return res.status(400).json({ error: "Ponle precio al producto en la Ficha (o costéalo en la Calculadora)." });
+      const o = plano(p);
+      res.json({ ...r, kits: Object.fromEntries(Object.entries(o.ramas || {}).map(([av, rama]) => [av, rama?.kitsTemporada || {}])), estilos: Object.fromEntries(Object.entries(o.ramas || {}).map(([av, rama]) => [av, rama?.bloqueEstilo || ""])) });
+    } catch (err) {
+      console.error("Error calculando ofertas de temporada:", err);
+      res.status(500).json({ error: "No se pudieron calcular las ofertas" });
+    }
+  });
+  app.post("/api/proyectos/:id/rama/:av/ia/kit-temporada", iaLimiter, async (req, res) => {
+    try {
+      const x = await cargarRama(req, res); if (!x) return;
+      const b = req.body || {};
+      const temporada = { id: String(b.temporada?.id || "").replace(/[^a-z0-9_]/gi, "").slice(0, 40), nombre: String(b.temporada?.nombre || "").slice(0, 80), fecha: String(b.temporada?.fecha || "").slice(0, 10) };
+      if (!temporada.id) return res.status(400).json({ error: "Falta la temporada" });
+      const r = await ofertasDe(req.user.uid, x.p);
+      const oferta = r?.ofertas.find(o => o.id === b.ofertaId) || r?.ofertas.find(o => o.id === r?.recomendada);
+      if (!oferta) return res.status(400).json({ error: "Ponle precio al producto en la Ficha (o costéalo en la Calculadora)." });
+      const fin = /^\d{4}-\d{2}-\d{2}$/.test(String(b.fin || "")) ? String(b.fin) : "";
+      const reply = await llamarIA({ system: SISTEMA_LANDING, prompt: promptKitTemporada(x.vista, x.avatar, { temporada, oferta, fin: fin ? fin.split("-").reverse().join("/") : "" }) });
+      const j = parsearJSON(reply) || {};
+      const txt = (v, n) => String(v || "").slice(0, n);
+      const lista = (v, n, m) => (Array.isArray(v) ? v : []).map(z => txt(z, m).trim()).filter(Boolean).slice(0, n);
+      const kit = {
+        temporada, fin, creado: new Date().toISOString(),
+        oferta: { id: oferta.id, nombre: oferta.nombre, texto: oferta.texto, unidades: oferta.unidades, precio: oferta.precio, antes: oferta.antes, ahorro: oferta.ahorro, utilidad: oferta.utilidad, margen: oferta.margen },
+        copys: (Array.isArray(j.copys) ? j.copys : []).slice(0, 3).map(c => ({ enfoque: txt(c?.enfoque, 20), texto_principal: txt(c?.texto_principal, 2500), titulo: txt(c?.titulo, 80), descripcion: txt(c?.descripcion, 60) })),
+        tiktok: { texto: txt(j.tiktok?.texto, 200).replace(/#\S+/g, "").trim(), caption: txt(j.tiktok?.caption, 300), ganchos: lista(j.tiktok?.ganchos, 5, 120) },
+        banner: { titular: txt(j.banner?.titular, 120), subtitulo: txt(j.banner?.subtitulo, 120), sello: txt(j.banner?.sello, 40), oferta: txt(j.banner?.oferta, 80), cta: txt(j.banner?.cta, 40) },
+        prompt_banner: txt(j.prompt_banner, 4000),
+        ganchos_video: lista(j.ganchos_video, 5, 300)
+      };
+      if (!kit.copys.length) return res.status(502).json({ error: "La IA no devolvió el kit" });
+      const rama = await actualizarRama(x.p, x.av, (actual) => ({ ...actual, kitsTemporada: { ...(actual.kitsTemporada || {}), [temporada.id]: kit } }));
+      res.json({ kit, bloqueEstilo: rama?.bloqueEstilo || x.r.bloqueEstilo || "" });
+    } catch (err) { errorIA(res, err, "el kit de temporada"); }
   });
 
   // ---------- Biblioteca de ganadores: lo que funcionó (avatar, ángulo, copys, TikTok y lo que aprendiste) ----------

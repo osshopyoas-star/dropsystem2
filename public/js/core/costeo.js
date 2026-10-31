@@ -245,3 +245,29 @@ export function evaluarProducto(r, { cpaReal = null, devolucion = null, cerrados
     presupuesto: r.bep > 0 ? r.bep * 2 : null
   };
 }
+
+// =============================================
+// OFERTAS DE TEMPORADA (Black Friday, Navidad…): cuánto te deja cada una por pedido
+// Con tus costos del costeo: proveedor, flete con devoluciones y la pauta de los que no se entregan.
+// La primera que deja al menos 10% de utilidad es la recomendada (de mayor a menor gancho).
+// =============================================
+export function ofertasTemporada({ precio, proveedor, flete, cpa, cancelados, devoluciones, pais = "CO" } = {}) {
+  const base = PAISES_COSTEO[pais === "EC" ? "EC" : "CO"];
+  const P = num(precio), prov = num(proveedor);
+  if (!(P > 0)) return null;
+  const fl = num(flete) || base.flete, c = num(cpa) || base.cpa;
+  const dev = Math.min(95, num(devoluciones ?? base.devoluciones)), can = Math.min(95, num(cancelados ?? base.cancelados));
+  const entrega = Math.max(0.01, 1 - dev / 100), efect = Math.max(0.01, 1 - (dev + can) / 100);
+  const costo = (n) => n * prov + fl / entrega + c / efect;
+  const lista = [
+    { id: "2x1", nombre: "2x1", texto: "Lleva 2 y paga 1", unidades: 2, precio: P },
+    { id: "3x2", nombre: "3x2", texto: "Lleva 3 y paga 2", unidades: 3, precio: P * 2 },
+    { id: "2con25", nombre: "2 con 25% menos", texto: "2 unidades con 25% de descuento", unidades: 2, precio: redondear(P * 2 * 0.75, pais) },
+    { id: "menos20", nombre: "-20%", texto: "20% de descuento", unidades: 1, precio: redondear(P * 0.8, pais) }
+  ].map(o => {
+    const utilidad = prov > 0 ? o.precio - costo(o.unidades) : null;
+    return { ...o, antes: P * o.unidades, ahorro: P * o.unidades - o.precio, utilidad, margen: utilidad === null ? null : utilidad / o.precio * 100, viable: utilidad === null ? null : utilidad >= o.precio * 0.1 };
+  });
+  const recomendada = lista.find(o => o.viable) || null;
+  return { ofertas: lista, recomendada: recomendada?.id || null, conCosteo: prov > 0, normal: { precio: P, utilidad: prov > 0 ? P - costo(1) : null } };
+}

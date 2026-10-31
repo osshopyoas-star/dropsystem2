@@ -357,6 +357,127 @@ window.ihGuardarMeta = async () => {
   } catch (err) { alert(err.message); }
 };
 
+// ---------- Kit de temporada: oferta con tus costos + copys, TikTok, banner y ganchos ----------
+const kitSt = { temp: null, proyecto: "", av: "", ofertas: null, oferta: "", fin: "", kit: null, estilo: "", cargando: false };
+const copiasKit = [];
+const btnCopiar = (texto, etiqueta = "Copiar") => { if (!String(texto || "").trim()) return ""; copiasKit.push(String(texto)); return `<button class="ih-copiar" onclick="ihCopiarKit(${copiasKit.length - 1}, this)"><i data-lucide="copy"></i> ${etiqueta}</button>`; };
+window.ihCopiarKit = async (i, b) => {
+  const t = copiasKit[i] || "";
+  try { await navigator.clipboard.writeText(t); } catch { const x = document.createElement("textarea"); x.value = t; document.body.appendChild(x); x.select(); document.execCommand("copy"); x.remove(); }
+  if (b) { const a = b.innerHTML; b.innerHTML = "✓ Copiado"; setTimeout(() => { b.innerHTML = a; iconos(); }, 1200); }
+};
+function modalKit() {
+  let m = document.querySelector(".ih-modal-kit");
+  if (!m) {
+    m = document.createElement("div");
+    m.className = "modal-overlay fz-modal ih-modal-kit";
+    m.innerHTML = `<div class="modal-box fz-modal-box"></div>`;
+    m.addEventListener("click", (e) => { if (e.target === m) m.remove(); });
+    document.body.appendChild(m);
+  }
+  return m.querySelector(".fz-modal-box");
+}
+const proyectosDelPais = () => st.proyectos.filter(p => (p.pais || "CO") === st.pais && Object.keys(p.pasosRamas || {}).length);
+window.ihKit = async (id, nombre, fecha) => {
+  kitSt.temp = { id, nombre, fecha };
+  kitSt.kit = null; kitSt.ofertas = null; kitSt.fin = fecha;
+  const lista = proyectosDelPais();
+  kitSt.proyecto = lista.some(p => p._id === kitSt.proyecto) ? kitSt.proyecto : (lista[0]?._id || "");
+  await cargarOfertas();
+};
+async function cargarOfertas() {
+  const p = st.proyectos.find(x => x._id === kitSt.proyecto);
+  const avs = Object.keys(p?.pasosRamas || {}).sort();
+  if (!avs.includes(kitSt.av)) kitSt.av = avs[0] || "";
+  kitSt.ofertas = null; kitSt.kit = null;
+  pintarKit();
+  if (!p) return;
+  try {
+    const r = await (await fetch(`/api/proyectos/${p._id}/ofertas-temporada`)).json();
+    if (r.error) throw new Error(r.error);
+    kitSt.ofertas = r;
+    kitSt.oferta = r.recomendada || r.ofertas[0]?.id || "";
+    kitSt.kit = r.kits?.[kitSt.av]?.[kitSt.temp.id] || null;
+    kitSt.estilo = r.estilos?.[kitSt.av] || "";
+  } catch (err) { kitSt.ofertas = { error: err.message }; }
+  pintarKit();
+}
+function pintarKit() {
+  const box = modalKit();
+  copiasKit.length = 0;
+  const t = kitSt.temp, lista = proyectosDelPais();
+  const p = st.proyectos.find(x => x._id === kitSt.proyecto);
+  const avs = Object.keys(p?.pasosRamas || {}).sort();
+  const o = kitSt.ofertas, k = kitSt.kit;
+  const f = (v) => plata(v);
+  box.innerHTML = `
+    <h3><i data-lucide="gift"></i> Kit de ${esc(t.nombre)}</h3>
+    <p class="ih-mini">Elige el producto y la oferta: CoDropX te arma los copys, lo de TikTok, el banner y los ganchos de video con esa oferta exacta.</p>
+    ${!lista.length ? `<p class="ih-vacio">No tienes productos en Desarrollo de ${st.pais === "EC" ? "Ecuador" : "Colombia"} con avatares.</p>` : `
+    <div class="ih-kit-sel">
+      <label>Producto<select onchange="ihKitProyecto(this.value)">${lista.map(x => `<option value="${esc(x._id)}" ${x._id === kitSt.proyecto ? "selected" : ""}>${esc(x.nombre)}</option>`).join("")}</select></label>
+      ${avs.length > 1 ? `<label>Avatar<select onchange="ihKitAvatar(this.value)">${avs.map(a => `<option ${a === kitSt.av ? "selected" : ""}>${esc(a)}</option>`).join("")}</select></label>` : ""}
+      <label>La oferta va hasta<input type="date" value="${esc(kitSt.fin)}" onchange="ihKitFin(this.value)"></label>
+    </div>
+    ${!o ? `<p class="ih-mini">Calculando las ofertas con tus costos…</p>` : o.error ? `<p class="rojo">${esc(o.error)}</p>` : `
+    <h4>Oferta ${o.conCosteo ? "(con tus costos del costeo)" : ""}</h4>
+    ${o.conCosteo ? "" : `<p class="ih-mini rojo">Este producto no tiene costeo: no sé cuánto te deja cada oferta. Cóstealo en la Calculadora antes de lanzar.</p>`}
+    <div class="ih-ofertas">${o.ofertas.map(x => `
+      <label class="ih-oferta ${kitSt.oferta === x.id ? "elegida" : ""} ${x.viable === false ? "pierde" : ""}">
+        <input type="radio" name="ihOferta" ${kitSt.oferta === x.id ? "checked" : ""} onchange="ihKitOferta('${x.id}')">
+        <b>${esc(x.nombre)}</b>${o.recomendada === x.id ? `<em>Recomendada</em>` : ""}
+        <span>${x.unidades} ud. por ${f(x.precio)}${x.antes > x.precio ? ` <s>${f(x.antes)}</s>` : ""}</span>
+        ${x.utilidad === null ? "" : `<small class="${x.utilidad < 0 ? "rojo" : ""}">${x.utilidad < 0 ? "Pierdes" : "Te deja"} ${f(Math.abs(x.utilidad))} por pedido (${x.margen.toFixed(0)}%)</small>`}
+      </label>`).join("")}</div>
+    ${o.normal.utilidad !== null ? `<p class="ih-mini">Sin oferta, cada pedido te deja ${f(o.normal.utilidad)}. Las ofertas cuentan tus devoluciones y la pauta de los que no se entregan.</p>` : ""}
+    <div class="ih-kit-acc"><button class="ih-btn" id="ihBtnKit" onclick="ihArmarKit()"><i data-lucide="sparkles"></i> ${k ? "Volver a armar el kit" : "Armar kit"}</button></div>
+    ${k ? vistaKit(k) : ""}`}`}
+    <div class="fz-modal-pie"><button class="ih-btn" onclick="document.querySelector('.ih-modal-kit')?.remove()">Cerrar</button></div>`;
+  iconos();
+}
+function vistaKit(k) {
+  const tk = k.tiktok || {}, b = k.banner || {};
+  return `
+    <div class="ih-kit">
+      <p class="ih-mini">Kit armado el ${new Date(k.creado).toLocaleDateString("es-CO")} con la oferta <b>${esc(k.oferta?.texto || "")}</b> a ${plata(k.oferta?.precio)}${k.fin ? `, hasta el ${esc(k.fin.split("-").reverse().join("/"))}` : ""}.</p>
+      <h4>Copys para Meta</h4>
+      ${(k.copys || []).map(c => `<div class="ih-kit-copy"><small>${esc(c.enfoque)}</small><p>${esc(c.texto_principal).replace(/\n/g, "<br>")}</p><small>Título: <b>${esc(c.titulo)}</b> · Descripción: ${esc(c.descripcion)}</small><div>${btnCopiar(c.texto_principal, "Copiar texto")}${btnCopiar(c.titulo, "Copiar título")}${btnCopiar(c.descripcion, "Copiar descripción")}</div></div>`).join("")}
+      <h4>TikTok</h4>
+      <div class="ih-kit-copy"><small>Texto del anuncio</small><p>${esc(tk.texto)}</p><small>Caption para Spark Ads</small><p>${esc(tk.caption)}</p>${(tk.ganchos || []).length ? `<small>Ganchos</small><p>${tk.ganchos.map((g, i) => `${i + 1}. ${esc(g)}`).join("<br>")}</p>` : ""}<div>${btnCopiar(tk.texto, "Copiar texto")}${btnCopiar(tk.caption, "Copiar caption")}</div></div>
+      <h4>Banner de temporada</h4>
+      <div class="ih-kit-copy"><p><b>${esc(b.sello)}</b><br>${esc(b.titular)}<br>${esc(b.subtitulo)}<br>${esc(b.oferta)} · ${esc(b.cta)}</p>
+        ${k.prompt_banner ? `<details><summary>Prompt para Gemini</summary><pre>${esc(k.prompt_banner)}</pre></details>` : ""}
+        <div>${btnCopiar((kitSt.estilo ? kitSt.estilo + "\n\n" : "") + (k.prompt_banner || ""), "Copiar estilo + prompt")}</div></div>
+      ${(k.ganchos_video || []).length ? `<h4>Ganchos de video</h4><div class="ih-kit-copy"><p>${k.ganchos_video.map((g, i) => `${i + 1}. ${esc(g)}`).join("<br>")}</p><div>${btnCopiar(k.ganchos_video.join("\n"), "Copiar ganchos")}</div></div>` : ""}
+      <p class="ih-mini">Pon el mismo precio y la misma oferta en la landing de Shopify: Meta y TikTok revisan que coincidan.</p>
+    </div>`;
+}
+window.ihKitProyecto = (id) => { kitSt.proyecto = id; cargarOfertas(); };
+window.ihKitAvatar = (av) => { kitSt.av = av; kitSt.kit = kitSt.ofertas?.kits?.[av]?.[kitSt.temp.id] || null; kitSt.estilo = kitSt.ofertas?.estilos?.[av] || ""; pintarKit(); };
+window.ihKitOferta = (id) => { kitSt.oferta = id; pintarKit(); };
+window.ihKitFin = (v) => { kitSt.fin = v; };
+window.ihArmarKit = async () => {
+  const b = $("ihBtnKit");
+  if (!b || b.disabled) return;
+  const o = kitSt.ofertas?.ofertas?.find(x => x.id === kitSt.oferta);
+  if (o?.viable === false && !confirm(`Con esta oferta pierdes plata en cada pedido. ¿Armar el kit igual?`)) return;
+  b.disabled = true; b.innerHTML = `<span class="est-spin"></span> Armando el kit…`;
+  try {
+    const res = await fetch(`/api/proyectos/${kitSt.proyecto}/rama/${encodeURIComponent(kitSt.av)}/ia/kit-temporada`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ temporada: kitSt.temp, ofertaId: kitSt.oferta, fin: kitSt.fin })
+    });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(d.error || "No se pudo armar el kit");
+    kitSt.kit = d.kit; kitSt.estilo = d.bloqueEstilo || "";
+    (kitSt.ofertas.kits ||= {})[kitSt.av] = { ...(kitSt.ofertas.kits[kitSt.av] || {}), [kitSt.temp.id]: d.kit };
+    pintarKit();
+  } catch (err) {
+    alert(err.message);
+    if (document.body.contains(b)) { b.disabled = false; b.innerHTML = `<i data-lucide="sparkles"></i> Armar kit`; iconos(); }
+  }
+};
+
 // ---------- Próximas temporadas ----------
 function tarjetaTemporadas() {
   const lista = proximasTemporadas(st.pais, hoyISO(), 5);
@@ -371,6 +492,7 @@ function tarjetaTemporadas() {
         <div class="ih-temp-info">
           <strong>${esc(x.nombre)}</strong> <small>${fechaLarga(x.fecha)}${x.aprox ? " (aprox.)" : ""}</small>
           <p>${esc(x.ideas)}</p>
+          <button class="ih-btn chico ih-kit-btn" onclick="ihKit('${esc(x.id)}', '${esc(x.nombre)}', '${esc(x.fecha)}')"><i data-lucide="gift"></i> Armar kit</button>
           <em>${x.yaTestear ? (x.faltan <= 7 ? "Ya es tarde para testear algo nuevo: escala lo que ya te funciona." : "Ya deberías estar testeando para esta fecha.") : `Empieza a testear el ${fechaLarga(x.testearDesde)} (${x.testear} días antes).`}</em>
         </div>
       </li>`).join("")}</ul>

@@ -5588,3 +5588,24 @@ body.fz-sin-scroll { overflow: hidden; }
 .cal-testeo small { color: #64748b; }
 .fz-estatus-sel { min-height: 34px; border: 1px solid #cbd5e1; border-radius: 999px; padding: 0 12px; font: inherit; font-size: 13px; background: #fff; max-width: 260px; }
 .fz-estatus-sel.activo { border-color: #2563eb; background: #eff6ff; color: #1d4ed8; font-weight: 600; }
+
+/* Inicio · Kit de temporada */
+.ih-kit-btn { float: right; margin-left: 8px; }
+.ih-kit-sel { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0; }
+.ih-kit-sel label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; color: #475569; }
+.ih-kit-sel select, .ih-kit-sel input { min-height: 36px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 0 8px; font: inherit; font-weight: 400; min-width: 160px; }
+.ih-modal-kit h4 { margin: 14px 0 6px; }
+.ih-ofertas { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; }
+.ih-oferta { display: flex; flex-direction: column; gap: 2px; padding: 10px; border: 1px solid #e2e8f0; border-radius: 10px; cursor: pointer; font-size: 13px; position: relative; }
+.ih-oferta input { position: absolute; top: 10px; right: 10px; }
+.ih-oferta.elegida { border-color: #2563eb; background: #eff6ff; }
+.ih-oferta.pierde { opacity: .75; }
+.ih-oferta em { font-style: normal; font-size: 11px; font-weight: 700; color: #16a34a; }
+.ih-oferta s { color: #94a3b8; }
+.ih-kit-acc { margin: 12px 0; }
+.ih-kit-copy { border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; font-size: 13px; }
+.ih-kit-copy p { margin: 4px 0 8px; }
+.ih-kit-copy small { color: #64748b; }
+.ih-kit-copy pre { white-space: pre-wrap; font-size: 12px; background: #f8fafc; padding: 8px; border-radius: 8px; max-height: 260px; overflow: auto; }
+.ih-copiar { border: 1px solid #bfdbfe; background: #eff6ff; color: #1d4ed8; border-radius: 8px; padding: 4px 10px; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; margin: 2px 6px 2px 0; display: inline-flex; align-items: center; gap: 4px; }
+.ih-copiar svg { width: 12px; height: 12px; }

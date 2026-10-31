@@ -935,3 +935,37 @@ Responde SOLO este JSON válido:
   "verificar": []
 }`;
 }
+
+// ---------- Kit de temporada (Black Friday, Navidad, Día de la Madre…) ----------
+// oferta: { nombre, texto, unidades, precio, antes, ahorro } calculada con tus costos · fin: hasta cuándo va de verdad la oferta
+export function promptKitTemporada(p, avatar, { temporada, oferta, fin = "" } = {}) {
+  const pais = PAISES[p.pais] || PAISES.CO;
+  const f = (v) => formatoPrecio(v, p.pais);
+  return `${contextoProducto(p)}
+
+${bloqueAvatar(avatar, "AVATAR AL QUE LE HABLA")}
+
+TEMPORADA: ${limpio(temporada?.nombre, 80)} (${limpio(temporada?.fecha, 20)}) en ${pais.nombre}.
+OFERTA DE TEMPORADA (exacta, no la cambies ni inventes otra): ${limpio(oferta?.texto, 120)} · ${oferta?.unidades || 1} unidad(es) por ${f(oferta?.precio)}${oferta?.antes > oferta?.precio ? ` (antes ${f(oferta.antes)}, ahorras ${f(oferta.ahorro)})` : ""}.
+${fin ? `La oferta va de verdad hasta el ${limpio(fin, 30)}: puedes decirlo ("hasta el ${limpio(fin, 30)}").` : "No hay fecha de fin: NO digas 'solo hoy', 'últimas horas' ni pongas contadores."}
+
+TAREA: arma el KIT DE TEMPORADA de este producto, todo con la misma oferta y el mismo mensaje:
+1. copys: 2 copys para Meta Ads con el tono de la temporada (uno de regalo/ocasión, uno de oferta), de 8 a 12 líneas con emojis de la temporada, gancho en la primera línea, lista de 3 beneficios con emojis, la oferta exacta y una línea de confianza con pago contra entrega. Cada uno con titulo (máx. 40 caracteres) y descripcion (máx. 30).
+2. tiktok: texto (máx. 100 caracteres, emojis cuentan 2, máx. 2 emojis, sin hashtags), caption (máx. 150, con 2 o 3 hashtags de la temporada) y 3 ganchos hablados para los primeros 3 segundos.
+3. banner: los textos de la imagen principal de temporada: titular (2 líneas cortas separadas por " / "), subtitulo (máx. 8 palabras), sello (máx. 3 palabras, ej. "BLACK FRIDAY"), oferta (la oferta exacta en pocas palabras) y cta (máx. 3 palabras).
+4. prompt_banner: el prompt para Gemini de UNA imagen vertical 9:16 (1080x1920) de portada de temporada, con este formato (texto plano):
+IDEA: [...]
+FOTOGRAFÍA REAL (no dibujo, no animación).
+COMPOSICIÓN: [escena real con ambiente de ${limpio(temporada?.nombre, 60)} sin exagerar (luces, colores y objetos de la temporada), el producto EN USO a su tamaño real, quién lo usa y dónde; el 12% de abajo solo con fondo para el botón de compra]
+TEXTOS: [los del banner de arriba, cada uno entre comillas con color, tamaño y posición; el precio ${f(oferta?.precio)}${oferta?.antes > oferta?.precio ? ` con el "antes" ${f(oferta.antes)} tachado` : ""}]
+5. ganchos_video: 3 ideas de los primeros 3 segundos de un video de temporada (qué se ve y qué se dice).
+
+REGLAS: las mismas de Meta y TikTok de siempre (sin atributos personales, sin promesas que no se puedan comprobar, sin 'el mejor' ni 'garantizado', sin testimonios ni cifras inventadas, sin logos de marcas ajenas, sin "Black Friday oficial"). Español de ${pais.nombre} con TÚ. El precio y la oferta deben ser IGUALES en todo el kit y en la landing.
+
+Responde SOLO este JSON válido:
+{ "copys": [ { "enfoque": "regalo", "texto_principal": "", "titulo": "", "descripcion": "" }, { "enfoque": "oferta", "texto_principal": "", "titulo": "", "descripcion": "" } ],
+  "tiktok": { "texto": "", "caption": "", "ganchos": [] },
+  "banner": { "titular": "", "subtitulo": "", "sello": "", "oferta": "", "cta": "" },
+  "prompt_banner": "",
+  "ganchos_video": [] }`;
+}
