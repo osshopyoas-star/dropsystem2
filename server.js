@@ -22,6 +22,7 @@ import { registrarRutasProyectos, parsearJSON } from "./rutas-proyectos.js";
 import { registrarRutasCosteos } from "./rutas-costeos.js";
 import { registrarRutasPlantilla } from "./rutas-plantilla.js";
 import { registrarRutasMeta } from "./rutas-meta.js";
+import { registrarRutasAvisos, registrarCronAvisos, iniciarAvisosDiarios } from "./rutas-avisos.js";
 import { registrarRutasFinanzas } from "./rutas-finanzas.js";
 import { limpiarAnalisis, limpiarRecursos } from "./public/js/core/analisis.js";
 import { registrarRutasImportar } from "./rutas-importar.js";
@@ -306,6 +307,8 @@ app.get("/api/test", (req, res) => {
   res.json({ status: "ok" });
 });
 
+registrarCronAvisos(app, { Producto });   // cron externo con su propia clave (antes del login)
+
 app.use("/api", requireAuth);
 
 const iaLimiter = rateLimit({
@@ -487,6 +490,8 @@ registrarRutasCosteos(app, { idValido, Producto, llamarIA, iaLimiter, parsearJSO
 registrarRutasPlantilla(app);
 registrarRutasMeta(app);
 registrarRutasFinanzas(app, { llamarIA, iaLimiter });
+registrarRutasAvisos(app, { Producto });
+if (process.env.NODE_ENV !== "test") iniciarAvisosDiarios({ Producto });   // "Lo que toca hoy" al celular cada mañana
 registrarRutasImportar(app, { limiter: iaLimiter });
 
 // =============================================

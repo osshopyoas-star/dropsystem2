@@ -228,6 +228,7 @@ function render(view) {
     </div>
 
     ${tarjetaTemporadas()}
+    ${tarjetaAvisos()}
 
     <section class="ih-accesos">
       ${[
@@ -564,6 +565,67 @@ function avisos(n) {
   if (lanzadosSinCosteo.length) a.push({ tipo: "gris", icono: "calculator", texto: `${lanzadosSinCosteo.length} producto(s) lanzados sin costeo: ${lanzadosSinCosteo.slice(0, 2).map(p => esc(p.nombre)).join(", ")}${lanzadosSinCosteo.length > 2 ? "…" : ""}`, ir: "goTo('calculadora')" });
   return a.slice(0, 4);
 }
+
+// ---------- Avisos en el celular (push): "Lo que toca hoy" cada mañana ----------
+const pushSt = { revisado: false, soportado: false, permiso: "default", suscrito: false, ocupado: false };
+const b64aBytes = (b64) => { const p = "=".repeat((4 - b64.length % 4) % 4); const r = atob((b64 + p).replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from([...r].map(c => c.charCodeAt(0))); };
+async function revisarAvisos() {
+  pushSt.soportado = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+  pushSt.permiso = window.Notification?.permission || "default";
+  if (pushSt.soportado) {
+    try { const reg = await navigator.serviceWorker.ready; pushSt.suscrito = !!(await reg.pushManager.getSubscription()); } catch { pushSt.suscrito = false; }
+  }
+  pushSt.revisado = true;
+}
+function tarjetaAvisos() {
+  if (!pushSt.revisado) { revisarAvisos().then(() => { const v = $("view"); if (v && document.getElementById("ihAvisos")) { const y = window.scrollY; render(v); window.scrollTo(0, y); } }); }
+  const iphone = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  let cuerpo;
+  if (!pushSt.revisado) cuerpo = `<p class="ih-mini">Revisando si este dispositivo puede recibir avisos…</p>`;
+  else if (!pushSt.soportado) cuerpo = `<p class="ih-mini">${iphone && !yaInstalada() ? "En iPhone los avisos solo funcionan con CoDropX instalado: Safari → Compartir → <b>Agregar a pantalla de inicio</b>. Luego ábrelo desde el ícono y activa los avisos aquí." : "Este navegador no permite pushSt. Usa Chrome en Android o en el computador, o instala CoDropX como app."}</p>`;
+  else if (pushSt.permiso === "denied") cuerpo = `<p class="ih-mini">Bloqueaste las notificaciones de CoDropX. Actívalas en la configuración del navegador (el candado junto a la dirección → Notificaciones → Permitir) y vuelve aquí.</p>`;
+  else if (pushSt.suscrito) cuerpo = `
+      <p class="ih-mini"><b class="verde">✓ Activados en este dispositivo.</b> Cada mañana, desde las 7:30 a. m., te llega lo que toca hoy en ${st.pais === "EC" ? "Ecuador" : "Colombia"}: novedades, pedidos sin movimiento, testeos para escalar o apagar y temporadas.</p>
+      <div class="ih-avisos-acc"><button class="ih-btn chico" onclick="ihProbarAviso()" ${pushSt.ocupado ? "disabled" : ""}><i data-lucide="send"></i> Mandar uno de prueba</button><button class="ih-link" onclick="ihDesactivarAvisos()">Desactivar</button></div>`;
+  else cuerpo = `
+      <p class="ih-mini">Recibe en el celular, cada mañana, lo que toca hoy: novedades, pedidos sin movimiento, qué testeo escalar o apagar y cuándo empezar a testear para una temporada.${iphone && !yaInstalada() ? " En iPhone, primero instala CoDropX en la pantalla de inicio." : ""}</p>
+      <div class="ih-avisos-acc"><button class="ih-btn chico" onclick="ihActivarAvisos()" ${pushSt.ocupado ? "disabled" : ""}><i data-lucide="bell-ring"></i> Activar avisos</button></div>`;
+  return `<section class="ih-card ih-avisos" id="ihAvisos"><div class="ih-card-head"><h3><i data-lucide="bell"></i> Avisos en el celular</h3></div>${cuerpo}</section>`;
+}
+const repintar = () => { const y = window.scrollY; render($("view")); window.scrollTo(0, y); };
+const pedir = async (metodo, url, body) => {
+  const r = await fetch(url, { method: metodo, headers: body ? { "Content-Type": "application/json" } : undefined, body: body ? JSON.stringify(body) : undefined });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || "No se pudo");
+  return d;
+};
+window.ihActivarAvisos = async () => {
+  pushSt.ocupado = true; repintar();
+  try {
+    const permiso = await Notification.requestPermission();
+    pushSt.permiso = permiso;
+    if (permiso !== "granted") throw new Error(permiso === "denied" ? "Bloqueaste las notificaciones. Actívalas en la configuración del navegador." : "No diste permiso para los pushSt.");
+    const { clave } = await pedir("GET", "/api/avisos/clave");
+    const reg = await navigator.serviceWorker.ready;
+    const sub = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64aBytes(clave) });
+    await pedir("POST", "/api/avisos/suscribir", { suscripcion: sub.toJSON(), pais: st.pais });
+    pushSt.suscrito = true;
+  } catch (err) { alert(err.message); }
+  pushSt.ocupado = false; repintar();
+};
+window.ihProbarAviso = async () => {
+  pushSt.ocupado = true; repintar();
+  try { await pedir("POST", "/api/avisos/probar"); } catch (err) { alert(err.message); }
+  pushSt.ocupado = false; repintar();
+};
+window.ihDesactivarAvisos = async () => {
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (sub) { await pedir("DELETE", "/api/avisos/suscribir", { endpoint: sub.endpoint }).catch(() => {}); await sub.unsubscribe(); }
+    pushSt.suscrito = false; repintar();
+  } catch (err) { alert(err.message); }
+};
 
 // ---------- CoDropX como app en el celular ----------
 const yaInstalada = () => window.matchMedia?.("(display-mode: standalone)").matches || window.navigator.standalone === true;

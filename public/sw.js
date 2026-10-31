@@ -12,3 +12,25 @@ self.addEventListener("fetch", (e) => {
   if (e.request.mode !== "navigate") return;   // todo lo demás (API, archivos) va directo a la red
   e.respondWith(fetch(e.request).catch(() => new Response(SIN_INTERNET, { headers: { "Content-Type": "text/html; charset=utf-8" } })));
 });
+
+// Avisos en el celular: "Lo que toca hoy" que manda el servidor cada mañana
+self.addEventListener("push", (e) => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch { d = { cuerpo: e.data?.text() || "" }; }
+  e.waitUntil(self.registration.showNotification(d.titulo || "CoDropX", {
+    body: d.cuerpo || "Tienes cosas por revisar hoy.",
+    icon: "/assets/icon-192.png",
+    badge: "/assets/icon-192.png",
+    tag: "codropx-hoy",            // el de hoy reemplaza al de ayer
+    renotify: true,
+    data: { url: d.url || "/" }
+  }));
+});
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const url = e.notification.data?.url || "/";
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((lista) => {
+    const abierta = lista.find(c => new URL(c.url).origin === self.location.origin);
+    return abierta ? abierta.focus() : self.clients.openWindow(url);
+  }));
+});
