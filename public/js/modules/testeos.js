@@ -7,7 +7,7 @@ import { registrarRuta } from "./navegacion.js";
 import { escapeHTML } from "../core/utils.js";
 import { formatear } from "../core/costeo.js";
 import { claveDeProducto, metricasProducto, decidirTesteo, ACCIONES_TESTEO } from "../core/finanzas.js";
-import { ENFOQUES_COPY } from "../core/anuncios.js";
+import { ENFOQUES_COPY, corchetes, largoTiktok } from "../core/anuncios.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (v) => escapeHTML(v ?? "");
@@ -177,12 +177,63 @@ function tarjetaListo(p) {
       </div>
       <div class="ts-listo-acc">
         ${pr ? `<button class="ts-btn claro chico" onclick="bpAbrirProyecto('${esc(pr._id)}')"><i data-lucide="folder-open"></i> Abrir en Desarrollo</button>` : ""}
-        <button class="ts-btn chico" onclick="tsGuardar('${esc(p._id)}', { resultado: 'testeando' })"><i data-lucide="play"></i> Ya monté la campaña</button>
+        <button class="ts-btn chico" onclick="tsMontada('${esc(p._id)}')"><i data-lucide="play"></i> Ya monté la campaña</button>
       </div>
     </div>
+    ${kit && typeof kit === "object" && !kit.error ? checklistHTML(revisarLanzamiento(p, kit)) : ""}
     ${cuerpo}
   </article>`;
 }
+
+// ---------- Checklist antes de pautar: lo que CoDropX puede revisar solo ----------
+// estado: ok · mal (bloquea) · ojo (revisa tú)
+function revisarLanzamiento(p, kit) {
+  const pais = p.pais || "CO";
+  const c = costeos.get(String(p._id));
+  const r = [];
+  const avs = kit.avatares || [];
+  const publicadas = avs.filter(a => (a.publicaciones || []).length);
+  r.push(publicadas.length === avs.length && avs.length ? { e: (avs.some(a => a.publicaciones.some(x => x.estado !== "ACTIVE")) ? "ojo" : "ok"), t: avs.some(a => a.publicaciones.some(x => x.estado !== "ACTIVE")) ? "Landing publicada, pero alguna está en borrador en Shopify: actívala." : "Landing publicada en Shopify para cada avatar." }
+    : { e: "mal", t: `Falta publicar la landing en Shopify${avs.length > 1 ? ` (avatar ${avs.filter(a => !(a.publicaciones || []).length).map(a => a.id).join(", ")})` : ""}.` });
+  const sinCopys = avs.filter(a => !(a.copys || []).length);
+  r.push(sinCopys.length ? { e: "mal", t: `Faltan copys de Meta (avatar ${sinCopys.map(a => a.id).join(", ")}).` } : { e: "ok", t: "Copys de Meta listos." });
+  const conCorchetes = avs.flatMap(a => (a.copys || []).flatMap(x => corchetes(`${x.texto_principal} ${x.titulo} ${x.descripcion}`)));
+  if (conCorchetes.length) r.push({ e: "mal", t: `Hay datos sin confirmar en los copys: ${[...new Set(conCorchetes)].slice(0, 3).join(" · ")}. Confírmalos o bórralos.` });
+  const tiktokLargo = avs.filter(a => a.tiktok && largoTiktok(a.tiktok) > 100);
+  if (tiktokLargo.length) r.push({ e: "ojo", t: `El texto de TikTok pasa de 100 caracteres (avatar ${tiktokLargo.map(a => a.id).join(", ")}): se va a cortar.` });
+  const creativos = avs.reduce((x, a) => x + (a.adsHechos || 0) + (a.guiones || 0), 0);
+  r.push(creativos ? { e: "ok", t: `${creativos} creativo(s) o guion(es) listos.` } : { e: "ojo", t: "No tienes creativos marcados como hechos ni guiones de video." });
+  // Precio: el de la ficha contra el del costeo y contra los precios que dicen los copys
+  if (!c) r.push({ e: "mal", t: "El producto no tiene costeo: no sabes cuánto puedes pagar por compra (CPA máximo)." });
+  else {
+    const precioCosteo = Number(c.resumen?.redondeado) || 0;
+    r.push(kit.precio && precioCosteo && Math.abs(kit.precio - precioCosteo) > 1 ? { e: "ojo", t: `El precio de la ficha (${formatear(kit.precio, pais)}) no es el del costeo (${formatear(precioCosteo, pais)}).` }
+      : { e: "ok", t: `Costeo hecho: puedes pagar hasta ${formatear(cpaMaximoCosteo(c) || 0, pais)} por compra.` });
+  }
+  const validos = new Set([kit.precio, kit.precioAntes].filter(Boolean).map(v => formatear(v, pais)));
+  const enCopys = [...new Set(avs.flatMap(a => (a.copys || []).flatMap(x => String(x.texto_principal).match(/\$\s?\d[\d.,]*/g) || [])).map(x => x.replace(/\s/g, "")))];
+  const raros = validos.size ? enCopys.filter(x => !validos.has(x)) : [];
+  if (raros.length) r.push({ e: "ojo", t: `Los copys dicen ${raros.slice(0, 3).join(", ")} y la ficha dice ${[...validos].join(" / ")}: revisa que el anuncio y la landing tengan el mismo precio (si son paquetes, está bien).` });
+  r.push((fin[pais]?.config?.metaCuentas || []).length ? { e: "ok", t: "Cuentas publicitarias elegidas en Finanzas: el gasto se llena solo." } : { e: "ojo", t: "No has elegido tus cuentas de Meta en Finanzas → Control Diario: la pauta no se llenará sola." });
+  r.push({ e: "ojo", t: "Revisa tú: píxel de Meta conectado en Shopify, formulario de Releasit funcionando (haz un pedido de prueba) y el margen de abajo libre en la landing." });
+  return r;
+}
+function checklistHTML(lista) {
+  const mal = lista.filter(x => x.e === "mal").length;
+  return `
+  <details class="ts-check" ${mal ? "open" : ""}>
+    <summary><b>${mal ? `✗ Antes de pautar: ${mal} cosa${mal === 1 ? "" : "s"} por arreglar` : "✓ Listo para pautar"}</b><small>${lista.filter(x => x.e === "ok").length} de ${lista.length} revisados</small></summary>
+    <ul>${lista.map(x => `<li class="${x.e}">${x.e === "ok" ? "✓" : x.e === "mal" ? "✗" : "⚠"} ${esc(x.t)}</li>`).join("")}</ul>
+  </details>`;
+}
+window.tsMontada = (id) => {
+  const p = productos.find(x => x._id === id);
+  const pr = p ? proyectos.get(String(p._id)) : null;
+  const kit = pr ? kits.get(String(pr._id)) : null;
+  const mal = kit && typeof kit === "object" && !kit.error ? revisarLanzamiento(p, kit).filter(x => x.e === "mal") : [];
+  if (mal.length && !confirm(`Antes de pautar te falta:\n\n${mal.map(x => "• " + x.t).join("\n")}\n\n¿Lo pasas a Testeando igual?`)) return;
+  tsGuardar(id, { resultado: "testeando" });
+};
 function avatarKit(a, pais, proyectoId) {
   const pubs = a.publicaciones || [];
   const links = pubs.length ? pubs.map(x => {
