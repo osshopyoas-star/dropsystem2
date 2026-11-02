@@ -27,7 +27,8 @@ import {
 import { obtenerPlantilla } from "./rutas-plantilla.js";
 import { ESTRUCTURAS_AD, FORMATOS_AD, MAX_ADS, compararAvatares, fatigaAnuncios } from "./public/js/core/anuncios.js";
 import { metricasAnuncios } from "./rutas-meta.js";
-import { FinanzasConfig, trmHoy } from "./rutas-finanzas.js";
+import { FinanzasConfig, DropiLinea, trmHoy } from "./rutas-finanzas.js";
+import { pedidosDeProducto } from "./public/js/core/finanzas.js";
 import { Costeo } from "./rutas-costeos.js";
 import { conversionLandings, tiendaDe } from "./rutas-shopify.js";
 import { ofertasTemporada } from "./public/js/core/costeo.js";
@@ -643,7 +644,24 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
         }
         return { id: a.id, landings: a.pubs.length, sesiones, compras: Math.round(convertidas), conversion: sesiones ? convertidas / sesiones * 100 : null };
       });
-      const datos = { dias, avatares: filas, ...(problema && !filas.some(f => f.sesiones) ? problema : {}), actualizado: new Date() };
+      // Pedidos reales de Dropi de este producto en los mismos días (Shopify no cuenta los pedidos de Releasit)
+      let dropi = null;
+      try {
+        let dropiId = o.dropiId || "";
+        if (!dropiId && o.productoId) dropiId = (await Producto.findOne({ _id: o.productoId, owner: req.user.uid }).select("dropiId").lean())?.dropiId || "";
+        if (dropiId) {
+          const pais = o.pais === "EC" ? "EC" : "CO";
+          const hoy = new Date(Date.now() - 5 * 36e5);
+          const desde = new Date(hoy.getTime() - (dias - 1) * 864e5).toISOString().slice(0, 10);
+          const [lineas, cfg] = await Promise.all([
+            DropiLinea.find({ owner: req.user.uid, pais }).select("ordenId productoId fecha estatus total flete costoDevolucion proveedor cantidad ganancia -_id").limit(60000).lean(),
+            FinanzasConfig.findOne({ owner: req.user.uid, pais }).select("grupos ultimaImportacion").lean()
+          ]);
+          dropi = pedidosDeProducto(lineas, { dropiId, grupos: cfg?.grupos || [], desde });
+          if (dropi) dropi = { ...dropi, desde, ultimaImportacion: cfg?.ultimaImportacion || null };
+        }
+      } catch (e) { console.error("Conversión: no se pudieron leer los pedidos de Dropi:", e.message); }
+      const datos = { dias, avatares: filas, dropi, ...(problema && !filas.some(f => f.sesiones) ? problema : {}), actualizado: new Date() };
       if (!datos.error) cacheConversion.set(k, { t: Date.now(), datos });
       res.json(datos);
     } catch (err) {

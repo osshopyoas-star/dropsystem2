@@ -982,3 +982,16 @@ export function flujoCaja(lineas, { hoy, dias = 7, gastoDiario = 0, operativosDi
     primerCorto: plan.find(d => d.saldo < 0) || null
   };
 }
+
+// Pedidos de Dropi de un producto en un rango de fechas (para la conversión real de la landing: pedidos ÷ visitas).
+// Cuenta pedidos distintos; los cancelados van aparte porque igual salieron de la landing.
+export function pedidosDeProducto(lineas, { dropiId = "", grupos = [], desde = "", hasta = "" } = {}) {
+  const id = String(dropiId || "").trim();
+  if (!id) return null;
+  const clave = claveProducto(id, grupos);
+  const sel = lineas.filter(l => claveProducto(l.productoId, grupos) === clave && (!desde || l.fecha >= desde) && (!hasta || l.fecha <= hasta));
+  const os = porOrden(sel);
+  const cancelados = os.filter(o => o.grupo === "cancelado").length;
+  const fechas = lineas.filter(l => claveProducto(l.productoId, grupos) === clave).map(l => l.fecha).filter(Boolean).sort();
+  return { pedidos: os.length, cancelados, validos: os.length - cancelados, ultimoDato: fechas[fechas.length - 1] || null };
+}

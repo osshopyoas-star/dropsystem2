@@ -672,28 +672,49 @@ function bloqueConversion(conv, filasMeta = []) {
   }
   const filas = conv.avatares || [];
   if (!filas.some(a => a.sesiones)) return `<p class="ts-kit-nota">Shopify todavía no registra visitas en las landings de este producto (últimos ${conv.dias} días).</p>`;
-  const pct = (v) => (v === null || v === undefined ? "—" : `${v.toFixed(1)}%`);
-  // Diagnóstico por avatar: con el CTR del anuncio (Meta) y la conversión de la landing (Shopify)
-  const diag = (a) => {
+  const num = (v) => Number(v || 0).toLocaleString("es-CO");
+  const pct = (v) => (v === null || v === undefined ? "—" : `${v.toFixed(2)}%`);
+  const MIN = 100;   // antes de esto no se diagnostica: muy pocos datos
+  const datos = filas.map(a => {
     const m = filasMeta.find(x => x.id === a.id);
-    if (a.sesiones < 100) return "Pocas visitas todavía para saber.";
-    const anuncioMal = m?.ctr !== null && m?.ctr !== undefined && m.impresiones >= 1000 && m.ctr < 1;
-    if (a.conversion < 1.5 && !anuncioMal) return "La gente entra pero no compra: el problema es la landing (oferta, precio, confianza, velocidad). Revisa la portada y el formulario.";
-    if (anuncioMal && a.conversion >= 2) return "La landing convierte bien, pero el anuncio atrae poca gente: cambia el gancho o el creativo.";
-    if (anuncioMal && a.conversion < 1.5) return "Ni el anuncio ni la landing están funcionando: revisa el ángulo completo.";
-    return a.conversion >= 3 ? "La landing convierte muy bien. 👌" : "La landing convierte normal (2% a 3% es lo común en contra entrega).";
-  };
+    const clics = m?.clics || 0, compras = m?.compras || 0;
+    return { ...a, clics, comprasPixel: compras, otros: Math.max(0, a.sesiones - clics), convMeta: clics >= MIN ? compras / clics * 100 : null, ctr: m?.ctr ?? null, impresiones: m?.impresiones || 0 };
+  });
+  const visitas = datos.reduce((t, a) => t + a.sesiones, 0);
+  const d = conv.dropi;
+  const convReal = d && visitas ? d.pedidos / visitas * 100 : null;
+  const color = (v, n) => (v === null || n < MIN ? "" : v < 1 ? "rojo" : v >= 2.5 ? "verde" : "");
+
+  // Diagnóstico del producto completo (todas las visitas contra los pedidos reales de Dropi)
+  let diag = "";
+  if (!d) diag = "Para ver la conversión real, ponle el ID de Dropi al producto e importa el Excel de Dropi en Finanzas.";
+  else if (visitas < MIN) diag = `Van ${num(visitas)} visitas: muy poco para saber. Espera a tener al menos ${MIN}.`;
+  else if (convReal < 1) {
+    const anuncioMal = datos.some(a => a.ctr !== null && a.impresiones >= 1000 && a.ctr < 1);
+    diag = `La gente entra y no compra (${pct(convReal)}; lo normal en contra entrega es 2% a 3%). El problema está en la landing o la oferta: revisa precio, oferta y confianza. Mira en Releasit cuántos abren el formulario y cuántos lo envían: si lo abren y no lo envían, es el precio o el formulario; si casi nadie lo abre, es la landing.${anuncioMal ? " Además el anuncio tiene CTR bajo (menos de 1%): cambia el gancho." : ""}`;
+  } else if (convReal < 2) diag = `Convierte bajito (${pct(convReal)}). Prueba otra oferta (2x1, regalo) o mejora la portada antes de subir presupuesto.`;
+  else diag = `Convierte bien (${pct(convReal)}). Si el costo por pedido te da, sube presupuesto de a poco. 👌`;
+
   return `
-    <h4 class="ts-conv-tit"><i data-lucide="shopping-cart"></i> En la landing (Shopify, últimos ${conv.dias} días)</h4>
+    <h4 class="ts-conv-tit"><i data-lucide="shopping-cart"></i> En la landing (últimos ${conv.dias} días)</h4>
     <div class="fz-scroll"><table class="fz-tabla ts-ab">
-      <thead><tr><th></th>${filas.map(a => `<th class="n">Avatar ${esc(a.id)}</th>`).join("")}</tr></thead>
+      <thead><tr><th></th>${datos.map(a => `<th class="n">Avatar ${esc(a.id)}</th>`).join("")}</tr></thead>
       <tbody>
-        <tr><td>Visitas a la landing</td>${filas.map(a => `<td class="n">${a.sesiones.toLocaleString("es-CO")}</td>`).join("")}</tr>
-        <tr><td>Conversión (visitas que compran)</td>${filas.map(a => `<td class="n"><b class="${a.conversion !== null && a.conversion < 1.5 && a.sesiones >= 100 ? "rojo" : a.conversion >= 3 ? "verde" : ""}">${pct(a.conversion)}</b></td>`).join("")}</tr>
-        <tr><td>Compras (Shopify)</td>${filas.map(a => `<td class="n">${a.compras}</td>`).join("")}</tr>
+        <tr><td>Visitas a la landing (Shopify)</td>${datos.map(a => `<td class="n">${num(a.sesiones)}</td>`).join("")}</tr>
+        <tr><td>· que vienen de Meta (clics)</td>${datos.map(a => `<td class="n">${num(a.clics)}</td>`).join("")}</tr>
+        <tr><td>· de otros lados (TikTok, orgánico…)</td>${datos.map(a => `<td class="n">${num(a.otros)}</td>`).join("")}</tr>
+        <tr><td>Conversión de Meta (compras píxel ÷ clics)</td>${datos.map(a => `<td class="n"><b class="${color(a.convMeta, a.clics)}">${a.clics >= MIN ? pct(a.convMeta) : `<small>faltan clics</small>`}</b></td>`).join("")}</tr>
       </tbody>
     </table></div>
-    <ul class="ts-conv-diag">${filas.filter(a => a.landings).map(a => `<li><b>Avatar ${esc(a.id)}:</b> ${esc(diag(a))}</li>`).join("")}</ul>`;
+    ${d ? `
+    <div class="ts-conv-real">
+      <div><small>Pedidos en Dropi</small><b>${num(d.pedidos)}</b>${d.cancelados ? `<small>${num(d.cancelados)} cancelados</small>` : ""}</div>
+      <div><small>Visitas totales</small><b>${num(visitas)}</b></div>
+      <div><small>Conversión real</small><b class="${color(convReal, visitas)}">${pct(convReal)}</b><small>pedidos ÷ visitas</small></div>
+    </div>
+    <p class="fz-mini">Pedidos de Dropi desde el ${esc(d.desde)}${d.ultimoDato ? ` · tu Excel tiene datos hasta el ${esc(d.ultimoDato)}` : ""}. Si importaste hace días, sube el Excel nuevo en Finanzas para que cuadre.</p>` : ""}
+    <p class="ts-conv-diag"><b>Qué dice:</b> ${esc(diag)}</p>
+    <p class="fz-mini">Shopify no cuenta los pedidos de Releasit como compras, por eso la conversión real se saca con los pedidos de Dropi. Las visitas "de otros lados" son la resta entre las visitas de Shopify y los clics de Meta.</p>`;
 }
 
 // ---------- Biblioteca de ganadores: lo que vendió, para repetirlo ----------
