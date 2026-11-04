@@ -160,6 +160,8 @@
   </main>
 
   <script>
+    // Si llegaste aquí desde una pantalla (sesión vencida), al entrar te devolvemos a esa pantalla
+    try { if (location.hash && location.hash !== "#inicio") sessionStorage.setItem("codropx_volver", location.hash); } catch {}
     const form = document.getElementById("form");
     const btn = document.getElementById("btn");
     const errorBox = document.getElementById("error");

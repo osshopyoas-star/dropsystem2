@@ -11,7 +11,11 @@ export function registrarRuta(nombre, render) {
   rutas[nombre] = render;
 }
 
-window.goTo = function(route) {
+// La pantalla actual queda en la dirección (#calculadora, #productos-co…) para que, si el navegador
+// recarga la página (pestaña dormida, F5, sesión vencida), vuelvas a la misma pantalla y no a Inicio.
+const nombreEnUrl = (route) => route === "productos" ? `productos-${(window.productoPaisActivo || "CO").toLowerCase()}` : route;
+
+window.goTo = function(route, { desdeHistorial = false } = {}) {
   const view = document.getElementById("view");
   const render = rutas[route];
 
@@ -21,9 +25,33 @@ window.goTo = function(route) {
   }
 
   document.body.classList.remove("menu-abierto");   // en celular, cerrar el menú al navegar
+  if (!desdeHistorial) {
+    const hash = "#" + nombreEnUrl(route);
+    if (location.hash !== hash) history.pushState(null, "", hash);
+  }
   render(view);
   window.scrollTo?.(0, 0);
 };
+
+// Abre la pantalla que dice la dirección. Devuelve false si no hay ninguna válida.
+window.abrirDesdeUrl = function(hash = location.hash) {
+  const h = decodeURIComponent(String(hash || "").replace(/^#/, ""));
+  if (h === "productos-co" || h === "productos-ec") {
+    window.productoPaisActivo = h === "productos-ec" ? "EC" : "CO";
+    goTo("productos", { desdeHistorial: true });
+    marcarMenuActivo(h);
+    return true;
+  }
+  if (!h || !rutas[h]) return false;
+  goTo(h, { desdeHistorial: true });
+  marcarMenuActivo(h);
+  return true;
+};
+
+// Botón "atrás" del navegador o del celular: vuelve a la pantalla anterior de CoDropX
+window.addEventListener("popstate", () => {
+  if (!abrirDesdeUrl()) { goTo("inicio", { desdeHistorial: true }); marcarMenuActivo("inicio"); }
+});
 
 window.marcarMenuActivo = function(route) {
   document.querySelectorAll(".sidebar-item").forEach(i => {

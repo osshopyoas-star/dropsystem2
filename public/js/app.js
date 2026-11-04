@@ -30,8 +30,14 @@ window.addEventListener("DOMContentLoaded", () => {
     window.__metaResultado = meta;
     goTo("integraciones");
   } else {
-    goTo("inicio");
-    marcarMenuActivo("inicio");
+    // Volver a donde estabas: la pantalla de la dirección o la que tenías antes de que se venciera la sesión
+    let volver = location.hash;
+    try { if (!volver) volver = sessionStorage.getItem("codropx_volver") || ""; sessionStorage.removeItem("codropx_volver"); } catch {}
+    if (!abrirDesdeUrl(volver)) {
+      history.replaceState(null, "", location.pathname + location.search + "#inicio");
+      goTo("inicio", { desdeHistorial: true });
+      marcarMenuActivo("inicio");
+    } else if (volver !== location.hash) history.replaceState(null, "", volver);
   }
   initModalEliminar();
 

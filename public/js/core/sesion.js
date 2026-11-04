@@ -9,6 +9,7 @@ window.fetch = async (...args) => {
   const url = String(args[0]?.url || args[0] || "");
 
   if (res.status === 401 && url.startsWith("/api/") && !url.startsWith("/api/auth/login")) {
+    try { if (location.hash) sessionStorage.setItem("codropx_volver", location.hash); } catch {}
     window.location.href = "/login.html";
   }
   return res;
