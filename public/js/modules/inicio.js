@@ -118,6 +118,7 @@ function numeros() {
 
 // ---------- Pantalla ----------
 function render(view) {
+  if (!window.enPantalla("inicio")) return;
   const n = numeros();
   const testeos = st.productos.filter(p => p.resultado === "testeando");
   const resultados = ["winner", "perdedor", "inconcluso"].map(k => st.productos.filter(p => p.resultado === k).length);

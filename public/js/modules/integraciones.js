@@ -76,7 +76,7 @@ const dinero = (v, moneda) => {
 
 function render() {
   const view = $("view");
-  if (!view) return;
+  if (!view || !window.enPantalla("integraciones")) return;
   view.innerHTML = `
   <div class="in-page">
     <header class="in-head">

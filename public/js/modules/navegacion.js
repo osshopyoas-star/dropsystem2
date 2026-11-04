@@ -25,13 +25,22 @@ window.goTo = function(route, { desdeHistorial = false } = {}) {
   }
 
   document.body.classList.remove("menu-abierto");   // en celular, cerrar el menú al navegar
+  // Cada vez que cambias de pantalla se pone un "lienzo" nuevo. Si la pantalla anterior seguía cargando
+  // (servidor lento), cuando por fin le llegan los datos pinta en el lienzo viejo, que ya no se ve,
+  // y no encima de la pantalla que abriste.
+  window.rutaActual = route;
+  const nuevo = view.cloneNode(false);
+  view.replaceWith(nuevo);
   if (!desdeHistorial) {
     const hash = "#" + nombreEnUrl(route);
     if (location.hash !== hash) history.pushState(null, "", hash);
   }
-  render(view);
+  render(nuevo);
   window.scrollTo?.(0, 0);
 };
+
+// ¿Sigues en esta pantalla? Lo usan las pantallas que se vuelven a pintar después de esperar al servidor.
+window.enPantalla = (ruta) => !window.rutaActual || window.rutaActual === ruta;
 
 // Abre la pantalla que dice la dirección. Devuelve false si no hay ninguna válida.
 window.abrirDesdeUrl = function(hash = location.hash) {

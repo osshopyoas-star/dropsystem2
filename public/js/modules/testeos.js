@@ -73,7 +73,7 @@ function lista() {
 
 function render() {
   const view = $("view");
-  if (!view) return;
+  if (!view || !window.enPantalla("testeos")) return;
   const todos = enTesteo();
   const cuenta = (r) => todos.filter(p => p.resultado === r).length;
   const sinTesteo = productos.filter(p => !p.resultado)

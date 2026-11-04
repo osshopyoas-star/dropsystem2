@@ -384,6 +384,7 @@ async function abrir(id, pasoInicial = null) {
 // =============================================
 function renderProyecto() {
   const view = $("view");
+  if (!view || !window.enPantalla("desarrollo")) return;
   const p = proyecto;
   view.innerHTML = `
     <div class="est-page">

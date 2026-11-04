@@ -354,6 +354,7 @@ function cancelacion30() {
 }
 
 function renderControl(view) {
+  if (!window.enPantalla("control-diario")) return;
   const c = st.config;
   const filas = c?.desde ? filasDelDia() : [];
   const t = totalesControl(filas);
@@ -933,6 +934,7 @@ const barra = (valor, total, color) => `<span class="fz-barra"><i style="width:$
 const COLOR = { entregado: "#16a34a", transito: "#f59e0b", novedad: "#7c3aed", devolucion: "#dc2626", cancelado: "#94a3b8", pendiente: "#334155" };
 
 function renderReporte(view) {
+  if (!window.enPantalla("reporte-financiero")) return;
   const c = st.config;
   const R = st.rep;
   const G = R.guardado;   // viendo un reporte guardado: sus cifras no cambian
@@ -1618,6 +1620,7 @@ window.fzAnalizarIA = async () => {
 // LOGÍSTICA
 // =============================================
 function renderLogistica(view) {
+  if (!window.enPantalla("logistica")) return;
   const c = st.config;
   const L = st.log;
   const [desde, hasta] = periodo(L.periodo, L.desde, L.hasta);

@@ -74,7 +74,7 @@ const acentoDe = (p) => (p.colores.modo === "fijos" ? p.colores.acento : "#3b82f
 // ---------- Pantalla ----------
 function render() {
   const view = $("view");
-  if (!view) return;
+  if (!view || !window.enPantalla("plantilla")) return;
   const p = borrador[formato];
   const azul = acentoDe(p);
   const visibles = p.orden.filter(x => x.visible).length;
