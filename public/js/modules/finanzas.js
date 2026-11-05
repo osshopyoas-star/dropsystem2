@@ -349,14 +349,35 @@ const vacio = () => `<section class="fz-card fz-vacio">
 function lineasShopify() {
   return costearConDropi(st.shop.lineas || [], st.lineas || [], grupos(), st.dia);
 }
-// Trae de Shopify los pedidos de los 14 días alrededor del día elegido (si no los tiene ya)
+// Días que hay que traer de Shopify: los 14 alrededor del día elegido + los de la Vista por rango (máximo 62)
+function ventanaShopify() {
+  const hoy = hoyISO();
+  const dh = sumarDias(st.dia, 6) > hoy ? hoy : sumarDias(st.dia, 6);
+  const dd = sumarDias(dh, -13);
+  const [rd, rh0] = rangoFechas();
+  const rh = rh0 > hoy ? hoy : rh0;
+  const hasta = rh > dh ? rh : dh;
+  let desde = rd && rd < dd ? rd : dd;
+  if (desde < sumarDias(hasta, -62)) desde = sumarDias(hasta, -62);
+  return [desde, hasta];
+}
+function faltaShopify() {
+  const s = st.shop, [desde, hasta] = ventanaShopify();
+  return s.pais !== st.pais || desde < s.desde || hasta > s.hasta;
+}
+// Pedidos para la Vista por rango: con Shopify elegido, los días que trajo Shopify salen de Shopify
+// y los anteriores, del Excel de Dropi (así no se cuentan dos veces)
+function lineasRango() {
+  const s = st.shop;
+  if (st.fuente !== "shopify" || s.pais !== st.pais || !s.desde) return st.lineas;
+  return [...st.lineas.filter(l => l.fecha < s.desde), ...lineasShopify()];
+}
+// Trae de Shopify los pedidos que faltan (si no los tiene ya)
 async function cargarShopify(forzar = false) {
   const s = st.shop;
-  if (!forzar && s.pais === st.pais && st.dia >= s.desde && st.dia <= s.hasta) return;
+  if (!forzar && !faltaShopify()) return;
   if (s.cargando) return;
-  const hoy = hoyISO();
-  const hasta = sumarDias(st.dia, 6) > hoy ? hoy : sumarDias(st.dia, 6);
-  const desde = sumarDias(hasta, -13);
+  const [desde, hasta] = ventanaShopify();
   s.cargando = true; s.error = ""; s.motivo = "";
   if (window.enPantalla("control-diario")) renderControl($("view"));
   try {
@@ -505,7 +526,7 @@ function renderControl(view) {
   iconos();
   // Con Shopify elegido: traer los pedidos si faltan para este día o este país
   const sh = st.shop;
-  if (st.fuente === "shopify" && !sh.cargando && !sh.error && (sh.pais !== st.pais || st.dia < sh.desde || st.dia > sh.hasta)) cargarShopify();
+  if (st.fuente === "shopify" && !sh.cargando && !sh.error && faltaShopify()) cargarShopify();
 }
 
 // Celda Meta: si viene de Meta Ads se marca; si la escribiste tú, puedes volver a lo de Meta
@@ -774,7 +795,7 @@ function rangoFechas() {
 function rangoHTML() {
   const r = st.rango;
   const [desde, hasta] = rangoFechas();
-  let filas = controlDiario(st.lineas, { desde, hasta, grupos: grupos(), pauta: st.pauta, devPct: st.config?.devPct ?? 25 });
+  let filas = controlDiario(lineasRango(), { desde, hasta, grupos: grupos(), pauta: st.pauta, devPct: st.config?.devPct ?? 25 });
   if (r.clave) filas = filas.filter(f => f.clave === r.clave);
   const dias = new Set(filas.map(f => f.fecha)).size;
   if (r.porProducto) {
@@ -977,7 +998,7 @@ const filaCSV = (f) => [f.fecha, f.nombre, f.tipo, f.pedidos, f.uds, f.cancelado
 window.fzExportarDia = () => descargarCSV(`control-diario-${st.pais}-${st.dia}.csv`, [ENC_CSV, ...filasDelDia().map(filaCSV)]);
 window.fzExportarRango = () => {
   const [desde, hasta] = rangoFechas();
-  let filas = controlDiario(st.lineas, { desde, hasta, grupos: grupos(), pauta: st.pauta, devPct: st.config?.devPct ?? 25 });
+  let filas = controlDiario(lineasRango(), { desde, hasta, grupos: grupos(), pauta: st.pauta, devPct: st.config?.devPct ?? 25 });
   if (st.rango.clave) filas = filas.filter(f => f.clave === st.rango.clave);
   descargarCSV(`control-diario-${st.pais}-${desde}-a-${hasta}.csv`, [ENC_CSV, ...filas.map(filaCSV)]);
 };
