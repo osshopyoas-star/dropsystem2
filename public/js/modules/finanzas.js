@@ -467,19 +467,20 @@ function renderControl(view) {
       <div class="fz-card-head"><h3><i data-lucide="shopping-bag"></i> Productos que vendiste el ${fechaCorta(st.dia)}</h3><small>edita aquí y la tabla de abajo se llena sola</small></div>
       <div class="fz-scroll">
         <table class="fz-tabla fz-edit">
-          <thead><tr><th>Producto</th><th>Tipo</th><th class="n">Pedidos</th><th class="n">Uds</th><th class="n">% Dev</th><th class="n">Meta</th><th class="n">TikTok</th><th></th></tr></thead>
+          <thead><tr><th>Producto</th><th>Tipo</th><th class="n">Pedidos</th><th class="n">Uds</th><th class="n">% Canc</th><th class="n">% Dev</th><th class="n">Meta</th><th class="n">TikTok</th><th></th></tr></thead>
           <tbody>
             ${filas.map((f, i) => `
               <tr>
                 <td><b>${esc(f.nombre)}</b>${f.fallido ? ` <span class="fz-tag rojo">sin ventas</span>` : ""}</td>
                 <td><select class="fz-tipo ${f.tipo}" onchange="fzPauta(${i}, 'tipo', this.value)"><option value="testeo" ${f.tipo === "testeo" ? "selected" : ""}>TESTEO</option><option value="escala" ${f.tipo === "escala" ? "selected" : ""}>ESCALA</option></select></td>
                 <td class="n">${f.pedidos}</td>
-                <td class="n">${f.uds}</td>
+                <td class="n"><span class="fz-input ${f.udsEditado ? "editado" : ""}" title="${f.udsEditado ? "Lo escribiste tú. Bórralo para volver a las del pedido" : "Unidades del pedido. Cámbialas si no cuadran"}"><input type="number" min="0" step="1" value="${f.uds}" onchange="fzPauta(${i}, 'uds', this.value)"></span></td>
+                <td class="n"><span class="fz-input ${f.cancEditado ? "editado" : ""}" title="${f.cancEditado ? "Lo escribiste tú. Bórralo para volver al real" : "% real de cancelados de este día. Cámbialo si quieres"}"><input type="number" min="0" max="100" step="0.5" value="${Math.round(f.pctCanc * 10) / 10}" onchange="fzPauta(${i}, 'cancPct', this.value)">%</span></td>
                 <td class="n"><span class="fz-input"><input type="number" min="0" max="95" step="0.5" value="${f.devPct}" onchange="fzPauta(${i}, 'devPct', this.value)">%</span></td>
                 <td class="n">${celdaMeta(f, i)}</td>
                 <td class="n"><span class="fz-input">$<input type="number" min="0" step="any" value="${f.tiktok || ""}" placeholder="0" onchange="fzPauta(${i}, 'tiktok', this.value)"></span></td>
                 <td>${f.fallido ? `<button class="fz-icono peligro" title="Quitar" onclick="fzQuitarFallido(${i})"><i data-lucide="trash-2"></i></button>` : ""}</td>
-              </tr>`).join("") || `<tr><td colspan="8" class="fz-sin">Sin pedidos este día.</td></tr>`}
+              </tr>`).join("") || `<tr><td colspan="9" class="fz-sin">Sin pedidos este día.</td></tr>`}
           </tbody>
         </table>
       </div>
@@ -745,7 +746,7 @@ function tablaControl(filas, t, conFecha) {
     <tbody>
       ${filas.map(f => `<tr>
         ${conFecha ? `<td>${/^\d{4}-/.test(f.fecha) ? fechaCorta(f.fecha) : esc(f.fecha)}</td>` : ""}<td><b>${esc(f.nombre)}</b></td><td><span class="fz-tag ${f.tipo}">${f.tipo.toUpperCase()}</span></td>
-        <td class="n">${f.pedidos}</td><td class="n">${f.sinConfirmar || "—"}</td><td class="n">${f.uds}</td><td class="n">${f.cancelados}</td><td class="n">${pct(f.pctCanc)}</td><td class="n">${pct(f.devPct)}</td><td class="n">${n1(f.efectivas)}</td>
+        <td class="n">${f.pedidos}</td><td class="n">${f.sinConfirmar || "—"}</td><td class="n">${f.uds}</td><td class="n">${Number.isInteger(f.cancelados) ? f.cancelados : n1(f.cancelados)}</td><td class="n">${pct(f.pctCanc)}</td><td class="n">${pct(f.devPct)}</td><td class="n">${n1(f.efectivas)}</td>
         <td class="n">${f.pedidos ? $$(f.precio) : "—"}</td><td class="n gris">${f.pedidos ? $$(f.proveedor) : "—"}</td><td class="n gris">${f.pedidos ? $$(f.fleteBase) : "—"}</td><td class="n">${f.pedidos ? $$(f.fleteDev) : "—"}</td>
         <td class="n">${$$(f.meta)}</td><td class="n">${$$(f.tiktok)}</td><td class="n">${$$(f.gasto)}</td><td class="n">${f.cpa === null ? "—" : $$(f.cpa)}</td>
         <td class="n"><b>${f.pedidos ? $$s(f.equilibrio) : "—"}</b></td><td class="n ${f.utilProd < 0 ? "rojo" : "verde"}">${f.pedidos ? $$s(f.utilProd) : "—"}</td>

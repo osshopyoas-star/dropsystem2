@@ -246,14 +246,21 @@ export function controlDiario(lineas, { desde, hasta, grupos = [], pauta = {}, d
   return [...filas.values()].map(f => {
     const p = pauta[`${f.fecha}|${f.clave}`] || {};
     const d = p.devPct !== undefined && p.devPct !== null && p.devPct !== "" ? Number(p.devPct) : devPct;
+    // Lo que escribiste a mano en el Control Diario: unidades y % de cancelados
+    const tiene = (v) => v !== undefined && v !== null && v !== "";
+    const udsAj = tiene(p.uds) ? Math.max(0, Number(p.uds) || 0) : null;
+    const cancAj = tiene(p.cancPct) ? Math.min(100, Math.max(0, Number(p.cancPct) || 0)) : null;
+    const pedidos = f.ordenes.size;
+    // Si cambias las unidades, el costo del proveedor cambia en la misma proporción
+    const factorUds = udsAj !== null && f.uds > 0 ? udsAj / f.uds : 1;
     const base = {
-      pedidos: f.ordenes.size, cancelados: f.canceladas.size, devPct: d,
-      precio: prom(f.precios), proveedor: prom(f.proveedores), fleteBase: prom(f.fletes),
+      pedidos, cancelados: cancAj !== null ? Math.round(pedidos * cancAj / 10) / 10 : f.canceladas.size, devPct: d,
+      precio: prom(f.precios), proveedor: prom(f.proveedores) * factorUds, fleteBase: prom(f.fletes),
       meta: Number(p.meta) || 0, tiktok: Number(p.tiktok) || 0
     };
     return {
       fecha: f.fecha, clave: f.clave, nombre: f.nombre, tipo: p.tipo || "testeo", fallido: !!f.fallido,
-      sinConfirmar: f.sinConfirmar.size, uds: f.uds, ...base, ...filaControl(base)
+      sinConfirmar: f.sinConfirmar.size, uds: udsAj !== null ? udsAj : f.uds, udsEditado: udsAj !== null, cancEditado: cancAj !== null, ...base, ...filaControl(base)
     };
   }).sort((a, b) => a.fecha.localeCompare(b.fecha) || b.pedidos - a.pedidos || a.nombre.localeCompare(b.nombre));
 }

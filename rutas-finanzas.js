@@ -35,7 +35,10 @@ const pautaSchema = new mongoose.Schema({
   pais: { type: String, enum: PAISES, default: "CO" },
   fecha: String, clave: String, nombre: String,
   meta: { type: Number, default: 0 }, tiktok: { type: Number, default: 0 },
-  devPct: { type: Number, default: null }, tipo: { type: String, default: "testeo" }, fallido: { type: Boolean, default: false },
+  devPct: { type: Number, default: null },
+  uds: { type: Number, default: null },        // unidades que escribiste tú (si no, las del pedido)
+  cancPct: { type: Number, default: null },    // % de cancelados que escribiste tú (si no, el real)
+  tipo: { type: String, default: "testeo" }, fallido: { type: Boolean, default: false },
   metaAuto: { type: Boolean, default: false },     // el valor de Meta lo trajo CoDropX desde Meta Ads
   metaManual: { type: Boolean, default: false },   // lo escribiste tú: la sincronización no lo pisa
   actualizado: { type: Date, default: Date.now }
@@ -143,7 +146,7 @@ export function limpiarCostosOperativos(lista) {
   })).filter(c => c.mes && (c.desc || c.valor > 0));
 }
 
-const publicaPauta = (d) => ({ fecha: d.fecha, clave: d.clave, nombre: d.nombre, meta: d.meta, tiktok: d.tiktok, devPct: d.devPct, tipo: d.tipo, fallido: d.fallido, metaAuto: !!d.metaAuto, metaManual: !!d.metaManual });
+const publicaPauta = (d) => ({ fecha: d.fecha, clave: d.clave, nombre: d.nombre, meta: d.meta, tiktok: d.tiktok, devPct: d.devPct, uds: d.uds ?? null, cancPct: d.cancPct ?? null, tipo: d.tipo, fallido: d.fallido, metaAuto: !!d.metaAuto, metaManual: !!d.metaManual });
 const MONEDA = { CO: "COP", EC: "USD" };
 const cacheMeta = new Map();
 
@@ -538,6 +541,8 @@ Sin rodeos, sin inventar datos que no estén en las cifras. Si la publicidad est
       if (b.meta !== undefined) { set.metaManual = true; set.metaAuto = false; }
       if (b.metaAuto === true) { set.metaManual = false; set.meta = 0; }   // "volver a lo de Meta": la próxima sincronización lo llena
       if (b.devPct !== undefined) set.devPct = b.devPct === null || b.devPct === "" ? null : Math.min(95, Math.max(0, Number(b.devPct) || 0));
+      if (b.uds !== undefined) set.uds = b.uds === null || b.uds === "" ? null : Math.min(100000, Math.max(0, Math.round(Number(b.uds) || 0)));
+      if (b.cancPct !== undefined) set.cancPct = b.cancPct === null || b.cancPct === "" ? null : Math.min(100, Math.max(0, Number(b.cancPct) || 0));
       if (b.tipo !== undefined) set.tipo = ["testeo", "escala"].includes(b.tipo) ? b.tipo : "testeo";
       if (b.fallido !== undefined) set.fallido = !!b.fallido;
       if (b.nombre !== undefined) set.nombre = String(b.nombre || "").slice(0, 200);

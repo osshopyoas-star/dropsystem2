@@ -5929,3 +5929,5 @@ main .cal-page input:focus, main .cal-page select:focus, main .pl-page input:foc
 .fz-enlace { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
 .fz-enlace span { font-weight: 600; }
 .fz-enlace select { max-width: 100%; padding: 6px 8px; border-radius: 8px; border: 1px solid #cbd5e1; font: inherit; }
+/* Control Diario: valor escrito a mano (unidades o % de cancelados) */
+.fz-input.editado { border-color: #3b82f6 !important; background: rgba(59,130,246,.08) !important; }
