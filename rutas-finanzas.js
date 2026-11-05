@@ -75,6 +75,8 @@ const configSchema = new mongoose.Schema({
   pais: { type: String, enum: PAISES, default: "CO" },
   cuenta: { type: String, default: "" },
   devPct: { type: Number, default: 25 },
+  cancPct: { type: Number, default: null },        // % de cancelados de la tienda que escribiste (para pedidos sin datos de Dropi)
+  fletePromedio: { type: Number, default: null },  // flete promedio (solo se usa cuando Dropi no trae el flete)
   metaEntrega: { type: Number, default: 70 },
   grupos: { type: [mongoose.Schema.Types.Mixed], default: [] },   // { id, nombre, ids: [productoId] }
   metaCuentas: { type: [String], default: [] },                    // cuentas publicitarias cuyo gasto se suma
@@ -258,7 +260,7 @@ Sin rodeos, sin inventar datos que no estén en las cifras. Si la publicidad est
       const dias = [...new Set(fechas.map(f => f.fecha))].sort();
       const oficial = await trmHoy();
       res.json({
-        pais: p, cuenta: cfg?.cuenta || "", devPct: cfg?.devPct ?? 25, metaEntrega: cfg?.metaEntrega ?? 70,
+        pais: p, cuenta: cfg?.cuenta || "", devPct: cfg?.devPct ?? 25, cancPct: cfg?.cancPct ?? null, fletePromedio: cfg?.fletePromedio ?? null, metaEntrega: cfg?.metaEntrega ?? 70,
         grupos: cfg?.grupos || [], ultimaImportacion: cfg?.ultimaImportacion || null,
         metaCuentas: cfg?.metaCuentas || [], trm: cfg?.trmManual ? cfg.trm : null,
         trmDia: oficial.valor || null, costosOperativos: cfg?.costosOperativos || [], metasMes: cfg?.metasMes || {},
@@ -275,6 +277,9 @@ Sin rodeos, sin inventar datos que no estén en las cifras. Si la publicidad est
       const p = pais(req.body?.pais);
       const set = { actualizado: new Date() };
       if (req.body?.devPct !== undefined) set.devPct = Math.min(95, Math.max(0, Number(req.body.devPct) || 0));
+      const vacio = (v) => v === null || v === "";
+      if (req.body?.cancPct !== undefined) set.cancPct = vacio(req.body.cancPct) ? null : Math.min(100, Math.max(0, Number(req.body.cancPct) || 0));
+      if (req.body?.fletePromedio !== undefined) set.fletePromedio = vacio(req.body.fletePromedio) ? null : Math.min(1e9, Math.max(0, Number(req.body.fletePromedio) || 0));
       if (req.body?.metaEntrega !== undefined) set.metaEntrega = Math.min(100, Math.max(1, Number(req.body.metaEntrega) || 70));
       if (req.body?.cuenta !== undefined) set.cuenta = String(req.body.cuenta || "").slice(0, 80);
       if (Array.isArray(req.body?.metaCuentas)) set.metaCuentas = [...new Set(req.body.metaCuentas.map(x => String(x).replace(/^act_/, "")).filter(x => /^\d{3,25}$/.test(x)))].slice(0, 25);
@@ -302,7 +307,7 @@ Sin rodeos, sin inventar datos que no estén en las cifras. Si la publicidad est
       const cfg = await FinanzasConfig.findOneAndUpdate(
         { owner: req.user.uid, pais: p }, { $set: soloSet, ...($unset ? { $unset } : {}), $setOnInsert: { owner: req.user.uid, pais: p } }, { upsert: true, new: true }
       ).lean();
-      res.json({ ok: true, metasMes: cfg.metasMes || {}, devPct: cfg.devPct, metaEntrega: cfg.metaEntrega, grupos: cfg.grupos || [], cuenta: cfg.cuenta || "", metaCuentas: cfg.metaCuentas || [], trm: cfg.trmManual ? cfg.trm : null, costosOperativos: cfg.costosOperativos || [] });
+      res.json({ ok: true, metasMes: cfg.metasMes || {}, devPct: cfg.devPct, cancPct: cfg.cancPct ?? null, fletePromedio: cfg.fletePromedio ?? null, metaEntrega: cfg.metaEntrega, grupos: cfg.grupos || [], cuenta: cfg.cuenta || "", metaCuentas: cfg.metaCuentas || [], trm: cfg.trmManual ? cfg.trm : null, costosOperativos: cfg.costosOperativos || [] });
     } catch (err) {
       console.error("Error guardando ajustes de finanzas:", err);
       res.status(500).json({ error: "No se pudo guardar" });

@@ -216,7 +216,7 @@ export function filaControl({ pedidos, cancelados, devPct, precio, proveedor, fl
  * lineas: pedidos de Dropi · pauta: { "AAAA-MM-DD|clave": { meta, tiktok, devPct, tipo } }
  * Devuelve filas por día y producto.
  */
-export function controlDiario(lineas, { desde, hasta, grupos = [], pauta = {}, devPct = 25, historial = null } = {}) {
+export function controlDiario(lineas, { desde, hasta, grupos = [], pauta = {}, devPct = 25, historial = null, cancDefecto = null, fleteDefecto = null } = {}) {
   const filas = new Map();
   const nombres = nombresProductos(lineas, grupos);
   // Precio, costo y flete de cada producto en sus pedidos (para los días en que escribes las unidades a mano sin pedidos)
@@ -254,8 +254,9 @@ export function controlDiario(lineas, { desde, hasta, grupos = [], pauta = {}, d
     if ((desde && l.fecha < desde) || (hasta && l.fecha > hasta)) continue;
     const clave = claveProducto(l.productoId, grupos);
     const k = `${l.fecha}|${clave}`;
-    if (!filas.has(k)) filas.set(k, { fecha: l.fecha, clave, nombre: nombres.get(clave)?.nombre || l.producto, ordenes: new Set(), canceladas: new Set(), sinConfirmar: new Set(), uds: 0, precios: [], proveedores: [], fletes: [] });
+    if (!filas.has(k)) filas.set(k, { fecha: l.fecha, clave, nombre: nombres.get(clave)?.nombre || l.producto, ordenes: new Set(), canceladas: new Set(), sinConfirmar: new Set(), uds: 0, precios: [], proveedores: [], fletes: [], soloShopify: true });
     const f = filas.get(k);
+    if (l.fuente !== "shopify") f.soloShopify = false;
     f.ordenes.add(l.ordenId);
     f.uds += l.cantidad;
     if (g === "cancelado") f.canceladas.add(l.ordenId);
@@ -302,17 +303,23 @@ export function controlDiario(lineas, { desde, hasta, grupos = [], pauta = {}, d
       if (previo !== null) { precioAj = previo; precioHeredado = true; }
     }
     if (precioAj !== null) precio = precioAj;
+    // Pedidos sin datos de Dropi (Shopify, WhatsApp a mano): usan el % de cancelados y el flete promedio de tu tienda
+    const sinDropi = manual || (f.soloShopify && f.ordenes.size > 0);
+    const cancUsar = cancAj !== null ? cancAj : sinDropi && cancDefecto !== null && cancDefecto !== "" ? Math.min(100, Math.max(0, Number(cancDefecto) || 0)) : null;
+    let fleteBase = manual ? prom(h?.fletes || []) : prom(f.fletes);
+    const fleteTienda = !(fleteBase > 0) && Number(fleteDefecto) > 0;
+    if (fleteTienda) fleteBase = Number(fleteDefecto);
     const base = {
-      pedidos, cancelados: cancAj !== null ? Math.round(pedidos * cancAj / 10) / 10 : f.canceladas.size, devPct: d,
+      pedidos, cancelados: cancUsar !== null ? Math.round(pedidos * cancUsar / 10) / 10 : f.canceladas.size, devPct: d,
       precio,
       proveedor,
-      fleteBase: manual ? prom(h?.fletes || []) : prom(f.fletes),
+      fleteBase,
       meta: Number(p.meta) || 0, tiktok: Number(p.tiktok) || 0
     };
     return {
       fecha: f.fecha, clave: f.clave, nombre: f.nombre, tipo: p.tipo || "testeo", fallido: !!f.fallido && !manual, manual, sinPrecio: manual && !(h?.precios || []).length && !tiene(p.precioVenta),
       sinConfirmar: f.sinConfirmar.size, uds: udsFinal, udsEditado: udsAj !== null, cancEditado: cancAj !== null,
-      provEditado: provUnit !== null && !provHeredado, provHeredado, precioEditado: precioAj !== null && !precioHeredado, precioHeredado, provUnidad: pedidos > 0 && udsFinal > 0 ? proveedor * pedidos / Math.max(udsFinal, pedidos) : (provUnit || 0), ...base, ...filaControl(base)
+      provEditado: provUnit !== null && !provHeredado, provHeredado, precioEditado: precioAj !== null && !precioHeredado, precioHeredado, cancTienda: cancAj === null && cancUsar !== null, fleteTienda, provUnidad: pedidos > 0 && udsFinal > 0 ? proveedor * pedidos / Math.max(udsFinal, pedidos) : (provUnit || 0), ...base, ...filaControl(base)
     };
   }).sort((a, b) => a.fecha.localeCompare(b.fecha) || b.pedidos - a.pedidos || a.nombre.localeCompare(b.nombre));
 }

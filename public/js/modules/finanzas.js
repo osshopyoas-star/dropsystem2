@@ -101,6 +101,11 @@ async function cargar(forzar = false) {
 }
 
 const grupos = () => st.config?.grupos || [];
+// Lo que usa el Control Diario: pauta, % de devolución y, para los pedidos sin datos de Dropi, el % de cancelados y el flete de tu tienda
+const opcionesControl = () => ({
+  grupos: grupos(), pauta: st.pauta, devPct: st.config?.devPct ?? 25, historial: historialPrecios(),
+  cancDefecto: st.config?.cancPct ?? cancelacion30(), fleteDefecto: st.config?.fletePromedio ?? null
+});
 // Pedidos de Dropi + los de Shopify ya traídos: de aquí sale el precio, costo y flete promedio de cada producto
 const historialPrecios = () => (st.shop?.lineas?.length && st.shop.pais === st.pais ? [...st.lineas, ...st.shop.lineas] : st.lineas);
 const productos = () => [...nombresProductos(st.lineas, grupos()).values()].sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
@@ -426,9 +431,9 @@ function bloqueShopify() {
 
 function filasDelDia() {
   if (st.fuente === "shopify") {
-    return controlDiario(lineasShopify(), { desde: st.dia, hasta: st.dia, grupos: grupos(), pauta: st.pauta, devPct: st.config?.devPct ?? 25, historial: historialPrecios() });
+    return controlDiario(lineasShopify(), { desde: st.dia, hasta: st.dia, grupos: grupos(), ...opcionesControl() });
   }
-  return controlDiario(st.lineas, { desde: st.dia, hasta: st.dia, grupos: grupos(), pauta: st.pauta, devPct: st.config?.devPct ?? 25, historial: historialPrecios() });
+  return controlDiario(st.lineas, { desde: st.dia, hasta: st.dia, grupos: grupos(), ...opcionesControl() });
 }
 
 function cancelacion30() {
@@ -481,8 +486,9 @@ function renderControl(view) {
 
     <section class="fz-card fz-tienda">
       <b>TU TIENDA</b>
-      <span>Cancelaciones <strong>${canc === null ? "—" : pct(canc)}</strong> <small>últimos 30 días</small></span>
+      <span>Cancelaciones <strong>${c.cancPct !== null && c.cancPct !== undefined ? pct(c.cancPct) : canc === null ? "—" : pct(canc)}</strong> <small>${c.cancPct !== null && c.cancPct !== undefined ? `lo pusiste tú · real ${canc === null ? "—" : pct(canc)}` : "últimos 30 días"} · se usa en pedidos sin datos de Dropi</small></span>
       <span>Devoluciones <strong>${pct(c.devPct, 0)}</strong> <small>se usa en los productos sin % propio</small></span>
+      <span>Flete promedio <strong>${c.fletePromedio ? formatear(c.fletePromedio, st.pais) : "—"}</strong> <small>solo cuando Dropi no trae flete</small></span>
       <button class="fz-btn claro chico" onclick="fzEditarDev()"><i data-lucide="pencil"></i> Editar</button>
     </section>
 
@@ -799,7 +805,7 @@ function rangoFechas() {
 function rangoHTML() {
   const r = st.rango;
   const [desde, hasta] = rangoFechas();
-  let filas = controlDiario(lineasRango(), { desde, hasta, grupos: grupos(), pauta: st.pauta, devPct: st.config?.devPct ?? 25, historial: historialPrecios() });
+  let filas = controlDiario(lineasRango(), { desde, hasta, grupos: grupos(), ...opcionesControl() });
   if (r.clave) filas = filas.filter(f => f.clave === r.clave);
   const dias = new Set(filas.map(f => f.fecha)).size;
   if (r.porProducto) {
@@ -907,15 +913,30 @@ window.fzQuitarFallido = async (i) => {
   } catch (err) { avisar(err.message, "error"); }
 };
 
-window.fzEditarDev = async () => {
-  const v = prompt("% de devoluciones de tu tienda (se usa para estimar los entregados de cada producto):", st.config?.devPct ?? 25);
-  if (v === null) return;
-  const n = Number(String(v).replace(",", "."));
-  if (!(n >= 0 && n <= 95)) return avisar("Escribe un número entre 0 y 95", "error");
+// Ajustes de tu tienda: % de cancelados, % de devoluciones y flete promedio
+window.fzEditarDev = () => {
+  const c = st.config || {}, real = cancelacion30();
+  modalReporte(`
+    <h3><i data-lucide="store"></i> Tu tienda · ${PAIS_NOMBRE[st.pais]}</h3>
+    <label class="fz-campo"><span>% de cancelados</span><input id="fzTiCanc" type="number" min="0" max="100" step="0.5" value="${c.cancPct ?? ""}" placeholder="${real === null ? "" : `Real: ${Math.round(real * 10) / 10}`}">
+      <small>Se usa en los pedidos que no tienen datos de Dropi (Shopify en vivo, ventas por WhatsApp). Déjalo vacío para usar tu % real de los últimos 30 días${real === null ? "" : ` (${pct(real)})`}.</small></label>
+    <label class="fz-campo"><span>% de devoluciones</span><input id="fzTiDev" type="number" min="0" max="95" step="0.5" value="${c.devPct ?? 25}">
+      <small>Para estimar los entregados de cada producto que no tenga su propio %.</small></label>
+    <label class="fz-campo"><span>Flete promedio</span><input id="fzTiFlete" type="number" min="0" step="any" value="${c.fletePromedio ?? ""}" placeholder="0">
+      <small>Solo se usa cuando el pedido no trae flete de Dropi. Si Dropi lo trae, manda el de Dropi.</small></label>
+    <div class="fz-modal-pie"><button class="fz-btn claro" onclick="fzCerrarModalRep()">Cancelar</button><button class="fz-btn" onclick="fzGuardarTienda()">Guardar</button></div>`);
+};
+window.fzGuardarTienda = async () => {
+  const num = (id) => String($(id)?.value ?? "").trim().replace(",", ".");
+  const dev = Number(num("fzTiDev"));
+  if (!(dev >= 0 && dev <= 95)) return avisar("Las devoluciones van entre 0 y 95", "error");
+  const canc = num("fzTiCanc"), flete = num("fzTiFlete");
+  if (canc !== "" && !(Number(canc) >= 0 && Number(canc) <= 100)) return avisar("Los cancelados van entre 0 y 100", "error");
   try {
-    const r = await api("PUT", "/api/finanzas/config", { pais: st.pais, devPct: n });
-    st.config.devPct = r.devPct;
-    renderControl($("view"));
+    const r = await api("PUT", "/api/finanzas/config", { pais: st.pais, devPct: dev, cancPct: canc === "" ? null : Number(canc), fletePromedio: flete === "" ? null : Number(flete) });
+    Object.assign(st.config, { devPct: r.devPct, cancPct: r.cancPct, fletePromedio: r.fletePromedio });
+    fzCerrarModalRep();
+    const y = window.scrollY; renderControl($("view")); window.scrollTo(0, y);
   } catch (err) { avisar(err.message, "error"); }
 };
 
@@ -1002,7 +1023,7 @@ const filaCSV = (f) => [f.fecha, f.nombre, f.tipo, f.pedidos, f.uds, f.cancelado
 window.fzExportarDia = () => descargarCSV(`control-diario-${st.pais}-${st.dia}.csv`, [ENC_CSV, ...filasDelDia().map(filaCSV)]);
 window.fzExportarRango = () => {
   const [desde, hasta] = rangoFechas();
-  let filas = controlDiario(lineasRango(), { desde, hasta, grupos: grupos(), pauta: st.pauta, devPct: st.config?.devPct ?? 25, historial: historialPrecios() });
+  let filas = controlDiario(lineasRango(), { desde, hasta, grupos: grupos(), ...opcionesControl() });
   if (st.rango.clave) filas = filas.filter(f => f.clave === st.rango.clave);
   descargarCSV(`control-diario-${st.pais}-${desde}-a-${hasta}.csv`, [ENC_CSV, ...filas.map(filaCSV)]);
 };

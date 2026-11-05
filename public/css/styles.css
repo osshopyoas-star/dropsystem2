@@ -5931,3 +5931,8 @@ main .cal-page input:focus, main .cal-page select:focus, main .pl-page input:foc
 .fz-enlace select { max-width: 100%; padding: 6px 8px; border-radius: 8px; border: 1px solid #cbd5e1; font: inherit; }
 /* Control Diario: valor escrito a mano (unidades o % de cancelados) */
 .fz-input.editado { border-color: #3b82f6 !important; background: rgba(59,130,246,.08) !important; }
+/* Ajustes de tu tienda (Control Diario) */
+.fz-campo { display: flex; flex-direction: column; gap: 4px; margin: 12px 0; font-size: 13px; }
+.fz-campo span { font-weight: 700; color: #1e293b; }
+.fz-campo input { padding: 9px 11px; border-radius: 10px; border: 1px solid #cbd5e1; font: inherit; }
+.fz-campo small { color: #64748b; line-height: 1.4; }
