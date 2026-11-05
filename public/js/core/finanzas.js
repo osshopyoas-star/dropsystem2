@@ -237,16 +237,17 @@ export function controlDiario(lineas, { desde, hasta, grupos = [], pauta = {}, d
     }
     return promedios.get(clave) || null;
   };
-  // Último costo por unidad que escribiste a mano para un producto, antes de una fecha
-  const costoAnterior = (clave, fecha) => {
+  // Último valor que escribiste a mano para un producto antes de una fecha (costo por unidad o precio de venta)
+  const anterior = (campo, clave, fecha) => {
     let mejor = null;
     for (const [k, p] of Object.entries(pauta)) {
       const [fe, cl] = k.split("|");
-      if (cl !== clave || fe >= fecha || p.provUnit === undefined || p.provUnit === null || p.provUnit === "") continue;
-      if (!mejor || fe > mejor.fe) mejor = { fe, v: Math.max(0, Number(p.provUnit) || 0) };
+      if (cl !== clave || fe >= fecha || p[campo] === undefined || p[campo] === null || p[campo] === "") continue;
+      if (!mejor || fe > mejor.fe) mejor = { fe, v: Math.max(0, Number(p[campo]) || 0) };
     }
     return mejor ? mejor.v : null;
   };
+  const costoAnterior = (clave, fecha) => anterior("provUnit", clave, fecha);
   for (const l of lineas) {
     const g = grupoEstado(l);
     if (g === "reemplazada") continue;
@@ -293,17 +294,25 @@ export function controlDiario(lineas, { desde, hasta, grupos = [], pauta = {}, d
       if (previo !== null) { provUnit = previo; provHeredado = true; }
     }
     if (provUnit !== null && pedidos > 0) proveedor = provUnit * Math.max(udsFinal, pedidos) / pedidos;
+    // Precio de venta por pedido escrito a mano (ventas por WhatsApp u otros que no pasan por Shopify)
+    let precio = manual ? prom(h?.precios || []) : prom(f.precios);
+    let precioAj = tiene(p.precioVenta) ? Math.max(0, Number(p.precioVenta) || 0) : null, precioHeredado = false;
+    if (precioAj === null && !(precio > 0)) {
+      const previo = anterior("precioVenta", f.clave, f.fecha);
+      if (previo !== null) { precioAj = previo; precioHeredado = true; }
+    }
+    if (precioAj !== null) precio = precioAj;
     const base = {
       pedidos, cancelados: cancAj !== null ? Math.round(pedidos * cancAj / 10) / 10 : f.canceladas.size, devPct: d,
-      precio: manual ? prom(h?.precios || []) : prom(f.precios),
+      precio,
       proveedor,
       fleteBase: manual ? prom(h?.fletes || []) : prom(f.fletes),
       meta: Number(p.meta) || 0, tiktok: Number(p.tiktok) || 0
     };
     return {
-      fecha: f.fecha, clave: f.clave, nombre: f.nombre, tipo: p.tipo || "testeo", fallido: !!f.fallido && !manual, manual, sinPrecio: manual && !(h?.precios || []).length,
+      fecha: f.fecha, clave: f.clave, nombre: f.nombre, tipo: p.tipo || "testeo", fallido: !!f.fallido && !manual, manual, sinPrecio: manual && !(h?.precios || []).length && !tiene(p.precioVenta),
       sinConfirmar: f.sinConfirmar.size, uds: udsFinal, udsEditado: udsAj !== null, cancEditado: cancAj !== null,
-      provEditado: provUnit !== null && !provHeredado, provHeredado, provUnidad: pedidos > 0 && udsFinal > 0 ? proveedor * pedidos / Math.max(udsFinal, pedidos) : (provUnit || 0), ...base, ...filaControl(base)
+      provEditado: provUnit !== null && !provHeredado, provHeredado, precioEditado: precioAj !== null && !precioHeredado, precioHeredado, provUnidad: pedidos > 0 && udsFinal > 0 ? proveedor * pedidos / Math.max(udsFinal, pedidos) : (provUnit || 0), ...base, ...filaControl(base)
     };
   }).sort((a, b) => a.fecha.localeCompare(b.fecha) || b.pedidos - a.pedidos || a.nombre.localeCompare(b.nombre));
 }

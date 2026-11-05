@@ -38,7 +38,8 @@ const pautaSchema = new mongoose.Schema({
   devPct: { type: Number, default: null },
   uds: { type: Number, default: null },        // unidades que escribiste tú (si no, las del pedido)
   cancPct: { type: Number, default: null },
-  provUnit: { type: Number, default: null },   // costo del proveedor por unidad escrito a mano    // % de cancelados que escribiste tú (si no, el real)
+  provUnit: { type: Number, default: null },
+  precioVenta: { type: Number, default: null }, // precio de venta por pedido escrito a mano (ventas por WhatsApp…)   // costo del proveedor por unidad escrito a mano    // % de cancelados que escribiste tú (si no, el real)
   tipo: { type: String, default: "testeo" }, fallido: { type: Boolean, default: false },
   metaAuto: { type: Boolean, default: false },     // el valor de Meta lo trajo CoDropX desde Meta Ads
   metaManual: { type: Boolean, default: false },   // lo escribiste tú: la sincronización no lo pisa
@@ -147,7 +148,7 @@ export function limpiarCostosOperativos(lista) {
   })).filter(c => c.mes && (c.desc || c.valor > 0));
 }
 
-const publicaPauta = (d) => ({ fecha: d.fecha, clave: d.clave, nombre: d.nombre, meta: d.meta, tiktok: d.tiktok, devPct: d.devPct, uds: d.uds ?? null, cancPct: d.cancPct ?? null, provUnit: d.provUnit ?? null, tipo: d.tipo, fallido: d.fallido, metaAuto: !!d.metaAuto, metaManual: !!d.metaManual });
+const publicaPauta = (d) => ({ fecha: d.fecha, clave: d.clave, nombre: d.nombre, meta: d.meta, tiktok: d.tiktok, devPct: d.devPct, uds: d.uds ?? null, cancPct: d.cancPct ?? null, provUnit: d.provUnit ?? null, precioVenta: d.precioVenta ?? null, tipo: d.tipo, fallido: d.fallido, metaAuto: !!d.metaAuto, metaManual: !!d.metaManual });
 const MONEDA = { CO: "COP", EC: "USD" };
 const cacheMeta = new Map();
 
@@ -545,6 +546,7 @@ Sin rodeos, sin inventar datos que no estén en las cifras. Si la publicidad est
       if (b.uds !== undefined) set.uds = b.uds === null || b.uds === "" ? null : Math.min(100000, Math.max(0, Math.round(Number(b.uds) || 0)));
       if (b.cancPct !== undefined) set.cancPct = b.cancPct === null || b.cancPct === "" ? null : Math.min(100, Math.max(0, Number(b.cancPct) || 0));
       if (b.provUnit !== undefined) set.provUnit = b.provUnit === null || b.provUnit === "" ? null : Math.min(1e9, Math.max(0, Number(b.provUnit) || 0));
+      if (b.precioVenta !== undefined) set.precioVenta = b.precioVenta === null || b.precioVenta === "" ? null : Math.min(1e10, Math.max(0, Number(b.precioVenta) || 0));
       if (b.tipo !== undefined) set.tipo = ["testeo", "escala"].includes(b.tipo) ? b.tipo : "testeo";
       if (b.fallido !== undefined) set.fallido = !!b.fallido;
       if (b.nombre !== undefined) set.nombre = String(b.nombre || "").slice(0, 200);
