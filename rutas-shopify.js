@@ -121,11 +121,13 @@ export async function gql(t, query, variables = {}, intento = 0) {
   const txt = await res.text();
   let j = {};
   try { j = JSON.parse(txt); } catch {}
+  if (res.status === 403 && intento === 0) return gql(t, query, variables, 1);
   if (res.status === 403) throw new ErrorShopify(`A la app le faltan permisos. En el Dev Dashboard agrega ${PERMISOS.join(" y ")}, publica una nueva versión y apruébala en la tienda.`, 400);
   if (!res.ok) throw new ErrorShopify(`Shopify respondió con error ${res.status}`, 502);
   if (j.errors?.length) {
     const msg = j.errors.map(e => e.message).join("; ");
     if (/throttled/i.test(msg) && intento < 3) { await new Promise(r => setTimeout(r, 2000)); return gql(t, query, variables, intento + 1); }
+    if (/access denied|scope/i.test(msg) && intento === 0) return gql(t, query, variables, 1);
     if (/access denied|scope/i.test(msg)) throw new ErrorShopify(`A la app le faltan permisos (${PERMISOS.join(", ")}). Agrégalos en el Dev Dashboard, publica una versión nueva y apruébala.`, 400);
     throw new ErrorShopify(`Shopify: ${msg.slice(0, 300)}`, 502);
   }

@@ -388,7 +388,7 @@ function bloqueShopify() {
   const s = st.shop;
   if (s.cargando) return `<p class="fz-mini"><i data-lucide="loader"></i> Trayendo tus pedidos de Shopify…</p>`;
   if (s.sinTienda) return `<div class="fz-aviso-shop">No tienes una tienda de Shopify conectada para ${PAIS_NOMBRE[st.pais]}. Conéctala en <a href="#integraciones" onclick="goTo('integraciones');return false">Integraciones</a> y elígele el país.</div>`;
-  if (s.error) return `<div class="fz-aviso-shop rojo"><b>No se pudieron traer los pedidos de Shopify:</b> ${esc(s.error)}${s.motivo === "permiso" ? `<br>En el Dev Dashboard de tu app de Shopify agrega el permiso <b>read_orders</b> (Versions → Access scopes), dale Release y aprueba la actualización en la tienda. Luego dale Actualizar aquí.` : ""}</div>`;
+  if (s.error) return `<div class="fz-aviso-shop rojo"><b>No se pudieron traer los pedidos de Shopify:</b> ${esc(s.error)}${s.motivo === "permiso" ? `<br>En el Dev Dashboard de tu app de Shopify agrega el permiso <b>read_orders</b> (Versions → Access scopes), dale Release y aprueba la actualización en la tienda. Luego dale Actualizar aquí.` : ""}<br><button class="fz-btn claro chico" style="margin-top:8px" onclick="fzShopifyActualizar()"><i data-lucide="refresh-cw"></i> Actualizar</button></div>`;
   const delDia = lineasShopify().filter(l => l.fecha === st.dia);
   const pedidos = new Set(delDia.map(l => l.ordenId)).size;
   const sueltos = new Map();
