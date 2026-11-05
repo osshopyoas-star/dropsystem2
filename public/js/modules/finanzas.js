@@ -9,7 +9,7 @@ import { formatear } from "../core/costeo.js";
 import { leerExcel } from "../core/excel.js";
 import {
   leerReporteDropi, controlDiario, totalesControl, reporteFinanciero, logistica, rentabilidadProductos, fugasDevolucion,
-  nombresProductos, claveProducto, NOMBRE_GRUPO, costosPeriodo, mesesEntre, editarReporte, compararReportes
+  nombresProductos, claveProducto, NOMBRE_GRUPO, costosPeriodo, mesesEntre, editarReporte, compararReportes, costearConDropi
 } from "../core/finanzas.js";
 
 const $ = (id) => document.getElementById(id);
@@ -29,7 +29,10 @@ const st = {
   rango: { modo: "7d", desde: "", hasta: "", clave: "", porProducto: false },
   rep: { periodo: "todo", desde: "", hasta: "", clave: "", referencia: 70, rentOrden: "neta", mesCostos: "", guardado: null },
   log: { periodo: "todo", desde: "", hasta: "", filtro: "activos", estatus: "", buscar: "", pagina: 1, porPagina: 25, ciudadesN: 5, ciudadesPag: 1, ciudadOrden: "total", priorizar: true, prodBuscar: "", ciudadTransp: "" },
-  pagina: null
+  pagina: null,
+  // Control Diario: de dónde salen los pedidos del día (Excel de Dropi o Shopify en vivo)
+  fuente: (() => { try { return localStorage.getItem("fz_fuente") || "dropi"; } catch { return "dropi"; } })(),
+  shop: { pais: null, desde: "", hasta: "", lineas: [], cargando: false, error: "", motivo: "", sinTienda: false, tiendas: [], actualizado: null }
 };
 
 async function api(metodo, url, body) {
@@ -342,7 +345,66 @@ const vacio = () => `<section class="fz-card fz-vacio">
 // =============================================
 // CONTROL DIARIO
 // =============================================
+// Pedidos de Shopify con el costo del proveedor y el flete que tiene ese producto en Dropi
+function lineasShopify() {
+  return costearConDropi(st.shop.lineas || [], st.lineas || [], grupos(), st.dia);
+}
+// Trae de Shopify los pedidos de los 14 días alrededor del día elegido (si no los tiene ya)
+async function cargarShopify(forzar = false) {
+  const s = st.shop;
+  if (!forzar && s.pais === st.pais && st.dia >= s.desde && st.dia <= s.hasta) return;
+  if (s.cargando) return;
+  const hoy = hoyISO();
+  const hasta = sumarDias(st.dia, 6) > hoy ? hoy : sumarDias(st.dia, 6);
+  const desde = sumarDias(hasta, -13);
+  s.cargando = true; s.error = ""; s.motivo = "";
+  if (window.enPantalla("control-diario")) renderControl($("view"));
+  try {
+    const r = await api("GET", `/api/finanzas/shopify-pedidos?pais=${st.pais}&desde=${desde}&hasta=${hasta}${forzar ? "&forzar=1" : ""}`);
+    Object.assign(s, { pais: st.pais, desde: r.desde, hasta: r.hasta, lineas: r.lineas || [], error: r.error || "", motivo: r.motivo || "", sinTienda: !!r.sinTienda, tiendas: r.tiendas || [], actualizado: new Date() });
+  } catch (e) { s.error = e.message; s.pais = null; }
+  s.cargando = false;
+  if (window.enPantalla("control-diario")) { const y = window.scrollY; renderControl($("view")); window.scrollTo(0, y); }
+}
+window.fzFuente = (f) => {
+  st.fuente = f === "shopify" ? "shopify" : "dropi";
+  try { localStorage.setItem("fz_fuente", st.fuente); } catch {}
+  renderControl($("view"));
+  if (st.fuente === "shopify") cargarShopify();
+};
+window.fzShopifyActualizar = () => cargarShopify(true);
+window.fzEnlazarShopify = async (shopifyId, clave) => {
+  const prod = productos().find(p => p.clave === clave);
+  const dropiId = prod ? [...prod.productoIds][0] || "" : "";
+  try {
+    await api("PUT", "/api/finanzas/shopify-enlace", { pais: st.pais, shopifyId, dropiId });
+    avisar(dropiId ? "Listo: enlazado con tu producto de Dropi" : "Enlace quitado");
+    await cargarShopify(true);
+  } catch (e) { avisar(e.message, "error"); }
+};
+
+// Aviso y estado de los pedidos de Shopify (arriba de la tabla)
+function bloqueShopify() {
+  const s = st.shop;
+  if (s.cargando) return `<p class="fz-mini"><i data-lucide="loader"></i> Trayendo tus pedidos de Shopify…</p>`;
+  if (s.sinTienda) return `<div class="fz-aviso-shop">No tienes una tienda de Shopify conectada para ${PAIS_NOMBRE[st.pais]}. Conéctala en <a href="#integraciones" onclick="goTo('integraciones');return false">Integraciones</a> y elígele el país.</div>`;
+  if (s.error) return `<div class="fz-aviso-shop rojo"><b>No se pudieron traer los pedidos de Shopify:</b> ${esc(s.error)}${s.motivo === "permiso" ? `<br>En el Dev Dashboard de tu app de Shopify agrega el permiso <b>read_orders</b> (Versions → Access scopes), dale Release y aprueba la actualización en la tienda. Luego dale Actualizar aquí.` : ""}</div>`;
+  const delDia = lineasShopify().filter(l => l.fecha === st.dia);
+  const pedidos = new Set(delDia.map(l => l.ordenId)).size;
+  const sueltos = new Map();
+  for (const l of delDia) if (!l.enlazado && l.shopifyId) sueltos.set(l.shopifyId, l.producto);
+  const sinCosto = [...new Set(delDia.filter(l => l.enlazado && l.sinCosto).map(l => l.producto))];
+  return `
+    <p class="fz-mini">${pedidos} pedido(s) en Shopify el ${fechaCorta(st.dia)}${s.tiendas.length ? ` · ${esc(s.tiendas.join(", "))}` : ""}. Todos cuentan como <b>sin confirmar</b> hasta que llegue el Excel de Dropi; los cancelados en Shopify salen como cancelados. El costo del proveedor y el flete salen de tus pedidos de Dropi de ese producto. <button class="fz-link" onclick="fzShopifyActualizar()">Actualizar</button></p>
+    ${sueltos.size ? `<div class="fz-aviso-shop"><b>Enlaza estos productos con su producto de Dropi</b> para que salga la utilidad (sin enlace no tienen costo ni flete):
+      ${[...sueltos].map(([id, nombre]) => `<div class="fz-enlace"><span>${esc(nombre)}</span><select onchange="fzEnlazarShopify('${esc(id)}', this.value)"><option value="">Elige el producto de Dropi…</option>${productos().filter(p => !String(p.clave).includes("shp:")).map(p => `<option value="${esc(p.clave)}">${esc(p.nombre)}</option>`).join("")}</select></div>`).join("")}</div>` : ""}
+    ${sinCosto.length ? `<p class="fz-mini rojo">Sin pedidos en Dropi para sacar el costo: ${esc(sinCosto.join(", "))}. La utilidad de esos sale sin costo de proveedor ni flete.</p>` : ""}`;
+}
+
 function filasDelDia() {
+  if (st.fuente === "shopify") {
+    return controlDiario(lineasShopify(), { desde: st.dia, hasta: st.dia, grupos: grupos(), pauta: st.pauta, devPct: st.config?.devPct ?? 25 });
+  }
   return controlDiario(st.lineas, { desde: st.dia, hasta: st.dia, grupos: grupos(), pauta: st.pauta, devPct: st.config?.devPct ?? 25 });
 }
 
@@ -376,7 +438,13 @@ function renderControl(view) {
         </label>
         <button class="fz-flecha" onclick="fzDia(1)" title="Día siguiente con datos"><i data-lucide="chevron-right"></i></button>
       </div>
-      <p class="fz-mini">${c.dias.includes(st.dia) ? `Pedidos de este día traídos del Excel de Dropi.` : `Este día no tiene pedidos en tus Excel.`} ${(c.metaCuentas || []).length && st.meta.estado?.conectado ? `El gasto de Meta se trae solo de tus cuentas publicitarias.` : `La pauta la escribes en la lista (o elige tus cuentas publicitarias arriba y se trae sola).`}</p>
+      <div class="fz-fuente">
+        <span>Pedidos de:</span>
+        <button class="${st.fuente === "dropi" ? "on" : ""}" onclick="fzFuente('dropi')"><i data-lucide="file-spreadsheet"></i> Dropi (Excel)</button>
+        <button class="${st.fuente === "shopify" ? "on" : ""}" onclick="fzFuente('shopify')"><i data-lucide="shopping-bag"></i> Shopify (en vivo)</button>
+      </div>
+      ${st.fuente === "shopify" ? bloqueShopify() : ""}
+      <p class="fz-mini">${st.fuente === "shopify" ? `Los pedidos se traen de Shopify. Cuando subas el Excel de Dropi, vuelve a "Dropi" para ver cancelados y confirmados reales.` : c.dias.includes(st.dia) ? `Pedidos de este día traídos del Excel de Dropi.` : `Este día no tiene pedidos en tus Excel.${st.dia > (c.hasta || "") ? ` <button class="fz-link" onclick="fzFuente('shopify')">Míralos en Shopify</button>` : ""}`} ${(c.metaCuentas || []).length && st.meta.estado?.conectado ? `El gasto de Meta se trae solo de tus cuentas publicitarias.` : `La pauta la escribes en la lista (o elige tus cuentas publicitarias arriba y se trae sola).`}</p>
     </section>
 
     <div class="fz-acciones">
@@ -434,6 +502,9 @@ function renderControl(view) {
   `}
   </div>`;
   iconos();
+  // Con Shopify elegido: traer los pedidos si faltan para este día o este país
+  const sh = st.shop;
+  if (st.fuente === "shopify" && !sh.cargando && !sh.error && (sh.pais !== st.pais || st.dia < sh.desde || st.dia > sh.hasta)) cargarShopify();
 }
 
 // Celda Meta: si viene de Meta Ads se marca; si la escribiste tú, puedes volver a lo de Meta
@@ -766,13 +837,14 @@ window.fzRangoProducto = (v) => { st.rango.clave = v; renderControl($("view")); 
 window.fzRangoTotal = (v) => { st.rango.porProducto = v; renderControl($("view")); };
 
 // ---------- Día ----------
-window.fzIrDia = (v) => { if (/^\d{4}-\d{2}-\d{2}$/.test(v)) { st.dia = v; renderControl($("view")); metaAlDia(); } };
+window.fzIrDia = (v) => { if (/^\d{4}-\d{2}-\d{2}$/.test(v)) { st.dia = v; renderControl($("view")); metaAlDia(); if (st.fuente === "shopify") cargarShopify(); } };
 window.fzDia = (dir) => {
   const dias = st.config?.dias || [];
   const sig = dir > 0 ? dias.find(d => d > st.dia) : [...dias].reverse().find(d => d < st.dia);
-  st.dia = sig || sumarDias(st.dia, dir);
+  st.dia = st.fuente === "shopify" ? (sumarDias(st.dia, dir) > hoyISO() ? st.dia : sumarDias(st.dia, dir)) : (sig || sumarDias(st.dia, dir));
   renderControl($("view"));
   metaAlDia();
+  if (st.fuente === "shopify") cargarShopify();
 };
 
 // ---------- Pauta ----------

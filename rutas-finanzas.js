@@ -7,6 +7,8 @@
 import mongoose from "mongoose";
 import fetch from "node-fetch";
 import { gastoCampanas } from "./rutas-meta.js";
+import { ShopifyTienda, pedidosTienda } from "./rutas-shopify.js";
+import { lineasDeShopify } from "./public/js/core/finanzas.js";
 import { claveProducto, emparejarCampana, numerosReales, tasasReales } from "./public/js/core/finanzas.js";
 
 const PAISES = ["CO", "EC"];
@@ -75,7 +77,8 @@ const configSchema = new mongoose.Schema({
   trm: { type: Number, default: null },                           // 1 USD en COP que tú fijaste (si no, la TRM del día)
   trmManual: { type: Boolean, default: false },
   costosOperativos: { type: [mongoose.Schema.Types.Mixed], default: [] },   // { id, mes: "2026-09", desc, valor, moneda }
-  metasMes: { type: mongoose.Schema.Types.Mixed, default: {} },              // { "2026-11": 10000000 } utilidad que quieres ese mes
+  metasMes: { type: mongoose.Schema.Types.Mixed, default: {} },
+  enlacesShopify: { type: mongoose.Schema.Types.Mixed, default: {} },      // { idProductoShopify: idProductoDropi } para cruzar pedidos de Shopify con Dropi              // { "2026-11": 10000000 } utilidad que quieres ese mes
   ultimaImportacion: { type: Date, default: null },
   actualizado: { type: Date, default: Date.now }
 });
@@ -297,6 +300,76 @@ Sin rodeos, sin inventar datos que no estén en las cifras. Si la publicidad est
       res.json({ ok: true, metasMes: cfg.metasMes || {}, devPct: cfg.devPct, metaEntrega: cfg.metaEntrega, grupos: cfg.grupos || [], cuenta: cfg.cuenta || "", metaCuentas: cfg.metaCuentas || [], trm: cfg.trmManual ? cfg.trm : null, costosOperativos: cfg.costosOperativos || [] });
     } catch (err) {
       console.error("Error guardando ajustes de finanzas:", err);
+      res.status(500).json({ error: "No se pudo guardar" });
+    }
+  });
+
+  // ---------- Pedidos de Shopify para el Control Diario (en vivo, sin esperar el Excel de Dropi) ----------
+  const cacheShopify = new Map();
+  app.get("/api/finanzas/shopify-pedidos", async (req, res) => {
+    try {
+      const p = pais(req.query.pais);
+      const fecha = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v || "")) ? String(v) : null);
+      const hoy = new Date(Date.now() - 5 * 36e5).toISOString().slice(0, 10);
+      const hasta = fecha(req.query.hasta) || hoy;
+      let desde = fecha(req.query.desde) || new Date(new Date(hasta + "T12:00:00Z").getTime() - 13 * 864e5).toISOString().slice(0, 10);
+      if ((new Date(hasta) - new Date(desde)) / 864e5 > 62) desde = new Date(new Date(hasta + "T12:00:00Z").getTime() - 62 * 864e5).toISOString().slice(0, 10);
+
+      const moneda = p === "EC" ? "USD" : "COP";
+      const todas = await ShopifyTienda.find({ owner: req.user.uid }).lean();
+      const tiendas = todas.filter(t => t.pais === p || (!t.pais && t.moneda === moneda));
+      if (!tiendas.length) return res.json({ pais: p, desde, hasta, sinTienda: true, lineas: [], tiendas: [] });
+
+      const k = `${req.user.uid}|${p}|${desde}|${hasta}`;
+      const c = cacheShopify.get(k);
+      if (c && Date.now() - c.t < 3 * 6e4 && req.query.forzar !== "1") return res.json(c.datos);
+
+      // Cruce Shopify → Dropi: lo que enlazaste a mano + los productos que publicaste desde Desarrollo
+      const cfg = await FinanzasConfig.findOne({ owner: req.user.uid, pais: p }).select("enlacesShopify").lean();
+      const enlaces = { ...(cfg?.enlacesShopify || {}) };
+      try {
+        const Proyecto = mongoose.model("Proyecto"), Producto = mongoose.model("Producto");
+        const proys = await Proyecto.find({ owner: req.user.uid }).select("dropiId productoId ramas").lean();
+        const ids = proys.filter(x => !x.dropiId && x.productoId).map(x => x.productoId);
+        const prods = ids.length ? await Producto.find({ owner: req.user.uid, _id: { $in: ids } }).select("dropiId").lean() : [];
+        for (const pr of proys) {
+          const dropi = pr.dropiId || prods.find(x => String(x._id) === String(pr.productoId))?.dropiId || "";
+          if (!dropi) continue;
+          for (const r of Object.values(pr.ramas || {})) for (const pub of Object.values(r?.publicaciones || {})) {
+            const sid = String(pub?.productoId || "").split("/").pop();
+            if (sid && !enlaces[sid]) enlaces[sid] = String(dropi);
+          }
+        }
+      } catch (e) { console.warn("Shopify → Dropi: no se pudieron leer las publicaciones:", e.message); }
+
+      let pedidos = [], problema = null;
+      for (const t of tiendas) {
+        try { pedidos.push(...(await pedidosTienda(t, desde, hasta)).map(o => ({ ...o, tienda: t.nombre || t.shop }))); }
+        catch (e) { problema = { motivo: e.motivo || "error", error: e.message }; }
+      }
+      const lineas = lineasDeShopify(pedidos, enlaces);
+      const datos = { pais: p, desde, hasta, lineas, tiendas: tiendas.map(t => t.nombre || t.shop), ...(problema && !lineas.length ? problema : {}), actualizado: new Date() };
+      if (!datos.error) cacheShopify.set(k, { t: Date.now(), datos });
+      res.json(datos);
+    } catch (err) {
+      console.error("Error leyendo pedidos de Shopify:", err);
+      res.status(500).json({ error: "No se pudieron leer los pedidos de Shopify" });
+    }
+  });
+
+  // Enlazar un producto de Shopify con su producto de Dropi (para que caiga en la misma fila y con su pauta)
+  app.put("/api/finanzas/shopify-enlace", async (req, res) => {
+    try {
+      const p = pais(req.body?.pais);
+      const sid = String(req.body?.shopifyId || "").replace(/\D/g, "").slice(0, 30);
+      const dropi = String(req.body?.dropiId || "").slice(0, 40);
+      if (!sid) return res.status(400).json({ error: "Falta el producto de Shopify" });
+      const upd = dropi ? { $set: { [`enlacesShopify.${sid}`]: dropi, actualizado: new Date() } } : { $unset: { [`enlacesShopify.${sid}`]: "" } };
+      await FinanzasConfig.findOneAndUpdate({ owner: req.user.uid, pais: p }, { ...upd, $setOnInsert: { owner: req.user.uid, pais: p } }, { upsert: true });
+      cacheShopify.clear();
+      res.json({ ok: true });
+    } catch (err) {
+      console.error("Error enlazando producto de Shopify:", err);
       res.status(500).json({ error: "No se pudo guardar" });
     }
   });

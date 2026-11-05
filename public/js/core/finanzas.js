@@ -995,3 +995,57 @@ export function pedidosDeProducto(lineas, { dropiId = "", grupos = [], desde = "
   const fechas = lineas.filter(l => claveProducto(l.productoId, grupos) === clave).map(l => l.fecha).filter(Boolean).sort();
   return { pedidos: os.length, cancelados, validos: os.length - cancelados, ultimoDato: fechas[fechas.length - 1] || null };
 }
+
+// =============================================
+// PEDIDOS DE SHOPIFY → líneas como las del Excel de Dropi (para el Control Diario en vivo)
+// pedidos: los de Shopify (sin datos del cliente) · enlaces: { idProductoShopify: idProductoDropi }
+// Si el producto está enlazado usa el id de Dropi (cae en la misma fila y con la misma pauta);
+// si no, queda como "shp:<id>" con el nombre de Shopify.
+// =============================================
+const fechaCol = (iso) => new Date(new Date(iso).getTime() - 5 * 36e5).toISOString();
+export function lineasDeShopify(pedidos = [], enlaces = {}) {
+  const out = [];
+  for (const o of pedidos) {
+    const items = (o.lineItems?.nodes || []).filter(i => (i.quantity || 0) > 0);
+    if (!items.length) continue;
+    const totalOrden = Number(o.totalPriceSet?.shopMoney?.amount) || 0;
+    const sumaItems = items.reduce((a, i) => a + (Number(i.discountedTotalSet?.shopMoney?.amount) || 0), 0);
+    const f = fechaCol(o.createdAt);
+    for (const i of items) {
+      const sid = String(i.product?.id || "").split("/").pop();
+      const valor = Number(i.discountedTotalSet?.shopMoney?.amount) || 0;
+      out.push({
+        ordenId: `shp-${String(o.id).split("/").pop()}`, pedido: o.name || "",
+        productoId: enlaces[sid] ? String(enlaces[sid]) : `shp:${sid || "x"}`, shopifyId: sid,
+        enlazado: !!enlaces[sid], producto: i.title || "Producto", variacion: i.variantTitle || "",
+        cantidad: Number(i.quantity) || 1,
+        total: sumaItems > 0 ? Math.round(totalOrden * valor / sumaItems * 100) / 100 : totalOrden / items.length,
+        fecha: f.slice(0, 10), hora: f.slice(11, 16),
+        estatus: o.cancelledAt ? "CANCELADO" : "PENDIENTE",
+        proveedor: 0, flete: 0, costoDevolucion: 0, comision: 0, ganancia: null, tienda: o.tienda || "", fuente: "shopify"
+      });
+    }
+  }
+  return out;
+}
+
+// Les pone a las líneas de Shopify el costo del proveedor y el flete promedio de ese producto en Dropi
+// (de sus pedidos de los últimos 60 días), para que la utilidad del Control Diario salga igual que con Dropi.
+export function costearConDropi(lineasShopify, lineasDropi, grupos = [], hastaIso = "") {
+  const desde = hastaIso ? new Date(new Date(hastaIso + "T12:00:00Z").getTime() - 60 * 864e5).toISOString().slice(0, 10) : "";
+  const acum = new Map();
+  for (const l of lineasDropi) {
+    if (desde && l.fecha < desde) continue;
+    const k = claveProducto(l.productoId, grupos);
+    const a = acum.get(k) || { prov: [], flete: [], nombre: l.producto };
+    if (l.proveedor > 0 && l.cantidad > 0) a.prov.push(l.proveedor / l.cantidad);
+    if (l.flete > 0) a.flete.push(l.flete);
+    acum.set(k, a);
+  }
+  const media = (xs) => (xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : 0);
+  return lineasShopify.map(l => {
+    const a = acum.get(claveProducto(l.productoId, grupos));
+    if (!a) return { ...l, sinCosto: true };
+    return { ...l, producto: a.nombre || l.producto, proveedor: Math.round(media(a.prov) * (l.cantidad || 1)), flete: Math.round(media(a.flete)), sinCosto: !a.prov.length };
+  });
+}

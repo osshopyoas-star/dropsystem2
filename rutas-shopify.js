@@ -13,7 +13,7 @@ import { VERSION_SECCION, versionDeSeccion } from "./public/js/core/seccion-shop
 
 export const API_VERSION = () => process.env.SHOPIFY_API_VERSION || "2026-01";
 export const PERMISOS = ["write_products", "write_files"];
-export const PERMISOS_OPCIONALES = ["read_themes", "write_publications", "read_reports"];     // listar plantillas del tema · poner el producto en el canal Tienda online · visitas y conversión de las landings
+export const PERMISOS_OPCIONALES = ["read_themes", "write_publications", "read_reports", "read_orders"];     // listar plantillas del tema · poner el producto en el canal Tienda online · visitas y conversión de las landings
 const MAX_TIENDAS = 5;
 
 const tiendaSchema = new mongoose.Schema({
@@ -162,6 +162,36 @@ export async function conversionLandings(t, dias = 30) {
     out.set(ruta, previo);
   }
   for (const x of out.values()) x.conversion = x.sesiones ? x.convertidas / x.sesiones * 100 : null;
+  return out;
+}
+
+// ---------- Pedidos de la tienda (permiso read_orders) ----------
+// Solo trae lo que necesita el Control Diario: fecha, productos, cantidades, valores y si se canceló.
+// NO pide nombre, teléfono, correo ni dirección del cliente.
+// desde/hasta: "AAAA-MM-DD" en hora de Colombia/Ecuador (UTC-5).
+export async function pedidosTienda(t, desde, hasta, max = 2500) {
+  const q = `created_at:>='${desde}T00:00:00-05:00' created_at:<='${hasta}T23:59:59-05:00'`;
+  const consulta = `query Pedidos($q: String!, $despues: String) {
+    orders(first: 100, after: $despues, query: $q, sortKey: CREATED_AT) {
+      pageInfo { hasNextPage endCursor }
+      nodes { id name createdAt cancelledAt test
+        totalPriceSet { shopMoney { amount } }
+        lineItems(first: 20) { nodes { title variantTitle quantity currentQuantity product { id } discountedTotalSet { shopMoney { amount } } } } }
+    } }`;
+  const out = [];
+  let despues = null;
+  for (let pagina = 0; pagina < Math.ceil(max / 100); pagina++) {
+    let data;
+    try { data = await gql(t, consulta, { q, despues }); }
+    catch (e) {
+      if (/permis|scope|access/i.test(e.message || "")) { const x = new ErrorShopify("A la app de Shopify le falta el permiso read_orders para leer los pedidos.", 400); x.motivo = "permiso"; throw x; }
+      throw e;
+    }
+    const o = data?.orders;
+    for (const n of o?.nodes || []) if (!n.test) out.push(n);
+    if (!o?.pageInfo?.hasNextPage) break;
+    despues = o.pageInfo.endCursor;
+  }
   return out;
 }
 
