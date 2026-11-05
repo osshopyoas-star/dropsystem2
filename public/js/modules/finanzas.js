@@ -101,6 +101,8 @@ async function cargar(forzar = false) {
 }
 
 const grupos = () => st.config?.grupos || [];
+// Pedidos de Dropi + los de Shopify ya traídos: de aquí sale el precio, costo y flete promedio de cada producto
+const historialPrecios = () => (st.shop?.lineas?.length && st.shop.pais === st.pais ? [...st.lineas, ...st.shop.lineas] : st.lineas);
 const productos = () => [...nombresProductos(st.lineas, grupos()).values()].sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
 const nombreDe = (clave) => productos().find(p => p.clave === clave)?.nombre || "Producto";
 
@@ -424,9 +426,9 @@ function bloqueShopify() {
 
 function filasDelDia() {
   if (st.fuente === "shopify") {
-    return controlDiario(lineasShopify(), { desde: st.dia, hasta: st.dia, grupos: grupos(), pauta: st.pauta, devPct: st.config?.devPct ?? 25 });
+    return controlDiario(lineasShopify(), { desde: st.dia, hasta: st.dia, grupos: grupos(), pauta: st.pauta, devPct: st.config?.devPct ?? 25, historial: historialPrecios() });
   }
-  return controlDiario(st.lineas, { desde: st.dia, hasta: st.dia, grupos: grupos(), pauta: st.pauta, devPct: st.config?.devPct ?? 25 });
+  return controlDiario(st.lineas, { desde: st.dia, hasta: st.dia, grupos: grupos(), pauta: st.pauta, devPct: st.config?.devPct ?? 25, historial: historialPrecios() });
 }
 
 function cancelacion30() {
@@ -492,7 +494,7 @@ function renderControl(view) {
           <tbody>
             ${filas.map((f, i) => `
               <tr>
-                <td><b>${esc(f.nombre)}</b>${f.fallido ? ` <span class="fz-tag rojo">sin ventas</span>` : ""}</td>
+                <td><b>${esc(f.nombre)}</b>${f.fallido ? ` <span class="fz-tag rojo">sin ventas</span>` : ""}${f.manual ? ` <span class="fz-tag" title="Escribiste las unidades a mano: cada una cuenta como un pedido">a mano</span>` : ""}${f.sinPrecio ? `<br><small class="rojo">No hay pedidos de este producto para sacar precio y costo</small>` : ""}</td>
                 <td><select class="fz-tipo ${f.tipo}" onchange="fzPauta(${i}, 'tipo', this.value)"><option value="testeo" ${f.tipo === "testeo" ? "selected" : ""}>TESTEO</option><option value="escala" ${f.tipo === "escala" ? "selected" : ""}>ESCALA</option></select></td>
                 <td class="n">${f.pedidos}</td>
                 <td class="n"><span class="fz-input ${f.udsEditado ? "editado" : ""}" title="${f.udsEditado ? "Lo escribiste tú. Bórralo para volver a las del pedido" : "Unidades del pedido. Cámbialas si no cuadran"}"><input type="number" min="0" step="1" value="${f.uds}" onchange="fzPauta(${i}, 'uds', this.value)"></span></td>
@@ -500,7 +502,7 @@ function renderControl(view) {
                 <td class="n"><span class="fz-input"><input type="number" min="0" max="95" step="0.5" value="${f.devPct}" onchange="fzPauta(${i}, 'devPct', this.value)">%</span></td>
                 <td class="n">${celdaMeta(f, i)}</td>
                 <td class="n"><span class="fz-input">$<input type="number" min="0" step="any" value="${f.tiktok || ""}" placeholder="0" onchange="fzPauta(${i}, 'tiktok', this.value)"></span></td>
-                <td>${f.fallido ? `<button class="fz-icono peligro" title="Quitar" onclick="fzQuitarFallido(${i})"><i data-lucide="trash-2"></i></button>` : ""}</td>
+                <td>${f.fallido || f.manual ? `<button class="fz-icono peligro" title="Quitar" onclick="fzQuitarFallido(${i})"><i data-lucide="trash-2"></i></button>` : ""}</td>
               </tr>`).join("") || `<tr><td colspan="9" class="fz-sin">Sin pedidos este día.</td></tr>`}
           </tbody>
         </table>
@@ -795,7 +797,7 @@ function rangoFechas() {
 function rangoHTML() {
   const r = st.rango;
   const [desde, hasta] = rangoFechas();
-  let filas = controlDiario(lineasRango(), { desde, hasta, grupos: grupos(), pauta: st.pauta, devPct: st.config?.devPct ?? 25 });
+  let filas = controlDiario(lineasRango(), { desde, hasta, grupos: grupos(), pauta: st.pauta, devPct: st.config?.devPct ?? 25, historial: historialPrecios() });
   if (r.clave) filas = filas.filter(f => f.clave === r.clave);
   const dias = new Set(filas.map(f => f.fecha)).size;
   if (r.porProducto) {
@@ -998,7 +1000,7 @@ const filaCSV = (f) => [f.fecha, f.nombre, f.tipo, f.pedidos, f.uds, f.cancelado
 window.fzExportarDia = () => descargarCSV(`control-diario-${st.pais}-${st.dia}.csv`, [ENC_CSV, ...filasDelDia().map(filaCSV)]);
 window.fzExportarRango = () => {
   const [desde, hasta] = rangoFechas();
-  let filas = controlDiario(lineasRango(), { desde, hasta, grupos: grupos(), pauta: st.pauta, devPct: st.config?.devPct ?? 25 });
+  let filas = controlDiario(lineasRango(), { desde, hasta, grupos: grupos(), pauta: st.pauta, devPct: st.config?.devPct ?? 25, historial: historialPrecios() });
   if (st.rango.clave) filas = filas.filter(f => f.clave === st.rango.clave);
   descargarCSV(`control-diario-${st.pais}-${desde}-a-${hasta}.csv`, [ENC_CSV, ...filas.map(filaCSV)]);
 };

@@ -216,9 +216,27 @@ export function filaControl({ pedidos, cancelados, devPct, precio, proveedor, fl
  * lineas: pedidos de Dropi · pauta: { "AAAA-MM-DD|clave": { meta, tiktok, devPct, tipo } }
  * Devuelve filas por día y producto.
  */
-export function controlDiario(lineas, { desde, hasta, grupos = [], pauta = {}, devPct = 25 } = {}) {
+export function controlDiario(lineas, { desde, hasta, grupos = [], pauta = {}, devPct = 25, historial = null } = {}) {
   const filas = new Map();
   const nombres = nombresProductos(lineas, grupos);
+  // Precio, costo y flete de cada producto en sus pedidos (para los días en que escribes las unidades a mano sin pedidos)
+  let promedios = null;
+  const promedioDe = (clave) => {
+    if (!promedios) {
+      promedios = new Map();
+      for (const l of historial || lineas) {
+        if (grupoEstado(l) === "reemplazada") continue;
+        const k = claveProducto(l.productoId, grupos);
+        const a = promedios.get(k) || { precios: [], prov: [], fletes: [] };
+        const c = Math.max(1, Number(l.cantidad) || 1);
+        if (l.total > 0) a.precios.push(l.total / c);
+        if (l.proveedor > 0) a.prov.push(l.proveedor / c);
+        if (l.flete > 0) a.fletes.push(l.flete);
+        promedios.set(k, a);
+      }
+    }
+    return promedios.get(clave) || null;
+  };
   for (const l of lineas) {
     const g = grupoEstado(l);
     if (g === "reemplazada") continue;
@@ -239,7 +257,7 @@ export function controlDiario(lineas, { desde, hasta, grupos = [], pauta = {}, d
   for (const [k, p] of Object.entries(pauta)) {
     const [fecha, clave] = k.split("|");
     if ((desde && fecha < desde) || (hasta && fecha > hasta) || filas.has(k)) continue;
-    if (!(Number(p.meta) > 0 || Number(p.tiktok) > 0 || p.fallido)) continue;
+    if (!(Number(p.meta) > 0 || Number(p.tiktok) > 0 || p.fallido || Number(p.uds) > 0)) continue;
     filas.set(k, { fecha, clave, nombre: p.nombre || nombres.get(clave)?.nombre || "Producto", ordenes: new Set(), canceladas: new Set(), sinConfirmar: new Set(), uds: 0, precios: [], proveedores: [], fletes: [], fallido: true });
   }
 
@@ -250,16 +268,21 @@ export function controlDiario(lineas, { desde, hasta, grupos = [], pauta = {}, d
     const tiene = (v) => v !== undefined && v !== null && v !== "";
     const udsAj = tiene(p.uds) ? Math.max(0, Number(p.uds) || 0) : null;
     const cancAj = tiene(p.cancPct) ? Math.min(100, Math.max(0, Number(p.cancPct) || 0)) : null;
-    const pedidos = f.ordenes.size;
+    // Sin pedidos pero escribiste unidades: cada unidad cuenta como un pedido, con el precio, costo y flete promedio del producto
+    const manual = f.ordenes.size === 0 && udsAj > 0;
+    const h = manual ? promedioDe(f.clave) : null;
+    const pedidos = manual ? udsAj : f.ordenes.size;
     // Si cambias las unidades, el costo del proveedor cambia en la misma proporción
-    const factorUds = udsAj !== null && f.uds > 0 ? udsAj / f.uds : 1;
+    const factorUds = !manual && udsAj !== null && f.uds > 0 ? udsAj / f.uds : 1;
     const base = {
       pedidos, cancelados: cancAj !== null ? Math.round(pedidos * cancAj / 10) / 10 : f.canceladas.size, devPct: d,
-      precio: prom(f.precios), proveedor: prom(f.proveedores) * factorUds, fleteBase: prom(f.fletes),
+      precio: manual ? prom(h?.precios || []) : prom(f.precios),
+      proveedor: manual ? prom(h?.prov || []) : prom(f.proveedores) * factorUds,
+      fleteBase: manual ? prom(h?.fletes || []) : prom(f.fletes),
       meta: Number(p.meta) || 0, tiktok: Number(p.tiktok) || 0
     };
     return {
-      fecha: f.fecha, clave: f.clave, nombre: f.nombre, tipo: p.tipo || "testeo", fallido: !!f.fallido,
+      fecha: f.fecha, clave: f.clave, nombre: f.nombre, tipo: p.tipo || "testeo", fallido: !!f.fallido && !manual, manual, sinPrecio: manual && !(h?.precios || []).length,
       sinConfirmar: f.sinConfirmar.size, uds: udsAj !== null ? udsAj : f.uds, udsEditado: udsAj !== null, cancEditado: cancAj !== null, ...base, ...filaControl(base)
     };
   }).sort((a, b) => a.fecha.localeCompare(b.fecha) || b.pedidos - a.pedidos || a.nombre.localeCompare(b.nombre));
