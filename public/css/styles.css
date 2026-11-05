@@ -5919,11 +5919,11 @@ main .cal-page input:focus, main .cal-page select:focus, main .pl-page input:foc
 .ts-conv-aviso { margin: 12px 0; padding: 10px 12px; border-radius: 10px; background: #fffbeb; color: #92400e; font-size: 13px; }
 
 /* Control Diario: pedidos de Dropi o de Shopify */
-.fz-fuente { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; margin: 12px 0 6px; font-size: 13px; }
-.fz-fuente span { color: #64748b; font-weight: 600; }
-.fz-fuente button { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px; border: 1px solid rgba(59,130,246,.25); background: #fff; color: #334155; font: inherit; font-weight: 600; cursor: pointer; }
-.fz-fuente button svg { width: 15px; height: 15px; }
-.fz-fuente button.on { background: linear-gradient(135deg, #3b82f6, #2563eb); color: #fff; border-color: transparent; }
+.fz-pedidos-de { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; margin: 12px 0 6px; font-size: 13px; }
+.fz-pedidos-de span { color: #64748b; font-weight: 600; }
+.fz-pedidos-de button { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px; border: 1px solid rgba(59,130,246,.25); background: #fff; color: #334155; font: inherit; font-weight: 600; cursor: pointer; }
+.fz-pedidos-de button svg { width: 15px; height: 15px; }
+.fz-pedidos-de button.on { background: linear-gradient(135deg, #3b82f6, #2563eb); color: #fff; border-color: transparent; }
 .fz-aviso-shop { margin: 8px 0; padding: 10px 12px; border-radius: 10px; font-size: 13px; line-height: 1.5; background: rgba(59,130,246,.07); border: 1px solid rgba(59,130,246,.2); }
 .fz-aviso-shop.rojo { background: rgba(239,68,68,.07); border-color: rgba(239,68,68,.25); }
 .fz-enlace { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
@@ -5936,3 +5936,8 @@ main .cal-page input:focus, main .cal-page select:focus, main .pl-page input:foc
 .fz-campo span { font-weight: 700; color: #1e293b; }
 .fz-campo input { padding: 9px 11px; border-radius: 10px; border: 1px solid #cbd5e1; font: inherit; }
 .fz-campo small { color: #64748b; line-height: 1.4; }
+
+/* La lista de cuentas publicitarias va por encima de la guía y de las demás tarjetas */
+.fz-card.fz-fuente { position: relative; z-index: 30; }
+.fz-card.fz-fuente:has(.fz-cta.abierto) { z-index: 80; }
+.fz-cta-lista { z-index: 90; }

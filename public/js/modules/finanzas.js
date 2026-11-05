@@ -466,7 +466,7 @@ function renderControl(view) {
         </label>
         <button class="fz-flecha" onclick="fzDia(1)" title="Día siguiente con datos"><i data-lucide="chevron-right"></i></button>
       </div>
-      <div class="fz-fuente">
+      <div class="fz-pedidos-de">
         <span>Pedidos de:</span>
         <button class="${st.fuente === "dropi" ? "on" : ""}" onclick="fzFuente('dropi')"><i data-lucide="file-spreadsheet"></i> Dropi (Excel)</button>
         <button class="${st.fuente === "shopify" ? "on" : ""}" onclick="fzFuente('shopify')"><i data-lucide="shopping-bag"></i> Shopify (en vivo)</button>
