@@ -237,6 +237,16 @@ export function controlDiario(lineas, { desde, hasta, grupos = [], pauta = {}, d
     }
     return promedios.get(clave) || null;
   };
+  // Último costo por unidad que escribiste a mano para un producto, antes de una fecha
+  const costoAnterior = (clave, fecha) => {
+    let mejor = null;
+    for (const [k, p] of Object.entries(pauta)) {
+      const [fe, cl] = k.split("|");
+      if (cl !== clave || fe >= fecha || p.provUnit === undefined || p.provUnit === null || p.provUnit === "") continue;
+      if (!mejor || fe > mejor.fe) mejor = { fe, v: Math.max(0, Number(p.provUnit) || 0) };
+    }
+    return mejor ? mejor.v : null;
+  };
   for (const l of lineas) {
     const g = grupoEstado(l);
     if (g === "reemplazada") continue;
@@ -274,16 +284,26 @@ export function controlDiario(lineas, { desde, hasta, grupos = [], pauta = {}, d
     const pedidos = manual ? udsAj : f.ordenes.size;
     // Si cambias las unidades, el costo del proveedor cambia en la misma proporción
     const factorUds = !manual && udsAj !== null && f.uds > 0 ? udsAj / f.uds : 1;
+    const udsFinal = udsAj !== null ? udsAj : f.uds;
+    let proveedor = manual ? prom(h?.prov || []) : prom(f.proveedores) * factorUds;
+    // Costo del proveedor por unidad escrito a mano: el de este día o, si Dropi no trae costo, el último que escribiste para este producto
+    let provUnit = tiene(p.provUnit) ? Math.max(0, Number(p.provUnit) || 0) : null, provHeredado = false;
+    if (provUnit === null && !(proveedor > 0)) {
+      const previo = costoAnterior(f.clave, f.fecha);
+      if (previo !== null) { provUnit = previo; provHeredado = true; }
+    }
+    if (provUnit !== null && pedidos > 0) proveedor = provUnit * Math.max(udsFinal, pedidos) / pedidos;
     const base = {
       pedidos, cancelados: cancAj !== null ? Math.round(pedidos * cancAj / 10) / 10 : f.canceladas.size, devPct: d,
       precio: manual ? prom(h?.precios || []) : prom(f.precios),
-      proveedor: manual ? prom(h?.prov || []) : prom(f.proveedores) * factorUds,
+      proveedor,
       fleteBase: manual ? prom(h?.fletes || []) : prom(f.fletes),
       meta: Number(p.meta) || 0, tiktok: Number(p.tiktok) || 0
     };
     return {
       fecha: f.fecha, clave: f.clave, nombre: f.nombre, tipo: p.tipo || "testeo", fallido: !!f.fallido && !manual, manual, sinPrecio: manual && !(h?.precios || []).length,
-      sinConfirmar: f.sinConfirmar.size, uds: udsAj !== null ? udsAj : f.uds, udsEditado: udsAj !== null, cancEditado: cancAj !== null, ...base, ...filaControl(base)
+      sinConfirmar: f.sinConfirmar.size, uds: udsFinal, udsEditado: udsAj !== null, cancEditado: cancAj !== null,
+      provEditado: provUnit !== null && !provHeredado, provHeredado, provUnidad: pedidos > 0 && udsFinal > 0 ? proveedor * pedidos / Math.max(udsFinal, pedidos) : (provUnit || 0), ...base, ...filaControl(base)
     };
   }).sort((a, b) => a.fecha.localeCompare(b.fecha) || b.pedidos - a.pedidos || a.nombre.localeCompare(b.nombre));
 }

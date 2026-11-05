@@ -384,7 +384,7 @@ async function cargarShopify(forzar = false) {
   if (window.enPantalla("control-diario")) renderControl($("view"));
   try {
     const r = await api("GET", `/api/finanzas/shopify-pedidos?pais=${st.pais}&desde=${desde}&hasta=${hasta}${forzar ? "&forzar=1" : ""}`);
-    Object.assign(s, { pais: st.pais, desde: r.desde, hasta: r.hasta, lineas: r.lineas || [], error: r.error || "", motivo: r.motivo || "", sinTienda: !!r.sinTienda, tiendas: r.tiendas || [], actualizado: new Date() });
+    Object.assign(s, { pais: st.pais, desde, hasta, lineas: r.lineas || [], error: r.error || "", motivo: r.motivo || "", sinTienda: !!r.sinTienda, tiendas: r.tiendas || [], actualizado: new Date() });
   } catch (e) { s.error = e.message; s.pais = null; }
   s.cargando = false;
   if (window.enPantalla("control-diario")) { const y = window.scrollY; renderControl($("view")); window.scrollTo(0, y); }
@@ -490,7 +490,7 @@ function renderControl(view) {
       <div class="fz-card-head"><h3><i data-lucide="shopping-bag"></i> Productos que vendiste el ${fechaCorta(st.dia)}</h3><small>edita aquí y la tabla de abajo se llena sola</small></div>
       <div class="fz-scroll">
         <table class="fz-tabla fz-edit">
-          <thead><tr><th>Producto</th><th>Tipo</th><th class="n">Pedidos</th><th class="n">Uds</th><th class="n">% Canc</th><th class="n">% Dev</th><th class="n">Meta</th><th class="n">TikTok</th><th></th></tr></thead>
+          <thead><tr><th>Producto</th><th>Tipo</th><th class="n">Pedidos</th><th class="n">Uds</th><th class="n">% Canc</th><th class="n">% Dev</th><th class="n">Costo prov. (unidad)</th><th class="n">Meta</th><th class="n">TikTok</th><th></th></tr></thead>
           <tbody>
             ${filas.map((f, i) => `
               <tr>
@@ -500,10 +500,11 @@ function renderControl(view) {
                 <td class="n"><span class="fz-input ${f.udsEditado ? "editado" : ""}" title="${f.udsEditado ? "Lo escribiste tú. Bórralo para volver a las del pedido" : "Unidades del pedido. Cámbialas si no cuadran"}"><input type="number" min="0" step="1" value="${f.uds}" onchange="fzPauta(${i}, 'uds', this.value)"></span></td>
                 <td class="n"><span class="fz-input ${f.cancEditado ? "editado" : ""}" title="${f.cancEditado ? "Lo escribiste tú. Bórralo para volver al real" : "% real de cancelados de este día. Cámbialo si quieres"}"><input type="number" min="0" max="100" step="0.5" value="${Math.round(f.pctCanc * 10) / 10}" onchange="fzPauta(${i}, 'cancPct', this.value)">%</span></td>
                 <td class="n"><span class="fz-input"><input type="number" min="0" max="95" step="0.5" value="${f.devPct}" onchange="fzPauta(${i}, 'devPct', this.value)">%</span></td>
+                <td class="n"><span class="fz-input ${f.provEditado ? "editado" : ""}" title="${f.provEditado ? "Lo escribiste tú. Bórralo para volver al de Dropi" : f.provHeredado ? "El último costo que escribiste para este producto" : "Costo del proveedor por unidad (de Dropi). Escríbelo si no viene"}">$<input type="number" min="0" step="any" value="${f.provUnidad > 0 ? Math.round(f.provUnidad * 100) / 100 : ""}" placeholder="0" onchange="fzPauta(${i}, 'provUnit', this.value)"></span>${!(f.provUnidad > 0) && f.pedidos > 0 ? `<br><small class="rojo">Falta el costo</small>` : ""}</td>
                 <td class="n">${celdaMeta(f, i)}</td>
                 <td class="n"><span class="fz-input">$<input type="number" min="0" step="any" value="${f.tiktok || ""}" placeholder="0" onchange="fzPauta(${i}, 'tiktok', this.value)"></span></td>
                 <td>${f.fallido || f.manual ? `<button class="fz-icono peligro" title="Quitar" onclick="fzQuitarFallido(${i})"><i data-lucide="trash-2"></i></button>` : ""}</td>
-              </tr>`).join("") || `<tr><td colspan="9" class="fz-sin">Sin pedidos este día.</td></tr>`}
+              </tr>`).join("") || `<tr><td colspan="10" class="fz-sin">Sin pedidos este día.</td></tr>`}
           </tbody>
         </table>
       </div>
