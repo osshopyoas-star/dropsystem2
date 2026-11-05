@@ -768,11 +768,62 @@ export const REGLAS_TIKTOK = [
   "Tono TikTok: natural, como lo diría una persona en un video, no como aviso de televisión. El gancho de los primeros 3 segundos decide todo."
 ];
 export const ENFOQUES_META = {
-  aida: "AIDA: gancho que detiene el scroll → interés (la causa real o el deseo) → deseo (beneficios con emojis) → acción.",
-  pas: "PAS: Problema (la situación del día a día, sin señalar a la persona) → Agitación (lo que molesta, lo que ya probó y no sirvió) → Solución (el producto, por qué sí, beneficios) → acción.",
-  beneficio: "BENEFICIO DIRECTO: arranca con el resultado o la función estrella en la primera línea, lista de beneficios con ✅ o emojis, y para qué momentos sirve.",
-  prueba_social: "PRUEBA SOCIAL / REGALO: arranca con lo que viven otros o con el regalo; usa SOLO la prueba social real que se te da (reseñas textuales, entregas reales, calificación real); 'Lo que recibes:' con emojis; cierra con acción."
+  aida: "AIDA: gancho que detiene el scroll → interés (la causa real o el deseo) → deseo (beneficios) → acción.",
+  pas: "PAS: Problema (la situación del día a día, sin señalar a la persona) → Agitación (lo que molesta, lo que ya probó y no sirvió) → Solución (el producto, por qué sí) → acción.",
+  beneficio: "BENEFICIO DIRECTO: arranca con el resultado o la función estrella en la primera línea, luego los beneficios y para qué momentos sirve.",
+  prueba_social: "PRUEBA SOCIAL / REGALO: arranca con lo que viven otros o con el regalo; usa SOLO la prueba social real que se te da; 'Lo que recibes:'; cierra con acción.",
+  historia: "MINI HISTORIA: arranca con una escena corta de alguien (en tercera persona) usando el producto en su día a día, y de ahí salen los beneficios.",
+  curiosidad: "CURIOSIDAD: arranca con un detalle, un dato del producto o una pregunta que dé ganas de seguir leyendo, y lo explica.",
+  objecion: "ROMPER LA DUDA: arranca respondiendo la duda más común antes de comprar este producto (¿sirve de verdad?, ¿es difícil de usar?, ¿qué tamaño tiene?, ¿y si no me llega?) y de ahí vende.",
+  momentos: "MOMENTOS DE USO: arranca con los momentos o lugares donde el producto te salva (en la casa, en el carro, de viaje, en la oficina…), uno por línea.",
+  razones: "X RAZONES: 'N razones por las que…' con razones numeradas y concretas del producto.",
+  comparacion: "ANTES Y AHORA DEL DÍA A DÍA (no del cuerpo): cómo era la tarea o la situación sin el producto y cómo es con él. Sin marcas ajenas."
 };
+
+// Para que los copys no salgan todos iguales: cada vez se sortea otra mezcla de marcos, listas, títulos y descripciones
+const ESTILOS_LISTA = [
+  "beneficios con ✅ al inicio de cada línea",
+  "beneficios numerados con 1️⃣ 2️⃣ 3️⃣",
+  "beneficios con un emoji DISTINTO en cada línea que dibuje ese beneficio (nada de repetir el mismo emoji)",
+  "beneficios con flechas ➜ o ▸",
+  "sin lista: párrafos cortos de 1 o 2 líneas, como si se lo contaras a un amigo",
+  "mini preguntas y respuestas (❓ pregunta corta / respuesta corta)",
+  "beneficios con guion largo — y solo 2 o 3 emojis en todo el texto"
+];
+const TIPOS_TITULO = [
+  "un BENEFICIO concreto del producto",
+  "un GANCHO de curiosidad",
+  "una PREGUNTA corta del día a día",
+  "el RESULTADO o el momento en que se usa",
+  "la OFERTA o el regalo (solo si la ficha trae oferta o regalo; si no, un beneficio)",
+  "lo NUEVO o diferente del producto",
+  "una frase corta en lenguaje de la calle, como lo diría el cliente"
+];
+const TIPOS_DESCRIPCION = [
+  "un beneficio clave", "para quién o para qué momento es", "la oferta o el regalo (si la ficha lo trae)",
+  "un dato del producto (material, tamaño, cómo se usa)", "el envío", "la confianza al comprar (pagas cuando te llega)"
+];
+const EMOJIS_GASTADOS = ["✨", "💫", "🎁", "📦", "💳", "👉", "🔥", "✔️", "🚚"];
+
+function barajar(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+// Elige 4 marcos distintos: casi siempre uno de los clásicos (aida/pas) y uno de los nuevos; prueba social solo si hay datos reales
+export function sortearEnfoques(hayPruebaSocial = false) {
+  const clasicos = barajar(["aida", "pas", "beneficio"]);
+  const nuevos = barajar(["historia", "curiosidad", "objecion", "momentos", "razones", "comparacion", ...(hayPruebaSocial ? ["prueba_social", "prueba_social"] : [])]);
+  const elegidos = [clasicos[0], nuevos[0]];
+  for (const k of barajar([...clasicos.slice(1), ...nuevos.slice(1)])) if (elegidos.length < 4 && !elegidos.includes(k)) elegidos.push(k);
+  return barajar(elegidos);
+}
+// Los emojis que más usaste en los copys de tus otros productos (para no repetirlos)
+export function emojisRepetidos(textos = [], max = 10) {
+  const cuenta = new Map();
+  for (const t of textos) for (const m of String(t || "").matchAll(/\p{Extended_Pictographic}️?/gu)) cuenta.set(m[0], (cuenta.get(m[0]) || 0) + 1);
+  return [...cuenta.entries()].sort((a, b) => b[1] - a[1]).slice(0, max).map(([e]) => e);
+}
 
 export function promptCopys(p, avatar, opciones = {}) {
   const pais = PAISES[p.pais] || PAISES.CO;
@@ -783,11 +834,20 @@ export function promptCopys(p, avatar, opciones = {}) {
     opciones.precio && precio ? `el precio (${precio})` : null
   ].filter(Boolean);
   const reales = resenasReales(p).filter(r => String(r.texto || "").trim()).slice(0, 3);
+  // Mezcla sorteada: cada vez que pides copys sale otra combinación
+  const enfoques = sortearEnfoques(reales.length > 0 || !!numerosPrueba(p) || !!calificacionReal(p));
+  const listas = barajar(ESTILOS_LISTA), titulos = barajar(TIPOS_TITULO);
+  const descs = barajar(TIPOS_DESCRIPCION.slice(0, 5));
+  if (opciones.contraEntrega !== false && Math.random() < 0.5) descs[Math.floor(Math.random() * 4)] = TIPOS_DESCRIPCION[5];
+  const plan = enfoques.map((enfoque, n) => ({ enfoque, lista: listas[n], titulo: titulos[n], descripcion: descs[n] }));
+  const cuantosCE = Math.random() < 0.5 ? 1 : 2;
+  const evitar = (opciones.emojisEvitar || []).slice(0, 10);
+  const recientes = (opciones.recientes || []).slice(0, 16);
   return `${contextoProducto(p)}
 
 ${bloqueAvatar(avatar, "AVATAR AL QUE LE HABLA")}
 
-${METODO_AIDA}
+VENDE CON LA CAUSA REAL: usa las palabras del cliente y lo que de verdad le resuelve el producto. Cada copy sigue SU marco (abajo), no todos AIDA.
 
 ROL: actúa como un Media Buyer / Trafficker Digital de nivel élite especializado en Meta Ads (Facebook e Instagram) y TikTok Ads, y en copywriting de respuesta directa para pago contra entrega en ${pais.nombre}.
 
@@ -797,22 +857,32 @@ PASO 1 · ANÁLISIS (con la ficha y el avatar, no inventes nada):
 - angulos: 3 ángulos de venta posibles.
 - alertas: riesgos de políticas de Meta y TikTok para ESTE producto y cómo evitarlos (palabras a evitar, cómo debe ser el creativo, si el título de la landing puede causar rechazo). Si es un producto que Meta o TikTok no permiten anunciar, dilo claro aquí.
 
-PASO 2 · 4 COPYS PARA META, uno por marco de persuasión:
-${Object.entries(ENFOQUES_META).map(([k, v]) => `- "${k}": ${v}`).join("\n")}
+PASO 2 · 4 COPYS PARA META, cada uno con SU marco, SU estilo de lista, SU tipo de título y SU tipo de descripción (todo distinto entre los 4):
+${plan.map((x, n) => `Copy ${n + 1} · enfoque "${x.enfoque}": ${ENFOQUES_META[x.enfoque]}
+   - Lista/estructura: ${x.lista}.
+   - Título: ${x.titulo}.
+   - Descripción: ${x.descripcion}.`).join("\n")}
 Cada copy:
-- texto_principal: 8 a 14 líneas cortas con saltos de línea, ESTRUCTURADO CON EMOJIS relevantes al producto (✨ 💫 🎁 📦 💳 👉 ✅ ✔️ 🔹 1️⃣ 2️⃣ 3️⃣ y los del producto): un emoji en el gancho, uno al inicio de cada línea de beneficio y 👉 en la llamada a la acción. La PRIMERA línea es un gancho que detiene el scroll. Incluye una lista de 3 o 4 beneficios o "Lo que recibes:". Cierra con la acción ("👉 Elige tu color y pide el tuyo hoy.") y una línea de confianza con ${mencionar.join(" · ")}${opciones.precio && precio ? "" : " (NO pongas el precio)"}.
-- titulo: claro, llamativo y orientado a la acción, máximo 40 caracteres (puede llevar 1 emoji).
-- descripcion: refuerza la oferta, el regalo o la confianza, máximo 30 caracteres.
+- texto_principal: 7 a 14 líneas cortas con saltos de línea. La PRIMERA línea es un gancho que detiene el scroll y los 4 ganchos arrancan de forma distinta (ni la misma palabra ni el mismo emoji). Cierra con una llamada a la acción con palabras distintas en cada copy (nada de repetir "pide el tuyo hoy" en los 4).
+- titulo: máximo 40 caracteres (puede llevar 1 emoji), del tipo que le tocó arriba.
+- descripcion: máximo 30 caracteres, del tipo que le tocó arriba.
+
+VARIEDAD (muy importante, el dueño se queja de que todos los copys salen iguales):
+- EMOJIS: escoge emojis del mundo de ESTE producto (lo que es, para qué sirve, dónde se usa) y cambia de emojis entre un copy y otro. ${evitar.length ? `NO uses estos, ya están gastados en sus otros anuncios: ${evitar.join(" ")}.` : ""} Máximo 1 emoji genérico (${EMOJIS_GASTADOS.join(" ")}) por copy.
+- ${opciones.contraEntrega !== false ? `PAGO CONTRA ENTREGA: menciónalo SOLO en ${cuantosCE} de los 4 textos (en el cierre, cada vez con palabras distintas: "pagas cuando lo tienes en tus manos", "lo recibes y ahí pagas"…), en máximo 1 título y en máximo 1 descripción. Los demás títulos y descripciones hablan del PRODUCTO: beneficios, usos, ganchos.` : "NO menciones el pago contra entrega."}
+- Otros datos de confianza que puedes usar en los cierres (no todos en todos): ${mencionar.join(" · ")}${opciones.precio && precio ? "" : " (NO pongas el precio)"}.
 Español de ${pais.nombre} con TÚ, natural, como habla la gente; nada de voseo.
 
 PRUEBA SOCIAL REAL PARA LOS COPYS (úsala tal cual; si no hay, no inventes ninguna):
 ${reales.length ? `Reseñas textuales (cítalas EXACTAS, con ⭐ según sus estrellas y el nombre o iniciales que trae; si no trae nombre, sin nombre):\n${reales.map(r => `- "${limpio(r.texto, 200)}"${limpio(r.nombre, 40) ? ` – ${limpio(r.nombre, 40)}` : ""}${r.ciudad ? `, ${limpio(r.ciudad, 40)}` : ""}${Number(r.estrellas) ? ` (${Number(r.estrellas)} estrellas)` : ""}`).join("\n")}` : "Reseñas: no hay. NO escribas testimonios, ni de ejemplo ni entre corchetes."}
 ${textoPruebaSocial(p)}
 
-${(opciones.referencias || []).length ? `COPYS DE TUS PRODUCTOS GANADORES (vendieron de verdad): úsalos SOLO como referencia de tono, largo, uso de emojis y estructura. NO copies sus frases, datos, promesas ni productos:
+${(opciones.referencias || []).length ? `COPYS DE TUS PRODUCTOS GANADORES (vendieron de verdad): úsalos SOLO como referencia de tono y de lo cerca que le hablan al cliente. NO copies sus frases, su estructura, sus emojis, sus títulos ni sus datos:
 ${opciones.referencias.map((r, i) => `--- Ganador ${i + 1}${r.producto ? ` (${limpio(r.producto, 80)})` : ""}${r.enfoque ? ` · ${r.enfoque}` : ""}:\n${limpio(r.texto, 900)}`).join("\n")}
 ` : ""}
-DATOS SIN CONFIRMAR: si un dato ayudaría al copy pero NO está en la ficha (material, tiempo de entrega, colores, si resiste el agua…), escríbelo entre [corchetes] para que el dueño lo confirme o lo borre antes de publicar. Lo que la ficha dice que NO es verdad no se escribe ni entre corchetes. Testimonios y cifras nunca van entre corchetes: o son reales o no van.
+${recientes.length ? `TÍTULOS Y GANCHOS QUE YA USÓ EN OTROS PRODUCTOS (NO los repitas ni hagas unos parecidos):
+${recientes.map(r => `- ${limpio(r, 140)}`).join("\n")}
+` : ""}DATOS SIN CONFIRMAR: si un dato ayudaría al copy pero NO está en la ficha (material, tiempo de entrega, colores, si resiste el agua…), escríbelo entre [corchetes] para que el dueño lo confirme o lo borre antes de publicar. Lo que la ficha dice que NO es verdad no se escribe ni entre corchetes. Testimonios y cifras nunca van entre corchetes: o son reales o no van.
 
 REGLAS DE META (estricto cumplimiento):
 ${lista(REGLAS_META)}
@@ -829,7 +899,7 @@ PASO 4 · TESTEO: en 2 o 3 frases, cómo testear estos copys (cuáles juntos en 
 
 Responde SOLO este JSON válido:
 { "analisis": { "uvp": "", "dolores": [], "angulos": [], "alertas": [] },
-  "meta": [ ${Object.keys(ENFOQUES_META).map(k => `{ "enfoque": "${k}", "texto_principal": "", "titulo": "", "descripcion": "" }`).join(", ")} ],
+  "meta": [ ${plan.map(x => `{ "enfoque": "${x.enfoque}", "texto_principal": "", "titulo": "", "descripcion": "" }`).join(", ")} ],
   "tiktok": { "texto": "", "caption": "", "ganchos": [], "pantalla": [] },
   "testeo": "" }`;
 }
@@ -988,7 +1058,8 @@ TAREA:
    - "beneficio": arranca con el resultado más fuerte.
    - "curiosidad": arranca con un dato o detalle que despierte curiosidad.
    - "objecion": arranca respondiendo la duda más común (por ejemplo pagar al recibir).
-   Cada una con: gancho (la primera línea), texto_principal (8 a 12 líneas con emojis, misma oferta y mismos datos del original), titulo (máx. 40 caracteres) y descripcion (máx. 30).
+   Cada una con: gancho (la primera línea), texto_principal (8 a 12 líneas, misma oferta y mismos datos del original), titulo (máx. 40 caracteres) y descripcion (máx. 30).
+   VARIEDAD: cada versión con otro estilo de lista (✅, números, flechas, párrafos cortos, preguntas y respuestas) y otros emojis del mundo del producto. Los títulos y descripciones hablan de beneficios, usos y ganchos: "pago contra entrega" o "paga al recibir" va en máximo 1 título y máximo 1 descripción de las 5.
 REGLAS: NO inventes datos, precios, promesas, testimonios ni cifras que no estén en el anuncio original o en la ficha. Mismo precio y misma oferta. Reglas de Meta:
 ${lista(REGLAS_META)}
 Español de ${pais.nombre} con TÚ.

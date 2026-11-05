@@ -18,6 +18,7 @@ import {
   promptGuion,
   promptTextosShopify,
   promptCopys,
+  emojisRepetidos,
   promptKitTemporada,
   promptVariaciones,
   cierreSeccion,
@@ -149,7 +150,7 @@ function limpiarGuiones(lista, av) {
 }
 
 // Copys de anuncios
-const ENFOQUES_COPYS = ["aida", "pas", "beneficio", "prueba_social", "problema", "curiosidad"];
+const ENFOQUES_COPYS = ["aida", "pas", "beneficio", "prueba_social", "historia", "curiosidad", "objecion", "momentos", "razones", "comparacion", "problema"];
 function limpiarCopys(c) {
   if (!c || typeof c !== "object") return null;
   const txt = (v, n) => String(v || "").slice(0, n);
@@ -999,7 +1000,21 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
         }
         referencias = referencias.slice(0, 3);
       } catch (e) { console.warn("No se pudieron leer los copys ganadores:", e.message); }
-      const reply = await llamarIA({ system: SISTEMA_LANDING, prompt: promptCopys(x.vista, x.avatar, { ...opciones, referencias }) });
+      // Lo que ya usaste en tus otros productos (títulos, ganchos y emojis), para no repetirlo
+      let recientes = [], emojisEvitar = [];
+      try {
+        const otros = await Proyecto.find({ owner: req.user.uid, _id: { $ne: x.p._id } }).sort({ actualizado: -1 }).limit(8).select("ramas").lean();
+        const textos = [];
+        for (const pr of otros) for (const r of Object.values(pr.ramas || {})) for (const c of r?.copys?.meta || []) {
+          if (c.titulo) recientes.push(String(c.titulo));
+          const gancho = String(c.texto_principal || "").split("\n").find(l => l.trim());
+          if (gancho) recientes.push(gancho.trim());
+          textos.push(c.texto_principal, c.titulo, c.descripcion);
+        }
+        recientes = [...new Set(recientes)].slice(0, 16);
+        emojisEvitar = emojisRepetidos(textos, 10);
+      } catch (e) { console.warn("No se pudieron leer los copys anteriores:", e.message); }
+      const reply = await llamarIA({ system: SISTEMA_LANDING, prompt: promptCopys(x.vista, x.avatar, { ...opciones, referencias, recientes, emojisEvitar }) });
       const copys = limpiarCopys({ ...parsearJSON(reply), opciones });
       if (!copys.meta.length) return res.status(502).json({ error: "La IA no devolvió los textos" });
       const r = { ...x.r, copys };

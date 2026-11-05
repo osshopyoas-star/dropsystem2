@@ -76,9 +76,14 @@ export const ENFOQUES_COPY = {
   pas: "PAS · problema, agitación, solución",
   beneficio: "Beneficio directo",
   prueba_social: "Prueba social / regalo",
+  historia: "Mini historia",
+  curiosidad: "Curiosidad / gancho",
+  objecion: "Rompe la duda",
+  momentos: "Momentos de uso",
+  razones: "X razones",
+  comparacion: "Antes y ahora del día a día",
   // copys viejos
-  problema: "Problema → causa real → solución",
-  curiosidad: "Curiosidad / gancho"
+  problema: "Problema → causa real → solución"
 };
 
 // Largo como lo cuenta TikTok: cada emoji ocupa 2 caracteres
