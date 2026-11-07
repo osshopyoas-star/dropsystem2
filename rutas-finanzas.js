@@ -221,6 +221,15 @@ Sin rodeos, sin inventar datos que no estén en las cifras. Si la publicidad est
         nuevas += r.upsertedCount || 0;
         actualizadas += r.modifiedCount || 0;
       }
+      // Líneas viejas de los mismos pedidos que ya no vienen en el Excel (Dropi cambió el producto o la variación,
+      // o el pedido se reemplazó): se borran para que no quede mostrando el estatus viejo
+      const ids = [...new Set(lineas.map(l => l.ordenId))];
+      let viejas = 0;
+      for (let i = 0; i < ids.length; i += 2000) {
+        const r = await DropiLinea.deleteMany({ owner: req.user.uid, pais: p, ordenId: { $in: ids.slice(i, i + 2000) }, importado: { $lt: ahora } });
+        viejas += r.deletedCount || 0;
+      }
+      if (viejas) console.log(`Dropi: ${viejas} líneas viejas quitadas al importar`);
       await FinanzasConfig.findOneAndUpdate(
         { owner: req.user.uid, pais: p },
         { $set: { ultimaImportacion: ahora, ...(cuenta ? { cuenta } : {}) }, $setOnInsert: { owner: req.user.uid, pais: p } },
