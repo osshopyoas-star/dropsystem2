@@ -23,6 +23,7 @@ import { registrarRutasCosteos } from "./rutas-costeos.js";
 import { registrarRutasPlantilla } from "./rutas-plantilla.js";
 import { registrarRutasMeta } from "./rutas-meta.js";
 import { registrarRutasAvisos, registrarCronAvisos, iniciarAvisosDiarios } from "./rutas-avisos.js";
+import { registrarPaginaCotizador, registrarRutasCotizadorPublico, registrarRutasCotizador } from "./rutas-cotizador.js";
 import { registrarRutasFinanzas } from "./rutas-finanzas.js";
 import { limpiarAnalisis, limpiarRecursos } from "./public/js/core/analisis.js";
 import { registrarRutasImportar } from "./rutas-importar.js";
@@ -308,6 +309,8 @@ app.get("/api/test", (req, res) => {
 });
 
 registrarCronAvisos(app, { Producto });   // cron externo con su propia clave (antes del login)
+registrarPaginaCotizador(app, { dirname: __dirname });   // página pública del cotizador de letreros
+registrarRutasCotizadorPublico(app);                      // sus rutas públicas (sin sesión, con límites)
 
 app.use("/api", requireAuth);
 
@@ -491,6 +494,7 @@ registrarRutasPlantilla(app);
 registrarRutasMeta(app);
 registrarRutasFinanzas(app, { llamarIA, iaLimiter });
 registrarRutasAvisos(app, { Producto });
+registrarRutasCotizador(app);
 if (process.env.NODE_ENV !== "test") iniciarAvisosDiarios({ Producto });   // "Lo que toca hoy" al celular cada mañana
 registrarRutasImportar(app, { limiter: iaLimiter });
 

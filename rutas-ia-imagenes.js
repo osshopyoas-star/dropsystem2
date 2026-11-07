@@ -78,7 +78,7 @@ export function armarPrompt({ bloqueEstilo, prompt, referencias, descripcion = "
   return limpiarFuentes(cabeza + cuerpo.slice(0, Math.max(500, espacio)) + cola);
 }
 
-async function pedirImagen({ prompt, fotos, aspecto }) {
+export async function pedirImagen({ prompt, fotos, aspecto }) {
   const refs = fotos.slice(0, MAX_REFERENCIAS);
   const base = { model: MODELO(), prompt, n: 1, response_format: "b64_json", aspect_ratio: aspecto, resolution: RESOLUCION() };
   const body = refs.length === 0 ? base

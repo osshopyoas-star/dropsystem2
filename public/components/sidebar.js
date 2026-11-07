@@ -57,6 +57,7 @@ export function renderSidebar() {
 
       ${seccion("Herramientas")}
       ${item("integraciones", "plug", "Integraciones")}
+      ${item("cotizador", "sparkles", "Cotizador de letreros")}
 
       <div class="sb-pie">
         <div class="sidebar-item sidebar-logout" data-label="Cerrar sesión" onclick="cerrarSesion()">
