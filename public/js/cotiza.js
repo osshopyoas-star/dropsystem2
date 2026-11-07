@@ -2,7 +2,7 @@
 // Página pública del cotizador de letreros (/cotiza/:clave)
 // Pasos: inicio → subir logo → material → dónde va y luz → tamaño → maqueta → precio y pedido
 // =============================================
-import { cotizar, altoDe, formatoPlata } from "./core/cotizador.js";
+import { cotizar, altoDe, formatoPlata, complejidadDe, COMPLEJIDADES } from "./core/cotizador.js";
 
 const clave = decodeURIComponent(location.pathname.split("/").filter(Boolean)[1] || "");
 const $ = (id) => document.getElementById(id);
@@ -12,7 +12,7 @@ const app = $("app");
 const st = {
   cfg: null, paso: "inicio",
   logo: null,            // { dataUrl, ratio }
-  e: { material: "", luz: "", ubicacion: "", montaje: "", ancho: 60, alto: 60, cantidad: 1 },
+  e: { material: "", luz: "", ubicacion: "", montaje: "", ancho: 60, alto: 60, cantidad: 1, complejidad: "medio" },
   altoManual: false, maqueta: null, cotizacion: null, aviso: "", error: "", notas: "", enviando: false
 };
 const PASOS = ["subir", "material", "lugar", "tamano", "resultado"];
@@ -188,11 +188,12 @@ function pintar() {
       <div class="caja" style="margin-top:18px">
         <div class="contador"><span style="flex:1;text-align:left;font-weight:600;font-size:15px">Cantidad</span><button onclick="cxCantidad(-1)">−</button><span>${st.e.cantidad}</span><button onclick="cxCantidad(1)">+</button></div>
         ${r ? `<table class="desglose">
-          <tr><td>${esc(r.material.nombre)} · ${r.ancho} × ${r.alto} cm${r.minimoAplicado ? " (precio mínimo)" : ""}</td><td>${plata(r.base)}</td></tr>
-          ${r.recargoLuz ? `<tr><td>Luz: ${esc(r.luz.nombre)}</td><td>+${plata(r.recargoLuz)}</td></tr>` : ""}
-          ${r.recargoUbicacion ? `<tr><td>${esc(r.ubicacion.nombre)}</td><td>+${plata(r.recargoUbicacion)}</td></tr>` : ""}
-          ${r.precioMontaje ? `<tr><td>${esc(r.montaje.nombre)}</td><td>+${plata(r.precioMontaje)}</td></tr>` : ""}
-          ${r.cantidad > 1 ? `<tr><td>× ${r.cantidad} unidades</td><td></td></tr>` : ""}
+          <tr><td>${esc(r.material.nombre)}</td><td>${r.ancho} × ${r.alto} cm</td></tr>
+          <tr><td>Diseño</td><td>${esc(COMPLEJIDADES[r.complejidad])}</td></tr>
+          ${r.luz ? `<tr><td>Luz</td><td>${esc(r.luz.nombre)}</td></tr>` : ""}
+          ${r.ubicacion ? `<tr><td>Va en</td><td>${esc(r.ubicacion.nombre)}</td></tr>` : ""}
+          ${r.montaje ? `<tr><td>Montaje</td><td>${esc(r.montaje.nombre)}</td></tr>` : ""}
+          ${r.cantidad > 1 ? `<tr><td>Cantidad</td><td>${r.cantidad}</td></tr>` : ""}
           <tr class="tot"><td>Total</td><td>${plata(r.total)}</td></tr>
           ${c.anticipoPct > 0 && c.anticipoPct < 100 ? `<tr><td>Anticipo para empezar (${c.anticipoPct}%)</td><td>${plata(r.anticipo)}</td></tr>` : ""}
         </table>` : ""}
@@ -236,6 +237,37 @@ window.cxAncho = (v) => {
 };
 window.cxAlto = (v) => { const n = Math.round(Number(v) * 10) / 10; if (n > 0) { st.e.alto = n; st.altoManual = true; } pintar(); };
 
+// Mide qué tan complejo es el diseño: separa el logo del fondo y cuenta cuánto borde tiene.
+// Más bordes (letras, detalles, piezas) = más minutos de láser.
+function medirComplejidad(img) {
+  try {
+    const lado = 220, k = Math.min(1, lado / Math.max(img.width, img.height));
+    const w = Math.max(8, Math.round(img.width * k)), h = Math.max(8, Math.round(img.height * k));
+    const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+    const cx = cv.getContext("2d"); cx.drawImage(img, 0, 0, w, h);
+    const d = cx.getImageData(0, 0, w, h).data;
+    // Color del fondo: el promedio de las 4 esquinas
+    const esquina = (x, y) => { const i = (y * w + x) * 4; return [d[i], d[i + 1], d[i + 2], d[i + 3]]; };
+    const es = [esquina(0, 0), esquina(w - 1, 0), esquina(0, h - 1), esquina(w - 1, h - 1)];
+    const fondo = [0, 1, 2, 3].map(j => es.reduce((t, e) => t + e[j], 0) / 4);
+    const transparente = fondo[3] < 40;
+    const lleno = new Uint8Array(w * h);
+    for (let p = 0; p < w * h; p++) {
+      const i = p * 4;
+      lleno[p] = transparente ? (d[i + 3] > 100 ? 1 : 0)
+        : (Math.abs(d[i] - fondo[0]) + Math.abs(d[i + 1] - fondo[1]) + Math.abs(d[i + 2] - fondo[2]) > 90 ? 1 : 0);
+    }
+    let bordes = 0, relleno = 0;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const p = y * w + x;
+      if (!lleno[p]) continue;
+      relleno++;
+      if (x === 0 || y === 0 || x === w - 1 || y === h - 1 || !lleno[p - 1] || !lleno[p + 1] || !lleno[p - w] || !lleno[p + w]) bordes++;
+    }
+    return complejidadDe({ bordes, relleno });
+  } catch { return "medio"; }
+}
+
 // Achica la imagen en el navegador (máx. 1400 px) para subirla rápido
 window.cxArchivo = (file) => {
   st.error = "";
@@ -253,6 +285,7 @@ window.cxArchivo = (file) => {
       let dataUrl = cv.toDataURL(png ? "image/png" : "image/jpeg", 0.9);
       if (dataUrl.length > 3.8e6) dataUrl = cv.toDataURL("image/jpeg", 0.82);
       st.logo = { dataUrl, ratio: cv.height / cv.width };
+      st.e.complejidad = medirComplejidad(img);
       st.altoManual = false;
       st.e.alto = altoDe(st.e.ancho, st.logo.ratio);
       st.maqueta = null; st.cotizacion = null;

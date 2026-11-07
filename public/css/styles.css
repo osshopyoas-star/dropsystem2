@@ -6023,3 +6023,10 @@ main .cal-page input:focus, main .cal-page select:focus, main .pl-page input:foc
 .ct-grid label.dos2 { grid-column: span 2; }
 @media (max-width: 700px) { .ct-grid label.dos2 { grid-column: 1 / -1; } }
 .ct-par-acc select { padding: 9px 11px; border-radius: 10px; border: 1px solid #cbd5e1; font: inherit; }
+.ct-excel { width: 100%; max-width: 520px; border-collapse: collapse; font-size: 14px; margin-top: 12px; }
+.ct-excel td { padding: 6px 8px; border-bottom: 1px solid #e2e8f0; }
+.ct-excel td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+.ct-excel tr.sub td { font-weight: 700; background: #f8fafc; }
+.ct-excel tr.fab td { font-weight: 800; background: #dcfce7; color: #166534; }
+.ct-excel tr.tot td { font-weight: 800; font-size: 16px; background: #dbeafe; color: #1e3a8a; }
+.ct-tabla select { padding: 8px 9px; border-radius: 9px; border: 1px solid #cbd5e1; font: inherit; }

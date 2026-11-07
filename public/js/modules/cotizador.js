@@ -5,7 +5,7 @@
 // =============================================
 import { registrarRuta } from "./navegacion.js";
 import { escapeHTML } from "../core/utils.js";
-import { cotizar, formatoPlata } from "../core/cotizador.js";
+import { cotizar, formatoPlata, precioCm2, COMPLEJIDADES } from "../core/cotizador.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (v) => escapeHTML(v ?? "");
@@ -68,15 +68,96 @@ function tablaOpciones(grupo, titulo, ayuda, campos) {
 
 function pruebaHTML() {
   const p = st.prueba;
-  if (!p.material) p.material = st.cfg.materiales[0]?.id || "";
-  const r = cotizar(st.cfg, { material: p.material, ancho: p.ancho, alto: p.alto, luz: st.cfg.luces[0]?.id, ubicacion: st.cfg.ubicaciones[0]?.id, montaje: st.cfg.montajes[0]?.id });
+  if (!st.cfg.materiales.some(m => m.id === p.material)) p.material = st.cfg.materiales[0]?.id || "";
+  p.complejidad ||= "medio";
+  const r = cotizar(st.cfg, { material: p.material, ancho: p.ancho, alto: p.alto, complejidad: p.complejidad, luz: st.cfg.luces[0]?.id, ubicacion: st.cfg.ubicaciones[0]?.id, montaje: st.cfg.montajes[0]?.id });
   const f = (v) => formatoPlata(v, st.cfg.moneda);
+  const fila = (t, v, cls = "") => `<tr class="${cls}"><td>${t}</td><td>${f(v)}</td></tr>`;
   return `<div class="ct-prueba-fila">
       <select onchange="ctPrueba('material',this.value)">${st.cfg.materiales.map(m => `<option value="${esc(m.id)}" ${m.id === p.material ? "selected" : ""}>${esc(m.nombre)}</option>`).join("")}</select>
       <label>Ancho <input type="number" value="${p.ancho}" onchange="ctPrueba('ancho',this.value)"> cm</label>
       <label>Alto <input type="number" value="${p.alto}" onchange="ctPrueba('alto',this.value)"> cm</label>
+      <select onchange="ctPrueba('complejidad',this.value)">${Object.entries(COMPLEJIDADES).map(([k, t]) => `<option value="${k}" ${k === p.complejidad ? "selected" : ""}>Diseño ${t.toLowerCase()}</option>`).join("")}</select>
     </div>
-    ${r ? `<p class="ct-prueba-res">${r.ancho} × ${r.alto} cm = ${Math.round(r.area).toLocaleString("es-CO")} cm² → <b>${f(r.total)}</b>${r.minimoAplicado ? " <small>(se aplicó el mínimo)</small>" : ""}${st.cfg.anticipoPct > 0 && st.cfg.anticipoPct < 100 ? ` · anticipo ${st.cfg.anticipoPct}%: ${f(r.anticipo)}` : ""}<br><small>Con la primera opción de luz, lugar y montaje. Lo que elija el cliente suma sus recargos.</small></p>` : ""}`;
+    ${r ? `<table class="ct-excel">
+      ${r.detalle.laminas.map(x => fila(esc(x.nombre), x.valor)).join("")}
+      ${fila(esc(r.detalle.laser.nombre), r.detalle.laser.valor)}
+      ${r.detalle.otros.map(x => fila(esc(x.nombre), x.valor)).join("")}
+      ${fila("Materiales", r.materiales, "sub")}
+      ${fila(`Mano de obra (${st.cfg.manoObraPct}%)`, r.manoObra)}
+      ${fila(`Ganancia del producto (${st.cfg.gananciaProductoPct}%)`, r.gananciaProducto)}
+      ${fila("FABRICACIÓN", r.fabricacion, "fab")}
+      ${r.recargoLuz ? fila(`Luz: ${esc(r.luz.nombre)}`, r.recargoLuz) : ""}${r.recargoUbicacion ? fila(esc(r.ubicacion.nombre), r.recargoUbicacion) : ""}${r.precioMontaje ? fila(esc(r.montaje.nombre), r.precioMontaje) : ""}
+      ${fila("Pauta", r.pauta)}
+      ${fila("Flete", r.flete)}
+      ${fila(`Tu ganancia (${st.cfg.gananciaPct}%)`, r.ganancia)}
+      ${fila("PRECIO AL CLIENTE", r.total, "tot")}
+      ${st.cfg.anticipoPct > 0 && st.cfg.anticipoPct < 100 ? fila(`Anticipo ${st.cfg.anticipoPct}%`, r.anticipo) : ""}
+    </table><p class="ct-mini">Con la primera opción de luz, lugar y montaje. El cliente NO ve este desglose: solo el precio final. La complejidad la mide CoDropX sola en el logo que sube.</p>` : ""}`;
+}
+
+// ---------- Costos como en el Excel ----------
+function costosHTML() {
+  const c = st.cfg, f = (v) => formatoPlata(v, c.moneda);
+  const num = (ruta, v, paso = "any") => `<input type="number" min="0" step="${paso}" class="num" value="${v}" oninput="ctNum('${ruta}', this.value)">`;
+  return `
+  <section class="ct-card">
+    <div class="ct-card-head"><h3>1. Láminas</h3><small>Precio de la lámina completa y sus m² · CoDropX saca el precio del cm²</small></div>
+    <div class="ct-scroll"><table class="ct-tabla"><thead><tr><th>Lámina</th><th class="n">Precio lámina</th><th class="n">m²</th><th class="n">$ por cm²</th><th></th></tr></thead><tbody>
+      ${c.laminas.map((l, i) => `<tr><td><input value="${esc(l.nombre)}" oninput="ctCampo('laminas',${i},'nombre',this.value)"></td><td class="n">${num(`laminas.${i}.precio`, l.precio, 1000)}</td><td class="n">${num(`laminas.${i}.m2`, l.m2, 0.01)}</td><td class="n"><b id="ctCm2_${i}">${precioCm2(l).toFixed(1)}</b></td><td><button class="ct-icono" title="Quitar" onclick="ctQuitar('laminas',${i})"><i data-lucide="trash-2"></i></button></td></tr>`).join("")}
+    </tbody></table></div>
+    <button class="ct-btn claro chico" onclick="ctAgregar('laminas')"><i data-lucide="plus"></i> Agregar lámina</button>
+  </section>
+
+  <section class="ct-card">
+    <div class="ct-card-head"><h3>2. Tipos de letrero</h3><small>Lo que elige el cliente · marca qué láminas lleva (cada una del tamaño del letrero)</small></div>
+    <div class="ct-scroll"><table class="ct-tabla"><thead><tr><th>Nombre</th><th>Descripción (la ve el cliente)</th>${c.laminas.map(l => `<th class="n">${esc(l.nombre.split(" ").slice(0, 2).join(" "))}</th>`).join("")}<th class="n">Lleva luz</th><th></th></tr></thead><tbody>
+      ${c.materiales.map((m, i) => `<tr><td><input value="${esc(m.nombre)}" oninput="ctCampo('materiales',${i},'nombre',this.value)"></td><td><input class="ancho" value="${esc(m.desc)}" oninput="ctCampo('materiales',${i},'desc',this.value)"></td>
+        ${c.laminas.map(l => `<td class="n"><input type="checkbox" ${m.capas.includes(l.id) ? "checked" : ""} onchange="ctCapa(${i},'${esc(l.id)}',this.checked)"></td>`).join("")}
+        <td class="n"><input type="checkbox" ${m.conLuz ? "checked" : ""} onchange="ctCampo('materiales',${i},'conLuz',this.checked)"></td>
+        <td><button class="ct-icono" title="Quitar" onclick="ctQuitar('materiales',${i})"><i data-lucide="trash-2"></i></button></td></tr>`).join("")}
+    </tbody></table></div>
+    <button class="ct-btn claro chico" onclick="ctAgregar('materiales')"><i data-lucide="plus"></i> Agregar tipo</button>
+  </section>
+
+  <section class="ct-card">
+    <div class="ct-card-head"><h3>3. Láser</h3><small>Minutos = preparación + minutos por cada 100 cm², × la complejidad del diseño</small></div>
+    <div class="ct-grid">
+      <label>Precio del minuto ($)${num("laser.precioMinuto", c.laser.precioMinuto, 100)}</label>
+      <label>Minutos de preparación${num("laser.minFijos", c.laser.minFijos, 1)}</label>
+      <label>Minutos por cada 100 cm²${num("laser.minPor100", c.laser.minPor100, 0.1)}</label>
+      <label>Diseño sencillo (×)${num("laser.sencillo", c.laser.sencillo, 0.05)}</label>
+      <label>Diseño medio (×)${num("laser.medio", c.laser.medio, 0.05)}</label>
+      <label>Diseño complejo (×)${num("laser.complejo", c.laser.complejo, 0.05)}</label>
+    </div>
+    <p class="ct-mini">Con 30 × 30 cm y diseño medio: ${Math.round((c.laser.minFijos + 9 * c.laser.minPor100) * c.laser.medio)} minutos = ${f((c.laser.minFijos + 9 * c.laser.minPor100) * c.laser.medio * c.laser.precioMinuto)}.</p>
+  </section>
+
+  <section class="ct-card">
+    <div class="ct-card-head"><h3>4. Otros costos por letrero</h3><small>Valor para uno de 30 × 30 cm · "sube con el tamaño" = proporcional al área · "sube con el borde" = proporcional al contorno</small></div>
+    <div class="ct-scroll"><table class="ct-tabla"><thead><tr><th>Costo</th><th class="n">Valor (30 × 30)</th><th>Cómo cambia</th><th class="n">Solo si lleva luz</th><th></th></tr></thead><tbody>
+      ${c.costos.map((x, i) => `<tr><td><input value="${esc(x.nombre)}" oninput="ctCampo('costos',${i},'nombre',this.value)"></td><td class="n">${num(`costos.${i}.valor`, x.valor, 500)}</td>
+        <td><select onchange="ctCampo('costos',${i},'modo',this.value)">${[["fijo", "Fijo"], ["area", "Sube con el tamaño"], ["contorno", "Sube con el borde"]].map(([k, t]) => `<option value="${k}" ${x.modo === k ? "selected" : ""}>${t}</option>`).join("")}</select></td>
+        <td class="n"><input type="checkbox" ${x.soloLuz ? "checked" : ""} onchange="ctCampo('costos',${i},'soloLuz',this.checked)"></td>
+        <td><button class="ct-icono" title="Quitar" onclick="ctQuitar('costos',${i})"><i data-lucide="trash-2"></i></button></td></tr>`).join("")}
+    </tbody></table></div>
+    <button class="ct-btn claro chico" onclick="ctAgregar('costos')"><i data-lucide="plus"></i> Agregar costo</button>
+  </section>
+
+  <section class="ct-card">
+    <div class="ct-card-head"><h3>5. Porcentajes, pauta, flete y tu ganancia</h3><small>El precio final sale de aquí</small></div>
+    <div class="ct-grid">
+      <label>Mano de obra (% de materiales)${num("manoObraPct", c.manoObraPct, 1)}</label>
+      <label>Ganancia del producto (%)${num("gananciaProductoPct", c.gananciaProductoPct, 1)}</label>
+      <label>Tu ganancia final (%)${num("gananciaPct", c.gananciaPct, 1)}</label>
+    </div>
+    <div class="ct-scroll" style="margin-top:12px"><table class="ct-tabla"><thead><tr><th class="n">Si el precio final es hasta</th><th class="n">Pauta $</th><th class="n">o pauta % del precio</th><th class="n">Flete $</th><th></th></tr></thead><tbody>
+      ${c.tramos.map((t, i) => `<tr><td class="n">${t.hasta ? num(`tramos.${i}.hasta`, t.hasta, 10000) : `<input class="num" value="Sin tope" disabled>`}</td><td class="n">${num(`tramos.${i}.pauta`, t.pauta, 1000)}</td><td class="n">${num(`tramos.${i}.pautaPct`, t.pautaPct, 1)}</td><td class="n">${num(`tramos.${i}.flete`, t.flete, 1000)}</td>
+        <td>${c.tramos.length > 1 ? `<button class="ct-icono" title="Quitar" onclick="ctQuitar('tramos',${i})"><i data-lucide="trash-2"></i></button>` : ""}</td></tr>`).join("")}
+    </tbody></table></div>
+    <button class="ct-btn claro chico" onclick="ctAgregarTramo()"><i data-lucide="plus"></i> Agregar tramo</button>
+    <p class="ct-mini">La pauta usa el mayor entre el valor en $ y el %. El último tramo es "sin tope". Tu ganancia se calcula sobre fabricación + pauta + flete.</p>
+  </section>`;
 }
 
 function galeriaHTML(tipo, titulo, ayuda) {
@@ -132,7 +213,7 @@ function cotizacionesHTML() {
       <a href="${esc(c.maqueta || c.logo)}" target="_blank" rel="noopener"><img src="${esc(c.maqueta || c.logo)}" alt=""></a>
       <div>
         <b>${formatoPlata(c.total, c.moneda)}</b> ${c.pidio ? `<span class="ct-tag ok">pidió</span>` : `<span class="ct-tag">solo miró</span>`}
-        <small>${esc(nombre("materiales", c.eleccion?.material))} · ${c.eleccion?.ancho} × ${c.eleccion?.alto} cm${c.eleccion?.cantidad > 1 ? ` · ×${c.eleccion.cantidad}` : ""}</small>
+        <small>${esc(nombre("materiales", c.eleccion?.material))} · ${c.eleccion?.ancho} × ${c.eleccion?.alto} cm${c.eleccion?.complejidad ? ` · diseño ${esc((COMPLEJIDADES[c.eleccion.complejidad] || "").toLowerCase())}` : ""}${c.eleccion?.cantidad > 1 ? ` · ×${c.eleccion.cantidad}` : ""}</small>
         <small>${esc(nombre("ubicaciones", c.eleccion?.ubicacion))}${c.eleccion?.luz ? ` · ${esc(nombre("luces", c.eleccion.luz))}` : ""} · ${new Date(c.creado).toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" })}</small>
         ${c.notas ? `<small class="ct-nota">📝 ${esc(c.notas)}</small>` : ""}
         ${c.logo && c.maqueta ? `<a class="ct-link" href="${esc(c.logo)}" target="_blank" rel="noopener">Ver logo original</a>` : ""}
@@ -196,15 +277,15 @@ function render() {
       ${galeriaHTML("taller", "Fotos del taller", "Ustedes cortando, armando o soldando (hasta 4)")}
     </section>
 
-    ${tablaOpciones("materiales", "Materiales", "Precio por cm² del frente del letrero, con un precio mínimo por letrero", [{ k: "precioCm2", t: "$ por cm²" }, { k: "minimo", t: "Mínimo $" }, { k: "conLuz", t: "Lleva luz", tipo: "bool" }])}
+    ${costosHTML()}
 
     <section class="ct-card">
-      <div class="ct-card-head"><h3><i data-lucide="calculator"></i> Prueba tus precios</h3><small>Para que tu hermano revise que cuadre con lo que cobran</small></div>
+      <div class="ct-card-head"><h3><i data-lucide="calculator"></i> Prueba tus precios</h3><small>Igual que tu Excel: revisa que cuadre con lo que cobran</small></div>
       <div id="ctPrueba">${pruebaHTML()}</div>
     </section>
 
-    ${tablaOpciones("luces", "Tipo de luz", "Solo para materiales que llevan luz · recargo en %", [{ k: "pct", t: "Recargo %" }])}
-    ${tablaOpciones("ubicaciones", "¿Dónde va?", "Recargo en % (por ejemplo exterior, que aguante lluvia)", [{ k: "pct", t: "Recargo %" }])}
+    ${tablaOpciones("luces", "Tipo de luz", "Solo para tipos con luz · recargo en % sobre la fabricación", [{ k: "pct", t: "Recargo %" }])}
+    ${tablaOpciones("ubicaciones", "¿Dónde va?", "Recargo en % sobre la fabricación (por ejemplo exterior, que aguante lluvia)", [{ k: "pct", t: "Recargo %" }])}
     ${tablaOpciones("montajes", "Montaje", "Precio fijo que se suma por letrero", [{ k: "precio", t: "Precio $" }])}
 
     <section class="ct-card">
@@ -254,11 +335,31 @@ window.ctQuitar = (grupo, i) => {
   st.cfg[grupo].splice(i, 1); marcarCambio(); render();
 };
 window.ctAgregar = (grupo) => {
-  const nuevo = { materiales: { nombre: "Nuevo material", desc: "", precioCm2: 50, minimo: 50000, conLuz: false }, luces: { nombre: "Nueva luz", desc: "", pct: 0 }, ubicaciones: { nombre: "Nuevo lugar", desc: "", pct: 0 }, montajes: { nombre: "Nuevo montaje", desc: "", precio: 0 } }[grupo];
+  const nuevo = { laminas: { nombre: "Nueva lámina", precio: 100000, m2: 2.16 }, costos: { nombre: "Nuevo costo", valor: 0, modo: "fijo", soloLuz: false }, materiales: { nombre: "Nuevo tipo", desc: "", capas: [st.cfg.laminas[0]?.id].filter(Boolean), conLuz: false }, luces: { nombre: "Nueva luz", desc: "", pct: 0 }, ubicaciones: { nombre: "Nuevo lugar", desc: "", pct: 0 }, montajes: { nombre: "Nuevo montaje", desc: "", precio: 0 } }[grupo];
   st.cfg[grupo].push({ id: `${grupo.slice(0, 3)}${Date.now().toString(36)}`, ...nuevo });
   marcarCambio(); render();
 };
-window.ctPrueba = (k, v) => { st.prueba[k] = k === "material" ? v : Number(v) || 0; $("ctPrueba").innerHTML = pruebaHTML(); };
+window.ctPrueba = (k, v) => { st.prueba[k] = ["material", "complejidad"].includes(k) ? v : Number(v) || 0; $("ctPrueba").innerHTML = pruebaHTML(); };
+// Número en una ruta como "laminas.0.precio" o "laser.minFijos"
+window.ctNum = (ruta, v) => {
+  const partes = ruta.split("."), ultimo = partes.pop();
+  let o = st.cfg; for (const p of partes) o = o[p];
+  o[ultimo] = Number(v) || 0;
+  const m = ruta.match(/^laminas\.(\d+)\./);
+  if (m) { const el = $(`ctCm2_${m[1]}`); if (el) el.textContent = precioCm2(st.cfg.laminas[m[1]]).toFixed(1); }
+  marcarCambio();
+};
+window.ctCapa = (i, id, si) => {
+  const m = st.cfg.materiales[i];
+  m.capas = si ? [...new Set([...m.capas, id])] : m.capas.filter(x => x !== id);
+  marcarCambio();
+};
+window.ctAgregarTramo = () => {
+  const t = st.cfg.tramos, ult = t[t.length - 1];
+  const previo = t.length > 1 ? t[t.length - 2].hasta : 0;
+  t.splice(t.length - 1, 0, { hasta: (previo || 100000) + 150000, pauta: ult?.pauta || 25000, pautaPct: 0, flete: ult?.flete || 20000 });
+  marcarCambio(); render();
+};
 window.ctGuardar = async () => {
   st.guardando = true; render();
   try {
