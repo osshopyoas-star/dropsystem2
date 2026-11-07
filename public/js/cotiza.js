@@ -81,7 +81,7 @@ function carrusel() {
   return `<section class="seccion"><div class="carrusel" id="cxCarrusel" onscroll="cxCarruselPunto()">
     ${pares.map(g => `<div class="slide">
       <div class="lado"><span class="etq">TU LOGO</span><img src="${esc(g.urlAntes)}" alt="Logo del cliente" loading="lazy" class="antes"></div>
-      <div class="lado"><span class="etq azul">ASÍ QUEDÓ</span><img src="${esc(g.url)}" alt="${esc(g.titulo || "Letrero terminado")}" loading="lazy" class="despues"></div>
+      <div class="lado"><span class="etq azul">${g.real === false ? "MAQUETA" : "ASÍ QUEDÓ"}</span><img src="${esc(g.url)}" alt="${esc(g.titulo || "Letrero terminado")}" loading="lazy" class="despues"></div>
       ${g.titulo ? `<p class="slide-tit">${esc(g.titulo)}</p>` : ""}
     </div>`).join("")}
   </div>${pares.length > 1 ? `<div class="puntos">${pares.map((_, i) => `<button class="${i ? "" : "on"}" onclick="cxIrSlide(${i})" aria-label="Ver ${i + 1}"></button>`).join("")}</div>` : ""}</section>`;

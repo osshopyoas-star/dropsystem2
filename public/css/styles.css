@@ -6022,3 +6022,4 @@ main .cal-page input:focus, main .cal-page select:focus, main .pl-page input:foc
 .ct-par-acc input { padding: 9px 11px; border-radius: 10px; border: 1px solid #cbd5e1; font: inherit; }
 .ct-grid label.dos2 { grid-column: span 2; }
 @media (max-width: 700px) { .ct-grid label.dos2 { grid-column: 1 / -1; } }
+.ct-par-acc select { padding: 9px 11px; border-radius: 10px; border: 1px solid #cbd5e1; font: inherit; }

@@ -90,26 +90,27 @@ function galeriaHTML(tipo, titulo, ayuda) {
 }
 
 // Carrusel "Tu logo → Así quedó": cada par es la foto del logo que mandó el cliente y la foto del letrero terminado
-const nuevoPar = { antes: "", despues: "", titulo: "" };
+const nuevoPar = { antes: "", despues: "", titulo: "", real: true };
 function paresHTML() {
   const pares = (st.datos.galeria || []).filter(g => g.tipo === "par");
   return `<div class="ct-gal">
-    <div class="ct-card-head"><h3>Carrusel: tu logo → así quedó</h3><small>El logo que mandó el cliente y la foto REAL del letrero terminado. Sale de primero en la página.</small></div>
+    <div class="ct-card-head"><h3>Carrusel: tu logo → así quedó</h3><small>El logo que mandó el cliente y cómo quedó. Sale de primero en la página, apenas subas el primero.</small></div>
     <div class="ct-pares">
-      ${pares.map(g => `<div class="ct-par"><img src="${esc(g.urlAntes)}" alt=""><span>→</span><img src="${esc(g.url)}" alt=""><small>${esc(g.titulo || "")}</small><button class="ct-icono" title="Quitar" onclick="ctBorrarFoto('${esc(g.id)}')"><i data-lucide="x"></i></button></div>`).join("") || `<p class="ct-mini">Todavía no hay. Agrega el primero abajo.</p>`}
+      ${pares.map(g => `<div class="ct-par"><img src="${esc(g.urlAntes)}" alt=""><span>→</span><img src="${esc(g.url)}" alt=""><small>${g.real === false ? "🖼 Maqueta" : "✅ Letrero real"}${g.titulo ? ` · ${esc(g.titulo)}` : ""}</small><button class="ct-icono" title="Quitar" onclick="ctBorrarFoto('${esc(g.id)}')"><i data-lucide="x"></i></button></div>`).join("") || `<p class="ct-mini">Todavía no hay. Agrega el primero abajo.</p>`}
     </div>
     <div class="ct-par-nuevo">
       <label class="ct-par-foto">${nuevoPar.antes ? `<img src="${nuevoPar.antes}" alt="">` : `<i data-lucide="image"></i><span>1. Logo del cliente</span>`}<input type="file" accept="image/png,image/jpeg,image/webp" hidden onchange="ctParFoto('antes', this.files[0])"></label>
       <span class="ct-flecha">→</span>
-      <label class="ct-par-foto">${nuevoPar.despues ? `<img src="${nuevoPar.despues}" alt="">` : `<i data-lucide="sparkles"></i><span>2. Letrero terminado</span>`}<input type="file" accept="image/png,image/jpeg,image/webp" hidden onchange="ctParFoto('despues', this.files[0])"></label>
-      <div class="ct-par-acc"><input placeholder="Título (opcional), ej: Escudo para club" value="${esc(nuevoPar.titulo)}" oninput="ctParTitulo(this.value)"><button class="ct-btn chico" onclick="ctParGuardar()" ${nuevoPar.antes && nuevoPar.despues ? "" : "disabled"}><i data-lucide="plus"></i> Agregar al carrusel</button></div>
+      <label class="ct-par-foto">${nuevoPar.despues ? `<img src="${nuevoPar.despues}" alt="">` : `<i data-lucide="sparkles"></i><span>2. Cómo quedó</span>`}<input type="file" accept="image/png,image/jpeg,image/webp" hidden onchange="ctParFoto('despues', this.files[0])"></label>
+      <div class="ct-par-acc"><select onchange="ctParReal(this.value)"><option value="1" ${nuevoPar.real ? "selected" : ""}>✅ Es foto del letrero real (dice "ASÍ QUEDÓ")</option><option value="0" ${nuevoPar.real ? "" : "selected"}>🖼 Es una maqueta hecha con IA (dice "MAQUETA")</option></select><input placeholder="Título (opcional), ej: Escudo para club" value="${esc(nuevoPar.titulo)}" oninput="ctParTitulo(this.value)"><button class="ct-btn chico" onclick="ctParGuardar()" ${nuevoPar.antes && nuevoPar.despues ? "" : "disabled"}><i data-lucide="plus"></i> Agregar al carrusel</button></div>
     </div></div>`;
 }
 window.ctParFoto = async (lado, file) => { if (!file) return; try { nuevoPar[lado] = await achicar(file); render(); } catch (e) { avisar(e.message, "error"); } };
 window.ctParTitulo = (v) => { nuevoPar.titulo = v; };
+window.ctParReal = (v) => { nuevoPar.real = v === "1"; };
 window.ctParGuardar = async () => {
   try {
-    const d = await api("POST", "/api/cotizador/galeria", { tipo: "par", dataUrlAntes: nuevoPar.antes, dataUrl: nuevoPar.despues, titulo: nuevoPar.titulo });
+    const d = await api("POST", "/api/cotizador/galeria", { tipo: "par", dataUrlAntes: nuevoPar.antes, dataUrl: nuevoPar.despues, titulo: nuevoPar.titulo, real: nuevoPar.real });
     st.datos.galeria = d.galeria; nuevoPar.antes = nuevoPar.despues = nuevoPar.titulo = "";
     render(); avisar("Agregado al carrusel");
   } catch (e) { avisar(e.message, "error"); }
