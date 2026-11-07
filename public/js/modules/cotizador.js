@@ -89,6 +89,34 @@ function galeriaHTML(tipo, titulo, ayuda) {
     </div></div>`;
 }
 
+// Carrusel "Tu logo → Así quedó": cada par es la foto del logo que mandó el cliente y la foto del letrero terminado
+const nuevoPar = { antes: "", despues: "", titulo: "" };
+function paresHTML() {
+  const pares = (st.datos.galeria || []).filter(g => g.tipo === "par");
+  return `<div class="ct-gal">
+    <div class="ct-card-head"><h3>Carrusel: tu logo → así quedó</h3><small>El logo que mandó el cliente y la foto REAL del letrero terminado. Sale de primero en la página.</small></div>
+    <div class="ct-pares">
+      ${pares.map(g => `<div class="ct-par"><img src="${esc(g.urlAntes)}" alt=""><span>→</span><img src="${esc(g.url)}" alt=""><small>${esc(g.titulo || "")}</small><button class="ct-icono" title="Quitar" onclick="ctBorrarFoto('${esc(g.id)}')"><i data-lucide="x"></i></button></div>`).join("") || `<p class="ct-mini">Todavía no hay. Agrega el primero abajo.</p>`}
+    </div>
+    <div class="ct-par-nuevo">
+      <label class="ct-par-foto">${nuevoPar.antes ? `<img src="${nuevoPar.antes}" alt="">` : `<i data-lucide="image"></i><span>1. Logo del cliente</span>`}<input type="file" accept="image/png,image/jpeg,image/webp" hidden onchange="ctParFoto('antes', this.files[0])"></label>
+      <span class="ct-flecha">→</span>
+      <label class="ct-par-foto">${nuevoPar.despues ? `<img src="${nuevoPar.despues}" alt="">` : `<i data-lucide="sparkles"></i><span>2. Letrero terminado</span>`}<input type="file" accept="image/png,image/jpeg,image/webp" hidden onchange="ctParFoto('despues', this.files[0])"></label>
+      <div class="ct-par-acc"><input placeholder="Título (opcional), ej: Escudo para club" value="${esc(nuevoPar.titulo)}" oninput="ctParTitulo(this.value)"><button class="ct-btn chico" onclick="ctParGuardar()" ${nuevoPar.antes && nuevoPar.despues ? "" : "disabled"}><i data-lucide="plus"></i> Agregar al carrusel</button></div>
+    </div></div>`;
+}
+window.ctParFoto = async (lado, file) => { if (!file) return; try { nuevoPar[lado] = await achicar(file); render(); } catch (e) { avisar(e.message, "error"); } };
+window.ctParTitulo = (v) => { nuevoPar.titulo = v; };
+window.ctParGuardar = async () => {
+  try {
+    const d = await api("POST", "/api/cotizador/galeria", { tipo: "par", dataUrlAntes: nuevoPar.antes, dataUrl: nuevoPar.despues, titulo: nuevoPar.titulo });
+    st.datos.galeria = d.galeria; nuevoPar.antes = nuevoPar.despues = nuevoPar.titulo = "";
+    render(); avisar("Agregado al carrusel");
+  } catch (e) { avisar(e.message, "error"); }
+};
+window.ctPaso = (i, k, v) => { st.cfg.pasos[i][k] = v; marcarCambio(); };
+window.ctTaller = (k, v) => { st.cfg.taller[k] = v; marcarCambio(); };
+
 function cotizacionesHTML() {
   if (st.cotizaciones === null) {
     st.cotizaciones = "cargando";
@@ -145,7 +173,26 @@ function render() {
         <label class="dos">Título<input value="${esc(c.titulo)}" oninput="ctCfg('titulo', this.value)"></label>
         <label class="dos">Subtítulo<input value="${esc(c.subtitulo)}" oninput="ctCfg('subtitulo', this.value)"></label>
         <label class="dos">Mientras se hace la maqueta, mostrar (uno por línea · SOLO lo que de verdad ofreces)<textarea rows="4" oninput="ctCfg('beneficios', this.value.split('\\n'))">${esc((c.beneficios || []).join("\n"))}</textarea></label>
+        <label class="dos">Cinta que se mueve debajo del carrusel (uno por línea)<textarea rows="4" oninput="ctCfg('cinta', this.value.split('\\n'))">${esc((c.cinta || []).join("\n"))}</textarea></label>
       </div>
+    </section>
+
+    <section class="ct-card">
+      <div class="ct-card-head"><h3>"De tu logo a letrero en 3 pasos"</h3><small>Deja el título vacío para quitar un paso</small></div>
+      <div class="ct-grid">${(c.pasos || []).map((p, i) => `
+        <label>Paso ${i + 1}<input value="${esc(p.titulo)}" oninput="ctPaso(${i},'titulo',this.value)"></label>
+        <label class="dos2">Texto del paso ${i + 1}<input value="${esc(p.desc)}" oninput="ctPaso(${i},'desc',this.value)"></label>`).join("")}</div>
+    </section>
+
+    <section class="ct-card">
+      <div class="ct-card-head"><h3>"De la maqueta a la realidad"</h3><small>Con fotos reales de ustedes fabricando · deja el título vacío para quitarla</small></div>
+      <div class="ct-grid">
+        <label class="dos">Título<input value="${esc(c.taller.titulo)}" oninput="ctTaller('titulo',this.value)"></label>
+        <label class="dos">Texto<textarea rows="3" oninput="ctTaller('texto',this.value)">${esc(c.taller.texto)}</textarea></label>
+        <label>Recuadro: título<input value="${esc(c.taller.puntoTitulo)}" oninput="ctTaller('puntoTitulo',this.value)"></label>
+        <label>Recuadro: texto<input value="${esc(c.taller.puntoDesc)}" oninput="ctTaller('puntoDesc',this.value)"></label>
+      </div>
+      ${galeriaHTML("taller", "Fotos del taller", "Ustedes cortando, armando o soldando (hasta 4)")}
     </section>
 
     ${tablaOpciones("materiales", "Materiales", "Precio por cm² del frente del letrero, con un precio mínimo por letrero", [{ k: "precioCm2", t: "$ por cm²" }, { k: "minimo", t: "Mínimo $" }, { k: "conLuz", t: "Lleva luz", tipo: "bool" }])}
@@ -178,6 +225,10 @@ function render() {
         <label>Tope de gasto al mes (US$)<input type="number" min="0" step="0.5" value="${c.limites.usdMes}" oninput="ctLimite('usdMes', Number(this.value))"></label>
       </div>
       <p class="ct-mini">Este mes: <b>${g.maquetas}</b> maquetas · <b>US$${(g.usd || 0).toFixed(2)}</b> de US$${c.limites.usdMes} (cada maqueta cuesta unos US$0,05). Si se llega al tope, la página sigue funcionando: muestra el logo en la pared sin IA y el precio.</p>
+    </section>
+
+    <section class="ct-card">
+      ${paresHTML()}
     </section>
 
     <section class="ct-card">
@@ -244,7 +295,7 @@ function achicar(file, max = 1400) {
 window.ctSubirFoto = async (tipo, file) => {
   if (!file) return;
   try {
-    const titulo = tipo === "trabajo" ? (prompt("Título corto (opcional), ej: Letrero LED para barbería:", "") || "") : "";
+    const titulo = tipo === "trabajo" || tipo === "taller" ? (prompt("Título corto (opcional), ej: Letrero LED para barbería:", "") || "") : "";
     const d = await api("POST", "/api/cotizador/galeria", { tipo, titulo, dataUrl: await achicar(file) });
     st.datos.galeria = d.galeria; render(); avisar("Foto agregada");
   } catch (e) { avisar(e.message, "error"); }

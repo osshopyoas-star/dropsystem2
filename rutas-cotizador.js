@@ -89,7 +89,7 @@ export function registrarRutasCotizadorPublico(app) {
       if (!cfg.activo) return res.status(404).json({ error: "El cotizador está apagado por ahora" });
       const { limites, ...publica } = cfg;
       const g = gastoDelMes(c);
-      res.json({ ...publica, conMaqueta: limites.usdMes > g.usd + PRECIO_IMAGEN && limites.maquetasPorDia > 0, galeria: (c.galeria || []).map(x => ({ url: `/api/cotiza/img/${x.id}`, tipo: x.tipo, titulo: x.titulo || "" })) });
+      res.json({ ...publica, conMaqueta: limites.usdMes > g.usd + PRECIO_IMAGEN && limites.maquetasPorDia > 0, galeria: (c.galeria || []).map(x => ({ url: `/api/cotiza/img/${x.id}`, ...(x.idAntes ? { urlAntes: `/api/cotiza/img/${x.idAntes}` } : {}), tipo: x.tipo, titulo: x.titulo || "" })) });
     } catch (err) { console.error("Cotizador config:", err); res.status(500).json({ error: "No se pudo abrir el cotizador" }); }
   });
 
@@ -178,7 +178,7 @@ export function registrarRutasCotizadorPublico(app) {
 
 // Rutas de CoDropX (con sesión): configurar precios, galería y ver las cotizaciones
 export function registrarRutasCotizador(app) {
-  const vista = (c) => ({ clave: c.clave, config: limpiarConfig(c.config), galeria: (c.galeria || []).map(x => ({ ...x, url: `/api/cotiza/img/${x.id}` })), gasto: { mes: mesActual(), ...gastoDelMes(c) } });
+  const vista = (c) => ({ clave: c.clave, config: limpiarConfig(c.config), galeria: (c.galeria || []).map(x => ({ ...x, url: `/api/cotiza/img/${x.id}`, ...(x.idAntes ? { urlAntes: `/api/cotiza/img/${x.idAntes}` } : {}) })), gasto: { mes: mesActual(), ...gastoDelMes(c) } });
 
   app.get("/api/cotizador", async (req, res) => {
     try { res.json(vista(await configDe(req.user.uid))); }
@@ -199,12 +199,20 @@ export function registrarRutasCotizador(app) {
   app.post("/api/cotizador/galeria", async (req, res) => {
     try {
       const c = await configDe(req.user.uid);
-      const tipo = req.body?.tipo === "resena" ? "resena" : "trabajo";
-      if ((c.galeria || []).filter(x => x.tipo === tipo).length >= MAX_GALERIA) return res.status(400).json({ error: `Máximo ${MAX_GALERIA} fotos` });
+      // trabajo · resena · par (logo del cliente + cómo quedó) · taller (fotos fabricando)
+      const tipo = ["resena", "par", "taller"].includes(req.body?.tipo) ? req.body.tipo : "trabajo";
+      const max = tipo === "taller" ? 4 : MAX_GALERIA;
+      if ((c.galeria || []).filter(x => x.tipo === tipo).length >= max) return res.status(400).json({ error: `Máximo ${max} fotos aquí` });
       const im = leerDataUrl(req.body?.dataUrl);
       if (!im) return res.status(400).json({ error: "Sube una foto JPG, PNG o WEBP (máximo 3 MB)" });
+      let antes = null;
+      if (tipo === "par") {
+        antes = leerDataUrl(req.body?.dataUrlAntes);
+        if (!antes) return res.status(400).json({ error: "Falta la foto del logo (el antes)" });
+      }
       const doc = await CotizadorImagen.create({ owner: req.user.uid, tipo, mime: im.tipo, datos: im.datos });
-      c.galeria = [...(c.galeria || []), { id: String(doc._id), tipo, titulo: String(req.body?.titulo || "").replace(/[<>]/g, "").slice(0, 80) }];
+      const docAntes = antes ? await CotizadorImagen.create({ owner: req.user.uid, tipo: "par-antes", mime: antes.tipo, datos: antes.datos }) : null;
+      c.galeria = [...(c.galeria || []), { id: String(doc._id), ...(docAntes ? { idAntes: String(docAntes._id) } : {}), tipo, titulo: String(req.body?.titulo || "").replace(/[<>]/g, "").slice(0, 80) }];
       c.markModified("galeria");
       await c.save();
       res.json(vista(c));
@@ -215,10 +223,12 @@ export function registrarRutasCotizador(app) {
     try {
       const c = await configDe(req.user.uid);
       const id = String(req.params.id);
+      const quitada = (c.galeria || []).find(x => x.id === id);
       c.galeria = (c.galeria || []).filter(x => x.id !== id);
       c.markModified("galeria");
       await c.save();
-      if (idValido(id)) await CotizadorImagen.deleteOne({ _id: id, owner: req.user.uid });
+      const ids = [id, quitada?.idAntes].filter(idValido);
+      if (ids.length) await CotizadorImagen.deleteMany({ _id: { $in: ids }, owner: req.user.uid });
       res.json(vista(c));
     } catch (err) { console.error("Cotizador galería borrar:", err); res.status(500).json({ error: "No se pudo borrar" }); }
   });

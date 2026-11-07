@@ -66,6 +66,66 @@ function galeria(tipo, titulo) {
   return `<section class="seccion"><h3>${titulo}</h3><div class="galeria">${fotos.map(g => `<figure><img src="${esc(g.url)}" alt="${esc(g.titulo || titulo)}" loading="lazy">${g.titulo ? `<figcaption>${esc(g.titulo)}</figcaption>` : ""}</figure>`).join("")}</div></section>`;
 }
 
+// ---------- Secciones del inicio (como las grandes marcas de letreros) ----------
+const ICONOS = {
+  subir: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="m9 15 3-3 3 3"/></svg>',
+  ia: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>',
+  envio: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>',
+  ok: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>'
+};
+
+// Carrusel "Tu logo → Así quedó" con los pares reales que subes en CoDropX
+function carrusel() {
+  const pares = (st.cfg.galeria || []).filter(g => g.tipo === "par" && g.urlAntes);
+  if (!pares.length) return "";
+  return `<section class="seccion"><div class="carrusel" id="cxCarrusel" onscroll="cxCarruselPunto()">
+    ${pares.map(g => `<div class="slide">
+      <div class="lado"><span class="etq">TU LOGO</span><img src="${esc(g.urlAntes)}" alt="Logo del cliente" loading="lazy" class="antes"></div>
+      <div class="lado"><span class="etq azul">ASÍ QUEDÓ</span><img src="${esc(g.url)}" alt="${esc(g.titulo || "Letrero terminado")}" loading="lazy" class="despues"></div>
+      ${g.titulo ? `<p class="slide-tit">${esc(g.titulo)}</p>` : ""}
+    </div>`).join("")}
+  </div>${pares.length > 1 ? `<div class="puntos">${pares.map((_, i) => `<button class="${i ? "" : "on"}" onclick="cxIrSlide(${i})" aria-label="Ver ${i + 1}"></button>`).join("")}</div>` : ""}</section>`;
+}
+window.cxCarruselPunto = () => {
+  const c = $("cxCarrusel"); if (!c) return;
+  const i = Math.round(c.scrollLeft / c.clientWidth);
+  document.querySelectorAll(".puntos button").forEach((b, n) => b.classList.toggle("on", n === i));
+};
+window.cxIrSlide = (i) => { const c = $("cxCarrusel"); if (c) c.scrollTo({ left: i * c.clientWidth, behavior: "smooth" }); };
+setInterval(() => {
+  const c = $("cxCarrusel");
+  if (!c || c.matches(":hover") || c.children.length < 2) return;
+  const i = Math.round(c.scrollLeft / c.clientWidth);
+  cxIrSlide((i + 1) % c.children.length);
+}, 4500);
+
+function cinta() {
+  const t = st.cfg.cinta || [];
+  if (!t.length) return "";
+  const fila = t.map(x => `<span>${esc(x)}</span>`).join("");
+  return `<div class="cinta"><div class="cinta-in">${fila}${fila}</div></div>`;
+}
+
+function seccionPasos() {
+  const p = (st.cfg.pasos || []).filter(x => x.titulo);
+  if (!p.length) return "";
+  const ic = [ICONOS.subir, ICONOS.ia, ICONOS.envio];
+  return `<section class="seccion pasos3"><h2 class="grande">De tu logo a letrero en ${p.length} pasos</h2>
+    ${p.map((x, i) => `<div class="paso3"><span class="ico3">${ic[i] || ICONOS.ok}</span><b>${i + 1}. ${esc(x.titulo)}</b><p>${esc(x.desc)}</p></div>`).join("")}</section>`;
+}
+
+function seccionTaller() {
+  const t = st.cfg.taller || {};
+  const fotos = (st.cfg.galeria || []).filter(g => g.tipo === "taller");
+  if (!t.titulo && !fotos.length) return "";
+  return `<section class="seccion taller">
+    ${t.titulo ? `<h2 class="grande izq">${esc(t.titulo)}</h2>` : ""}
+    ${t.texto ? `<p class="taller-txt">${esc(t.texto)}</p>` : ""}
+    ${t.puntoTitulo ? `<div class="punto"><span class="ico3 chico">${ICONOS.ok}</span><div><b>${esc(t.puntoTitulo)}</b>${t.puntoDesc ? `<small>${esc(t.puntoDesc)}</small>` : ""}</div></div>` : ""}
+    ${fotos.map(g => `<img class="taller-foto" src="${esc(g.url)}" alt="${esc(g.titulo || "Nuestro taller")}" loading="lazy">`).join("")}
+  </section>`;
+}
+
 function opcion(grupo, x, extra = "") {
   const on = st.e[grupo] === x.id;
   return `<button class="op ${on ? "on" : ""}" onclick="cxElegir('${grupo}','${esc(x.id)}')">${extra ? `<span class="extra">${esc(extra)}</span>` : ""}<b>${esc(x.nombre)}</b>${x.desc ? `<small>${esc(x.desc)}</small>` : ""}</button>`;
@@ -82,8 +142,13 @@ function pintar() {
       <p class="sub">${esc(c.subtitulo)}</p>
       <button class="btn" onclick="cxIr('subir')">Sube tu logo y míralo</button>
       <p class="mini">Gratis y sin compromiso · precio al instante</p>
+      ${carrusel()}
+      ${cinta()}
+      ${seccionPasos()}
+      ${seccionTaller()}
       ${galeria("trabajo", "Trabajos que ya entregamos")}
-      ${galeria("resena", "Lo que dicen nuestros clientes")}`;
+      ${galeria("resena", "Lo que dicen nuestros clientes")}
+      <div class="seccion"><button class="btn" onclick="cxIr('subir')">Sube tu logo y míralo</button></div>`;
   } else if (st.paso === "subir") {
     html = `${pasos()}<h2>Sube tu logo o diseño</h2><p class="sub">Una foto, captura o archivo de tu logo. Mientras más claro, mejor sale.</p>
       <label class="subir" for="cxArchivo"><span class="ico">⬆️</span><b>${st.logo ? "Cambiar imagen" : "Toca para subir"}</b><small>JPG, PNG o WEBP</small></label>

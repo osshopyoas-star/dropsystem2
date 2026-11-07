@@ -36,7 +36,22 @@ export const CONFIG_DEFECTO = {
   redondeo: 1000,
   // Mientras se hace la maqueta: SOLO cosas que de verdad ofreces
   beneficios: ["Hecho a mano en Colombia", "Te mostramos el diseño antes de fabricar", "Envíos a todo el país"],
-  limites: { maquetasPorDia: 3, usdMes: 5 }
+  limites: { maquetasPorDia: 3, usdMes: 5 },
+  // Cinta que se mueve debajo del carrusel
+  cinta: ["Cotización al instante", "Maqueta antes de fabricar", "Corte láser a la medida", "Hecho a mano en Colombia"],
+  // "De tu logo a letrero en 3 pasos"
+  pasos: [
+    { titulo: "Sube tu logo", desc: "Foto, captura o archivo PNG, JPG o WEBP." },
+    { titulo: "Mira tu maqueta", desc: "Lo convertimos en letrero y te damos el precio al instante." },
+    { titulo: "Lo fabricamos", desc: "Lo cortamos con láser y lo armamos a mano para enviártelo." }
+  ],
+  // "De la maqueta a la realidad" (con la foto del taller que subas)
+  taller: {
+    titulo: "De la maqueta a la realidad",
+    texto: "No imprimimos letreros: los fabricamos. Cortamos con láser y armamos cada pieza a mano a partir de tu diseño.",
+    puntoTitulo: "Hecho por nosotros",
+    puntoDesc: "Cada letrero se corta, se lija y se arma en nuestro taller."
+  }
 };
 
 const num = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
@@ -72,6 +87,9 @@ export function limpiarConfig(c = {}) {
     anchoDefecto: Math.min(anchoMax, Math.max(anchoMin, num(c.anchoDefecto, d.anchoDefecto))),
     redondeo: [1, 100, 500, 1000, 5000, 10000].includes(num(c.redondeo)) ? num(c.redondeo) : d.redondeo,
     beneficios: (Array.isArray(c.beneficios) ? c.beneficios : d.beneficios).map(b => texto(b, 80)).filter(Boolean).slice(0, 8),
+    cinta: (Array.isArray(c.cinta) ? c.cinta : d.cinta).map(b => texto(b, 60)).filter(Boolean).slice(0, 10),
+    pasos: [0, 1, 2].map(i => ({ titulo: texto(c.pasos?.[i]?.titulo, 50, d.pasos[i].titulo), desc: texto(c.pasos?.[i]?.desc, 160, d.pasos[i].desc) })),
+    taller: Object.fromEntries(Object.entries(d.taller).map(([k, v]) => [k, texto(c.taller?.[k] ?? v, k === "texto" ? 400 : 120)])),
     limites: {
       maquetasPorDia: Math.min(20, Math.max(0, Math.round(num(c.limites?.maquetasPorDia, d.limites.maquetasPorDia)))),
       usdMes: Math.min(500, Math.max(0, num(c.limites?.usdMes, d.limites.usdMes)))
