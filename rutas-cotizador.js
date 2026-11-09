@@ -8,7 +8,7 @@
 import crypto from "crypto";
 import path from "path";
 import mongoose from "mongoose";
-import { rateLimit } from "./auth.js";
+import { rateLimit, getSession } from "./auth.js";
 import { leerDataUrl } from "./modelo-imagenes.js";
 import { pedirImagen, PRECIO_IMAGEN, PRECIO_REFERENCIA } from "./rutas-ia-imagenes.js";
 import { limpiarConfig, cotizar, promptMaqueta, mensajeWhatsapp } from "./public/js/core/cotizador.js";
@@ -113,7 +113,9 @@ export function registrarRutasCotizadorPublico(app) {
   });
 
   // Sube el logo, guarda la cotización y (si alcanza el tope) hace la maqueta con IA
-  app.post("/api/cotiza/:clave/maqueta", limiteMaqueta, async (req, res) => {
+  // Quien tiene la sesión abierta en CoDropX (tú probando tu página) no tiene el límite de maquetas seguidas
+  const limiteSalvoDueno = (req, res, next) => (getSession(req) ? next() : limiteMaqueta(req, res, next));
+  app.post("/api/cotiza/:clave/maqueta", limiteSalvoDueno, async (req, res) => {
     try {
       const c = await CotizadorConfig.findOne({ clave: String(req.params.clave).slice(0, 20) });
       if (!c) return res.status(404).json({ error: "Este cotizador no existe" });
@@ -132,10 +134,15 @@ export function registrarRutasCotizadorPublico(app) {
       const usadas = porPersona.get(k) || 0;
       const g = gastoDelMes(c);
       const costo = PRECIO_IMAGEN + PRECIO_REFERENCIA;
-      let aviso = "";
-      if (usadas >= cfg.limites.maquetasPorDia) aviso = "Ya hiciste las maquetas de hoy. Te mostramos tu logo en la pared y el precio igual.";
-      else if (g.usd + costo > cfg.limites.usdMes) aviso = "Las maquetas con IA están en pausa. Te mostramos tu logo en la pared y el precio igual.";
-      if (aviso) return res.json({ cotizacion: String(cot._id), maqueta: null, aviso, total: q.total, anticipo: q.anticipo });
+      // El dueño (sesión abierta en CoDropX) no tiene tope por día; el tope del mes sí cuenta para todos
+      const esDueno = getSession(req)?.uid === String(c.owner);
+      let aviso = "", motivo = "";
+      if (!esDueno && usadas >= cfg.limites.maquetasPorDia) { aviso = "Ya hiciste las maquetas de hoy. Te mostramos tu logo en la pared y el precio igual."; motivo = `esa persona ya usó sus ${cfg.limites.maquetasPorDia} maquetas de hoy`; }
+      else if (g.usd + costo > cfg.limites.usdMes) { aviso = "Las maquetas con IA están en pausa. Te mostramos tu logo en la pared y el precio igual."; motivo = `se llegó al tope de US$${cfg.limites.usdMes} del mes (súbelo en Frenos de gasto)`; }
+      if (aviso) {
+        await Cotizacion.updateOne({ _id: cot._id }, { $set: { error: motivo } }).catch(() => {});
+        return res.json({ cotizacion: String(cot._id), maqueta: null, aviso, total: q.total, anticipo: q.anticipo });
+      }
 
       porPersona.set(k, usadas + 1);
       const dataLogo = `data:${logo.tipo};base64,${logo.datos.toString("base64")}`;

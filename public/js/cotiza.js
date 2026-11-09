@@ -446,7 +446,7 @@ window.cxMaqueta = async () => {
   try {
     if (!st.cfg.conMaqueta) await new Promise(r => setTimeout(r, 1500));
     const r = await api("POST", `/api/cotiza/${encodeURIComponent(clave)}/maqueta`, { logo: st.logo.envio || st.logo.dataUrl, eleccion: st.e });
-    st.cotizacion = r.cotizacion; st.maqueta = r.maqueta; st.aviso = st.cfg.conMaqueta ? (r.aviso || "") : "";
+    st.cotizacion = r.cotizacion; st.maqueta = r.maqueta; st.aviso = r.aviso || "";
   } catch (e) {
     st.aviso = e.message;
   }
