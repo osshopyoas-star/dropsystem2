@@ -350,6 +350,29 @@ document.addEventListener("pointermove", (e) => {
 });
 document.addEventListener("pointerup", () => { arrastre = null; });
 
+// Lo que se le manda a la IA: sin transparencia. Un PNG con fondo transparente y dibujo negro le llega
+// "negro sobre negro" (vacío) y la IA termina copiando la foto de ejemplo. Se pone un fondo que contraste.
+function paraLaIA(cv) {
+  try {
+    const d = cv.getContext("2d").getImageData(0, 0, cv.width, cv.height).data;
+    let transp = 0, suma = 0, n = 0;
+    const paso = Math.max(1, Math.floor(d.length / 4 / 40000));
+    for (let p = 0; p < d.length / 4; p += paso) {
+      const i = p * 4;
+      if (d[i + 3] < 200) { transp++; continue; }
+      suma += 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]; n++;
+    }
+    const total = Math.ceil(d.length / 4 / paso);
+    if (transp < total * 0.02) return cv.toDataURL("image/jpeg", 0.92);   // no tiene transparencia
+    const claro = n ? suma / n > 150 : false;                                // logo claro → fondo oscuro
+    const out = document.createElement("canvas"); out.width = cv.width; out.height = cv.height;
+    const cx = out.getContext("2d");
+    cx.fillStyle = claro ? "#1f2430" : "#ffffff"; cx.fillRect(0, 0, out.width, out.height);
+    cx.drawImage(cv, 0, 0);
+    return out.toDataURL("image/jpeg", 0.92);
+  } catch { return cv.toDataURL("image/jpeg", 0.92); }
+}
+
 // Corta la imagen y la deja lista como logo
 function aplicarRecorte(completa = false) {
   const r = st.recorte; if (!r) return;
@@ -363,7 +386,7 @@ function aplicarRecorte(completa = false) {
     if (dataUrl.length > 3.8e6) dataUrl = cv.toDataURL("image/jpeg", 0.82);
     const fin = new Image();
     fin.onload = () => {
-      st.logo = { dataUrl, ratio: sh / sw };
+      st.logo = { dataUrl, ratio: sh / sw, envio: paraLaIA(cv) };
       st.e.complejidad = medirComplejidad(fin);
       st.altoManual = false;
       st.e.alto = altoDe(st.e.ancho, st.logo.ratio);
@@ -394,7 +417,7 @@ window.cxMaqueta = async () => {
   }, 1600);
   try {
     if (!st.cfg.conMaqueta) await new Promise(r => setTimeout(r, 1500));
-    const r = await api("POST", `/api/cotiza/${encodeURIComponent(clave)}/maqueta`, { logo: st.logo.dataUrl, eleccion: st.e });
+    const r = await api("POST", `/api/cotiza/${encodeURIComponent(clave)}/maqueta`, { logo: st.logo.envio || st.logo.dataUrl, eleccion: st.e });
     st.cotizacion = r.cotizacion; st.maqueta = r.maqueta; st.aviso = st.cfg.conMaqueta ? (r.aviso || "") : "";
   } catch (e) {
     st.aviso = e.message;
