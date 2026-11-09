@@ -96,7 +96,7 @@ export function registrarRutasCotizadorPublico(app) {
       if (!cfg.activo) return res.status(404).json({ error: "El cotizador está apagado por ahora" });
       const { limites, ...publica } = cfg;
       const g = gastoDelMes(c);
-      res.json({ ...publica, conMaqueta: limites.usdMes > g.usd + PRECIO_IMAGEN && limites.maquetasPorDia > 0, galeria: (c.galeria || []).map(x => ({ url: `/api/cotiza/img/${x.id}`, ...(x.idAntes ? { urlAntes: `/api/cotiza/img/${x.idAntes}`, real: x.real !== false } : {}), ...(x.tipo === "resena" ? { nombre: x.nombre || "", ciudad: x.ciudad || "", texto: x.texto || "", estrellas: x.estrellas || 0 } : {}), tipo: x.tipo, titulo: x.titulo || "" })) });
+      res.json({ ...publica, conMaqueta: limites.usdMes > g.usd + PRECIO_IMAGEN && limites.maquetasPorDia > 0, galeria: (c.galeria || []).map(x => ({ url: `/api/cotiza/img/${x.id}`, ...(x.idAntes ? { urlAntes: `/api/cotiza/img/${x.idAntes}`, real: x.real !== false } : {}), ...(x.tipo === "resena" ? { nombre: x.nombre || "", ciudad: x.ciudad || "", texto: x.texto || "", estrellas: x.estrellas || 0 } : {}), ...(x.tipo === "ejemplo" ? { material: x.material } : {}), tipo: x.tipo, titulo: x.titulo || "" })) });
     } catch (err) { console.error("Cotizador config:", err); res.status(500).json({ error: "No se pudo abrir el cotizador" }); }
   });
 
@@ -140,7 +140,14 @@ export function registrarRutasCotizadorPublico(app) {
       const dataLogo = `data:${logo.tipo};base64,${logo.datos.toString("base64")}`;
       let r;
       try {
-        r = await pedirImagen({ prompt: promptMaqueta(cfg, q), fotos: [dataLogo], aspecto: "4:3" });
+        // Foto de ejemplo de este tipo de letrero (si la subiste): la IA copia el acabado, no el dibujo
+        const fotos = [dataLogo];
+        const ej = (c.galeria || []).find(x => x.tipo === "ejemplo" && x.material === q.material.id);
+        if (ej && idValido(ej.id)) {
+          const im = await CotizadorImagen.findById(ej.id).select("mime datos").lean();
+          if (im?.datos) fotos.push(`data:${im.mime || "image/jpeg"};base64,${(Buffer.isBuffer(im.datos) ? im.datos : Buffer.from(im.datos.buffer || im.datos)).toString("base64")}`);
+        }
+        r = await pedirImagen({ prompt: promptMaqueta(cfg, q, { conEjemplo: fotos.length > 1 }), fotos, aspecto: "4:3" });
       } catch (e) {
         porPersona.set(k, usadas);   // no cuenta si falló
         console.error("Cotizador: no se pudo hacer la maqueta:", e.message);
@@ -206,8 +213,14 @@ export function registrarRutasCotizador(app) {
   app.post("/api/cotizador/galeria", async (req, res) => {
     try {
       const c = await configDe(req.user.uid);
-      // trabajo · resena · par (logo del cliente + cómo quedó) · taller (fotos fabricando)
-      const tipo = ["resena", "par", "taller"].includes(req.body?.tipo) ? req.body.tipo : "trabajo";
+      // trabajo · resena · par (logo del cliente + cómo quedó) · taller (fotos fabricando) · ejemplo (cómo se ve un tipo de letrero)
+      const tipo = ["resena", "par", "taller", "ejemplo"].includes(req.body?.tipo) ? req.body.tipo : "trabajo";
+      const materialId = String(req.body?.material || "").slice(0, 40);
+      if (tipo === "ejemplo") {
+        if (!materialId) return res.status(400).json({ error: "Falta el tipo de letrero" });
+        const viejo = (c.galeria || []).find(x => x.tipo === "ejemplo" && x.material === materialId);
+        if (viejo) { c.galeria = c.galeria.filter(x => x !== viejo); if (idValido(viejo.id)) await CotizadorImagen.deleteOne({ _id: viejo.id, owner: req.user.uid }); }
+      }
       const max = tipo === "taller" ? 4 : MAX_GALERIA;
       if ((c.galeria || []).filter(x => x.tipo === tipo).length >= max) return res.status(400).json({ error: `Máximo ${max} fotos aquí` });
       const im = leerDataUrl(req.body?.dataUrl);
@@ -219,7 +232,7 @@ export function registrarRutasCotizador(app) {
       }
       const doc = await CotizadorImagen.create({ owner: req.user.uid, tipo, mime: im.tipo, datos: im.datos });
       const docAntes = antes ? await CotizadorImagen.create({ owner: req.user.uid, tipo: "par-antes", mime: antes.tipo, datos: antes.datos }) : null;
-      c.galeria = [...(c.galeria || []), { id: String(doc._id), ...(docAntes ? { idAntes: String(docAntes._id), real: req.body?.real !== false } : {}), ...(tipo === "resena" ? datosResena(req.body) : {}), tipo, titulo: String(req.body?.titulo || "").replace(/[<>]/g, "").slice(0, 80) }];
+      c.galeria = [...(c.galeria || []), { id: String(doc._id), ...(docAntes ? { idAntes: String(docAntes._id), real: req.body?.real !== false } : {}), ...(tipo === "resena" ? datosResena(req.body) : {}), ...(tipo === "ejemplo" ? { material: materialId } : {}), tipo, titulo: String(req.body?.titulo || "").replace(/[<>]/g, "").slice(0, 80) }];
       c.markModified("galeria");
       await c.save();
       res.json(vista(c));

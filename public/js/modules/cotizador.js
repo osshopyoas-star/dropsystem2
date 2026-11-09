@@ -121,6 +121,19 @@ function costosHTML() {
   </section>
 
   <section class="ct-card">
+    <div class="ct-card-head"><h3><i data-lucide="image"></i> Cómo se ve cada tipo</h3><small>Sube una foto REAL de un letrero de ese tipo que ya hicieron: sale en la opción y la IA copia ese acabado (material, grabado, luz) con el diseño del cliente</small></div>
+    <div class="ct-ejemplos">${c.materiales.map((m, i) => {
+      const ej = (st.datos.galeria || []).find(g => g.tipo === "ejemplo" && g.material === m.id);
+      return `<div class="ct-ejemplo">
+        <label class="ct-par-foto">${ej ? `<img src="${esc(ej.url)}" alt="">` : `<i data-lucide="image-plus"></i><span>Foto de ejemplo</span>`}<input type="file" accept="image/png,image/jpeg,image/webp" hidden onchange="ctEjemplo('${esc(m.id)}', this.files[0])"></label>
+        <div><b>${esc(m.nombre)}</b>${ej ? ` <button class="ct-link" onclick="ctBorrarFoto('${esc(ej.id)}')">Quitar foto</button>` : ""}
+          <textarea rows="4" placeholder="Cómo se ve este tipo (para la IA)" oninput="ctCampo('materiales',${i},'aspecto',this.value)">${esc(m.aspecto || "")}</textarea></div>
+      </div>`;
+    }).join("")}</div>
+    <p class="ct-mini">Si cambias el texto, dale Guardar. La foto se guarda sola al subirla. Cada maqueta con foto de ejemplo cuesta unos US$0,01 más.</p>
+  </section>
+
+  <section class="ct-card">
     <div class="ct-card-head"><h3>3. Láser</h3><small>Minutos = preparación + minutos por cada 100 cm², × la complejidad del diseño</small></div>
     <div class="ct-grid">
       <label>Precio del minuto ($)${num("laser.precioMinuto", c.laser.precioMinuto, 100)}</label>
@@ -220,6 +233,13 @@ window.ctResGuardar = async () => {
     const d = await api("POST", "/api/cotizador/galeria", { tipo: "resena", dataUrl: nuevaRes.foto, nombre: nuevaRes.nombre, ciudad: nuevaRes.ciudad, texto: nuevaRes.texto, estrellas: Number(nuevaRes.estrellas) });
     st.datos.galeria = d.galeria; Object.assign(nuevaRes, { foto: "", nombre: "", ciudad: "", texto: "", estrellas: 5 });
     render(); avisar("Reseña agregada");
+  } catch (e) { avisar(e.message, "error"); }
+};
+window.ctEjemplo = async (material, file) => {
+  if (!file) return;
+  try {
+    const d = await api("POST", "/api/cotizador/galeria", { tipo: "ejemplo", material, dataUrl: await achicar(file) });
+    st.datos.galeria = d.galeria; render(); avisar("Foto de ejemplo guardada");
   } catch (e) { avisar(e.message, "error"); }
 };
 window.ctPaso = (i, k, v) => { st.cfg.pasos[i][k] = v; marcarCambio(); };

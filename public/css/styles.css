@@ -6060,3 +6060,10 @@ main .cal-page input:focus, main .cal-page select:focus, main .pl-page input:foc
 .ct-res-campos { flex: 1; min-width: 220px; display: flex; flex-direction: column; gap: 8px; }
 .ct-res-fila { display: flex; flex-wrap: wrap; gap: 8px; }
 .ct-res-fila input, .ct-res-fila select, .ct-res-campos textarea { flex: 1; min-width: 120px; padding: 9px 11px; border-radius: 10px; border: 1px solid #cbd5e1; font: inherit; }
+.ct-ejemplos { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+.ct-ejemplo { display: flex; gap: 12px; padding: 10px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; }
+.ct-ejemplo > div { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.ct-ejemplo textarea { width: 100%; box-sizing: border-box; padding: 8px 10px; border-radius: 10px; border: 1px solid #cbd5e1; font: inherit; font-size: 13px; }
+.ct-ejemplo .ct-par-foto { width: 110px; height: 130px; flex: 0 0 auto; }
+.ct-link { background: none; border: 0; color: #2563eb; cursor: pointer; font: inherit; font-size: 12px; text-decoration: underline; padding: 0; }
+@media (max-width: 640px) { .ct-ejemplos { grid-template-columns: 1fr; } .ct-ejemplo .ct-par-foto { width: 90px; height: 110px; } }

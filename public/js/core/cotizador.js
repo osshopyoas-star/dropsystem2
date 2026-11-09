@@ -21,10 +21,14 @@ export const CONFIG_DEFECTO = {
   ],
   // Tipos de letrero que elige el cliente: qué láminas lleva (cada una del tamaño del letrero) y si lleva luz
   materiales: [
-    { id: "espejo_luz", nombre: "Acrílico espejo con luz", desc: "Acrílico espejo plata cortado con láser, sobre base de triplex, con luz LED.", capas: ["espejo", "triplex"], conLuz: true },
-    { id: "acrilico_luz", nombre: "Acrílico con luz LED", desc: "Acrílico transparente o blanco cortado con láser, sobre base, iluminado.", capas: ["transparente", "triplex"], conLuz: true },
-    { id: "espejo", nombre: "Acrílico espejo sin luz", desc: "Acrílico espejo plata cortado con láser, sobre base de triplex.", capas: ["espejo", "triplex"], conLuz: false },
-    { id: "madera", nombre: "Triplex / madera", desc: "Corte láser en triplex, pintado o natural.", capas: ["triplex"], conLuz: false }
+    { id: "espejo_luz", nombre: "Acrílico espejo con luz", desc: "Acrílico espejo plata cortado con láser, sobre base de triplex, con luz LED.", capas: ["espejo", "triplex"], conLuz: true,
+      aspecto: "Pieza de acrílico ESPEJO plata cortada con láser siguiendo la silueta exterior del diseño (con un borde de unos 2 cm alrededor). Las líneas y detalles del diseño van GRABADOS con láser sobre el espejo y se iluminan con luz LED cálida desde adentro, así que el dibujo brilla en amarillo dorado con un resplandor suave, y el resto se ve como espejo que refleja un poco el lugar. Va separado unos centímetros de la pared, con un halo de luz cálida detrás." },
+    { id: "acrilico_luz", nombre: "Acrílico con luz LED", desc: "Acrílico transparente o blanco cortado con láser, sobre base, iluminado.", capas: ["transparente", "triplex"], conLuz: true,
+      aspecto: "Acrílico transparente o blanco cortado con láser con la forma del diseño, iluminado por LED: el diseño brilla parejo con sus colores, con un resplandor suave en la pared." },
+    { id: "espejo", nombre: "Acrílico espejo sin luz", desc: "Acrílico espejo plata cortado con láser, sobre base de triplex.", capas: ["espejo", "triplex"], conLuz: false,
+      aspecto: "Acrílico ESPEJO plata cortado con láser con la silueta del diseño y los detalles grabados; sin luz propia, refleja el lugar como un espejo." },
+    { id: "madera", nombre: "Triplex / madera", desc: "Corte láser en triplex, pintado o natural.", capas: ["triplex"], conLuz: false,
+      aspecto: "Madera triplex cortada con láser con la forma del diseño, con los bordes un poco quemados por el láser; pintada o en color madera natural." }
   ],
   // Láser: minutos × precio del minuto. Minutos = preparación + por cada 100 cm², × la complejidad del diseño
   // (con 30 × 30 y diseño medio da 40 minutos = $40.000, como en el Excel)
@@ -133,7 +137,7 @@ function costosLimpios(c, lista) {
   const materiales = lista(nueva ? c.materiales : d.materiales, d.materiales, { conLuz: "bool" }).map((m, i) => {
     const orig = (nueva ? c.materiales : d.materiales)?.[i] || {};
     const capas = (Array.isArray(orig.capas) ? orig.capas : []).map(String).filter(x => ids.includes(x));
-    return { ...m, capas: capas.length ? [...new Set(capas)] : [ids[0]] };
+    return { ...m, capas: capas.length ? [...new Set(capas)] : [ids[0]], aspecto: texto(orig.aspecto ?? d.materiales.find(x => x.id === m.id)?.aspecto ?? "", 600) };
   });
   const L = c.laser || {};
   const laser = Object.fromEntries(Object.entries(d.laser).map(([k, v]) => [k, Math.max(0, num(L[k], v))]));
@@ -256,7 +260,7 @@ export function mensajeWhatsapp(cfg, q, { maquetaUrl = "", notas = "" } = {}) {
 }
 
 // Lo que se le pide a la IA para la maqueta: el diseño del cliente IDÉNTICO, hecho en el material elegido, en una pared
-export function promptMaqueta(cfg, q) {
+export function promptMaqueta(cfg, q, { conEjemplo = false } = {}) {
   if (!q) return "";
   const m = q.material;
   const conLuz = !!m.conLuz;
@@ -268,8 +272,10 @@ export function promptMaqueta(cfg, q) {
     : "Encendido con luz LED de un solo color, brillo suave y realista que se refleja un poco en la pared.";
   return [
     "FOTOGRAFÍA REAL (no dibujo, no 3D de juguete). Maqueta de un letrero hecho a mano.",
-    "DISEÑO DEL CLIENTE: es el de la imagen de referencia. Cópialo IDÉNTICO: misma forma, mismas letras escritas igual, mismos colores y proporciones. No agregues textos, no cambies palabras, no inventes partes, no le pongas marcas.",
-    `MATERIAL: ${m.nombre}. ${m.desc || ""}`,
+    conEjemplo
+      ? "DISEÑO DEL CLIENTE: es la PRIMERA imagen (<IMAGE_0>). Cópialo IDÉNTICO: misma forma, mismas letras escritas igual, mismas proporciones y todos sus detalles. No agregues textos, no cambies palabras, no inventes partes, no le pongas marcas.\nACABADO: la SEGUNDA imagen (<IMAGE_1>) es un letrero que ya fabricamos. Copia SOLO cómo se ve: el material, el grabado, cómo brilla la luz, el borde, la separación de la pared y el tipo de foto. NO copies su dibujo: el dibujo es el del cliente."
+      : "DISEÑO DEL CLIENTE: es el de la imagen de referencia. Cópialo IDÉNTICO: misma forma, mismas letras escritas igual, mismos colores y proporciones. No agregues textos, no cambies palabras, no inventes partes, no le pongas marcas.",
+    `MATERIAL: ${m.nombre}. ${m.aspecto || m.desc || ""}`,
     `LUZ: ${luz}`,
     `DÓNDE: montado ${escena}.`,
     `TAMAÑO REAL: ${q.ancho} cm de ancho por ${q.alto} cm de alto; que se note la escala con lo que hay alrededor.`,
