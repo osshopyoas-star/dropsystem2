@@ -34,7 +34,13 @@
     .subir:hover { border-color: var(--a1); }
     .subir small { color: var(--suave); font-size: 13px; }
     .subir .nube { width: 72px; height: 72px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #16294a; border: 1px solid #23406e; color: #fff; }
-    .subir .nube svg { width: 34px; height: 34px; }
+    .subir .nube svg { width: 34px; height: 34px; animation: nubeSube 1.8s ease-in-out infinite; }
+    .subir .nube { position: relative; animation: nubeBrilla 2.4s ease-in-out infinite; }
+    .subir .nube::after { content: ""; position: absolute; inset: -1px; border-radius: 50%; border: 2px solid rgba(56,189,248,.55); animation: nubeOnda 2.4s ease-out infinite; }
+    @keyframes nubeSube { 0%, 100% { transform: translateY(2px); } 50% { transform: translateY(-5px); } }
+    @keyframes nubeBrilla { 0%, 100% { box-shadow: 0 0 0 rgba(56,189,248,0); } 50% { box-shadow: 0 0 26px rgba(56,189,248,.35); } }
+    @keyframes nubeOnda { 0% { transform: scale(1); opacity: .8; } 100% { transform: scale(1.55); opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) { .subir .nube, .subir .nube svg, .subir .nube::after { animation: none; } }
     .subir .arrastra { font-size: 15px; color: #cbd5e1; }
     .btn-subir { display: inline-block; padding: 12px 26px; border-radius: 12px; font-weight: 700; font-size: 17px; color: #fff; background: linear-gradient(180deg, #0ea5e9, #1d6fe8); box-shadow: 0 0 0 2px rgba(56,189,248,.35), 0 8px 24px rgba(29,111,232,.35); }
     .formatos { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
