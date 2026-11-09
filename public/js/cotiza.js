@@ -243,6 +243,10 @@ function pintar() {
           ${r.forma ? `<tr><td>Forma</td><td>${esc(r.forma.nombre)}</td></tr>` : ""}
           ${r.montaje ? `<tr><td>Montaje</td><td>${esc(r.montaje.nombre)}</td></tr>` : ""}
           ${r.cantidad > 1 ? `<tr><td>Cantidad</td><td>${r.cantidad}</td></tr>` : ""}
+          ${c.envioGratis ? `<tr class="envio-fila"><td>Envío</td><td>${r.flete ? `<s>${plata(r.flete)}</s> ` : ""}<b>GRATIS</b></td></tr>` : ""}
+        </table>
+        ${c.envioGratis ? `<div class="envio-gratis"><span class="camion">🚚</span><span><b>${esc(c.envioTexto)}</b><small>Ya va incluido en tu precio: no pagas nada más</small></span></div>` : ""}
+        <table class="desglose">
           <tr class="tot"><td>Total</td><td>${plata(r.total)}</td></tr>
           ${c.anticipoPct > 0 && c.anticipoPct < 100 ? `<tr><td>Anticipo para empezar (${c.anticipoPct}%)</td><td>${plata(r.anticipo)}</td></tr>` : ""}
         </table>` : ""}
@@ -261,7 +265,7 @@ function pintar() {
   barra.classList.toggle("ver", !!verBarra);
   if (verBarra) {
     $("barraTotal").textContent = plata(r.total);
-    $("barraTxt").textContent = `${r.ancho} × ${r.alto} cm · precio estimado`;
+    $("barraTxt").textContent = `${r.ancho} × ${r.alto} cm · precio estimado${st.cfg.envioGratis ? " · ✓ envío gratis" : ""}`;
     $("barraBtn").onclick = () => (st.paso === "tamano" ? cxMaqueta() : cxIr(st.paso === "material" ? "lugar" : "tamano"));
     $("barraBtn").textContent = st.paso === "tamano" ? "Ver mi letrero" : "Continuar";
   }
@@ -279,7 +283,7 @@ window.cxAncho = (v) => {
   const p = document.querySelector(".pared");
   if (p) p.outerHTML = pared();
   const r = q();
-  if (r) { $("barraTotal").textContent = plata(r.total); $("barraTxt").textContent = `${r.ancho} × ${r.alto} cm · precio estimado`; }
+  if (r) { $("barraTotal").textContent = plata(r.total); $("barraTxt").textContent = `${r.ancho} × ${r.alto} cm · precio estimado${st.cfg.envioGratis ? " · ✓ envío gratis" : ""}`; }
   document.querySelectorAll(".medidas input")[0] && (document.querySelectorAll(".medidas input")[0].value = st.e.ancho);
   document.querySelectorAll(".medidas input")[1] && (document.querySelectorAll(".medidas input")[1].value = st.e.alto);
   const rango = document.querySelector(".rango"); if (rango && Number(rango.value) !== st.e.ancho) rango.value = st.e.ancho;

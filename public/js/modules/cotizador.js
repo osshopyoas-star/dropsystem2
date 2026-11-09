@@ -363,6 +363,8 @@ function render() {
         <label>Ancho mínimo (cm)<input type="number" value="${c.anchoMin}" oninput="ctCfg('anchoMin', Number(this.value))"></label>
         <label>Ancho máximo (cm)<input type="number" value="${c.anchoMax}" oninput="ctCfg('anchoMax', Number(this.value))"></label>
         <label>Ancho con el que arranca (cm)<input type="number" value="${c.anchoDefecto}" oninput="ctCfg('anchoDefecto', Number(this.value))"></label>
+        <label class="ct-check" style="grid-column:1/-1"><input type="checkbox" ${c.envioGratis ? "checked" : ""} onchange="ctCfg('envioGratis', this.checked)"> Mostrar el gancho de envío gratis en el resumen (el flete ya va dentro del precio)</label>
+        <label>Texto del envío gratis<input value="${esc(c.envioTexto)}" oninput="ctCfg('envioTexto', this.value)"></label>
         <label>Anticipo para empezar (%)<input type="number" min="0" max="100" value="${c.anticipoPct}" oninput="ctCfg('anticipoPct', Number(this.value))"></label>
         <label>Redondear el precio a<select onchange="ctCfg('redondeo', Number(this.value))">${[1, 100, 500, 1000, 5000, 10000].map(v => `<option value="${v}" ${c.redondeo === v ? "selected" : ""}>${v === 1 ? "Sin redondeo" : `$${v.toLocaleString("es-CO")}`}</option>`).join("")}</select></label>
         <label>Moneda<select onchange="ctCfg('moneda', this.value)"><option value="COP" ${c.moneda === "COP" ? "selected" : ""}>COP (pesos)</option><option value="USD" ${c.moneda === "USD" ? "selected" : ""}>USD (dólares)</option></select></label>

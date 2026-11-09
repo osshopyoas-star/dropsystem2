@@ -14,6 +14,9 @@ export const CONFIG_DEFECTO = {
   moneda: "COP",
   whatsapp: "",
   anticipoPct: 50,
+  // Gancho de envío gratis en el resumen (el flete ya va dentro del precio)
+  envioGratis: true,
+  envioTexto: "ENVÍO GRATIS a toda Colombia",
   // ===== Costos como en el Excel de fabricación =====
   // Láminas: precio de la lámina completa y sus m² → CoDropX saca el precio del cm²
   laminas: [
@@ -126,6 +129,8 @@ export function limpiarConfig(c = {}) {
     moneda: ["COP", "USD"].includes(c.moneda) ? c.moneda : d.moneda,
     whatsapp: String(c.whatsapp ?? "").replace(/\D/g, "").slice(0, 15),
     anticipoPct: Math.min(100, Math.max(0, num(c.anticipoPct, d.anticipoPct))),
+    envioGratis: c.envioGratis === undefined ? d.envioGratis : !!c.envioGratis,
+    envioTexto: texto(c.envioTexto, 60, d.envioTexto) || d.envioTexto,
     ...costosLimpios(c, lista),
     luces: lista(c.luces, d.luces, { pct: "n" }),
     ubicaciones: lista(c.ubicaciones, d.ubicaciones, { pct: "n" }),
@@ -281,6 +286,7 @@ export function mensajeWhatsapp(cfg, q, { maquetaUrl = "", notas = "" } = {}) {
     q.forma ? `• Forma: ${q.forma.nombre}` : "",
     q.montaje ? `• Montaje: ${q.montaje.nombre}` : "",
     `• Cantidad: ${q.cantidad}`,
+    cfg.envioGratis ? "• Envío: GRATIS" : "",
     `• Precio cotizado: ${f(q.total)}${cfg.anticipoPct > 0 && cfg.anticipoPct < 100 ? ` (anticipo ${cfg.anticipoPct}%: ${f(q.anticipo)})` : ""}`,
     notas ? `• Notas: ${String(notas).slice(0, 400)}` : "",
     maquetaUrl ? `Mi maqueta: ${maquetaUrl}` : ""

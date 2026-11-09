@@ -88,6 +88,18 @@
     .contador span { min-width: 30px; text-align: center; font-weight: 700; font-size: 18px; }
     .mini { color: var(--suave); font-size: 12.5px; text-align: center; margin-top: 10px; }
     .oculto { display: none !important; }
+    /* Gancho de envío gratis */
+    .envio-fila td:last-child s { color: #64748b; font-weight: 500; margin-right: 6px; }
+    .envio-fila td:last-child b { color: #4ade80; letter-spacing: .04em; }
+    .envio-gratis { position: relative; overflow: hidden; display: flex; align-items: center; gap: 12px; margin: 12px 0 4px; padding: 12px 14px; border-radius: 14px; background: linear-gradient(90deg, #052e1a, #0b4a2b); border: 1.5px solid #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,.15), 0 0 24px rgba(34,197,94,.35); animation: envioLate 2.2s ease-in-out infinite; }
+    .envio-gratis::after { content: ""; position: absolute; top: 0; bottom: 0; width: 40%; left: -60%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.28), transparent); animation: envioBrillo 3s ease-in-out infinite; }
+    .envio-gratis .camion { font-size: 28px; animation: camionVa 1.6s ease-in-out infinite; }
+    .envio-gratis b { display: block; font-size: 17px; font-weight: 800; color: #4ade80; letter-spacing: .02em; text-shadow: 0 0 12px rgba(74,222,128,.5); }
+    .envio-gratis small { color: #bbf7d0; font-size: 12.5px; }
+    @keyframes envioLate { 0%, 100% { box-shadow: 0 0 0 3px rgba(34,197,94,.15), 0 0 18px rgba(34,197,94,.25); } 50% { box-shadow: 0 0 0 3px rgba(34,197,94,.3), 0 0 34px rgba(34,197,94,.55); } }
+    @keyframes envioBrillo { 0% { left: -60%; } 60%, 100% { left: 130%; } }
+    @keyframes camionVa { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(4px); } }
+    @media (prefers-reduced-motion: reduce) { .envio-gratis, .envio-gratis::after, .envio-gratis .camion { animation: none; } }
     .marca img { height: 46px; max-width: 80%; object-fit: contain; }
     .op.con-foto { display: flex; gap: 12px; align-items: center; padding: 10px; }
     .op-foto { position: relative; flex: 0 0 auto; }
