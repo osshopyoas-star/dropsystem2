@@ -131,7 +131,8 @@ function costosHTML() {
           <textarea rows="4" placeholder="Cómo se ve este tipo (para la IA)" oninput="ctCampo('materiales',${i},'aspecto',this.value)">${esc(m.aspecto || "")}</textarea></div>
       </div>`;
     }).join("")}</div>
-    <p class="ct-mini">Si cambias el texto, dale Guardar. La foto se guarda sola al subirla. Cada maqueta con foto de ejemplo cuesta unos US$0,01 más.</p>
+    <button class="ct-btn claro chico" style="margin-top:10px" onclick="ctAgregar('materiales')"><i data-lucide="plus"></i> Agregar categoría</button>
+    <p class="ct-mini">La categoría nueva aparece también en "Tipos de letrero": ahí le pones el nombre, qué láminas lleva y si lleva luz. Si cambias el texto, dale Guardar. La foto se guarda sola al subirla. Cada maqueta con foto de ejemplo cuesta unos US$0,01 más.</p>
   </section>
 
   <section class="ct-card">
