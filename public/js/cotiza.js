@@ -74,12 +74,12 @@ function resenas(titulo = "Lo que dicen nuestros clientes") {
   if (!rs.length) return "";
   // Con 2 o más reseñas se duplican para que el carrusel se mueva solo sin fin
   const lista = rs.length > 1 ? [...rs, ...rs] : rs;
-  return `<section class="seccion"><h3 class="izq">${titulo}</h3><div class="resenas ${rs.length > 1 ? "auto" : ""}">${lista.map(r => `
+  return `<section class="seccion res-sec"><h3 class="izq">${titulo}</h3><div class="resenas ${rs.length > 1 ? "auto" : ""}">${lista.map(r => `
     <div class="resena ${r.texto || r.nombre ? "" : "solo-foto"}"><img src="${esc(r.url)}" alt="Foto de cliente" loading="lazy">
       ${r.texto || r.nombre ? `<div class="res-txt">
-        ${Number(r.estrellas) ? `<div class="estrellas">${"★".repeat(Number(r.estrellas))}${"☆".repeat(5 - Number(r.estrellas))}</div>` : ""}
+        ${Number(r.estrellas) ? `<div class="estrellas">${"★".repeat(Number(r.estrellas))}</div>` : ""}
         ${r.texto ? `<p>${esc(r.texto)}</p>` : ""}
-        ${r.nombre ? `<b>${esc(r.nombre)}</b>` : ""}${r.ciudad ? `<small>${esc(r.ciudad)}</small>` : ""}
+        ${r.nombre || r.ciudad ? `<div class="res-quien">${r.nombre ? `<b>${esc(r.nombre)}</b>` : ""}${r.ciudad ? `<small>${esc(r.ciudad)}</small>` : ""}</div>` : ""}
       </div>` : ""}
     </div>`).join("")}</div></section>`;
 }
@@ -184,7 +184,13 @@ function pintar() {
       <div class="seccion"><button class="btn" onclick="cxIr('subir')">Sube tu logo y míralo</button></div>`;
   } else if (st.paso === "subir") {
     html = `${pasos()}<h2>Sube tu logo o diseño</h2><p class="sub">Una foto, captura o archivo de tu logo. Mientras más claro, mejor sale.</p>
-      <label class="subir" for="cxArchivo"><span class="ico">⬆️</span><b>${st.logo ? "Cambiar imagen" : "Toca para subir"}</b><small>JPG, PNG o WEBP</small></label>
+      <label class="subir" for="cxArchivo">
+        <span class="nube"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg></span>
+        <small class="arrastra">O arrastra tu archivo aquí</small>
+        <span class="btn-subir">${st.logo || st.recorte ? "Cambiar imagen" : "Toca para subir"}</span>
+        <small>Gratis · sin compromiso</small>
+        <span class="formatos"><i>PNG</i><i>JPG</i><i>WEBP</i></span>
+      </label>
       <input id="cxArchivo" type="file" accept="image/png,image/jpeg,image/webp" class="oculto" onchange="cxArchivo(this.files[0])">
       ${st.error ? `<div class="error">${esc(st.error)}</div>` : ""}
       ${st.recorte ? `
@@ -280,6 +286,10 @@ window.cxAncho = (v) => {
   const rango = document.querySelector(".rango"); if (rango && Number(rango.value) !== st.e.ancho) rango.value = st.e.ancho;
 };
 window.cxAlto = (v) => { const n = Math.round(Number(v) * 10) / 10; if (n > 0) { st.e.alto = n; st.altoManual = true; } pintar(); };
+
+// Arrastrar y soltar el archivo sobre la caja de subir
+document.addEventListener("dragover", (e) => { if (e.target.closest?.(".subir")) e.preventDefault(); });
+document.addEventListener("drop", (e) => { if (!e.target.closest?.(".subir")) return; e.preventDefault(); const f = e.dataTransfer?.files?.[0]; if (f) cxArchivo(f); });
 
 // Mide qué tan complejo es el diseño: separa el logo del fondo y cuenta cuánto borde tiene.
 // Más bordes (letras, detalles, piezas) = más minutos de láser.
