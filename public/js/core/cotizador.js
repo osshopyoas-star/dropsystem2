@@ -26,7 +26,7 @@ export const CONFIG_DEFECTO = {
     { id: "acrilico_luz", nombre: "Acrílico con luz LED", desc: "Acrílico transparente o blanco cortado con láser, sobre base, iluminado.", capas: ["transparente", "triplex"], conLuz: true,
       aspecto: "Acrílico transparente o blanco cortado con láser con la forma del diseño, iluminado por LED: el diseño brilla parejo con sus colores, con un resplandor suave en la pared." },
     { id: "espejo", nombre: "Acrílico espejo sin luz", desc: "Acrílico espejo plata cortado con láser, sobre base de triplex.", capas: ["espejo", "triplex"], conLuz: false,
-      aspecto: "Acrílico ESPEJO plata cortado con láser con la silueta del diseño y los detalles grabados; sin luz propia, refleja el lugar como un espejo." },
+      aspecto: "Letrero de ACRÍLICO POR CAPAS, sin luz, hecho con corte láser. BASE: una lámina de acrílico brillante cortada con láser con la forma del contorno del logo del cliente (si el logo no tiene una forma de fondo, una forma limpia que lo encierre, con un borde de unos 3 cm alrededor). El color de la base es el color de fondo del logo; si el logo es de un solo color, la base es de acrílico espejo dorado o plateado, el que contraste mejor. PIEZAS ENCIMA: cada parte del logo (letras, figuras, íconos) va cortada por separado en acrílico de su MISMO color del logo y pegada encima de la base, en relieve de 3 mm: se ve el grosor del acrílico en los bordes, una sombra suave debajo de cada pieza y reflejos de brillo en la superficie. Las letras van EXACTAS como en el logo, mismo tipo de letra, mismas palabras, sin cambiar ni inventar nada." },
     { id: "madera", nombre: "Triplex / madera", desc: "Corte láser en triplex, pintado o natural.", capas: ["triplex"], conLuz: false,
       aspecto: "Madera triplex cortada con láser con la forma del diseño, con los bordes un poco quemados por el láser; pintada o en color madera natural." }
   ],
@@ -264,9 +264,12 @@ export function promptMaqueta(cfg, q, { conEjemplo = false } = {}) {
   if (!q) return "";
   const m = q.material;
   const conLuz = !!m.conLuz;
+  // Con luz: de noche para que brille. Sin luz: de día y bien iluminado para que se vean el brillo y el relieve del acrílico
   const escena = q.ubicacion?.id === "exterior"
-    ? "en la fachada de un local comercial de noche, vista de frente desde la calle"
-    : "en una pared de un local u oficina bonita, de noche con luz ambiente tenue, con algunos muebles y plantas desenfocados alrededor";
+    ? (conLuz ? "en la fachada de un local comercial de noche, vista de frente desde la calle" : "en la fachada de un local comercial de día, vista de frente desde la calle")
+    : conLuz
+      ? "en una pared de un local u oficina bonita, de noche con luz ambiente tenue, con algunos muebles y plantas desenfocados alrededor"
+      : "en una pared de un local u oficina bonita y bien iluminada de día, foto de frente y nítida donde se note que es acrílico brillante y que las piezas están en relieve";
   const luz = !conLuz ? "Sin luz propia: iluminado solo por la luz del lugar."
     : q.luz?.id === "rgb" ? "Encendido con luz LED de colores (RGB), brillo suave y realista que se refleja un poco en la pared."
     : "Encendido con luz LED de un solo color, brillo suave y realista que se refleja un poco en la pared.";
