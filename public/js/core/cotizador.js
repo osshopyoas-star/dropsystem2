@@ -41,7 +41,9 @@ export const CONFIG_DEFECTO = {
     { id: "pegante", nombre: "Pegante y pintura", valor: 5000, modo: "fijo", soloLuz: false },
     { id: "luz", nombre: "Luz LED", valor: 15000, modo: "contorno", soloLuz: true },
     { id: "controlador", nombre: "Controlador", valor: 5000, modo: "fijo", soloLuz: true },
-    { id: "fuente", nombre: "Fuente de poder", valor: 5000, modo: "fijo", soloLuz: true }
+    { id: "fuente", nombre: "Fuente de poder", valor: 5000, modo: "fijo", soloLuz: true },
+    // "opcional": solo lo llevan los tipos de letrero que lo tengan marcado (columna en Tipos de letrero)
+    { id: "impresion", nombre: "Impresión", valor: 15000, modo: "area", soloLuz: false, opcional: true }
   ],
   manoObraPct: 25,          // % sobre materiales (incluye láser)
   gananciaProductoPct: 25,  // % sobre materiales + mano de obra → da el valor de fabricación
@@ -147,23 +149,28 @@ function costosLimpios(c, lista) {
   const nueva = Array.isArray(c.laminas) && c.laminas.length;
   const laminas = lista(nueva ? c.laminas : d.laminas, d.laminas, { precio: "n", m2: "n" }).map(l => ({ ...l, m2: l.m2 > 0 ? l.m2 : 1 }));
   const ids = laminas.map(l => l.id);
+  let costosIn = Array.isArray(c.costos) ? [...c.costos] : [...d.costos];
+  // Configs guardadas antes de que existiera "Impresión": se le agrega (si después la quitas, no vuelve)
+  if (!c.extrasV && !costosIn.some(x => x?.id === "impresion")) costosIn.push(d.costos.find(x => x.id === "impresion"));
+  const costos = costosIn.slice(0, 20).map((x, i) => ({
+    id: idOk(x?.id || x?.nombre, i), nombre: texto(x?.nombre, 60, "Costo") || "Costo", valor: Math.max(0, num(x?.valor)),
+    modo: ["fijo", "area", "contorno"].includes(x?.modo) ? x.modo : "fijo", soloLuz: !!x?.soloLuz, opcional: !!x?.opcional
+  }));
+  const opcionales = costos.filter(x => x.opcional).map(x => x.id);
   const materiales = lista(nueva ? c.materiales : d.materiales, d.materiales, { conLuz: "bool", neon: "bool" }).map((m, i) => {
     const orig = (nueva ? c.materiales : d.materiales)?.[i] || {};
     const capas = (Array.isArray(orig.capas) ? orig.capas : []).map(String).filter(x => ids.includes(x));
     if (orig.neon === undefined) m.neon = !!d.materiales.find(x => x.id === m.id)?.neon;
-    return { ...m, capas: capas.length ? [...new Set(capas)] : [ids[0]], aspecto: texto(orig.aspecto ?? d.materiales.find(x => x.id === m.id)?.aspecto ?? "", 2500) };
+    const extras = (Array.isArray(orig.extras) ? orig.extras : []).map(String).filter(x => opcionales.includes(x));
+    return { ...m, capas: capas.length ? [...new Set(capas)] : [ids[0]], extras: [...new Set(extras)], aspecto: texto(orig.aspecto ?? d.materiales.find(x => x.id === m.id)?.aspecto ?? "", 2500) };
   });
   const L = c.laser || {};
   const laser = Object.fromEntries(Object.entries(d.laser).map(([k, v]) => [k, Math.max(0, num(L[k], v))]));
-  const costos = (Array.isArray(c.costos) ? c.costos : d.costos).slice(0, 20).map((x, i) => ({
-    id: idOk(x?.id || x?.nombre, i), nombre: texto(x?.nombre, 60, "Costo") || "Costo", valor: Math.max(0, num(x?.valor)),
-    modo: ["fijo", "area", "contorno"].includes(x?.modo) ? x.modo : "fijo", soloLuz: !!x?.soloLuz
-  }));
   const tramos = (Array.isArray(c.tramos) && c.tramos.length ? c.tramos : d.tramos).slice(0, 8).map(t => ({
     hasta: Math.max(0, num(t?.hasta)), pauta: Math.max(0, num(t?.pauta)), pautaPct: Math.min(80, Math.max(0, num(t?.pautaPct))), flete: Math.max(0, num(t?.flete))
   })).sort((a, b) => (a.hasta || Infinity) - (b.hasta || Infinity));
   const pct = (k) => Math.min(300, Math.max(0, num(c[k], d[k])));
-  return { laminas, materiales, laser, costos, tramos, manoObraPct: pct("manoObraPct"), gananciaProductoPct: pct("gananciaProductoPct"), gananciaPct: Math.min(80, pct("gananciaPct")) };
+  return { extrasV: 1, laminas, materiales, laser, costos, tramos, manoObraPct: pct("manoObraPct"), gananciaProductoPct: pct("gananciaProductoPct"), gananciaPct: Math.min(80, pct("gananciaPct")) };
 }
 
 // Precio del cm² de una lámina
@@ -202,7 +209,7 @@ export function cotizar(cfg, eleccion = {}) {
   const minutos = (c.laser.minFijos + area / 100 * c.laser.minPor100) * (c.laser[complejidad] || 1);
   const laser = { nombre: `Láser (${Math.round(minutos)} min)`, valor: minutos * c.laser.precioMinuto, minutos };
   const factor = { fijo: 1, area: area / AREA_BASE, contorno: contorno / CONTORNO_BASE };
-  const otros = c.costos.filter(x => !x.soloLuz || mat.conLuz).map(x => ({ nombre: x.nombre, valor: x.valor * factor[x.modo] }));
+  const otros = c.costos.filter(x => (!x.soloLuz || mat.conLuz) && (!x.opcional || (mat.extras || []).includes(x.id))).map(x => ({ nombre: x.nombre, valor: x.valor * factor[x.modo] }));
   const materiales = [...laminas, laser, ...otros].reduce((t, x) => t + x.valor, 0);
   const manoObra = materiales * c.manoObraPct / 100;
   const gananciaProducto = (materiales + manoObra) * c.gananciaProductoPct / 100;
@@ -300,6 +307,7 @@ export function promptMaqueta(cfg, q, { conEjemplo = false } = {}) {
       : "DISEÑO DEL CLIENTE: es el de la imagen de referencia. Cópialo IDÉNTICO: misma forma, mismas letras escritas igual, mismos colores y proporciones. No agregues textos, no cambies palabras, no inventes partes, no le pongas marcas.",
     `MATERIAL: ${m.nombre}. ${m.aspecto || m.desc || ""}`,
     q.forma ? `FORMA DEL PANEL (esto manda sobre cualquier otra indicación de forma): ${q.forma.id === "silueta" ? "el panel NO es rectangular: va cortado con láser siguiendo el CONTORNO EXTERIOR del diseño del cliente, con un borde parejo de unos 2 cm alrededor del dibujo, como una silueta." : q.forma.id === "rectangulo" ? "rectangular con las esquinas redondeadas y el borde pulido." : `${q.forma.nombre}. ${q.forma.desc || ""}`}` : "",
+    (m.extras || []).includes("impresion") ? "IMPRESIÓN: los colores, degradados e imágenes del logo van IMPRESOS a todo color directamente sobre el material (impresión UV), nítidos y con los colores exactos del logo." : "",
     `LUZ: ${luz}`,
     `DÓNDE: montado ${escena}.`,
     `TAMAÑO REAL: ${q.ancho} cm de ancho por ${q.alto} cm de alto; que se note la escala con lo que hay alrededor.`,

@@ -111,9 +111,10 @@ function costosHTML() {
 
   <section class="ct-card">
     <div class="ct-card-head"><h3>2. Tipos de letrero</h3><small>Lo que elige el cliente · marca qué láminas lleva (cada una del tamaño del letrero)</small></div>
-    <div class="ct-scroll"><table class="ct-tabla"><thead><tr><th>Nombre</th><th>Descripción (la ve el cliente)</th>${c.laminas.map(l => `<th class="n">${esc(l.nombre.split(" ").slice(0, 2).join(" "))}</th>`).join("")}<th class="n">Lleva luz</th><th class="n" title="La IA redibuja el logo con pocas líneas de tubo, sin detalles finos">Neón (simplifica)</th><th></th></tr></thead><tbody>
+    <div class="ct-scroll"><table class="ct-tabla"><thead><tr><th>Nombre</th><th>Descripción (la ve el cliente)</th>${c.laminas.map(l => `<th class="n">${esc(l.nombre.split(" ").slice(0, 2).join(" "))}</th>`).join("")}${c.costos.filter(x => x.opcional).map(x => `<th class="n">${esc(x.nombre)}</th>`).join("")}<th class="n">Lleva luz</th><th class="n" title="La IA redibuja el logo con pocas líneas de tubo, sin detalles finos">Neón (simplifica)</th><th></th></tr></thead><tbody>
       ${c.materiales.map((m, i) => `<tr><td><input value="${esc(m.nombre)}" oninput="ctCampo('materiales',${i},'nombre',this.value)"></td><td><input class="ancho" value="${esc(m.desc)}" oninput="ctCampo('materiales',${i},'desc',this.value)"></td>
         ${c.laminas.map(l => `<td class="n"><input type="checkbox" ${m.capas.includes(l.id) ? "checked" : ""} onchange="ctCapa(${i},'${esc(l.id)}',this.checked)"></td>`).join("")}
+        ${c.costos.filter(x => x.opcional).map(x => `<td class="n"><input type="checkbox" ${(m.extras || []).includes(x.id) ? "checked" : ""} onchange="ctExtra(${i},'${esc(x.id)}',this.checked)"></td>`).join("")}
         <td class="n"><input type="checkbox" ${m.conLuz ? "checked" : ""} onchange="ctCampo('materiales',${i},'conLuz',this.checked)"></td>
         <td class="n"><input type="checkbox" ${m.neon ? "checked" : ""} onchange="ctCampo('materiales',${i},'neon',this.checked)"></td>
         <td><button class="ct-icono" title="Quitar" onclick="ctQuitar('materiales',${i})"><i data-lucide="trash-2"></i></button></td></tr>`).join("")}
@@ -150,10 +151,11 @@ function costosHTML() {
 
   <section class="ct-card">
     <div class="ct-card-head"><h3>4. Otros costos por letrero</h3><small>Valor para uno de 30 × 30 cm · "sube con el tamaño" = proporcional al área · "sube con el borde" = proporcional al contorno</small></div>
-    <div class="ct-scroll"><table class="ct-tabla"><thead><tr><th>Costo</th><th class="n">Valor (30 × 30)</th><th>Cómo cambia</th><th class="n">Solo si lleva luz</th><th></th></tr></thead><tbody>
+    <div class="ct-scroll"><table class="ct-tabla"><thead><tr><th>Costo</th><th class="n">Valor (30 × 30)</th><th>Cómo cambia</th><th class="n">Solo si lleva luz</th><th class="n" title="Solo lo cobran los tipos que lo tengan marcado en Tipos de letrero">Solo en tipos marcados</th><th></th></tr></thead><tbody>
       ${c.costos.map((x, i) => `<tr><td><input value="${esc(x.nombre)}" oninput="ctCampo('costos',${i},'nombre',this.value)"></td><td class="n">${num(`costos.${i}.valor`, x.valor, 500)}</td>
         <td><select onchange="ctCampo('costos',${i},'modo',this.value)">${[["fijo", "Fijo"], ["area", "Sube con el tamaño"], ["contorno", "Sube con el borde"]].map(([k, t]) => `<option value="${k}" ${x.modo === k ? "selected" : ""}>${t}</option>`).join("")}</select></td>
         <td class="n"><input type="checkbox" ${x.soloLuz ? "checked" : ""} onchange="ctCampo('costos',${i},'soloLuz',this.checked)"></td>
+        <td class="n"><input type="checkbox" ${x.opcional ? "checked" : ""} onchange="ctCampo('costos',${i},'opcional',this.checked);ctRepintar()"></td>
         <td><button class="ct-icono" title="Quitar" onclick="ctQuitar('costos',${i})"><i data-lucide="trash-2"></i></button></td></tr>`).join("")}
     </tbody></table></div>
     <button class="ct-btn claro chico" onclick="ctAgregar('costos')"><i data-lucide="plus"></i> Agregar costo</button>
@@ -412,6 +414,12 @@ window.ctNum = (ruta, v) => {
   o[ultimo] = Number(v) || 0;
   const m = ruta.match(/^laminas\.(\d+)\./);
   if (m) { const el = $(`ctCm2_${m[1]}`); if (el) el.textContent = precioCm2(st.cfg.laminas[m[1]]).toFixed(1); }
+  marcarCambio();
+};
+window.ctRepintar = () => render();
+window.ctExtra = (i, id, si) => {
+  const m = st.cfg.materiales[i];
+  m.extras = si ? [...new Set([...(m.extras || []), id])] : (m.extras || []).filter(x => x !== id);
   marcarCambio();
 };
 window.ctCapa = (i, id, si) => {
