@@ -281,7 +281,7 @@ function pintar() {
       ${c.cierre === "shopify" && c.tiendaPago
         ? `<div class="fila"><button class="btn wa" onclick="cxPagar()" ${st.enviando ? "disabled" : ""}>${st.enviando ? "Abriendo el pago…" : `Pagar ahora · ${r ? plata(r.total) : ""}`}</button></div>
            <p class="mini">🔒 Pago seguro en nuestra tienda: tarjeta, PSE o billeteras. Envío gratis.</p>
-           ${c.whatsapp ? `<div class="fila"><button class="btn claro" onclick="cxPedir()">¿Dudas? Escríbenos por WhatsApp</button></div>` : ""}`
+`
         : `<div class="fila"><button class="btn wa" onclick="cxPedir()" ${st.enviando ? "disabled" : ""}>${st.enviando ? "Armando tu pedido…" : c.whatsapp ? "Pedir por WhatsApp" : "Quiero este letrero"}</button></div>`}
       <div class="fila"><button class="btn claro" onclick="cxIr('tamano')">Cambiar tamaño u opciones</button></div>
       ${galeria("trabajo", "Trabajos que ya entregamos")}
