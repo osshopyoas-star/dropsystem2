@@ -158,6 +158,20 @@ function seccionTaller() {
   </section>`;
 }
 
+// Si la luz elegida pide color: botones rápidos + casilla para escribir otro
+const COLORES = [["Blanco", "#f8fafc"], ["Blanco cálido", "#fde68a"], ["Amarillo", "#facc15"], ["Rojo", "#ef4444"], ["Azul", "#3b82f6"], ["Verde", "#22c55e"], ["Rosado", "#f472b6"], ["Morado", "#a855f7"]];
+function colorLuzHTML(c) {
+  const luz = c.luces.find(l => l.id === st.e.luz);
+  if (!luz?.pideColor) return "";
+  const v = st.e.colorLuz || "";
+  return `<div class="color-luz"><b>¿De qué color quieres la luz?</b>
+    <div class="colores">${COLORES.map(([n, hex]) => `<button class="color ${v.toLowerCase() === n.toLowerCase() ? "on" : ""}" onclick="cxColor('${n}')"><i style="background:${hex};box-shadow:0 0 10px ${hex}"></i>${n}</button>`).join("")}</div>
+    <input id="cxColorLuz" placeholder="O escribe el color (ej: verde menta)" value="${esc(v)}" maxlength="40" oninput="cxColorTexto(this.value)">
+  </div>`;
+}
+window.cxColor = (n) => { st.e.colorLuz = n; pintar(); };
+window.cxColorTexto = (v) => { st.e.colorLuz = v; document.querySelectorAll(".color-luz .color").forEach(b => b.classList.toggle("on", b.textContent.trim().toLowerCase() === v.trim().toLowerCase())); };
+
 function opcion(grupo, x, extra = "") {
   const on = st.e[grupo] === x.id;
   const lista = { material: "materiales", ubicacion: "ubicaciones", forma: "formas", luz: "luces", montaje: "montajes" }[grupo];
@@ -214,7 +228,7 @@ function pintar() {
     html = `${pasos()}<h2>¿Dónde lo vas a poner?</h2><p class="sub">Así sabemos qué tan resistente tiene que ser.</p>
       <div class="opciones dos">${c.ubicaciones.map(u => opcion("ubicacion", u, u.pct ? `+${u.pct}%` : "")).join("")}</div>
       ${(c.formas || []).length > 1 ? `<h2 style="margin-top:26px">¿Qué forma quieres?</h2><div class="opciones dos" style="margin-top:12px">${c.formas.map(f => opcion("forma", f, f.pct ? `+${f.pct}%` : "")).join("")}</div>` : ""}
-      ${m?.conLuz ? `<h2 style="margin-top:26px">¿Qué luz quieres?</h2><div class="opciones dos" style="margin-top:12px">${c.luces.map(l => opcion("luz", l, l.pct ? `+${l.pct}%` : "")).join("")}</div>` : ""}
+      ${m?.conLuz ? `<h2 style="margin-top:26px">¿Qué luz quieres?</h2><div class="opciones dos" style="margin-top:12px">${c.luces.map(l => opcion("luz", l, l.pct ? `+${l.pct}%` : "")).join("")}</div>${colorLuzHTML(c)}` : ""}
       <div class="fila"><button class="btn claro" onclick="cxIr('material')">Atrás</button><button class="btn" onclick="cxIr('tamano')">Continuar</button></div>`;
   } else if (st.paso === "tamano") {
     html = `${pasos()}<h2>¿De qué tamaño?</h2><p class="sub">Mueve la barra. El alto sale solo según la forma de tu logo (puedes cambiarlo).</p>
@@ -239,7 +253,7 @@ function pintar() {
         <div class="contador"><span style="flex:1;text-align:left;font-weight:600;font-size:15px">Cantidad</span><button onclick="cxCantidad(-1)">−</button><span>${st.e.cantidad}</span><button onclick="cxCantidad(1)">+</button></div>
         ${r ? `<table class="desglose">
           <tr><td>${esc(r.material.nombre)}</td><td>${r.ancho} × ${r.alto} cm</td></tr>
-          ${r.luz ? `<tr><td>Luz</td><td>${esc(r.luz.nombre)}</td></tr>` : ""}
+          ${r.luz ? `<tr><td>Luz</td><td>${esc(r.luz.nombre)}${r.colorLuz ? ` · ${esc(r.colorLuz)}` : ""}</td></tr>` : ""}
           ${r.ubicacion ? `<tr><td>Va en</td><td>${esc(r.ubicacion.nombre)}</td></tr>` : ""}
           ${r.forma ? `<tr><td>Forma</td><td>${esc(r.forma.nombre)}</td></tr>` : ""}
           ${r.montaje ? `<tr><td>Montaje</td><td>${esc(r.montaje.nombre)}</td></tr>` : ""}

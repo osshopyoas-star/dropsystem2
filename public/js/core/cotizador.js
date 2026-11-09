@@ -61,7 +61,7 @@ export const CONFIG_DEFECTO = {
   gananciaPct: 40,          // tu ganancia final: % sobre fabricación + pauta + flete
   // Tipo de luz (solo materiales con luz): recargo en % sobre la fabricación
   luces: [
-    { id: "fija", nombre: "Un solo color", desc: "Blanco, cálido o el color que elijas.", pct: 0 },
+    { id: "fija", nombre: "Un solo color", desc: "Blanco, cálido o el color que elijas.", pct: 0, pideColor: true },
     { id: "rgb", nombre: "RGB con control", desc: "Cambia de color con control remoto.", pct: 30 }
   ],
   ubicaciones: [
@@ -132,7 +132,8 @@ export function limpiarConfig(c = {}) {
     envioGratis: c.envioGratis === undefined ? d.envioGratis : !!c.envioGratis,
     envioTexto: texto(c.envioTexto, 60, d.envioTexto) || d.envioTexto,
     ...costosLimpios(c, lista),
-    luces: lista(c.luces, d.luces, { pct: "n" }),
+    // "pideColor": al elegir esa luz, el cliente escribe el color (configs viejas: la luz "fija" lo pide)
+    luces: lista(c.luces, d.luces, { pct: "n", pideColor: "bool" }).map((l, i) => ((Array.isArray(c.luces) ? c.luces[i] : null)?.pideColor === undefined && l.id === "fija" ? { ...l, pideColor: true } : l)),
     ubicaciones: lista(c.ubicaciones, d.ubicaciones, { pct: "n" }),
     montajes: lista(c.montajes, d.montajes, { precio: "n" }),
     formas: lista(c.formas, d.formas, { pct: "n" }),
@@ -252,6 +253,7 @@ export function cotizar(cfg, eleccion = {}) {
   const red = Math.round;
   return {
     material: mat, luz, ubicacion: ubi, montaje: mon, ancho, alto, cantidad, area, complejidad,
+    colorLuz: luz?.pideColor ? String(eleccion.colorLuz || "").replace(/[<>]/g, "").slice(0, 40).trim() : "",
     detalle: { laminas: laminas.map(x => ({ ...x, valor: red(x.valor) })), laser: { ...laser, valor: red(laser.valor) }, otros: otros.map(x => ({ ...x, valor: red(x.valor) })) },
     materiales: red(materiales), manoObra: red(manoObra), gananciaProducto: red(gananciaProducto), fabricacion: red(fabricacion),
     recargoLuz: red(recargoLuz), recargoUbicacion: red(recargoUbicacion), recargoForma: red(recargoForma), precioMontaje: red(precioMontaje), forma,
@@ -280,7 +282,7 @@ export function mensajeWhatsapp(cfg, q, { maquetaUrl = "", notas = "" } = {}) {
   return [
     `Hola ${cfg.marca} 👋 Quiero este letrero:`,
     `• Material: ${q.material.nombre}`,
-    q.luz ? `• Luz: ${q.luz.nombre}` : "",
+    q.luz ? `• Luz: ${q.luz.nombre}${q.colorLuz ? ` — color ${q.colorLuz}` : ""}` : "",
     q.ubicacion ? `• Va en: ${q.ubicacion.nombre}` : "",
     `• Tamaño: ${q.ancho} × ${q.alto} cm`,
     q.forma ? `• Forma: ${q.forma.nombre}` : "",
@@ -305,6 +307,7 @@ export function promptMaqueta(cfg, q, { conEjemplo = false } = {}) {
       ? "en una pared de un local u oficina bonita, de noche con luz ambiente tenue, con algunos muebles y plantas desenfocados alrededor"
       : "en una pared de un local u oficina bonita y bien iluminada de día, foto de frente y nítida donde se note que es acrílico brillante y que las piezas están en relieve";
   const luz = !conLuz ? "Sin luz propia: iluminado solo por la luz del lugar."
+    : q.colorLuz ? `Encendido con luz LED de UN SOLO COLOR: ${q.colorLuz}. Toda la luz del letrero es de ese color (esto manda sobre cualquier otro color de luz que diga el material).`
     : q.luz?.id === "rgb" ? "Encendido con luz LED de colores (RGB), brillo suave y realista que se refleja un poco en la pared."
     : "Encendido con luz LED en el color o los colores que indica el MATERIAL (si no dice, en el color del logo), brillo realista.";
   const silueta = q.forma?.id === "silueta";

@@ -398,7 +398,7 @@ function render() {
       <div id="ctPrueba">${pruebaHTML()}</div>
     </section>
 
-    ${tablaOpciones("luces", "Tipo de luz", "Solo para tipos con luz · recargo en % sobre la fabricación", [{ k: "pct", t: "Recargo %" }])}
+    ${tablaOpciones("luces", "Tipo de luz", "Solo para tipos con luz · recargo en % sobre la fabricación · \"Pide color\": el cliente escribe el color que quiere", [{ k: "pct", t: "Recargo %" }, { k: "pideColor", t: "Pide color", tipo: "bool" }])}
     ${tablaOpciones("ubicaciones", "¿Dónde va?", "Recargo en % sobre la fabricación (por ejemplo exterior, que aguante lluvia)", [{ k: "pct", t: "Recargo %" }])}
     ${tablaOpciones("formas", "Forma del letrero", "Rectangular o con la forma del logo · recargo en % sobre la fabricación (cortar la silueta tarda más)", [{ k: "pct", t: "Recargo %" }])}
     ${tablaOpciones("montajes", "Montaje", "Precio fijo que se suma por letrero", [{ k: "precio", t: "Precio $" }])}
