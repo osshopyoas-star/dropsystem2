@@ -144,7 +144,7 @@ export function limpiarConfig(c = {}) {
     pasos: [0, 1, 2].map(i => ({ titulo: texto(c.pasos?.[i]?.titulo, 50, d.pasos[i].titulo), desc: texto(c.pasos?.[i]?.desc, 160, d.pasos[i].desc) })),
     taller: Object.fromEntries(Object.entries(d.taller).map(([k, v]) => [k, texto(c.taller?.[k] ?? v, k === "texto" ? 400 : 120)])),
     limites: {
-      maquetasPorDia: Math.min(20, Math.max(0, Math.round(num(c.limites?.maquetasPorDia, d.limites.maquetasPorDia)))),
+      maquetasPorDia: Math.min(500, Math.max(0, Math.round(num(c.limites?.maquetasPorDia, d.limites.maquetasPorDia)))),
       usdMes: Math.min(500, Math.max(0, num(c.limites?.usdMes, d.limites.usdMes)))
     }
   };

@@ -374,7 +374,7 @@ function render() {
     <section class="ct-card">
       <div class="ct-card-head"><h3><i data-lucide="shield"></i> Frenos de gasto de la IA</h3><small>La página es pública: así nadie se gasta tu saldo de xAI</small></div>
       <div class="ct-grid">
-        <label>Maquetas por persona al día<input type="number" min="0" max="20" value="${c.limites.maquetasPorDia}" oninput="ctLimite('maquetasPorDia', Number(this.value))"></label>
+        <label>Maquetas por persona al día<input type="number" min="0" max="500" value="${c.limites.maquetasPorDia}" oninput="ctLimite('maquetasPorDia', Number(this.value))"></label>
         <label>Tope de gasto al mes (US$)<input type="number" min="0" step="0.5" value="${c.limites.usdMes}" oninput="ctLimite('usdMes', Number(this.value))"></label>
       </div>
       <p class="ct-mini">Este mes: <b>${g.maquetas}</b> maquetas · <b>US$${(g.usd || 0).toFixed(2)}</b> de US$${c.limites.usdMes} (cada maqueta cuesta unos US$0,05). Si se llega al tope, la página sigue funcionando: muestra el logo en la pared sin IA y el precio.</p>
