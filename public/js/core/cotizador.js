@@ -30,7 +30,9 @@ export const CONFIG_DEFECTO = {
     { id: "espejo", nombre: "Acrílico espejo sin luz", desc: "Acrílico espejo plata cortado con láser, sobre base de triplex.", capas: ["espejo", "triplex"], conLuz: false,
       aspecto: "Letrero de ACRÍLICO POR CAPAS, sin luz, hecho con corte láser. BASE: una lámina de acrílico brillante cortada con láser con la forma del contorno del logo del cliente (si el logo no tiene una forma de fondo, una forma limpia que lo encierre, con un borde de unos 3 cm alrededor). El color de la base es el color de fondo del logo; si el logo es de un solo color, la base es de acrílico espejo dorado o plateado, el que contraste mejor. PIEZAS ENCIMA: cada parte del logo (letras, figuras, íconos) va cortada por separado en acrílico de su MISMO color del logo y pegada encima de la base, en relieve de 3 mm: se ve el grosor del acrílico en los bordes, una sombra suave debajo de cada pieza y reflejos de brillo en la superficie. Las letras van EXACTAS como en el logo, mismo tipo de letra, mismas palabras, sin cambiar ni inventar nada." },
     { id: "madera", nombre: "Triplex / madera", desc: "Corte láser en triplex, pintado o natural.", capas: ["triplex"], conLuz: false,
-      aspecto: "UNA SOLA PIEZA DE MADERA TRIPLEX de 3 mm, color madera clara natural, cortada con láser con el CONTORNO EXTERIOR del logo (o con la forma de panel que eligió el cliente). NO es calada ni hueca: la pieza es sólida, sin huecos ni partes recortadas por dentro. TODO el dibujo del logo (ojos, líneas, letras, detalles, rellenos oscuros) va GRABADO con láser sobre la superficie de la madera: quemado café oscuro, un poco hundido, con textura de madera quemada y bordes tostados, como un pirograbado; las partes claras del logo quedan en el color natural de la madera. El borde de la pieza se ve tostado por el corte láser. Se respetan la forma, las letras y todos los detalles del logo, exactos. SIN LUZ: no tiene LED, no brilla, no hay resplandor detrás ni halo en la pared. FOTO: pieza colgada en una pared, de día con buena luz natural, de frente y nítida, que se note la textura de la madera y del grabado." }
+      aspecto: "UNA SOLA PIEZA DE MADERA TRIPLEX de 3 mm, color madera clara natural, cortada con láser con el CONTORNO EXTERIOR del logo (o con la forma de panel que eligió el cliente). NO es calada ni hueca: la pieza es sólida, sin huecos ni partes recortadas por dentro. TODO el dibujo del logo (ojos, líneas, letras, detalles, rellenos oscuros) va GRABADO con láser sobre la superficie de la madera: quemado café oscuro, un poco hundido, con textura de madera quemada y bordes tostados, como un pirograbado; las partes claras del logo quedan en el color natural de la madera. El borde de la pieza se ve tostado por el corte láser. Se respetan la forma, las letras y todos los detalles del logo, exactos. SIN LUZ: no tiene LED, no brilla, no hay resplandor detrás ni halo en la pared. FOTO: pieza colgada en una pared, de día con buena luz natural, de frente y nítida, que se note la textura de la madera y del grabado." },
+    { id: "impresion_neon", nombre: "Acrílico con impresión y luz neonflex", desc: "Tu logo impreso a todo color en acrílico, con neón flex del mismo color en los bordes.", capas: ["transparente"], conLuz: true, neon: false, extras: ["impresion"],
+      aspecto: "ACRÍLICO IMPRESO A TODO COLOR + NEÓN FLEX DEL MISMO COLOR, como los letreros de bares, talleres y tiendas. BASE: lámina de acrílico de 5 mm cortada con láser siguiendo la silueta del logo con un borde de 2 a 3 cm (en el borde se ve el acrílico, transparente o negro), sostenida de la pared con 4 tornillos separadores metálicos. IMPRESIÓN: el logo del cliente va IMPRESO completo sobre el acrílico (impresión UV), EXACTO al original: mismos colores, degradados, personajes, letras y detalles, nítido y saturado. NEÓN FLEX: tubo de neón flex de 8 mm que recorre el CONTORNO de las partes principales del logo (la silueta exterior, cada letra grande, cada figura importante) y algunas líneas internas que marcan el dibujo. CADA TUBO VA DEL MISMO COLOR DE LA PARTE IMPRESA QUE BORDEA: si una llama es roja, su neón es rojo; si las letras son amarillas, su neón es amarillo; si una parte es blanca o gris, su neón es blanco. Así el letrero tiene neón de varios colores, uno por cada parte del logo. ENCENDIDO: el neón brilla intenso y saturado, ilumina un poco la impresión y deja un resplandor suave de esos colores en la pared. Las letras y palabras van exactas, sin cambiar ni inventar nada. FOTO: real, de frente, en un local (bar, taller o tienda) con poca luz, que se note que es un letrero físico de acrílico impreso con tubos de neón flex." }
   ],
   // Láser: minutos × precio del minuto. Minutos = preparación + por cada 100 cm², × la complejidad del diseño
   // (con 30 × 30 y diseño medio da 40 minutos = $40.000, como en el Excel)
@@ -157,11 +159,14 @@ function costosLimpios(c, lista) {
     modo: ["fijo", "area", "contorno"].includes(x?.modo) ? x.modo : "fijo", soloLuz: !!x?.soloLuz, opcional: !!x?.opcional
   }));
   const opcionales = costos.filter(x => x.opcional).map(x => x.id);
-  const materiales = lista(nueva ? c.materiales : d.materiales, d.materiales, { conLuz: "bool", neon: "bool" }).map((m, i) => {
-    const orig = (nueva ? c.materiales : d.materiales)?.[i] || {};
+  // Configs guardadas antes de que existiera "Acrílico con impresión y luz neonflex": se le agrega una vez
+  let matsIn = nueva ? [...(c.materiales || [])] : d.materiales;
+  if (nueva && (c.extrasV || 0) < 2 && !matsIn.some(x => x?.id === "impresion_neon")) matsIn.push(d.materiales.find(x => x.id === "impresion_neon"));
+  const materiales = lista(matsIn, d.materiales, { conLuz: "bool", neon: "bool" }).map((m, i) => {
+    const orig = matsIn?.[i] || {};
     const capas = (Array.isArray(orig.capas) ? orig.capas : []).map(String).filter(x => ids.includes(x));
     if (orig.neon === undefined) m.neon = !!d.materiales.find(x => x.id === m.id)?.neon;
-    const extras = (Array.isArray(orig.extras) ? orig.extras : []).map(String).filter(x => opcionales.includes(x));
+    const extras = (Array.isArray(orig.extras) ? orig.extras : d.materiales.find(x => x.id === m.id)?.extras || []).map(String).filter(x => opcionales.includes(x));
     return { ...m, capas: capas.length ? [...new Set(capas)] : [ids[0]], extras: [...new Set(extras)], aspecto: texto(orig.aspecto ?? d.materiales.find(x => x.id === m.id)?.aspecto ?? "", 2500) };
   });
   const L = c.laser || {};
@@ -170,7 +175,7 @@ function costosLimpios(c, lista) {
     hasta: Math.max(0, num(t?.hasta)), pauta: Math.max(0, num(t?.pauta)), pautaPct: Math.min(80, Math.max(0, num(t?.pautaPct))), flete: Math.max(0, num(t?.flete))
   })).sort((a, b) => (a.hasta || Infinity) - (b.hasta || Infinity));
   const pct = (k) => Math.min(300, Math.max(0, num(c[k], d[k])));
-  return { extrasV: 1, laminas, materiales, laser, costos, tramos, manoObraPct: pct("manoObraPct"), gananciaProductoPct: pct("gananciaProductoPct"), gananciaPct: Math.min(80, pct("gananciaPct")) };
+  return { extrasV: 2, laminas, materiales, laser, costos, tramos, manoObraPct: pct("manoObraPct"), gananciaProductoPct: pct("gananciaProductoPct"), gananciaPct: Math.min(80, pct("gananciaPct")) };
 }
 
 // Precio del cm² de una lámina
