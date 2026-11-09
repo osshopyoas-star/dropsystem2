@@ -34,9 +34,9 @@ export const CONFIG_DEFECTO = {
     { id: "impresion_neon", nombre: "Acrílico con impresión y luz neonflex", desc: "Tu logo impreso a todo color en acrílico, con neón flex del mismo color en los bordes.", capas: ["transparente"], conLuz: true, neon: false, extras: ["impresion"],
       aspecto: "ACRÍLICO IMPRESO A TODO COLOR + NEÓN FLEX DEL MISMO COLOR, como los letreros de bares, talleres y tiendas. BASE: lámina de acrílico de 5 mm cortada con láser siguiendo la silueta del logo con un borde de 2 a 3 cm (en el borde se ve el acrílico, transparente o negro), sostenida de la pared con tornillos separadores metálicos pequeños. IMPRESIÓN: el logo del cliente va IMPRESO completo sobre el acrílico (impresión UV), EXACTO al original: mismos colores, degradados, personajes, letras y detalles, nítido y saturado. NEÓN FLEX: tubo de neón flex de 8 mm que recorre el CONTORNO de las partes principales del logo (la silueta exterior, cada letra grande, cada figura importante) y algunas líneas internas que marcan el dibujo. CADA TUBO VA DEL MISMO COLOR DE LA PARTE IMPRESA QUE BORDEA: si una llama es roja, su neón es rojo; si las letras son amarillas, su neón es amarillo; si una parte es blanca o gris, su neón es blanco. Así el letrero tiene neón de varios colores, uno por cada parte del logo. ENCENDIDO: el neón brilla intenso y saturado, ilumina un poco la impresión y deja un resplandor suave de esos colores en la pared. Las letras y palabras van exactas, sin cambiar ni inventar nada. FOTO: real, de frente, en un local (bar, taller o tienda) con poca luz, que se note que es un letrero físico de acrílico impreso con tubos de neón flex." }
   ],
-  // Láser: minutos × precio del minuto. Minutos = preparación + minutos por cada 100 cm² (sube con el tamaño)
-  // (con 30 × 30 y diseño medio da 40 minutos = $40.000, como en el Excel)
-  laser: { precioMinuto: 1000, minFijos: 10, minPor100: 3.3333 },
+  // Láser: minutos × precio del minuto. Minutos = preparación + minutos por cada metro de contorno del letrero
+  // (la máquina recorre el borde: un letrero el doble de grande tiene el doble de contorno). Con 30 × 30 (1,2 m): 10 + 1,2 × 25 = 40 min = $40.000, como el Excel
+  laser: { precioMinuto: 1000, minFijos: 10, minPorMetro: 25 },
   // Otros costos por letrero, con su valor para uno de 30 × 30. "fijo" = igual siempre · "area" = sube con el tamaño · "contorno" = sube con el borde
   costos: [
     { id: "pin", nombre: "Pin para pared", valor: 5000, modo: "fijo", soloLuz: false },
@@ -211,7 +211,7 @@ export function cotizar(cfg, eleccion = {}) {
   // 1. Materiales
   const laminas = mat.capas.map(id => c.laminas.find(l => l.id === id)).filter(Boolean)
     .map(l => ({ nombre: l.nombre, valor: area * precioCm2(l) }));
-  const minutos = c.laser.minFijos + area / 100 * c.laser.minPor100;
+  const minutos = c.laser.minFijos + contorno / 100 * c.laser.minPorMetro;
   const laser = { nombre: `Láser (${Math.round(minutos)} min)`, valor: minutos * c.laser.precioMinuto, minutos };
   const factor = { fijo: 1, area: area / AREA_BASE, contorno: contorno / CONTORNO_BASE };
   const otros = c.costos.filter(x => (!x.soloLuz || mat.conLuz) && (!x.opcional || (mat.extras || []).includes(x.id))).map(x => ({ nombre: x.nombre, valor: x.valor * factor[x.modo] }));

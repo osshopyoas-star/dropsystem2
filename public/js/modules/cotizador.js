@@ -135,13 +135,13 @@ function costosHTML() {
   </section>
 
   <section class="ct-card">
-    <div class="ct-card-head"><h3>3. Láser</h3><small>Minutos = preparación + minutos por cada 100 cm² (sube con el tamaño del letrero)</small></div>
+    <div class="ct-card-head"><h3>3. Láser</h3><small>Minutos = preparación + minutos por cada metro de contorno del letrero (la máquina recorre el borde)</small></div>
     <div class="ct-grid">
       <label>Precio del minuto ($)${num("laser.precioMinuto", c.laser.precioMinuto, 100)}</label>
       <label>Minutos de preparación${num("laser.minFijos", c.laser.minFijos, 1)}</label>
-      <label>Minutos por cada 100 cm²${num("laser.minPor100", c.laser.minPor100, 0.1)}</label>
+      <label>Minutos por cada metro de contorno${num("laser.minPorMetro", c.laser.minPorMetro, 1)}</label>
     </div>
-    <p class="ct-mini">Con 30 × 30 cm: ${Math.round((c.laser.minFijos + 9 * c.laser.minPor100))} minutos = ${f((c.laser.minFijos + 9 * c.laser.minPor100) * c.laser.precioMinuto)}.</p>
+    <p class="ct-mini">${[[30, 30], [60, 40], [100, 80]].map(([an, al]) => { const m = c.laser.minFijos + 2 * (an + al) / 100 * c.laser.minPorMetro; return `${an} × ${al} cm (${(2 * (an + al) / 100).toLocaleString("es-CO")} m de contorno): ${Math.round(m)} min = ${f(m * c.laser.precioMinuto)}`; }).join(" · ")}</p>
   </section>
 
   <section class="ct-card">
