@@ -277,6 +277,7 @@ function cotizacionesHTML() {
         <small>${esc(nombre("materiales", c.eleccion?.material))} · ${c.eleccion?.ancho} × ${c.eleccion?.alto} cm${c.eleccion?.complejidad ? ` · diseño ${esc((COMPLEJIDADES[c.eleccion.complejidad] || "").toLowerCase())}` : ""}${c.eleccion?.cantidad > 1 ? ` · ×${c.eleccion.cantidad}` : ""}</small>
         <small>${esc(nombre("ubicaciones", c.eleccion?.ubicacion))}${c.eleccion?.luz ? ` · ${esc(nombre("luces", c.eleccion.luz))}` : ""} · ${new Date(c.creado).toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" })}</small>
         ${c.notas ? `<small class="ct-nota">📝 ${esc(c.notas)}</small>` : ""}
+        ${c.error ? `<small class="rojo">⚠ No salió la maqueta: ${esc(c.error)}</small>` : ""}
         ${c.logo && c.maqueta ? `<a class="ct-link" href="${esc(c.logo)}" target="_blank" rel="noopener">Ver logo original</a>` : ""}
       </div>
     </div>`).join("")}</div>`;

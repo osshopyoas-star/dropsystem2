@@ -41,7 +41,8 @@ const cotizacionSchema = new mongoose.Schema({
   eleccion: { type: mongoose.Schema.Types.Mixed, default: {} },
   total: Number, anticipo: Number, moneda: String,
   notas: { type: String, default: "" },
-  pidio: { type: Boolean, default: false },        // le dio "Pedir por WhatsApp"
+  pidio: { type: Boolean, default: false },
+  error: { type: String, default: "" },          // por qué no salió la maqueta (si falló)        // le dio "Pedir por WhatsApp"
   creado: { type: Date, default: Date.now, index: true }
 });
 const Cotizacion = mongoose.model("Cotizacion", cotizacionSchema);
@@ -147,10 +148,18 @@ export function registrarRutasCotizadorPublico(app) {
           const im = await CotizadorImagen.findById(ej.id).select("mime datos").lean();
           if (im?.datos) fotos.push(`data:${im.mime || "image/jpeg"};base64,${(Buffer.isBuffer(im.datos) ? im.datos : Buffer.from(im.datos.buffer || im.datos)).toString("base64")}`);
         }
-        r = await pedirImagen({ prompt: promptMaqueta(cfg, q, { conEjemplo: fotos.length > 1 }), fotos, aspecto: "4:3" });
+        try {
+          r = await pedirImagen({ prompt: promptMaqueta(cfg, q, { conEjemplo: fotos.length > 1 }), fotos, aspecto: "4:3" });
+        } catch (e1) {
+          // Segundo intento solo con el logo (sin la foto de ejemplo), si el error no es de saldo o de clave
+          if (fotos.length < 2 || [401, 403, 429].includes(e1.status)) throw e1;
+          console.warn("Cotizador: falló con la foto de ejemplo, reintento solo con el logo:", e1.message);
+          r = await pedirImagen({ prompt: promptMaqueta(cfg, q, { conEjemplo: false }), fotos: [dataLogo], aspecto: "4:3" });
+        }
       } catch (e) {
         porPersona.set(k, usadas);   // no cuenta si falló
         console.error("Cotizador: no se pudo hacer la maqueta:", e.message);
+        await Cotizacion.updateOne({ _id: cot._id }, { $set: { error: String(e.message || "Error").slice(0, 200) } }).catch(() => {});
         return res.json({ cotizacion: String(cot._id), maqueta: null, aviso: "No pudimos hacer la maqueta en este momento. Te mostramos tu logo en la pared y el precio igual.", total: q.total, anticipo: q.anticipo });
       }
       const maq = await CotizadorImagen.create({ owner: c.owner, tipo: "maqueta", mime: r.tipo, datos: r.datos });
@@ -256,7 +265,7 @@ export function registrarRutasCotizador(app) {
   app.get("/api/cotizador/cotizaciones", async (req, res) => {
     try {
       const lista = await Cotizacion.find({ owner: req.user.uid }).sort({ creado: -1 }).limit(60).lean();
-      res.json(lista.map(x => ({ id: String(x._id), creado: x.creado, eleccion: x.eleccion, total: x.total, anticipo: x.anticipo, moneda: x.moneda, notas: x.notas, pidio: !!x.pidio,
+      res.json(lista.map(x => ({ id: String(x._id), creado: x.creado, eleccion: x.eleccion, total: x.total, anticipo: x.anticipo, moneda: x.moneda, notas: x.notas, pidio: !!x.pidio, error: x.error || "",
         logo: x.logo ? `/api/cotiza/img/${x.logo}` : "", maqueta: x.maqueta ? `/api/cotiza/img/${x.maqueta}` : "" })));
     } catch (err) { console.error("Cotizaciones:", err); res.status(500).json({ error: "No se pudieron leer las cotizaciones" }); }
   });

@@ -290,7 +290,7 @@ export function promptMaqueta(cfg, q, { conEjemplo = false } = {}) {
   const conLuz = !!m.conLuz;
   // Con luz: de noche para que brille. Sin luz: de día y bien iluminado para que se vean el brillo y el relieve del acrílico
   const escena = q.ubicacion?.id === "exterior"
-    ? (conLuz ? "en la fachada de un local comercial de noche, vista de frente desde la calle" : "en la fachada de un local comercial de día, vista de frente desde la calle")
+    ? (conLuz ? "en la pared EXTERIOR de un local (fachada), de noche, foto tomada de cerca y de frente: el letrero ocupa la mayor parte de la foto y alrededor se ve un poco de la fachada" : "en la pared EXTERIOR de un local (fachada), de día, foto tomada de cerca y de frente: el letrero ocupa la mayor parte de la foto y alrededor se ve un poco de la fachada")
     : conLuz
       ? "en una pared de un local u oficina bonita, de noche con luz ambiente tenue, con algunos muebles y plantas desenfocados alrededor"
       : "en una pared de un local u oficina bonita y bien iluminada de día, foto de frente y nítida donde se note que es acrílico brillante y que las piezas están en relieve";
@@ -311,6 +311,7 @@ export function promptMaqueta(cfg, q, { conEjemplo = false } = {}) {
     `LUZ: ${luz}`,
     `DÓNDE: montado ${escena}.`,
     `TAMAÑO REAL: ${q.ancho} cm de ancho por ${q.alto} cm de alto; que se note la escala con lo que hay alrededor.`,
-    "El letrero ocupa buena parte de la imagen, centrado y de frente. Nada de personas. Sin textos extra en la imagen."
+    "El letrero ocupa buena parte de la imagen, centrado y de frente. Nada de personas. Sin textos extra en la imagen.",
+    conEjemplo ? "RECUERDA: el dibujo del letrero es SIEMPRE el logo del cliente (<IMAGE_0>). La otra imagen es solo para copiar el acabado: nunca devuelvas esa foto ni su dibujo." : ""
   ].join("\n");
 }
