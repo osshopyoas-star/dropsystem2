@@ -6030,3 +6030,33 @@ main .cal-page input:focus, main .cal-page select:focus, main .pl-page input:foc
 .ct-excel tr.fab td { font-weight: 800; background: #dcfce7; color: #166534; }
 .ct-excel tr.tot td { font-weight: 800; font-size: 16px; background: #dbeafe; color: #1e3a8a; }
 .ct-tabla select { padding: 8px 9px; border-radius: 9px; border: 1px solid #cbd5e1; font: inherit; }
+/* Cotizador en celular: que nada se salga de la pantalla (las tablas se deslizan de lado) */
+.ct-page { width: 100%; min-width: 0; box-sizing: border-box; }
+.ct-page > * { min-width: 0; max-width: 100%; box-sizing: border-box; }
+.ct-scroll { max-width: 100%; -webkit-overflow-scrolling: touch; }
+@media (max-width: 640px) {
+  .ct-page { padding: 4px 0 60px; gap: 12px; }
+  .ct-card { padding: 14px; border-radius: 14px; }
+  .ct-head h1 { font-size: 22px; }
+  .ct-head .ct-btn { width: 100%; justify-content: center; }
+  .ct-link-fila input { min-width: 0; width: 100%; flex-basis: 100%; }
+  .ct-link-fila .ct-btn { flex: 1; justify-content: center; }
+  .ct-grid { grid-template-columns: 1fr; }
+  .ct-grid label.dos2 { grid-column: auto; }
+  .ct-prueba-fila select { width: 100%; }
+  .ct-excel { max-width: 100%; }
+  .ct-cots { grid-template-columns: 1fr; }
+  .ct-par-foto { width: calc(50% - 22px); height: auto; aspect-ratio: 1; }
+}
+/* Cotizador: reseñas */
+.ct-res-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin-bottom: 12px; }
+.ct-res { position: relative; display: flex; gap: 10px; padding: 10px; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; }
+.ct-res img { width: 72px; height: 90px; object-fit: cover; border-radius: 8px; flex: 0 0 auto; }
+.ct-res p { margin: 2px 0; font-size: 13px; line-height: 1.4; }
+.ct-res small { color: #64748b; font-size: 12px; }
+.ct-res .ct-icono { position: absolute; top: 4px; right: 4px; }
+.ct-est { color: #f59e0b; letter-spacing: 1px; }
+.ct-res-nueva { display: flex; flex-wrap: wrap; gap: 12px; padding: 12px; border: 1px dashed #93c5fd; border-radius: 14px; }
+.ct-res-campos { flex: 1; min-width: 220px; display: flex; flex-direction: column; gap: 8px; }
+.ct-res-fila { display: flex; flex-wrap: wrap; gap: 8px; }
+.ct-res-fila input, .ct-res-fila select, .ct-res-campos textarea { flex: 1; min-width: 120px; padding: 9px 11px; border-radius: 10px; border: 1px solid #cbd5e1; font: inherit; }

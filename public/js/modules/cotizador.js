@@ -196,6 +196,32 @@ window.ctParGuardar = async () => {
     render(); avisar("Agregado al carrusel");
   } catch (e) { avisar(e.message, "error"); }
 };
+// Reseñas reales: la foto que mandó el cliente (o la captura) y, si quieres, lo que dijo, su nombre, ciudad y estrellas
+const nuevaRes = { foto: "", nombre: "", ciudad: "", texto: "", estrellas: 5 };
+function resenasHTML() {
+  const rs = (st.datos.galeria || []).filter(g => g.tipo === "resena");
+  return `<div class="ct-gal">
+    <div class="ct-card-head"><h3>Reseñas reales</h3><small>Salen en tarjetas que se deslizan, también en el paso de subir el logo. Solo lo que de verdad les dijeron: nada inventado.</small></div>
+    <div class="ct-res-lista">${rs.map(r => `<div class="ct-res"><img src="${esc(r.url)}" alt=""><div>${r.estrellas ? `<span class="ct-est">${"★".repeat(r.estrellas)}</span>` : ""}${r.texto ? `<p>${esc(r.texto)}</p>` : `<p class="ct-mini">Solo foto</p>`}<small>${esc([r.nombre, r.ciudad].filter(Boolean).join(" · "))}</small></div><button class="ct-icono" title="Quitar" onclick="ctBorrarFoto('${esc(r.id)}')"><i data-lucide="x"></i></button></div>`).join("") || `<p class="ct-mini">Todavía no hay reseñas.</p>`}</div>
+    <div class="ct-res-nueva">
+      <label class="ct-par-foto">${nuevaRes.foto ? `<img src="${nuevaRes.foto}" alt="">` : `<i data-lucide="image-plus"></i><span>Foto o captura</span>`}<input type="file" accept="image/png,image/jpeg,image/webp" hidden onchange="ctResFoto(this.files[0])"></label>
+      <div class="ct-res-campos">
+        <div class="ct-res-fila"><input placeholder="Nombre (opcional)" value="${esc(nuevaRes.nombre)}" oninput="ctRes('nombre',this.value)"><input placeholder="Ciudad (opcional)" value="${esc(nuevaRes.ciudad)}" oninput="ctRes('ciudad',this.value)">
+          <select onchange="ctRes('estrellas',this.value)">${[5, 4, 3, 0].map(n => `<option value="${n}" ${Number(nuevaRes.estrellas) === n ? "selected" : ""}>${n ? "★".repeat(n) : "Sin estrellas"}</option>`).join("")}</select></div>
+        <textarea rows="2" placeholder="Lo que dijo el cliente, tal cual (opcional)" oninput="ctRes('texto',this.value)">${esc(nuevaRes.texto)}</textarea>
+        <button class="ct-btn chico" onclick="ctResGuardar()" ${nuevaRes.foto ? "" : "disabled"}><i data-lucide="plus"></i> Agregar reseña</button>
+      </div>
+    </div></div>`;
+}
+window.ctResFoto = async (file) => { if (!file) return; try { nuevaRes.foto = await achicar(file); render(); } catch (e) { avisar(e.message, "error"); } };
+window.ctRes = (k, v) => { nuevaRes[k] = v; };
+window.ctResGuardar = async () => {
+  try {
+    const d = await api("POST", "/api/cotizador/galeria", { tipo: "resena", dataUrl: nuevaRes.foto, nombre: nuevaRes.nombre, ciudad: nuevaRes.ciudad, texto: nuevaRes.texto, estrellas: Number(nuevaRes.estrellas) });
+    st.datos.galeria = d.galeria; Object.assign(nuevaRes, { foto: "", nombre: "", ciudad: "", texto: "", estrellas: 5 });
+    render(); avisar("Reseña agregada");
+  } catch (e) { avisar(e.message, "error"); }
+};
 window.ctPaso = (i, k, v) => { st.cfg.pasos[i][k] = v; marcarCambio(); };
 window.ctTaller = (k, v) => { st.cfg.taller[k] = v; marcarCambio(); };
 
@@ -315,7 +341,7 @@ function render() {
 
     <section class="ct-card">
       ${galeriaHTML("trabajo", "Trabajos que ya entregaron", "Fotos REALES de letreros que hicieron (pueden ir con su diseño al lado). Salen en la página.")}
-      ${galeriaHTML("resena", "Reseñas reales", "Capturas de WhatsApp o fotos que les mandaron los clientes. Nada inventado.")}
+      ${resenasHTML()}
     </section>
 
     <section class="ct-card">

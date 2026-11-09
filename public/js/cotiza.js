@@ -66,6 +66,20 @@ function galeria(tipo, titulo) {
   return `<section class="seccion"><h3>${titulo}</h3><div class="galeria">${fotos.map(g => `<figure><img src="${esc(g.url)}" alt="${esc(g.titulo || titulo)}" loading="lazy">${g.titulo ? `<figcaption>${esc(g.titulo)}</figcaption>` : ""}</figure>`).join("")}</div></section>`;
 }
 
+// Reseñas reales en tarjetas que se deslizan (foto + estrellas + texto + nombre, lo que hayas puesto)
+function resenas(titulo = "Lo que dicen nuestros clientes") {
+  const rs = (st.cfg.galeria || []).filter(g => g.tipo === "resena");
+  if (!rs.length) return "";
+  return `<section class="seccion"><h3 class="izq">${titulo}</h3><div class="resenas">${rs.map(r => `
+    <div class="resena ${r.texto || r.nombre ? "" : "solo-foto"}"><img src="${esc(r.url)}" alt="Foto de cliente" loading="lazy">
+      ${r.texto || r.nombre ? `<div class="res-txt">
+        ${Number(r.estrellas) ? `<div class="estrellas">${"★".repeat(Number(r.estrellas))}${"☆".repeat(5 - Number(r.estrellas))}</div>` : ""}
+        ${r.texto ? `<p>${esc(r.texto)}</p>` : ""}
+        ${r.nombre ? `<b>${esc(r.nombre)}</b>` : ""}${r.ciudad ? `<small>${esc(r.ciudad)}</small>` : ""}
+      </div>` : ""}
+    </div>`).join("")}</div></section>`;
+}
+
 // ---------- Secciones del inicio (como las grandes marcas de letreros) ----------
 const ICONOS = {
   subir: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="m9 15 3-3 3 3"/></svg>',
@@ -147,15 +161,24 @@ function pintar() {
       ${seccionPasos()}
       ${seccionTaller()}
       ${galeria("trabajo", "Trabajos que ya entregamos")}
-      ${galeria("resena", "Lo que dicen nuestros clientes")}
+      ${resenas()}
       <div class="seccion"><button class="btn" onclick="cxIr('subir')">Sube tu logo y míralo</button></div>`;
   } else if (st.paso === "subir") {
     html = `${pasos()}<h2>Sube tu logo o diseño</h2><p class="sub">Una foto, captura o archivo de tu logo. Mientras más claro, mejor sale.</p>
       <label class="subir" for="cxArchivo"><span class="ico">⬆️</span><b>${st.logo ? "Cambiar imagen" : "Toca para subir"}</b><small>JPG, PNG o WEBP</small></label>
       <input id="cxArchivo" type="file" accept="image/png,image/jpeg,image/webp" class="oculto" onchange="cxArchivo(this.files[0])">
       ${st.error ? `<div class="error">${esc(st.error)}</div>` : ""}
-      ${st.logo ? `<div style="margin-top:14px">${pared()}</div>` : ""}
-      <div class="fila"><button class="btn claro" onclick="cxIr('inicio')">Atrás</button><button class="btn" ${st.logo ? "" : "disabled"} onclick="cxIr('material')">Continuar</button></div>`;
+      ${st.recorte ? `
+        <h2 style="margin-top:22px;font-size:20px">Recorta tu logo</h2>
+        <div class="recorte" id="cxRecorte"><img src="${st.recorte.dataUrl}" alt="Tu imagen" draggable="false">
+          <div class="caja-rec" id="cxCaja" style="${cajaEstilo()}"><i data-h="nw"></i><i data-h="ne"></i><i data-h="sw"></i><i data-h="se"></i></div></div>
+        <p class="mini">ⓘ Arrastra las esquinas para dejar solo el logo. Deja un poquito de espacio alrededor.</p>
+        <div class="fila"><button class="btn claro" onclick="cxSinRecorte()">Usar completa</button><button class="btn" onclick="cxRecortar()">Recortar y continuar</button></div>`
+      : st.logo ? `<div style="margin-top:14px">${pared()}</div>
+        <div class="fila"><button class="btn claro" onclick="cxIr('inicio')">Atrás</button><button class="btn" onclick="cxIr('material')">Continuar</button></div>
+        <p class="mini"><button class="enlace" onclick="cxVolverRecortar()">Recortar de nuevo</button></p>`
+      : `<div class="fila"><button class="btn claro" onclick="cxIr('inicio')">Atrás</button><button class="btn" disabled>Continuar</button></div>`}
+      ${resenas()}`;
   } else if (st.paso === "material") {
     html = `${pasos()}<h2>¿En qué material lo quieres?</h2><p class="sub">Lo fabricamos con corte láser a la medida.</p>
       <div class="opciones dos">${c.materiales.map(m => opcion("material", m)).join("")}</div>
@@ -203,7 +226,7 @@ function pintar() {
       <div class="fila"><button class="btn wa" onclick="cxPedir()" ${st.enviando ? "disabled" : ""}>${st.enviando ? "Armando tu pedido…" : c.whatsapp ? "Pedir por WhatsApp" : "Quiero este letrero"}</button></div>
       <div class="fila"><button class="btn claro" onclick="cxIr('tamano')">Cambiar tamaño u opciones</button></div>
       ${galeria("trabajo", "Trabajos que ya entregamos")}
-      ${galeria("resena", "Lo que dicen nuestros clientes")}`;
+      ${resenas()}`;
   }
   app.innerHTML = html;
   // Barra de precio abajo (desde que eliges material hasta antes del resultado)
@@ -282,13 +305,9 @@ window.cxArchivo = (file) => {
       cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k);
       cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
       const png = file.type === "image/png";
-      let dataUrl = cv.toDataURL(png ? "image/png" : "image/jpeg", 0.9);
-      if (dataUrl.length > 3.8e6) dataUrl = cv.toDataURL("image/jpeg", 0.82);
-      st.logo = { dataUrl, ratio: cv.height / cv.width };
-      st.e.complejidad = medirComplejidad(img);
-      st.altoManual = false;
-      st.e.alto = altoDe(st.e.ancho, st.logo.ratio);
-      st.maqueta = null; st.cotizacion = null;
+      const dataUrl = cv.toDataURL(png ? "image/png" : "image/jpeg", 0.92);
+      st.recorte = { dataUrl, png, w: cv.width, h: cv.height, x: 0.05, y: 0.05, cw: 0.9, ch: 0.9 };
+      st.logo = null; st.maqueta = null; st.cotizacion = null;
       pintar();
     };
     img.onerror = () => { st.error = "No pudimos abrir esa imagen. Prueba con otra."; pintar(); };
@@ -296,6 +315,63 @@ window.cxArchivo = (file) => {
   };
   lector.readAsDataURL(file);
 };
+
+// ---------- Recortar el logo (arrastrando las esquinas o la caja) ----------
+const cajaEstilo = () => { const r = st.recorte; return `left:${r.x * 100}%;top:${r.y * 100}%;width:${r.cw * 100}%;height:${r.ch * 100}%`; };
+let arrastre = null;
+document.addEventListener("pointerdown", (e) => {
+  const caja = e.target.closest?.("#cxCaja");
+  if (!caja || !st.recorte) return;
+  e.preventDefault();
+  const zona = $("cxRecorte").getBoundingClientRect();
+  arrastre = { h: e.target.dataset?.h || "mover", x0: e.clientX, y0: e.clientY, zona, ini: { ...st.recorte } };
+  caja.setPointerCapture?.(e.pointerId);
+});
+document.addEventListener("pointermove", (e) => {
+  if (!arrastre) return;
+  const r = st.recorte, a = arrastre, i = a.ini;
+  const dx = (e.clientX - a.x0) / a.zona.width, dy = (e.clientY - a.y0) / a.zona.height;
+  const min = 0.08, lim = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+  if (a.h === "mover") { r.x = lim(i.x + dx, 0, 1 - i.cw); r.y = lim(i.y + dy, 0, 1 - i.ch); }
+  else {
+    let x1 = i.x, y1 = i.y, x2 = i.x + i.cw, y2 = i.y + i.ch;
+    if (a.h.includes("w")) x1 = lim(i.x + dx, 0, x2 - min);
+    if (a.h.includes("e")) x2 = lim(i.x + i.cw + dx, x1 + min, 1);
+    if (a.h.includes("n")) y1 = lim(i.y + dy, 0, y2 - min);
+    if (a.h.includes("s")) y2 = lim(i.y + i.ch + dy, y1 + min, 1);
+    r.x = x1; r.y = y1; r.cw = x2 - x1; r.ch = y2 - y1;
+  }
+  const caja = $("cxCaja"); if (caja) caja.style.cssText = cajaEstilo();
+});
+document.addEventListener("pointerup", () => { arrastre = null; });
+
+// Corta la imagen y la deja lista como logo
+function aplicarRecorte(completa = false) {
+  const r = st.recorte; if (!r) return;
+  const img = new Image();
+  img.onload = () => {
+    const sx = completa ? 0 : Math.round(r.x * r.w), sy = completa ? 0 : Math.round(r.y * r.h);
+    const sw = completa ? r.w : Math.max(10, Math.round(r.cw * r.w)), sh = completa ? r.h : Math.max(10, Math.round(r.ch * r.h));
+    const cv = document.createElement("canvas"); cv.width = sw; cv.height = sh;
+    cv.getContext("2d").drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+    let dataUrl = cv.toDataURL(r.png ? "image/png" : "image/jpeg", 0.9);
+    if (dataUrl.length > 3.8e6) dataUrl = cv.toDataURL("image/jpeg", 0.82);
+    const fin = new Image();
+    fin.onload = () => {
+      st.logo = { dataUrl, ratio: sh / sw };
+      st.e.complejidad = medirComplejidad(fin);
+      st.altoManual = false;
+      st.e.alto = altoDe(st.e.ancho, st.logo.ratio);
+      st.recorteHecho = st.recorte; st.recorte = null;
+      pintar();
+    };
+    fin.src = dataUrl;
+  };
+  img.src = r.dataUrl;
+}
+window.cxRecortar = () => aplicarRecorte(false);
+window.cxSinRecorte = () => aplicarRecorte(true);
+window.cxVolverRecortar = () => { if (st.recorteHecho) { st.recorte = st.recorteHecho; st.logo = null; pintar(); } };
 
 // Pide la maqueta a la IA (mientras, muestra los beneficios de la marca)
 window.cxMaqueta = async () => {

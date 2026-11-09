@@ -46,6 +46,13 @@ const cotizacionSchema = new mongoose.Schema({
 });
 const Cotizacion = mongoose.model("Cotizacion", cotizacionSchema);
 
+// Reseña real que escribe el dueño (lo que le dijo el cliente): todo opcional
+const datosResena = (b = {}) => ({
+  nombre: String(b.nombre || "").replace(/[<>]/g, "").slice(0, 40).trim(),
+  ciudad: String(b.ciudad || "").replace(/[<>]/g, "").slice(0, 40).trim(),
+  texto: String(b.texto || "").replace(/[<>]/g, "").slice(0, 300).trim(),
+  estrellas: Math.min(5, Math.max(0, Math.round(Number(b.estrellas) || 0)))
+});
 const mesActual = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Bogota" }).slice(0, 7);
 const hoy = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Bogota" });
 const nuevaClave = () => crypto.randomBytes(6).toString("base64url").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8) || crypto.randomBytes(4).toString("hex");
@@ -89,7 +96,7 @@ export function registrarRutasCotizadorPublico(app) {
       if (!cfg.activo) return res.status(404).json({ error: "El cotizador está apagado por ahora" });
       const { limites, ...publica } = cfg;
       const g = gastoDelMes(c);
-      res.json({ ...publica, conMaqueta: limites.usdMes > g.usd + PRECIO_IMAGEN && limites.maquetasPorDia > 0, galeria: (c.galeria || []).map(x => ({ url: `/api/cotiza/img/${x.id}`, ...(x.idAntes ? { urlAntes: `/api/cotiza/img/${x.idAntes}`, real: x.real !== false } : {}), tipo: x.tipo, titulo: x.titulo || "" })) });
+      res.json({ ...publica, conMaqueta: limites.usdMes > g.usd + PRECIO_IMAGEN && limites.maquetasPorDia > 0, galeria: (c.galeria || []).map(x => ({ url: `/api/cotiza/img/${x.id}`, ...(x.idAntes ? { urlAntes: `/api/cotiza/img/${x.idAntes}`, real: x.real !== false } : {}), ...(x.tipo === "resena" ? { nombre: x.nombre || "", ciudad: x.ciudad || "", texto: x.texto || "", estrellas: x.estrellas || 0 } : {}), tipo: x.tipo, titulo: x.titulo || "" })) });
     } catch (err) { console.error("Cotizador config:", err); res.status(500).json({ error: "No se pudo abrir el cotizador" }); }
   });
 
@@ -212,7 +219,7 @@ export function registrarRutasCotizador(app) {
       }
       const doc = await CotizadorImagen.create({ owner: req.user.uid, tipo, mime: im.tipo, datos: im.datos });
       const docAntes = antes ? await CotizadorImagen.create({ owner: req.user.uid, tipo: "par-antes", mime: antes.tipo, datos: antes.datos }) : null;
-      c.galeria = [...(c.galeria || []), { id: String(doc._id), ...(docAntes ? { idAntes: String(docAntes._id), real: req.body?.real !== false } : {}), tipo, titulo: String(req.body?.titulo || "").replace(/[<>]/g, "").slice(0, 80) }];
+      c.galeria = [...(c.galeria || []), { id: String(doc._id), ...(docAntes ? { idAntes: String(docAntes._id), real: req.body?.real !== false } : {}), ...(tipo === "resena" ? datosResena(req.body) : {}), tipo, titulo: String(req.body?.titulo || "").replace(/[<>]/g, "").slice(0, 80) }];
       c.markModified("galeria");
       await c.save();
       res.json(vista(c));

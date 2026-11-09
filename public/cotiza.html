@@ -77,6 +77,29 @@
     .contador span { min-width: 30px; text-align: center; font-weight: 700; font-size: 18px; }
     .mini { color: var(--suave); font-size: 12.5px; text-align: center; margin-top: 10px; }
     .oculto { display: none !important; }
+    /* Recortar */
+    .recorte { position: relative; margin-top: 12px; border-radius: 14px; overflow: hidden; background: #000; touch-action: none; user-select: none; }
+    .recorte img { width: 100%; display: block; pointer-events: none; }
+    .caja-rec { position: absolute; border: 2px dashed #fff; box-shadow: 0 0 0 9999px rgba(0,0,0,.55); cursor: move; touch-action: none; }
+    .caja-rec i { position: absolute; width: 26px; height: 26px; border: 3px solid #fff; background: rgba(255,255,255,.15); touch-action: none; }
+    .caja-rec i[data-h="nw"] { left: -13px; top: -13px; cursor: nwse-resize; }
+    .caja-rec i[data-h="ne"] { right: -13px; top: -13px; cursor: nesw-resize; }
+    .caja-rec i[data-h="sw"] { left: -13px; bottom: -13px; cursor: nesw-resize; }
+    .caja-rec i[data-h="se"] { right: -13px; bottom: -13px; cursor: nwse-resize; }
+    .enlace { background: none; border: 0; color: var(--a1); font: inherit; font-weight: 600; cursor: pointer; text-decoration: underline; }
+    /* Reseñas en tarjetas */
+    .seccion h3.izq { text-align: left; color: #fbbf24; }
+    .resenas { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; padding-bottom: 4px; }
+    .resenas::-webkit-scrollbar { display: none; }
+    .resena { flex: 0 0 86%; max-width: 420px; scroll-snap-align: start; display: flex; gap: 14px; background: var(--caja); border: 1px solid var(--borde); border-radius: 18px; padding: 12px; }
+    .resena img { width: 38%; aspect-ratio: 4 / 5; object-fit: cover; border-radius: 12px; flex: 0 0 auto; }
+    .resena.solo-foto { flex-basis: 60%; max-width: 260px; padding: 0; overflow: hidden; }
+    .resena.solo-foto img { width: 100%; border-radius: 0; }
+    .res-txt { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+    .res-txt p { margin: 0; font-size: 14px; line-height: 1.45; color: #e2e8f0; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
+    .res-txt b { font-size: 15px; margin-top: auto; }
+    .res-txt small { color: var(--suave); font-size: 12px; }
+    .estrellas { color: #facc15; letter-spacing: 2px; font-size: 16px; }
     /* Carrusel tu logo → así quedó */
     .carrusel { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; border-radius: 20px; }
     .carrusel::-webkit-scrollbar { display: none; }
