@@ -111,10 +111,11 @@ function costosHTML() {
 
   <section class="ct-card">
     <div class="ct-card-head"><h3>2. Tipos de letrero</h3><small>Lo que elige el cliente · marca qué láminas lleva (cada una del tamaño del letrero)</small></div>
-    <div class="ct-scroll"><table class="ct-tabla"><thead><tr><th>Nombre</th><th>Descripción (la ve el cliente)</th>${c.laminas.map(l => `<th class="n">${esc(l.nombre.split(" ").slice(0, 2).join(" "))}</th>`).join("")}<th class="n">Lleva luz</th><th></th></tr></thead><tbody>
+    <div class="ct-scroll"><table class="ct-tabla"><thead><tr><th>Nombre</th><th>Descripción (la ve el cliente)</th>${c.laminas.map(l => `<th class="n">${esc(l.nombre.split(" ").slice(0, 2).join(" "))}</th>`).join("")}<th class="n">Lleva luz</th><th class="n" title="La IA redibuja el logo con pocas líneas de tubo, sin detalles finos">Neón (simplifica)</th><th></th></tr></thead><tbody>
       ${c.materiales.map((m, i) => `<tr><td><input value="${esc(m.nombre)}" oninput="ctCampo('materiales',${i},'nombre',this.value)"></td><td><input class="ancho" value="${esc(m.desc)}" oninput="ctCampo('materiales',${i},'desc',this.value)"></td>
         ${c.laminas.map(l => `<td class="n"><input type="checkbox" ${m.capas.includes(l.id) ? "checked" : ""} onchange="ctCapa(${i},'${esc(l.id)}',this.checked)"></td>`).join("")}
         <td class="n"><input type="checkbox" ${m.conLuz ? "checked" : ""} onchange="ctCampo('materiales',${i},'conLuz',this.checked)"></td>
+        <td class="n"><input type="checkbox" ${m.neon ? "checked" : ""} onchange="ctCampo('materiales',${i},'neon',this.checked)"></td>
         <td><button class="ct-icono" title="Quitar" onclick="ctQuitar('materiales',${i})"><i data-lucide="trash-2"></i></button></td></tr>`).join("")}
     </tbody></table></div>
     <button class="ct-btn claro chico" onclick="ctAgregar('materiales')"><i data-lucide="plus"></i> Agregar tipo</button>
