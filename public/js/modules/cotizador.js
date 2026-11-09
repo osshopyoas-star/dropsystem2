@@ -46,16 +46,32 @@ function marcarCambio() {
 }
 
 // Tabla editable de opciones (materiales, luces, dónde va, montaje)
+// Foto de ejemplo de una opción (dónde va, forma, luz, montaje): sale en la tarjeta de la opción
+function fotoOpcion(grupo, id) {
+  const ej = (st.datos.galeria || []).find(g => g.tipo === "ejemplo" && (g.grupo || "materiales") === grupo && g.material === id);
+  return `<span class="ct-foto-op">
+    <label title="${ej ? "Cambiar foto" : "Subir foto de ejemplo"}">${ej ? `<img src="${esc(ej.url)}" alt="">` : `<i data-lucide="image-plus"></i>`}<input type="file" accept="image/png,image/jpeg,image/webp" hidden onchange="ctEjemploOp('${grupo}','${esc(id)}', this.files[0])"></label>
+    ${ej ? `<button class="ct-link" onclick="ctBorrarFoto('${esc(ej.id)}')">Quitar</button>` : ""}</span>`;
+}
+window.ctEjemploOp = async (grupo, id, file) => {
+  if (!file) return;
+  try {
+    const d = await api("POST", "/api/cotizador/galeria", { tipo: "ejemplo", grupo, material: id, dataUrl: await achicar(file) });
+    st.datos.galeria = d.galeria; render(); avisar("Foto de ejemplo guardada");
+  } catch (e) { avisar(e.message, "error"); }
+};
+
 function tablaOpciones(grupo, titulo, ayuda, campos) {
   const filas = st.cfg[grupo] || [];
   return `
   <section class="ct-card">
     <div class="ct-card-head"><h3>${titulo}</h3><small>${ayuda}</small></div>
     <div class="ct-scroll"><table class="ct-tabla">
-      <thead><tr><th>Nombre</th><th>Descripción (la ve el cliente)</th>${campos.map(c => `<th class="n">${c.t}</th>`).join("")}<th></th></tr></thead>
+      <thead><tr><th>Nombre</th><th>Descripción (la ve el cliente)</th><th class="n">Foto de ejemplo</th>${campos.map(c => `<th class="n">${c.t}</th>`).join("")}<th></th></tr></thead>
       <tbody>${filas.map((x, i) => `<tr>
         <td><input value="${esc(x.nombre)}" oninput="ctCampo('${grupo}',${i},'nombre',this.value)"></td>
         <td><input class="ancho" value="${esc(x.desc)}" oninput="ctCampo('${grupo}',${i},'desc',this.value)"></td>
+        <td class="n">${fotoOpcion(grupo, x.id)}</td>
         ${campos.map(c => c.tipo === "bool"
           ? `<td class="n"><input type="checkbox" ${x[c.k] ? "checked" : ""} onchange="ctCampo('${grupo}',${i},'${c.k}',this.checked)"></td>`
           : `<td class="n"><input type="number" min="0" step="any" class="num" value="${x[c.k] ?? 0}" oninput="ctCampo('${grupo}',${i},'${c.k}',Number(this.value)||0)"></td>`).join("")}
@@ -129,7 +145,7 @@ function costosHTML() {
   <section class="ct-card">
     <div class="ct-card-head"><h3><i data-lucide="image"></i> Cómo se ve cada tipo</h3><small>Sube una foto REAL de un letrero de ese tipo que ya hicieron: sale en la opción y la IA copia ese acabado (material, grabado, luz) con el diseño del cliente</small></div>
     <div class="ct-ejemplos">${c.materiales.map((m, i) => {
-      const ej = (st.datos.galeria || []).find(g => g.tipo === "ejemplo" && g.material === m.id);
+      const ej = (st.datos.galeria || []).find(g => g.tipo === "ejemplo" && (g.grupo || "materiales") === "materiales" && g.material === m.id);
       return `<div class="ct-ejemplo">
         <label class="ct-par-foto">${ej ? `<img src="${esc(ej.url)}" alt="">` : `<i data-lucide="image-plus"></i><span>Foto de ejemplo</span>`}<input type="file" accept="image/png,image/jpeg,image/webp" hidden onchange="ctEjemplo('${esc(m.id)}', this.files[0])"></label>
         <div><b>${esc(m.nombre)}</b>${ej ? ` <button class="ct-link" onclick="ctBorrarFoto('${esc(ej.id)}')">Quitar foto</button>` : ""}
@@ -254,7 +270,7 @@ window.ctMarcaImg = async (campo, file) => {
 window.ctEjemplo = async (material, file) => {
   if (!file) return;
   try {
-    const d = await api("POST", "/api/cotizador/galeria", { tipo: "ejemplo", material, dataUrl: await achicar(file) });
+    const d = await api("POST", "/api/cotizador/galeria", { tipo: "ejemplo", grupo: "materiales", material, dataUrl: await achicar(file) });
     st.datos.galeria = d.galeria; render(); avisar("Foto de ejemplo guardada");
   } catch (e) { avisar(e.message, "error"); }
 };

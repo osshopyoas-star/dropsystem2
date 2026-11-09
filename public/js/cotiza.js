@@ -160,7 +160,8 @@ function seccionTaller() {
 
 function opcion(grupo, x, extra = "") {
   const on = st.e[grupo] === x.id;
-  const ej = grupo === "material" ? (st.cfg.galeria || []).find(g => g.tipo === "ejemplo" && g.material === x.id) : null;
+  const lista = { material: "materiales", ubicacion: "ubicaciones", forma: "formas", luz: "luces", montaje: "montajes" }[grupo];
+  const ej = (st.cfg.galeria || []).find(g => g.tipo === "ejemplo" && (g.grupo || "materiales") === lista && g.material === x.id);
   return `<button class="op ${on ? "on" : ""} ${ej ? "con-foto" : ""}" onclick="cxElegir('${grupo}','${esc(x.id)}')">${ej ? `<span class="op-foto"><img src="${esc(ej.url)}" alt="Ejemplo: ${esc(x.nombre)}" loading="lazy"><em>EJEMPLO</em></span>` : ""}<span>${extra ? `<span class="extra">${esc(extra)}</span>` : ""}<b>${esc(x.nombre)}</b>${x.desc ? `<small>${esc(x.desc)}</small>` : ""}</span></button>`;
 }
 
