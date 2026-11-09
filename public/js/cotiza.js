@@ -20,8 +20,18 @@ const plata = (v) => formatoPlata(v, st.cfg?.moneda);
 const q = () => (st.cfg && st.e.material ? cotizar(st.cfg, st.e) : null);
 
 // Altura para Shopify: la página va dentro de un iframe y le avisa cuánto mide
-const avisarAlto = () => { try { parent.postMessage({ cdxAlto: document.documentElement.scrollHeight }, "*"); } catch {} };
-new ResizeObserver(avisarAlto).observe(document.body);
+const enShopify = window.self !== window.top;
+const avisarAlto = () => {
+  if (!enShopify) return;
+  try {
+    const alto = Math.ceil(document.getElementById("app").getBoundingClientRect().height + ($("barra")?.classList.contains("ver") ? 90 : 20));
+    parent.postMessage({ cdxAlto: alto }, "*");
+  } catch {}
+};
+new ResizeObserver(avisarAlto).observe(document.getElementById("app"));
+document.addEventListener("load", (e) => { if (e.target.tagName === "IMG") avisarAlto(); }, true);
+setInterval(avisarAlto, 1500);
+if (enShopify) document.documentElement.classList.add("en-shopify");
 const arriba = () => { window.scrollTo({ top: 0, behavior: "smooth" }); try { parent.postMessage({ cdxArriba: true }, "*"); } catch {} };
 
 async function api(metodo, url, body) {
@@ -185,7 +195,7 @@ function pintar() {
   let html = "";
   if (st.paso === "inicio") {
     const titulo = esc(c.titulo).replace(/(letrero|logo|neón|neon)/i, '<span class="brilla">$1</span>');
-    html = `<div class="marca">${c.logo ? `<img src="${esc(c.logo)}" alt="${esc(c.marca)}">` : esc(c.marca)}</div>
+    html = `${c.cabecera === "logo" && c.logo ? `<div class="marca"><img src="${esc(c.logo)}" alt="${esc(c.marca)}"></div>` : c.cabecera === "nombre" ? `<div class="marca">${esc(c.marca)}</div>` : ""}
       <h1>${titulo}</h1>
       <p class="sub">${esc(c.subtitulo)}</p>
       <button class="btn" onclick="cxIr('subir')">Sube tu logo y míralo</button>

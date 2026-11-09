@@ -27,16 +27,18 @@ function avisar(texto, tipo = "ok") {
 }
 
 const enlace = () => `${location.origin}/cotiza/${st.datos?.clave || ""}`;
-const codigoShopify = () => `<div style="margin:0 auto;max-width:900px">
-<iframe id="cdx-cotiza" src="${enlace()}" style="width:100%;min-height:900px;border:0;display:block;background:#07080d" allow="clipboard-write" loading="lazy" title="Cotiza tu letrero"></iframe>
+const codigoShopify = () => `<div style="width:100%;max-width:100%;margin:0;padding:0;overflow:hidden">
+<iframe id="cdx-cotiza" src="${enlace()}" width="100%" height="1600" scrolling="no" frameborder="0" style="display:block;width:100%;min-width:100%;height:1600px;border:0;margin:0;background:#07080d" allow="clipboard-write" title="Cotiza tu letrero"></iframe>
 </div>
 <script>
-window.addEventListener("message", function (e) {
-  if (e.origin !== "${location.origin}" || !e.data) return;
+(function () {
   var f = document.getElementById("cdx-cotiza");
-  if (e.data.cdxAlto) f.style.height = e.data.cdxAlto + "px";
-  if (e.data.cdxArriba) f.scrollIntoView({ behavior: "smooth" });
-});
+  window.addEventListener("message", function (e) {
+    if (e.origin !== "${location.origin}" || !e.data) return;
+    if (e.data.cdxAlto) { f.style.height = e.data.cdxAlto + "px"; f.height = e.data.cdxAlto; }
+    if (e.data.cdxArriba) f.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+})();
 </script>`;
 
 function marcarCambio() {
@@ -360,6 +362,7 @@ function render() {
       <div class="ct-card-head"><h3>Lo que ve el cliente</h3></div>
       <div class="ct-grid">
         <label>Marca<input value="${esc(c.marca)}" oninput="ctCfg('marca', this.value)"></label>
+        <label>Arriba de la página mostrar<select onchange="ctCfg('cabecera', this.value)">${[["nada", "Nada (dentro de Shopify ya sale tu logo)"], ["nombre", "El nombre de la marca"], ["logo", "El logo"]].map(([k, t]) => `<option value="${k}" ${c.cabecera === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
         <div class="ct-marca-imgs">
           <label class="ct-par-foto ct-logo-marca">${c.logo ? `<img src="${esc(c.logo)}" alt="">` : `<i data-lucide="image-plus"></i><span>Logo (arriba)</span>`}<input type="file" accept="image/png,image/jpeg,image/webp" hidden onchange="ctMarcaImg('logo', this.files[0])"></label>
           <label class="ct-par-foto">${c.icono ? `<img src="${esc(c.icono)}" alt="">` : `<i data-lucide="image-plus"></i><span>Ícono pestaña</span>`}<input type="file" accept="image/png,image/jpeg,image/webp" hidden onchange="ctMarcaImg('icono', this.files[0])"></label>

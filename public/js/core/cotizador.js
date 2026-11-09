@@ -7,7 +7,8 @@
 export const CONFIG_DEFECTO = {
   activo: true,
   marca: "Cegumon",
-  logo: "/marcas/cegumon-logo.png",          // arriba de la página (en vez del nombre)
+  cabecera: "nada",                          // arriba de la página: "nada" · "nombre" · "logo"
+  logo: "/marcas/cegumon-logo.png",          // el logo (si cabecera = "logo")
   icono: "/marcas/cegumon-icono-192.png",    // el iconito de la pestaña del navegador
   titulo: "Tu logo convertido en letrero",
   subtitulo: "Súbelo y míralo en tu pared en menos de un minuto. Precio al instante.",
@@ -122,6 +123,7 @@ export function limpiarConfig(c = {}) {
   return {
     activo: c.activo === undefined ? d.activo : !!c.activo,
     marca: texto(c.marca, 60, d.marca) || d.marca,
+    cabecera: ["nada", "nombre", "logo"].includes(c.cabecera) ? c.cabecera : d.cabecera,
     logo: rutaImagen(c.logo, d.logo),
     icono: rutaImagen(c.icono, d.icono),
     titulo: texto(c.titulo, 90, d.titulo) || d.titulo,
