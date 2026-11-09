@@ -59,6 +59,11 @@ export const CONFIG_DEFECTO = {
     { id: "interior", nombre: "Interior", desc: "Local, oficina, cuarto, evento.", pct: 0 },
     { id: "exterior", nombre: "Exterior", desc: "Fachada o lugar donde le da lluvia.", pct: 30 }
   ],
+  // Forma del panel: rectangular o siguiendo el contorno del logo (recargo en % sobre la fabricación)
+  formas: [
+    { id: "rectangulo", nombre: "Rectangular", desc: "Panel con las esquinas redondeadas.", pct: 0 },
+    { id: "silueta", nombre: "Con la forma de tu logo", desc: "Cortado con láser siguiendo el contorno de tu diseño.", pct: 10 }
+  ],
   montajes: [
     { id: "pared", nombre: "Para colgar en pared", desc: "Con tornillos y chazos.", precio: 0 },
     { id: "base", nombre: "Con base para mesa", desc: "Base en acrílico para poner sobre un mueble.", precio: 35000 }
@@ -114,6 +119,7 @@ export function limpiarConfig(c = {}) {
     luces: lista(c.luces, d.luces, { pct: "n" }),
     ubicaciones: lista(c.ubicaciones, d.ubicaciones, { pct: "n" }),
     montajes: lista(c.montajes, d.montajes, { precio: "n" }),
+    formas: lista(c.formas, d.formas, { pct: "n" }),
     anchoMin, anchoMax,
     anchoDefecto: Math.min(anchoMax, Math.max(anchoMin, num(c.anchoDefecto, d.anchoDefecto))),
     redondeo: [1, 100, 500, 1000, 5000, 10000].includes(num(c.redondeo)) ? num(c.redondeo) : d.redondeo,
@@ -175,6 +181,7 @@ export function cotizar(cfg, eleccion = {}) {
   const luz = mat.conLuz ? buscar(c.luces, eleccion.luz) : null;
   const ubi = buscar(c.ubicaciones, eleccion.ubicacion);
   const mon = buscar(c.montajes, eleccion.montaje);
+  const forma = buscar(c.formas, eleccion.forma);
   const ancho = Math.min(c.anchoMax, Math.max(c.anchoMin, num(eleccion.ancho, c.anchoDefecto)));
   const alto = Math.max(1, num(eleccion.alto, ancho));
   const cantidad = Math.min(50, Math.max(1, Math.round(num(eleccion.cantidad, 1))));
@@ -196,8 +203,9 @@ export function cotizar(cfg, eleccion = {}) {
   // 2. Opciones del cliente
   const recargoLuz = luz ? fabricacion * luz.pct / 100 : 0;
   const recargoUbicacion = ubi ? fabricacion * ubi.pct / 100 : 0;
+  const recargoForma = forma ? fabricacion * forma.pct / 100 : 0;
   const precioMontaje = mon ? mon.precio : 0;
-  const unidad = fabricacion + recargoLuz + recargoUbicacion + precioMontaje;
+  const unidad = fabricacion + recargoLuz + recargoUbicacion + recargoForma + precioMontaje;
   const costoPedido = unidad * cantidad;
 
   // 3. Pauta, flete y ganancia: dependen del precio final, así que se busca el tramo hasta que cuadre
@@ -221,7 +229,7 @@ export function cotizar(cfg, eleccion = {}) {
     material: mat, luz, ubicacion: ubi, montaje: mon, ancho, alto, cantidad, area, complejidad,
     detalle: { laminas: laminas.map(x => ({ ...x, valor: red(x.valor) })), laser: { ...laser, valor: red(laser.valor) }, otros: otros.map(x => ({ ...x, valor: red(x.valor) })) },
     materiales: red(materiales), manoObra: red(manoObra), gananciaProducto: red(gananciaProducto), fabricacion: red(fabricacion),
-    recargoLuz: red(recargoLuz), recargoUbicacion: red(recargoUbicacion), precioMontaje: red(precioMontaje),
+    recargoLuz: red(recargoLuz), recargoUbicacion: red(recargoUbicacion), recargoForma: red(recargoForma), precioMontaje: red(precioMontaje), forma,
     unidad: red(unidad), costoPedido: red(costoPedido), pauta: red(pauta), flete: red(flete), ganancia: red(ganancia),
     total, anticipo, saldo: total - anticipo
   };
@@ -251,6 +259,7 @@ export function mensajeWhatsapp(cfg, q, { maquetaUrl = "", notas = "" } = {}) {
     q.ubicacion ? `• Va en: ${q.ubicacion.nombre}` : "",
     `• Tamaño: ${q.ancho} × ${q.alto} cm`,
     `• Diseño: ${COMPLEJIDADES[q.complejidad] || "Medio"}`,
+    q.forma ? `• Forma: ${q.forma.nombre}` : "",
     q.montaje ? `• Montaje: ${q.montaje.nombre}` : "",
     `• Cantidad: ${q.cantidad}`,
     `• Precio cotizado: ${f(q.total)}${cfg.anticipoPct > 0 && cfg.anticipoPct < 100 ? ` (anticipo ${cfg.anticipoPct}%: ${f(q.anticipo)})` : ""}`,
@@ -279,6 +288,7 @@ export function promptMaqueta(cfg, q, { conEjemplo = false } = {}) {
       ? "DISEÑO DEL CLIENTE: es la PRIMERA imagen (<IMAGE_0>). Cópialo IDÉNTICO: misma forma, mismas letras escritas igual, mismas proporciones y todos sus detalles. No agregues textos, no cambies palabras, no inventes partes, no le pongas marcas.\nACABADO: la SEGUNDA imagen (<IMAGE_1>) es un letrero que ya fabricamos. Copia SOLO cómo se ve: el material, el grabado, cómo brilla la luz, el borde, la separación de la pared y el tipo de foto. NO copies su dibujo: el dibujo es el del cliente."
       : "DISEÑO DEL CLIENTE: es el de la imagen de referencia. Cópialo IDÉNTICO: misma forma, mismas letras escritas igual, mismos colores y proporciones. No agregues textos, no cambies palabras, no inventes partes, no le pongas marcas.",
     `MATERIAL: ${m.nombre}. ${m.aspecto || m.desc || ""}`,
+    q.forma ? `FORMA DEL PANEL (esto manda sobre cualquier otra indicación de forma): ${q.forma.id === "silueta" ? "el panel NO es rectangular: va cortado con láser siguiendo el CONTORNO EXTERIOR del diseño del cliente, con un borde parejo de unos 2 cm alrededor del dibujo, como una silueta." : q.forma.id === "rectangulo" ? "rectangular con las esquinas redondeadas y el borde pulido." : `${q.forma.nombre}. ${q.forma.desc || ""}`}` : "",
     `LUZ: ${luz}`,
     `DÓNDE: montado ${escena}.`,
     `TAMAÑO REAL: ${q.ancho} cm de ancho por ${q.alto} cm de alto; que se note la escala con lo que hay alrededor.`,

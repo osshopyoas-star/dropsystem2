@@ -12,7 +12,7 @@ const app = $("app");
 const st = {
   cfg: null, paso: "inicio",
   logo: null,            // { dataUrl, ratio }
-  e: { material: "", luz: "", ubicacion: "", montaje: "", ancho: 60, alto: 60, cantidad: 1, complejidad: "medio" },
+  e: { material: "", luz: "", ubicacion: "", montaje: "", forma: "", ancho: 60, alto: 60, cantidad: 1, complejidad: "medio" },
   altoManual: false, maqueta: null, cotizacion: null, aviso: "", error: "", notas: "", enviando: false
 };
 const PASOS = ["subir", "material", "lugar", "tamano", "resultado"];
@@ -40,6 +40,7 @@ async function iniciar() {
     st.e.luz = st.cfg.luces[0]?.id || "";
     st.e.ubicacion = st.cfg.ubicaciones[0]?.id || "";
     st.e.montaje = st.cfg.montajes[0]?.id || "";
+    st.e.forma = st.cfg.formas?.[0]?.id || "";
     pintar();
   } catch (e) {
     app.innerHTML = `<p class="sub">${esc(e.message)}</p>`;
@@ -188,6 +189,7 @@ function pintar() {
     const m = c.materiales.find(x => x.id === st.e.material);
     html = `${pasos()}<h2>¿Dónde lo vas a poner?</h2><p class="sub">Así sabemos qué tan resistente tiene que ser.</p>
       <div class="opciones dos">${c.ubicaciones.map(u => opcion("ubicacion", u, u.pct ? `+${u.pct}%` : "")).join("")}</div>
+      ${(c.formas || []).length > 1 ? `<h2 style="margin-top:26px">¿Qué forma quieres?</h2><div class="opciones dos" style="margin-top:12px">${c.formas.map(f => opcion("forma", f, f.pct ? `+${f.pct}%` : "")).join("")}</div>` : ""}
       ${m?.conLuz ? `<h2 style="margin-top:26px">¿Qué luz quieres?</h2><div class="opciones dos" style="margin-top:12px">${c.luces.map(l => opcion("luz", l, l.pct ? `+${l.pct}%` : "")).join("")}</div>` : ""}
       <div class="fila"><button class="btn claro" onclick="cxIr('material')">Atrás</button><button class="btn" onclick="cxIr('tamano')">Continuar</button></div>`;
   } else if (st.paso === "tamano") {
@@ -216,6 +218,7 @@ function pintar() {
           <tr><td>Diseño</td><td>${esc(COMPLEJIDADES[r.complejidad])}</td></tr>
           ${r.luz ? `<tr><td>Luz</td><td>${esc(r.luz.nombre)}</td></tr>` : ""}
           ${r.ubicacion ? `<tr><td>Va en</td><td>${esc(r.ubicacion.nombre)}</td></tr>` : ""}
+          ${r.forma ? `<tr><td>Forma</td><td>${esc(r.forma.nombre)}</td></tr>` : ""}
           ${r.montaje ? `<tr><td>Montaje</td><td>${esc(r.montaje.nombre)}</td></tr>` : ""}
           ${r.cantidad > 1 ? `<tr><td>Cantidad</td><td>${r.cantidad}</td></tr>` : ""}
           <tr class="tot"><td>Total</td><td>${plata(r.total)}</td></tr>

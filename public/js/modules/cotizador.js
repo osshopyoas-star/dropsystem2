@@ -87,7 +87,7 @@ function pruebaHTML() {
       ${fila(`Mano de obra (${st.cfg.manoObraPct}%)`, r.manoObra)}
       ${fila(`Ganancia del producto (${st.cfg.gananciaProductoPct}%)`, r.gananciaProducto)}
       ${fila("FABRICACIÓN", r.fabricacion, "fab")}
-      ${r.recargoLuz ? fila(`Luz: ${esc(r.luz.nombre)}`, r.recargoLuz) : ""}${r.recargoUbicacion ? fila(esc(r.ubicacion.nombre), r.recargoUbicacion) : ""}${r.precioMontaje ? fila(esc(r.montaje.nombre), r.precioMontaje) : ""}
+      ${r.recargoLuz ? fila(`Luz: ${esc(r.luz.nombre)}`, r.recargoLuz) : ""}${r.recargoUbicacion ? fila(esc(r.ubicacion.nombre), r.recargoUbicacion) : ""}${r.recargoForma ? fila(`Forma: ${esc(r.forma.nombre)}`, r.recargoForma) : ""}${r.precioMontaje ? fila(esc(r.montaje.nombre), r.precioMontaje) : ""}
       ${fila("Pauta", r.pauta)}
       ${fila("Flete", r.flete)}
       ${fila(`Tu ganancia (${st.cfg.gananciaPct}%)`, r.ganancia)}
@@ -332,6 +332,7 @@ function render() {
 
     ${tablaOpciones("luces", "Tipo de luz", "Solo para tipos con luz · recargo en % sobre la fabricación", [{ k: "pct", t: "Recargo %" }])}
     ${tablaOpciones("ubicaciones", "¿Dónde va?", "Recargo en % sobre la fabricación (por ejemplo exterior, que aguante lluvia)", [{ k: "pct", t: "Recargo %" }])}
+    ${tablaOpciones("formas", "Forma del letrero", "Rectangular o con la forma del logo · recargo en % sobre la fabricación (cortar la silueta tarda más)", [{ k: "pct", t: "Recargo %" }])}
     ${tablaOpciones("montajes", "Montaje", "Precio fijo que se suma por letrero", [{ k: "precio", t: "Precio $" }])}
 
     <section class="ct-card">
@@ -381,7 +382,7 @@ window.ctQuitar = (grupo, i) => {
   st.cfg[grupo].splice(i, 1); marcarCambio(); render();
 };
 window.ctAgregar = (grupo) => {
-  const nuevo = { laminas: { nombre: "Nueva lámina", precio: 100000, m2: 2.16 }, costos: { nombre: "Nuevo costo", valor: 0, modo: "fijo", soloLuz: false }, materiales: { nombre: "Nuevo tipo", desc: "", capas: [st.cfg.laminas[0]?.id].filter(Boolean), conLuz: false }, luces: { nombre: "Nueva luz", desc: "", pct: 0 }, ubicaciones: { nombre: "Nuevo lugar", desc: "", pct: 0 }, montajes: { nombre: "Nuevo montaje", desc: "", precio: 0 } }[grupo];
+  const nuevo = { laminas: { nombre: "Nueva lámina", precio: 100000, m2: 2.16 }, costos: { nombre: "Nuevo costo", valor: 0, modo: "fijo", soloLuz: false }, materiales: { nombre: "Nuevo tipo", desc: "", capas: [st.cfg.laminas[0]?.id].filter(Boolean), conLuz: false }, luces: { nombre: "Nueva luz", desc: "", pct: 0 }, ubicaciones: { nombre: "Nuevo lugar", desc: "", pct: 0 }, montajes: { nombre: "Nuevo montaje", desc: "", precio: 0 }, formas: { nombre: "Nueva forma", desc: "", pct: 0 } }[grupo];
   st.cfg[grupo].push({ id: `${grupo.slice(0, 3)}${Date.now().toString(36)}`, ...nuevo });
   marcarCambio(); render();
 };
