@@ -240,7 +240,8 @@ export function registrarRutasCotizador(app) {
         const viejo = (c.galeria || []).find(x => x.tipo === "ejemplo" && (x.grupo || "materiales") === grupoEj && x.material === materialId);
         if (viejo) { c.galeria = c.galeria.filter(x => x !== viejo); if (idValido(viejo.id)) await CotizadorImagen.deleteOne({ _id: viejo.id, owner: req.user.uid }); }
       }
-      const max = tipo === "taller" ? 4 : MAX_GALERIA;
+      // Fotos de ejemplo: una por opción (se reemplaza), así que su tope es alto
+      const max = tipo === "taller" ? 4 : tipo === "ejemplo" ? 80 : MAX_GALERIA;
       if ((c.galeria || []).filter(x => x.tipo === tipo).length >= max) return res.status(400).json({ error: `Máximo ${max} fotos aquí` });
       const im = leerDataUrl(req.body?.dataUrl);
       if (!im) return res.status(400).json({ error: "Sube una foto JPG, PNG o WEBP (máximo 3 MB)" });
