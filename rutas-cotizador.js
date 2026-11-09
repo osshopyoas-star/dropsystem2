@@ -217,13 +217,14 @@ export function registrarRutasCotizador(app) {
 
   app.put("/api/cotizador", async (req, res) => {
     try {
-      const c = await configDe(req.user.uid);
-      c.config = limpiarConfig(req.body?.config || {});
-      c.actualizado = new Date();
-      c.markModified("config");
-      await c.save();
+      await configDe(req.user.uid);
+      const c = await CotizadorConfig.findOneAndUpdate({ owner: req.user.uid }, { $set: { config: limpiarConfig(req.body?.config || {}), actualizado: new Date() } }, { new: true });
       res.json(vista(c));
-    } catch (err) { console.error("Cotizador guardar:", err); res.status(500).json({ error: "No se pudo guardar" }); }
+    } catch (err) {
+      console.error("Cotizador guardar:", err);
+      // Esta ruta es solo del dueño: se muestra el motivo para poder arreglarlo
+      res.status(500).json({ error: `No se pudo guardar: ${String(err?.message || err).slice(0, 200)}` });
+    }
   });
 
   app.post("/api/cotizador/galeria", async (req, res) => {
