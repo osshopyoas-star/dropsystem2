@@ -11,6 +11,7 @@ import mongoose from "mongoose";
 import { rateLimit, getSession } from "./auth.js";
 import { leerDataUrl } from "./modelo-imagenes.js";
 import { pedirImagen, PRECIO_IMAGEN, PRECIO_REFERENCIA } from "./rutas-ia-imagenes.js";
+import { tiendaDe, crearPedidoBorrador } from "./rutas-shopify.js";
 import { limpiarConfig, cotizar, promptMaqueta, mensajeWhatsapp } from "./public/js/core/cotizador.js";
 
 const MAX_GALERIA = 12;
@@ -42,6 +43,7 @@ const cotizacionSchema = new mongoose.Schema({
   total: Number, anticipo: Number, moneda: String,
   notas: { type: String, default: "" },
   pidio: { type: Boolean, default: false },
+  pago: { type: String, default: "" },           // id del pedido borrador de Shopify (si fue a pagar)
   error: { type: String, default: "" },          // por qué no salió la maqueta (si falló)        // le dio "Pedir por WhatsApp"
   creado: { type: Date, default: Date.now, index: true }
 });
@@ -177,6 +179,45 @@ export function registrarRutasCotizadorPublico(app) {
     } catch (err) {
       console.error("Cotizador maqueta:", err);
       res.status(500).json({ error: "No se pudo procesar tu logo. Intenta de nuevo." });
+    }
+  });
+
+  // El cliente le da "Pagar ahora": se recalcula el precio aquí y se crea el pedido en Shopify con ese valor exacto
+  app.post("/api/cotiza/:clave/pagar", limiteGeneral, async (req, res) => {
+    try {
+      const c = await CotizadorConfig.findOne({ clave: String(req.params.clave).slice(0, 20) }).lean();
+      if (!c) return res.status(404).json({ error: "Este cotizador no existe" });
+      const cfg = limpiarConfig(c.config);
+      if (cfg.cierre !== "shopify" || !cfg.tiendaPago) return res.status(400).json({ error: "El pago en línea no está activo. Escríbenos por WhatsApp." });
+      const t = await tiendaDe(c.owner, cfg.tiendaPago);
+      if (!t) return res.status(400).json({ error: "La tienda para cobrar no está conectada. Escríbenos por WhatsApp." });
+      const q = cotizar(cfg, req.body?.eleccion || {});
+      if (!q) return res.status(400).json({ error: "Elige el material" });
+      const notas = String(req.body?.notas || "").replace(/[<>]/g, "").slice(0, 500);
+      const origen = `${req.protocol}://${req.get("host")}`;
+      let cot = null;
+      if (idValido(req.body?.cotizacion)) cot = await Cotizacion.findOne({ _id: req.body.cotizacion, owner: c.owner }).lean();
+      const unidad = Math.ceil(q.total / q.cantidad);
+      const atributos = [
+        { key: "Material", value: q.material.nombre },
+        { key: "Tamaño", value: `${q.ancho} × ${q.alto} cm` },
+        { key: "Luz", value: q.luz ? `${q.luz.nombre}${q.colorLuz ? ` · ${q.colorLuz}` : ""}` : "" },
+        { key: "Va en", value: q.ubicacion?.nombre || "" },
+        { key: "Forma", value: q.forma?.nombre || "" },
+        { key: "Montaje", value: q.montaje?.nombre || "" },
+        { key: "Notas del cliente", value: notas },
+        { key: "Logo", value: cot?.logo ? `${origen}/api/cotiza/img/${cot.logo}` : "" },
+        { key: "Maqueta", value: cot?.maqueta ? `${origen}/api/cotiza/img/${cot.maqueta}` : "" }
+      ];
+      const r = await crearPedidoBorrador(t, {
+        titulo: `Letrero personalizado · ${q.material.nombre} ${q.ancho}×${q.alto} cm`, precio: unidad, cantidad: q.cantidad, atributos,
+        nota: `Cotizador CoDropX${notas ? ` · Notas: ${notas}` : ""}`, etiquetas: ["cotizador", "letrero"]
+      });
+      if (cot) await Cotizacion.updateOne({ _id: cot._id }, { $set: { pidio: true, pago: r.id, notas, total: q.total, anticipo: q.anticipo } });
+      res.json({ url: r.url, total: q.total });
+    } catch (err) {
+      console.error("Cotizador pagar:", err);
+      res.status(err.status && err.status < 500 ? 400 : 500).json({ error: "No pudimos abrir el pago en este momento. Escríbenos por WhatsApp y te ayudamos." });
     }
   });
 

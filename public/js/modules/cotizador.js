@@ -309,6 +309,21 @@ window.ctLimpiar = async (dias) => {
   } catch (e) { avisar(e.message, "error"); }
 };
 
+// Tiendas de Shopify conectadas (para cobrar con su checkout)
+let tiendas = null;
+function tiendasPago() {
+  if (tiendas === null) {
+    tiendas = "cargando";
+    api("GET", "/api/shopify/tiendas").then(d => { tiendas = d.tiendas || []; render(); }).catch(() => { tiendas = []; render(); });
+  }
+  if (tiendas === "cargando") return `<select disabled><option>Cargando…</option></select>`;
+  if (!tiendas.length) return `<small class="ct-mini rojo">Conecta la tienda en Integraciones → Shopify.</small>`;
+  const t = tiendas.find(x => x._id === st.cfg.tiendaPago);
+  const sinPermiso = t && !(t.permisos || []).includes("write_draft_orders");
+  return `<select onchange="ctCfg('tiendaPago', this.value)"><option value="">Elige la tienda…</option>${tiendas.map(x => `<option value="${esc(x._id)}" ${x._id === st.cfg.tiendaPago ? "selected" : ""}>${esc(x.nombre || x.shop)}</option>`).join("")}</select>
+    ${sinPermiso ? `<small class="ct-mini rojo">A esta tienda le falta el permiso <b>write_draft_orders</b>: agrégalo en el Dev Dashboard de su app (Versions → Access scopes), dale Release, apruébalo en la tienda y en Integraciones dale Probar.</small>` : ""}`;
+}
+
 function cotizacionesHTML() {
   if (st.cotizaciones === null) {
     st.cotizaciones = "cargando";
@@ -368,6 +383,10 @@ function render() {
           <label class="ct-par-foto">${c.icono ? `<img src="${esc(c.icono)}" alt="">` : `<i data-lucide="image-plus"></i><span>Ícono pestaña</span>`}<input type="file" accept="image/png,image/jpeg,image/webp" hidden onchange="ctMarcaImg('icono', this.files[0])"></label>
           <small class="ct-mini">El logo sale arriba de la página (PNG con fondo transparente se ve mejor). El ícono es el de la pestaña del navegador. ${c.logo ? `<button class="ct-link" onclick="ctCfg('logo','');ctGuardar()">Quitar logo (mostrar el nombre)</button>` : ""}</small>
         </div>
+        <label>Cuando el cliente termina<select onchange="ctCfg('cierre', this.value); ctRepintar()">
+          <option value="whatsapp" ${c.cierre !== "shopify" ? "selected" : ""}>Me escribe por WhatsApp con el pedido</option>
+          <option value="shopify" ${c.cierre === "shopify" ? "selected" : ""}>Paga el total en el checkout de mi tienda Shopify</option></select></label>
+        ${c.cierre === "shopify" ? `<label>Tienda donde paga${tiendasPago()}</label>` : ""}
         <label>WhatsApp donde llegan los pedidos<input value="${esc(c.whatsapp)}" placeholder="573001234567 (con el 57)" oninput="ctCfg('whatsapp', this.value)"></label>
         <label class="dos">Título<input value="${esc(c.titulo)}" oninput="ctCfg('titulo', this.value)"></label>
         <label class="dos">Subtítulo<input value="${esc(c.subtitulo)}" oninput="ctCfg('subtitulo', this.value)"></label>

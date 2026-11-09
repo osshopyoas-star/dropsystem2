@@ -273,12 +273,16 @@ function pintar() {
         ${c.envioGratis ? `<div class="envio-gratis"><span class="camion">🚚</span><span><b>${esc(c.envioTexto)}</b><small>Ya va incluido en tu precio: no pagas nada más</small></span></div>` : ""}
         <table class="desglose">
           <tr class="tot"><td>Total</td><td>${plata(r.total)}</td></tr>
-          ${c.anticipoPct > 0 && c.anticipoPct < 100 ? `<tr><td>Anticipo para empezar (${c.anticipoPct}%)</td><td>${plata(r.anticipo)}</td></tr>` : ""}
+          ${c.cierre !== "shopify" && c.anticipoPct > 0 && c.anticipoPct < 100 ? `<tr><td>Anticipo para empezar (${c.anticipoPct}%)</td><td>${plata(r.anticipo)}</td></tr>` : ""}
         </table>` : ""}
       </div>
       <label class="campo" style="margin-top:16px">¿Algún cambio o detalle? (opcional)<textarea id="cxNotas" placeholder="Colores, letras, dónde va, para cuándo lo necesitas…" oninput="cxNotas(this.value)">${esc(st.notas)}</textarea></label>
       ${st.error ? `<div class="error">${esc(st.error)}</div>` : ""}
-      <div class="fila"><button class="btn wa" onclick="cxPedir()" ${st.enviando ? "disabled" : ""}>${st.enviando ? "Armando tu pedido…" : c.whatsapp ? "Pedir por WhatsApp" : "Quiero este letrero"}</button></div>
+      ${c.cierre === "shopify" && c.tiendaPago
+        ? `<div class="fila"><button class="btn wa" onclick="cxPagar()" ${st.enviando ? "disabled" : ""}>${st.enviando ? "Abriendo el pago…" : `Pagar ahora · ${r ? plata(r.total) : ""}`}</button></div>
+           <p class="mini">🔒 Pago seguro en nuestra tienda: tarjeta, PSE o billeteras. Envío gratis.</p>
+           ${c.whatsapp ? `<div class="fila"><button class="btn claro" onclick="cxPedir()">¿Dudas? Escríbenos por WhatsApp</button></div>` : ""}`
+        : `<div class="fila"><button class="btn wa" onclick="cxPedir()" ${st.enviando ? "disabled" : ""}>${st.enviando ? "Armando tu pedido…" : c.whatsapp ? "Pedir por WhatsApp" : "Quiero este letrero"}</button></div>`}
       <div class="fila"><button class="btn claro" onclick="cxIr('tamano')">Cambiar tamaño u opciones</button></div>
       ${galeria("trabajo", "Trabajos que ya entregamos")}
       ${resenas()}`;
@@ -477,6 +481,17 @@ window.cxMaqueta = async () => {
   }
   clearInterval(reloj);
   st.paso = "resultado"; pintar(); arriba();
+};
+
+// Pagar el total en el checkout de la tienda (sale del iframe de Shopify a la página de pago)
+window.cxPagar = async () => {
+  st.error = ""; st.enviando = true; pintar();
+  try {
+    const r = await api("POST", `/api/cotiza/${encodeURIComponent(clave)}/pagar`, { cotizacion: st.cotizacion, eleccion: st.e, notas: st.notas });
+    try { window.top.location.href = r.url; }
+    catch { window.open(r.url, "_blank", "noopener"); }
+    st.enviando = false; pintar();
+  } catch (e) { st.enviando = false; st.error = e.message; pintar(); }
 };
 
 window.cxPedir = async () => {

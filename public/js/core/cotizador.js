@@ -130,6 +130,9 @@ export function limpiarConfig(c = {}) {
     subtitulo: texto(c.subtitulo, 200, d.subtitulo),
     moneda: ["COP", "USD"].includes(c.moneda) ? c.moneda : d.moneda,
     whatsapp: String(c.whatsapp ?? "").replace(/\D/g, "").slice(0, 15),
+    // Cierre: "whatsapp" (te llega el pedido) o "shopify" (paga el total en el checkout de tu tienda)
+    cierre: ["whatsapp", "shopify"].includes(c.cierre) ? c.cierre : "whatsapp",
+    tiendaPago: /^[a-f0-9]{24}$/.test(String(c.tiendaPago || "")) ? String(c.tiendaPago) : "",
     anticipoPct: Math.min(100, Math.max(0, num(c.anticipoPct, d.anticipoPct))),
     envioGratis: c.envioGratis === undefined ? d.envioGratis : !!c.envioGratis,
     envioTexto: texto(c.envioTexto, 60, d.envioTexto) || d.envioTexto,

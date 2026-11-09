@@ -13,7 +13,7 @@ import { VERSION_SECCION, versionDeSeccion } from "./public/js/core/seccion-shop
 
 export const API_VERSION = () => process.env.SHOPIFY_API_VERSION || "2026-01";
 export const PERMISOS = ["write_products", "write_files"];
-export const PERMISOS_OPCIONALES = ["read_themes", "write_publications", "read_reports", "read_orders"];     // listar plantillas del tema · poner el producto en el canal Tienda online · visitas y conversión de las landings
+export const PERMISOS_OPCIONALES = ["read_themes", "write_publications", "read_reports", "read_orders", "write_draft_orders"];     // listar plantillas del tema · poner el producto en el canal Tienda online · visitas y conversión de las landings
 const MAX_TIENDAS = 5;
 
 const tiendaSchema = new mongoose.Schema({
@@ -386,6 +386,30 @@ export async function guardarProducto(t, { productoId, titulo, html, media, prec
     adminUrl: `https://admin.shopify.com/store/${t.shop}/products/${numeroGid(producto.id)}`,
     nuevo
   };
+}
+
+// ---------- Pedido borrador con precio exacto (cotizador): devuelve el link de pago del checkout de Shopify ----------
+// Necesita el permiso write_draft_orders. El envío lo pone el checkout de la tienda (configúralo gratis: ya va dentro del precio).
+export async function crearPedidoBorrador(t, { titulo, precio, cantidad = 1, atributos = [], nota = "", etiquetas = [] }) {
+  let data;
+  try {
+    data = await gql(t, `mutation Borrador($input: DraftOrderInput!) {
+      draftOrderCreate(input: $input) { draftOrder { id invoiceUrl } userErrors { field message } } }`, {
+      input: {
+        lineItems: [{ title: String(titulo).slice(0, 250), originalUnitPriceWithCurrency: { amount: String(Math.round(precio)), currencyCode: t.moneda || "COP" }, quantity: Math.max(1, cantidad), requiresShipping: true, taxable: false,
+          customAttributes: atributos.filter(a => a.value).map(a => ({ key: String(a.key).slice(0, 60), value: String(a.value).slice(0, 500) })) }],
+        note: String(nota || "").slice(0, 2000),
+        tags: etiquetas
+      }
+    });
+  } catch (e) {
+    if (/permis|scope|access/i.test(e.message || "")) throw new ErrorShopify("A la app de Shopify le falta el permiso write_draft_orders para crear el pedido. Agrégalo en el Dev Dashboard (Versions → Access scopes), dale Release y apruébalo en la tienda.", 400);
+    throw e;
+  }
+  erroresUsuario(data?.draftOrderCreate);
+  const url = data?.draftOrderCreate?.draftOrder?.invoiceUrl;
+  if (!url) throw new ErrorShopify("Shopify no devolvió el link de pago", 502);
+  return { id: data.draftOrderCreate.draftOrder.id, url };
 }
 
 export async function tiendaDe(owner, id) {
