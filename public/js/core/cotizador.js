@@ -150,7 +150,7 @@ function costosLimpios(c, lista) {
   const materiales = lista(nueva ? c.materiales : d.materiales, d.materiales, { conLuz: "bool" }).map((m, i) => {
     const orig = (nueva ? c.materiales : d.materiales)?.[i] || {};
     const capas = (Array.isArray(orig.capas) ? orig.capas : []).map(String).filter(x => ids.includes(x));
-    return { ...m, capas: capas.length ? [...new Set(capas)] : [ids[0]], aspecto: texto(orig.aspecto ?? d.materiales.find(x => x.id === m.id)?.aspecto ?? "", 600) };
+    return { ...m, capas: capas.length ? [...new Set(capas)] : [ids[0]], aspecto: texto(orig.aspecto ?? d.materiales.find(x => x.id === m.id)?.aspecto ?? "", 2500) };
   });
   const L = c.laser || {};
   const laser = Object.fromEntries(Object.entries(d.laser).map(([k, v]) => [k, Math.max(0, num(L[k], v))]));
