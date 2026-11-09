@@ -6078,5 +6078,5 @@ main .cal-page input:focus, main .cal-page select:focus, main .pl-page input:foc
 .ct-btn.peligro { background: linear-gradient(135deg, #ef4444, #dc2626); }
 .ct-foto-op { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; }
 .ct-foto-op label { width: 54px; height: 54px; border-radius: 10px; border: 2px dashed #93c5fd; display: flex; align-items: center; justify-content: center; color: #2563eb; cursor: pointer; overflow: hidden; }
-.ct-foto-op label img { width: 100%; height: 100%; object-fit: cover; }
+.ct-foto-op label img { width: 100%; height: 100%; object-fit: contain; background: #0f172a; }
 .ct-foto-op label svg { width: 20px; height: 20px; }
