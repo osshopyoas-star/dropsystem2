@@ -6067,3 +6067,8 @@ main .cal-page input:focus, main .cal-page select:focus, main .pl-page input:foc
 .ct-ejemplo .ct-par-foto { width: 110px; height: 130px; flex: 0 0 auto; }
 .ct-link { background: none; border: 0; color: #2563eb; cursor: pointer; font: inherit; font-size: 12px; text-decoration: underline; padding: 0; }
 @media (max-width: 640px) { .ct-ejemplos { grid-template-columns: 1fr; } .ct-ejemplo .ct-par-foto { width: 90px; height: 110px; } }
+.ct-marca-imgs { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; grid-column: 1 / -1; }
+.ct-marca-imgs .ct-par-foto { width: 90px; height: 90px; background: #0f172a; }
+.ct-marca-imgs .ct-logo-marca { width: 220px; }
+.ct-marca-imgs .ct-par-foto img { object-fit: contain; }
+.ct-marca-imgs small { flex: 1; min-width: 200px; }

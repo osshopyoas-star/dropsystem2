@@ -214,7 +214,7 @@ export function registrarRutasCotizador(app) {
     try {
       const c = await configDe(req.user.uid);
       // trabajo · resena · par (logo del cliente + cómo quedó) · taller (fotos fabricando) · ejemplo (cómo se ve un tipo de letrero)
-      const tipo = ["resena", "par", "taller", "ejemplo"].includes(req.body?.tipo) ? req.body.tipo : "trabajo";
+      const tipo = ["resena", "par", "taller", "ejemplo", "marca"].includes(req.body?.tipo) ? req.body.tipo : "trabajo";
       const materialId = String(req.body?.material || "").slice(0, 40);
       if (tipo === "ejemplo") {
         if (!materialId) return res.status(400).json({ error: "Falta el tipo de letrero" });

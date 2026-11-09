@@ -6,7 +6,9 @@
 
 export const CONFIG_DEFECTO = {
   activo: true,
-  marca: "Tu marca",
+  marca: "Cegumon",
+  logo: "/marcas/cegumon-logo.png",          // arriba de la página (en vez del nombre)
+  icono: "/marcas/cegumon-icono-192.png",    // el iconito de la pestaña del navegador
   titulo: "Tu logo convertido en letrero",
   subtitulo: "Súbelo y míralo en tu pared en menos de un minuto. Precio al instante.",
   moneda: "COP",
@@ -94,6 +96,9 @@ const num = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
 const texto = (v, max, d = "") => String(v ?? d).replace(/[<>]/g, "").slice(0, max).trim();
 const idOk = (v, i) => (String(v || "").toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 30) || `op${i}`);
 
+// Solo rutas de imágenes de CoDropX (no links de afuera); "" = sin imagen
+const rutaImagen = (v, d) => (v === undefined || v === null ? d : /^\/(marcas\/[\w.-]+|api\/cotiza\/img\/[a-f0-9]{24})$/.test(String(v)) ? String(v) : "");
+
 // Deja la configuración segura y completa (lo que venga de la pantalla o de la base de datos)
 export function limpiarConfig(c = {}) {
   const d = CONFIG_DEFECTO;
@@ -110,6 +115,8 @@ export function limpiarConfig(c = {}) {
   return {
     activo: c.activo === undefined ? d.activo : !!c.activo,
     marca: texto(c.marca, 60, d.marca) || d.marca,
+    logo: rutaImagen(c.logo, d.logo),
+    icono: rutaImagen(c.icono, d.icono),
     titulo: texto(c.titulo, 90, d.titulo) || d.titulo,
     subtitulo: texto(c.subtitulo, 200, d.subtitulo),
     moneda: ["COP", "USD"].includes(c.moneda) ? c.moneda : d.moneda,

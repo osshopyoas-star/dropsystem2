@@ -235,6 +235,17 @@ window.ctResGuardar = async () => {
     render(); avisar("Reseña agregada");
   } catch (e) { avisar(e.message, "error"); }
 };
+window.ctMarcaImg = async (campo, file) => {
+  if (!file) return;
+  try {
+    const dataUrl = await new Promise((ok, mal) => { const l = new FileReader(); l.onload = () => ok(l.result); l.onerror = mal; l.readAsDataURL(file); });
+    const d = await api("POST", "/api/cotizador/galeria", { tipo: "marca", dataUrl: /^data:image\/(png|jpeg|webp);/.test(dataUrl) && dataUrl.length < 3.9e6 ? dataUrl : await achicar(file) });
+    const nueva = d.galeria.filter(g => g.tipo === "marca").pop();
+    st.datos.galeria = d.galeria;
+    st.cfg[campo] = `/api/cotiza/img/${nueva.id}`;
+    await ctGuardar();
+  } catch (e) { avisar(e.message, "error"); }
+};
 window.ctEjemplo = async (material, file) => {
   if (!file) return;
   try {
@@ -297,6 +308,11 @@ function render() {
       <div class="ct-card-head"><h3>Lo que ve el cliente</h3></div>
       <div class="ct-grid">
         <label>Marca<input value="${esc(c.marca)}" oninput="ctCfg('marca', this.value)"></label>
+        <div class="ct-marca-imgs">
+          <label class="ct-par-foto ct-logo-marca">${c.logo ? `<img src="${esc(c.logo)}" alt="">` : `<i data-lucide="image-plus"></i><span>Logo (arriba)</span>`}<input type="file" accept="image/png,image/jpeg,image/webp" hidden onchange="ctMarcaImg('logo', this.files[0])"></label>
+          <label class="ct-par-foto">${c.icono ? `<img src="${esc(c.icono)}" alt="">` : `<i data-lucide="image-plus"></i><span>Ícono pestaña</span>`}<input type="file" accept="image/png,image/jpeg,image/webp" hidden onchange="ctMarcaImg('icono', this.files[0])"></label>
+          <small class="ct-mini">El logo sale arriba de la página (PNG con fondo transparente se ve mejor). El ícono es el de la pestaña del navegador. ${c.logo ? `<button class="ct-link" onclick="ctCfg('logo','');ctGuardar()">Quitar logo (mostrar el nombre)</button>` : ""}</small>
+        </div>
         <label>WhatsApp donde llegan los pedidos<input value="${esc(c.whatsapp)}" placeholder="573001234567 (con el 57)" oninput="ctCfg('whatsapp', this.value)"></label>
         <label class="dos">Título<input value="${esc(c.titulo)}" oninput="ctCfg('titulo', this.value)"></label>
         <label class="dos">Subtítulo<input value="${esc(c.subtitulo)}" oninput="ctCfg('subtitulo', this.value)"></label>

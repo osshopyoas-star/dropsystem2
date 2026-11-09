@@ -35,6 +35,7 @@ async function iniciar() {
   try {
     st.cfg = await api("GET", `/api/cotiza/${encodeURIComponent(clave)}/config`);
     document.title = `${st.cfg.titulo} · ${st.cfg.marca}`;
+    if (st.cfg.icono) for (const rel of ["icon", "apple-touch-icon"]) { const l = document.createElement("link"); l.rel = rel; l.href = st.cfg.icono; document.head.appendChild(l); }
     st.e.ancho = st.cfg.anchoDefecto;
     st.e.material = st.cfg.materiales[0]?.id || "";
     st.e.luz = st.cfg.luces[0]?.id || "";
@@ -153,7 +154,7 @@ function pintar() {
   let html = "";
   if (st.paso === "inicio") {
     const titulo = esc(c.titulo).replace(/(letrero|logo|neón|neon)/i, '<span class="brilla">$1</span>');
-    html = `<div class="marca">${esc(c.marca)}</div>
+    html = `<div class="marca">${c.logo ? `<img src="${esc(c.logo)}" alt="${esc(c.marca)}">` : esc(c.marca)}</div>
       <h1>${titulo}</h1>
       <p class="sub">${esc(c.subtitulo)}</p>
       <button class="btn" onclick="cxIr('subir')">Sube tu logo y míralo</button>
