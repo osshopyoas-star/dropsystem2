@@ -6072,3 +6072,4 @@ main .cal-page input:focus, main .cal-page select:focus, main .pl-page input:foc
 .ct-marca-imgs .ct-logo-marca { width: 220px; }
 .ct-marca-imgs .ct-par-foto img { object-fit: contain; }
 .ct-marca-imgs small { flex: 1; min-width: 200px; }
+.ct-aviso-amarillo { margin: 10px 0 0; padding: 9px 12px; border-radius: 10px; background: #fef9c3; border: 1px solid #fde047; color: #713f12; font-size: 13px; line-height: 1.45; }

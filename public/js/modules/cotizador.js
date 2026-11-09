@@ -69,7 +69,11 @@ function tablaOpciones(grupo, titulo, ayuda, campos) {
 function pruebaHTML() {
   const p = st.prueba;
   if (!st.cfg.materiales.some(m => m.id === p.material)) p.material = st.cfg.materiales[0]?.id || "";
-  const r = cotizar(st.cfg, { material: p.material, ancho: p.ancho, alto: p.alto, luz: st.cfg.luces[0]?.id, ubicacion: st.cfg.ubicaciones[0]?.id, montaje: st.cfg.montajes[0]?.id });
+  // Las mismas preguntas que ve el cliente, para comparar exacto con la página
+  for (const [k, g] of [["ubicacion", "ubicaciones"], ["forma", "formas"], ["luz", "luces"], ["montaje", "montajes"]]) if (!(st.cfg[g] || []).some(x => x.id === p[k])) p[k] = st.cfg[g]?.[0]?.id || "";
+  const mat = st.cfg.materiales.find(m => m.id === p.material);
+  const r = cotizar(st.cfg, { material: p.material, ancho: p.ancho, alto: p.alto, luz: p.luz, ubicacion: p.ubicacion, forma: p.forma, montaje: p.montaje, cantidad: 1 });
+  const sel = (k, g) => (st.cfg[g] || []).length > 1 ? `<select onchange="ctPrueba('${k}',this.value)">${st.cfg[g].map(x => `<option value="${esc(x.id)}" ${x.id === p[k] ? "selected" : ""}>${esc(x.nombre)}</option>`).join("")}</select>` : "";
   const f = (v) => formatoPlata(v, st.cfg.moneda);
   const fila = (t, v, cls = "") => `<tr class="${cls}"><td>${t}</td><td>${f(v)}</td></tr>`;
   return `<div class="ct-prueba-fila">
@@ -77,6 +81,8 @@ function pruebaHTML() {
       <label>Ancho <input type="number" value="${p.ancho}" onchange="ctPrueba('ancho',this.value)"> cm</label>
       <label>Alto <input type="number" value="${p.alto}" onchange="ctPrueba('alto',this.value)"> cm</label>
     </div>
+    <div class="ct-prueba-fila" style="margin-top:8px">${sel("ubicacion", "ubicaciones")}${sel("forma", "formas")}${mat?.conLuz ? sel("luz", "luces") : ""}${sel("montaje", "montajes")}</div>
+    ${st.cambios ? `<p class="ct-aviso-amarillo">⚠ Tienes cambios sin guardar: este precio ya los incluye, pero la página del cliente todavía usa los precios anteriores. Dale <b>Guardar cambios</b> y recarga la página del cliente.</p>` : ""}
     ${r ? `<table class="ct-excel">
       ${r.detalle.laminas.map(x => fila(esc(x.nombre), x.valor)).join("")}
       ${fila(esc(r.detalle.laser.nombre), r.detalle.laser.valor)}
@@ -91,7 +97,7 @@ function pruebaHTML() {
       ${fila(`Tu ganancia (${st.cfg.gananciaPct}%)`, r.ganancia)}
       ${fila("PRECIO AL CLIENTE", r.total, "tot")}
       ${st.cfg.anticipoPct > 0 && st.cfg.anticipoPct < 100 ? fila(`Anticipo ${st.cfg.anticipoPct}%`, r.anticipo) : ""}
-    </table><p class="ct-mini">Con la primera opción de luz, lugar y montaje. El cliente NO ve este desglose: solo el precio final.</p>` : ""}`;
+    </table><p class="ct-mini">Elige las mismas opciones que eligió el cliente para comparar. El cliente NO ve este desglose: solo el precio final.</p>` : ""}`;
 }
 
 // ---------- Costos como en el Excel ----------
@@ -402,7 +408,7 @@ window.ctAgregar = (grupo) => {
   st.cfg[grupo].push({ id: `${grupo.slice(0, 3)}${Date.now().toString(36)}`, ...nuevo });
   marcarCambio(); render();
 };
-window.ctPrueba = (k, v) => { st.prueba[k] = ["material", "complejidad"].includes(k) ? v : Number(v) || 0; $("ctPrueba").innerHTML = pruebaHTML(); };
+window.ctPrueba = (k, v) => { st.prueba[k] = ["ancho", "alto"].includes(k) ? Number(v) || 0 : v; $("ctPrueba").innerHTML = pruebaHTML(); };
 // Número en una ruta como "laminas.0.precio" o "laser.minFijos"
 window.ctNum = (ruta, v) => {
   const partes = ruta.split("."), ultimo = partes.pop();
