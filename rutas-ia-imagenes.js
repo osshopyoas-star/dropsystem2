@@ -78,9 +78,9 @@ export function armarPrompt({ bloqueEstilo, prompt, referencias, descripcion = "
   return limpiarFuentes(cabeza + cuerpo.slice(0, Math.max(500, espacio)) + cola);
 }
 
-export async function pedirImagen({ prompt, fotos, aspecto }) {
+export async function pedirImagen({ prompt, fotos, aspecto, resolucion = null }) {
   const refs = fotos.slice(0, MAX_REFERENCIAS);
-  const base = { model: MODELO(), prompt, n: 1, response_format: "b64_json", aspect_ratio: aspecto, resolution: RESOLUCION() };
+  const base = { model: MODELO(), prompt, n: 1, response_format: "b64_json", aspect_ratio: aspecto, resolution: ["1k", "1.5k", "2k"].includes(resolucion) ? resolucion : RESOLUCION() };
   const body = refs.length === 0 ? base
     : refs.length === 1 ? { ...base, image: { url: refs[0] } }
     : { ...base, images: refs.map(url => ({ url })) };

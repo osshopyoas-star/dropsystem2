@@ -156,12 +156,12 @@ export function registrarRutasCotizadorPublico(app) {
           if (im?.datos) fotos.push(`data:${im.mime || "image/jpeg"};base64,${(Buffer.isBuffer(im.datos) ? im.datos : Buffer.from(im.datos.buffer || im.datos)).toString("base64")}`);
         }
         try {
-          r = await pedirImagen({ prompt: promptMaqueta(cfg, q, { conEjemplo: fotos.length > 1 }), fotos, aspecto: "4:3" });
+          r = await pedirImagen({ prompt: promptMaqueta(cfg, q, { conEjemplo: fotos.length > 1 }), fotos, aspecto: "4:3", resolucion: "1k" });
         } catch (e1) {
           // Segundo intento solo con el logo (sin la foto de ejemplo), si el error no es de saldo o de clave
           if (fotos.length < 2 || [401, 403, 429].includes(e1.status)) throw e1;
           console.warn("Cotizador: falló con la foto de ejemplo, reintento solo con el logo:", e1.message);
-          r = await pedirImagen({ prompt: promptMaqueta(cfg, q, { conEjemplo: false }), fotos: [dataLogo], aspecto: "4:3" });
+          r = await pedirImagen({ prompt: promptMaqueta(cfg, q, { conEjemplo: false }), fotos: [dataLogo], aspecto: "4:3", resolucion: "1k" });
         }
       } catch (e) {
         porPersona.set(k, usadas);   // no cuenta si falló
@@ -268,6 +268,45 @@ export function registrarRutasCotizador(app) {
       if (ids.length) await CotizadorImagen.deleteMany({ _id: { $in: ids }, owner: req.user.uid });
       res.json(vista(c));
     } catch (err) { console.error("Cotizador galería borrar:", err); res.status(500).json({ error: "No se pudo borrar" }); }
+  });
+
+  // ---------- Espacio en la base de datos (el plan gratis de MongoDB trae 512 MB) ----------
+  // Cuánto ocupa cada cosa de este usuario. Usa $bsonSize: el tamaño real de cada documento guardado.
+  app.get("/api/espacio", async (req, res) => {
+    try {
+      const owner = new mongoose.Types.ObjectId(String(req.user.uid));
+      const medir = async (modelo, filtro = {}, agrupar = null) => {
+        try {
+          const M = mongoose.model(modelo);
+          const r = await M.aggregate([{ $match: { owner, ...filtro } }, { $group: { _id: agrupar ? `$${agrupar}` : null, n: { $sum: 1 }, bytes: { $sum: { $bsonSize: "$$ROOT" } } } }]);
+          return r;
+        } catch (e) { return []; }
+      };
+      const mb = (b) => Math.round((b || 0) / 1048576 * 10) / 10;
+      const filas = [];
+      for (const x of await medir("CotizadorImagen", {}, "tipo")) filas.push({ que: { logo: "Cotizador: logos que subieron los clientes", maqueta: "Cotizador: maquetas hechas con IA" }[x._id] || `Cotizador: fotos (${x._id})`, n: x.n, mb: mb(x.bytes) });
+      for (const [modelo, que] of [["ImagenLanding", "Desarrollo: imágenes de las landings"], ["Proyecto", "Desarrollo: proyectos (con sus fotos)"], ["DropiLinea", "Finanzas: pedidos de Dropi"], ["Producto", "Base de productos"], ["Cotizacion", "Cotizador: cotizaciones (sin imágenes)"]]) {
+        const r = await medir(modelo);
+        if (r[0]) filas.push({ que, n: r[0].n, mb: mb(r[0].bytes) });
+      }
+      filas.sort((a, b) => b.mb - a.mb);
+      const prueba = await Cotizacion.countDocuments({ owner: req.user.uid, pidio: false });
+      res.json({ filas, total: Math.round(filas.reduce((t, x) => t + x.mb, 0) * 10) / 10, cotizacionesPrueba: prueba });
+    } catch (err) { console.error("Espacio:", err); res.status(500).json({ error: "No se pudo medir el espacio" }); }
+  });
+
+  // Borra las cotizaciones en las que el cliente NO pidió por WhatsApp (pruebas o solo miraron), con su logo y su maqueta
+  app.post("/api/cotizador/limpiar", async (req, res) => {
+    try {
+      const dias = Math.max(0, Math.min(365, Number(req.body?.dias) || 0));
+      const filtro = { owner: req.user.uid, pidio: false, ...(dias ? { creado: { $lt: new Date(Date.now() - dias * 864e5) } } : {}) };
+      const lista = await Cotizacion.find(filtro).select("logo maqueta").lean();
+      const ids = lista.flatMap(x => [x.logo, x.maqueta]).filter(Boolean);
+      let imagenes = 0;
+      for (let i = 0; i < ids.length; i += 500) imagenes += (await CotizadorImagen.deleteMany({ _id: { $in: ids.slice(i, i + 500) }, owner: req.user.uid })).deletedCount || 0;
+      const cot = await Cotizacion.deleteMany({ _id: { $in: lista.map(x => x._id) } });
+      res.json({ cotizaciones: cot.deletedCount || 0, imagenes });
+    } catch (err) { console.error("Limpiar cotizaciones:", err); res.status(500).json({ error: `No se pudo borrar: ${String(err?.message || err).slice(0, 200)}` }); }
   });
 
   app.get("/api/cotizador/cotizaciones", async (req, res) => {

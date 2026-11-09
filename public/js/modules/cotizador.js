@@ -261,6 +261,36 @@ window.ctEjemplo = async (material, file) => {
 window.ctPaso = (i, k, v) => { st.cfg.pasos[i][k] = v; marcarCambio(); };
 window.ctTaller = (k, v) => { st.cfg.taller[k] = v; marcarCambio(); };
 
+// Espacio en la base de datos y limpieza de cotizaciones de prueba
+let espacio = null;   // null = sin cargar · "cargando" · { filas, total, cotizacionesPrueba } · { error }
+function espacioHTML() {
+  if (espacio === null) {
+    espacio = "cargando";
+    api("GET", "/api/espacio").then(d => { espacio = d; render(); }).catch(e => { espacio = { error: e.message }; render(); });
+  }
+  return `<section class="ct-card">
+    <div class="ct-card-head"><h3><i data-lucide="database"></i> Espacio en la base de datos</h3><small>El plan gratis de MongoDB trae 512 MB para TODO CoDropX. Si se llena, no se puede guardar nada.</small>
+      <button class="ct-btn claro chico" onclick="ctEspacio()"><i data-lucide="refresh-cw"></i> Medir</button></div>
+    ${espacio === "cargando" ? `<p class="ct-mini">Midiendo…</p>` : espacio?.error ? `<p class="ct-mini rojo">${esc(espacio.error)}</p>` : `
+      <table class="ct-excel">${espacio.filas.map(f => `<tr><td>${esc(f.que)} <small class="ct-mini">(${f.n.toLocaleString("es-CO")})</small></td><td>${f.mb.toLocaleString("es-CO")} MB</td></tr>`).join("")}
+        <tr class="sub"><td>Total de lo tuyo</td><td>${espacio.total.toLocaleString("es-CO")} MB</td></tr></table>
+      <div class="ct-limpiar">
+        <p class="ct-mini">Hay <b>${espacio.cotizacionesPrueba}</b> cotizaciones donde el cliente <b>no pidió</b> por WhatsApp (tus pruebas y gente que solo miró). Borrarlas libera el espacio de sus logos y maquetas. Las que sí pidieron no se tocan.</p>
+        <button class="ct-btn chico peligro" onclick="ctLimpiar(0)" ${espacio.cotizacionesPrueba ? "" : "disabled"}><i data-lucide="trash-2"></i> Borrar todas las que no pidieron</button>
+        <button class="ct-btn claro chico" onclick="ctLimpiar(7)" ${espacio.cotizacionesPrueba ? "" : "disabled"}>Solo las de hace más de 7 días</button>
+      </div>`}
+  </section>`;
+}
+window.ctEspacio = () => { espacio = null; render(); };
+window.ctLimpiar = async (dias) => {
+  if (!confirm(dias ? `¿Borrar las cotizaciones de hace más de ${dias} días donde el cliente no pidió (con su logo y maqueta)?` : "¿Borrar TODAS las cotizaciones donde el cliente no pidió (con su logo y maqueta)? Las que pidieron por WhatsApp se quedan.")) return;
+  try {
+    const r = await api("POST", "/api/cotizador/limpiar", { dias });
+    avisar(`Listo: se borraron ${r.cotizaciones} cotizaciones y ${r.imagenes} imágenes`);
+    espacio = null; st.cotizaciones = null; render();
+  } catch (e) { avisar(e.message, "error"); }
+};
+
 function cotizacionesHTML() {
   if (st.cotizaciones === null) {
     st.cotizaciones = "cargando";
@@ -388,6 +418,8 @@ function render() {
       ${galeriaHTML("trabajo", "Trabajos que ya entregaron", "Fotos REALES de letreros que hicieron (pueden ir con su diseño al lado). Salen en la página.")}
       ${resenasHTML()}
     </section>
+
+    ${espacioHTML()}
 
     <section class="ct-card">
       <div class="ct-card-head"><h3><i data-lucide="inbox"></i> Cotizaciones</h3><small>Las últimas 60: lo que eligieron y su maqueta (no se guardan datos personales)</small>
