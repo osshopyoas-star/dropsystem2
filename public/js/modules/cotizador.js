@@ -69,15 +69,13 @@ function tablaOpciones(grupo, titulo, ayuda, campos) {
 function pruebaHTML() {
   const p = st.prueba;
   if (!st.cfg.materiales.some(m => m.id === p.material)) p.material = st.cfg.materiales[0]?.id || "";
-  p.complejidad ||= "medio";
-  const r = cotizar(st.cfg, { material: p.material, ancho: p.ancho, alto: p.alto, complejidad: p.complejidad, luz: st.cfg.luces[0]?.id, ubicacion: st.cfg.ubicaciones[0]?.id, montaje: st.cfg.montajes[0]?.id });
+  const r = cotizar(st.cfg, { material: p.material, ancho: p.ancho, alto: p.alto, luz: st.cfg.luces[0]?.id, ubicacion: st.cfg.ubicaciones[0]?.id, montaje: st.cfg.montajes[0]?.id });
   const f = (v) => formatoPlata(v, st.cfg.moneda);
   const fila = (t, v, cls = "") => `<tr class="${cls}"><td>${t}</td><td>${f(v)}</td></tr>`;
   return `<div class="ct-prueba-fila">
       <select onchange="ctPrueba('material',this.value)">${st.cfg.materiales.map(m => `<option value="${esc(m.id)}" ${m.id === p.material ? "selected" : ""}>${esc(m.nombre)}</option>`).join("")}</select>
       <label>Ancho <input type="number" value="${p.ancho}" onchange="ctPrueba('ancho',this.value)"> cm</label>
       <label>Alto <input type="number" value="${p.alto}" onchange="ctPrueba('alto',this.value)"> cm</label>
-      <select onchange="ctPrueba('complejidad',this.value)">${Object.entries(COMPLEJIDADES).map(([k, t]) => `<option value="${k}" ${k === p.complejidad ? "selected" : ""}>Diseño ${t.toLowerCase()}</option>`).join("")}</select>
     </div>
     ${r ? `<table class="ct-excel">
       ${r.detalle.laminas.map(x => fila(esc(x.nombre), x.valor)).join("")}
@@ -93,7 +91,7 @@ function pruebaHTML() {
       ${fila(`Tu ganancia (${st.cfg.gananciaPct}%)`, r.ganancia)}
       ${fila("PRECIO AL CLIENTE", r.total, "tot")}
       ${st.cfg.anticipoPct > 0 && st.cfg.anticipoPct < 100 ? fila(`Anticipo ${st.cfg.anticipoPct}%`, r.anticipo) : ""}
-    </table><p class="ct-mini">Con la primera opción de luz, lugar y montaje. El cliente NO ve este desglose: solo el precio final. La complejidad la mide CoDropX sola en el logo que sube.</p>` : ""}`;
+    </table><p class="ct-mini">Con la primera opción de luz, lugar y montaje. El cliente NO ve este desglose: solo el precio final.</p>` : ""}`;
 }
 
 // ---------- Costos como en el Excel ----------
@@ -137,16 +135,13 @@ function costosHTML() {
   </section>
 
   <section class="ct-card">
-    <div class="ct-card-head"><h3>3. Láser</h3><small>Minutos = preparación + minutos por cada 100 cm², × la complejidad del diseño</small></div>
+    <div class="ct-card-head"><h3>3. Láser</h3><small>Minutos = preparación + minutos por cada 100 cm² (sube con el tamaño del letrero)</small></div>
     <div class="ct-grid">
       <label>Precio del minuto ($)${num("laser.precioMinuto", c.laser.precioMinuto, 100)}</label>
       <label>Minutos de preparación${num("laser.minFijos", c.laser.minFijos, 1)}</label>
       <label>Minutos por cada 100 cm²${num("laser.minPor100", c.laser.minPor100, 0.1)}</label>
-      <label>Diseño sencillo (×)${num("laser.sencillo", c.laser.sencillo, 0.05)}</label>
-      <label>Diseño medio (×)${num("laser.medio", c.laser.medio, 0.05)}</label>
-      <label>Diseño complejo (×)${num("laser.complejo", c.laser.complejo, 0.05)}</label>
     </div>
-    <p class="ct-mini">Con 30 × 30 cm y diseño medio: ${Math.round((c.laser.minFijos + 9 * c.laser.minPor100) * c.laser.medio)} minutos = ${f((c.laser.minFijos + 9 * c.laser.minPor100) * c.laser.medio * c.laser.precioMinuto)}.</p>
+    <p class="ct-mini">Con 30 × 30 cm: ${Math.round((c.laser.minFijos + 9 * c.laser.minPor100))} minutos = ${f((c.laser.minFijos + 9 * c.laser.minPor100) * c.laser.precioMinuto)}.</p>
   </section>
 
   <section class="ct-card">
@@ -274,7 +269,7 @@ function cotizacionesHTML() {
       <a href="${esc(c.maqueta || c.logo)}" target="_blank" rel="noopener"><img src="${esc(c.maqueta || c.logo)}" alt=""></a>
       <div>
         <b>${formatoPlata(c.total, c.moneda)}</b> ${c.pidio ? `<span class="ct-tag ok">pidió</span>` : `<span class="ct-tag">solo miró</span>`}
-        <small>${esc(nombre("materiales", c.eleccion?.material))} · ${c.eleccion?.ancho} × ${c.eleccion?.alto} cm${c.eleccion?.complejidad ? ` · diseño ${esc((COMPLEJIDADES[c.eleccion.complejidad] || "").toLowerCase())}` : ""}${c.eleccion?.cantidad > 1 ? ` · ×${c.eleccion.cantidad}` : ""}</small>
+        <small>${esc(nombre("materiales", c.eleccion?.material))} · ${c.eleccion?.ancho} × ${c.eleccion?.alto} cm${c.eleccion?.cantidad > 1 ? ` · ×${c.eleccion.cantidad}` : ""}</small>
         <small>${esc(nombre("ubicaciones", c.eleccion?.ubicacion))}${c.eleccion?.luz ? ` · ${esc(nombre("luces", c.eleccion.luz))}` : ""} · ${new Date(c.creado).toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" })}</small>
         ${c.notas ? `<small class="ct-nota">📝 ${esc(c.notas)}</small>` : ""}
         ${c.error ? `<small class="rojo">⚠ No salió la maqueta: ${esc(c.error)}</small>` : ""}

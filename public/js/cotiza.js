@@ -238,7 +238,6 @@ function pintar() {
         <div class="contador"><span style="flex:1;text-align:left;font-weight:600;font-size:15px">Cantidad</span><button onclick="cxCantidad(-1)">−</button><span>${st.e.cantidad}</span><button onclick="cxCantidad(1)">+</button></div>
         ${r ? `<table class="desglose">
           <tr><td>${esc(r.material.nombre)}</td><td>${r.ancho} × ${r.alto} cm</td></tr>
-          <tr><td>Diseño</td><td>${esc(COMPLEJIDADES[r.complejidad])}</td></tr>
           ${r.luz ? `<tr><td>Luz</td><td>${esc(r.luz.nombre)}</td></tr>` : ""}
           ${r.ubicacion ? `<tr><td>Va en</td><td>${esc(r.ubicacion.nombre)}</td></tr>` : ""}
           ${r.forma ? `<tr><td>Forma</td><td>${esc(r.forma.nombre)}</td></tr>` : ""}
@@ -413,7 +412,6 @@ function aplicarRecorte(completa = false) {
     const fin = new Image();
     fin.onload = () => {
       st.logo = { dataUrl, ratio: sh / sw, envio: paraLaIA(cv) };
-      st.e.complejidad = medirComplejidad(fin);
       st.altoManual = false;
       st.e.alto = altoDe(st.e.ancho, st.logo.ratio);
       st.recorteHecho = st.recorte; st.recorte = null;
