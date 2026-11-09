@@ -72,7 +72,9 @@ function galeria(tipo, titulo) {
 function resenas(titulo = "Lo que dicen nuestros clientes") {
   const rs = (st.cfg.galeria || []).filter(g => g.tipo === "resena");
   if (!rs.length) return "";
-  return `<section class="seccion"><h3 class="izq">${titulo}</h3><div class="resenas">${rs.map(r => `
+  // Con 2 o más reseñas se duplican para que el carrusel se mueva solo sin fin
+  const lista = rs.length > 1 ? [...rs, ...rs] : rs;
+  return `<section class="seccion"><h3 class="izq">${titulo}</h3><div class="resenas ${rs.length > 1 ? "auto" : ""}">${lista.map(r => `
     <div class="resena ${r.texto || r.nombre ? "" : "solo-foto"}"><img src="${esc(r.url)}" alt="Foto de cliente" loading="lazy">
       ${r.texto || r.nombre ? `<div class="res-txt">
         ${Number(r.estrellas) ? `<div class="estrellas">${"★".repeat(Number(r.estrellas))}${"☆".repeat(5 - Number(r.estrellas))}</div>` : ""}
@@ -81,6 +83,20 @@ function resenas(titulo = "Lo que dicen nuestros clientes") {
       </div>` : ""}
     </div>`).join("")}</div></section>`;
 }
+
+// Las reseñas se deslizan solas, despacio; si la persona toca o pasa el mouse, se detienen un momento
+let pausaResenas = 0;
+const pausar = (e) => { if (e.target.closest?.(".resenas")) pausaResenas = Date.now() + 3500; };
+["pointerdown", "touchstart", "wheel", "mouseover"].forEach(ev => document.addEventListener(ev, pausar, { passive: true }));
+setInterval(() => {
+  if (Date.now() < pausaResenas) return;
+  document.querySelectorAll(".resenas.auto").forEach(c => {
+    const mitad = c.scrollWidth / 2;
+    if (mitad <= c.clientWidth) return;
+    c.scrollLeft += 1;
+    if (c.scrollLeft >= mitad) c.scrollLeft -= mitad;
+  });
+}, 30);
 
 // ---------- Secciones del inicio (como las grandes marcas de letreros) ----------
 const ICONOS = {
