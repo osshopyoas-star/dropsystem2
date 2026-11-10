@@ -151,9 +151,28 @@ function pared() {
   if (!st.logo) return "";
   const m = st.cfg.materiales.find(x => x.id === st.e.material);
   const pct = Math.round(25 + 55 * (st.e.ancho - st.cfg.anchoMin) / Math.max(1, st.cfg.anchoMax - st.cfg.anchoMin));
-  return `<div class="pared"><img class="logo ${m?.conLuz ? "luz" : ""}" src="${st.logo.dataUrl}" alt="Tu logo" style="width:${pct}%">
-    <span class="medida an">${st.e.ancho} cm</span><span class="medida al">${st.e.alto} cm</span></div>`;
+  const alto = Math.min(78, pct * (st.e.alto / Math.max(1, st.e.ancho)) * 1.33);
+  const ancho = alto < 78 ? pct : Math.round(78 / Math.max(.01, (st.e.alto / Math.max(1, st.e.ancho)) * 1.33));
+  return `<div class="pared"><div class="planta"></div><div class="lampara"></div>
+    <div class="marco ${m?.conLuz ? "luz" : ""}" style="width:${ancho}%;aspect-ratio:${st.e.ancho} / ${st.e.alto}">
+      <img src="${st.logo.dataUrl}" alt="Tu logo">
+      <span class="cota an"><i></i><b>Ancho ${st.e.ancho} cm</b></span>
+      <span class="cota al"><i></i><b>Alto ${st.e.alto} cm</b></span>
+    </div></div>`;
 }
+
+// Regla para el ancho: − barra +, el valor encima del punto y rayitas de medida
+function reglaHTML() {
+  const c = st.cfg, pct = (st.e.ancho - c.anchoMin) / Math.max(1, c.anchoMax - c.anchoMin) * 100;
+  return `<div class="regla" id="cxRegla">
+    <div class="regla-fila"><button class="regla-btn" onclick="cxPaso(-1)" aria-label="Más pequeño">−</button>
+      <div class="regla-pista"><span class="regla-valor" id="cxReglaValor" style="left:${pct}%">${st.e.ancho} cm</span>
+        <input class="rango" type="range" min="${c.anchoMin}" max="${c.anchoMax}" step="1" value="${st.e.ancho}" oninput="cxAncho(this.value)" style="--p:${pct}%"></div>
+      <button class="regla-btn" onclick="cxPaso(1)" aria-label="Más grande">+</button></div>
+    <div class="regla-marcas"><span>${c.anchoMin} cm</span><i></i><span>${c.anchoMax} cm</span></div>
+  </div>`;
+}
+window.cxPaso = (d) => cxAncho(st.e.ancho + d * (st.e.ancho >= 100 ? 5 : 2));
 
 function galeria(tipo, titulo) {
   const fotos = (st.cfg.galeria || []).filter(g => g.tipo === tipo);
@@ -335,7 +354,7 @@ function pintar() {
   } else if (st.paso === "tamano") {
     html = `${pasos()}<h2>¿De qué tamaño?</h2><p class="sub">Mueve la barra. El alto sale solo según la forma de tu logo (puedes cambiarlo).</p>
       ${pared()}
-      <input class="rango" type="range" min="${c.anchoMin}" max="${c.anchoMax}" step="1" value="${st.e.ancho}" oninput="cxAncho(this.value)">
+      ${(!enShopify || barraFlotante) ? "" : reglaHTML()}
       <div class="medidas">
         <label class="campo">Ancho (cm)<input type="number" min="${c.anchoMin}" max="${c.anchoMax}" value="${st.e.ancho}" onchange="cxAncho(this.value)"></label>
         <label class="campo">Alto (cm)<input type="number" min="5" max="${c.anchoMax * 3}" value="${st.e.alto}" onchange="cxAlto(this.value)"></label>
@@ -392,6 +411,7 @@ function pintar() {
     $("barraTxt").textContent = `${r.ancho} × ${r.alto} cm · precio estimado${st.cfg.envioGratis ? " · ✓ envío gratis" : ""}`;
     $("barraBtn").onclick = () => (st.paso === "tamano" ? cxMaqueta() : cxIr(st.paso === "material" ? "lugar" : "tamano"));
     $("barraBtn").textContent = st.paso === "tamano" ? (st.cfg.conMaqueta ? "Ver mi letrero" : "Ver mi precio") : "Continuar";
+    $("barraRegla").innerHTML = st.paso === "tamano" ? reglaHTML() : "";
   }
   setTimeout(avisarAlto, 50);
 }
@@ -427,7 +447,9 @@ window.cxAncho = (v) => {
   if (r) { $("barraTotal").textContent = plata(r.total); $("barraTxt").textContent = `${r.ancho} × ${r.alto} cm · precio estimado${st.cfg.envioGratis ? " · ✓ envío gratis" : ""}`; }
   document.querySelectorAll(".medidas input")[0] && (document.querySelectorAll(".medidas input")[0].value = st.e.ancho);
   document.querySelectorAll(".medidas input")[1] && (document.querySelectorAll(".medidas input")[1].value = st.e.alto);
-  const rango = document.querySelector(".rango"); if (rango && Number(rango.value) !== st.e.ancho) rango.value = st.e.ancho;
+  const pct = (st.e.ancho - st.cfg.anchoMin) / Math.max(1, st.cfg.anchoMax - st.cfg.anchoMin) * 100;
+  document.querySelectorAll(".rango").forEach(rango => { if (Number(rango.value) !== st.e.ancho) rango.value = st.e.ancho; rango.style.setProperty("--p", pct + "%"); });
+  const rv = $("cxReglaValor"); if (rv) { rv.textContent = `${st.e.ancho} cm`; rv.style.left = pct + "%"; }
 };
 window.cxAlto = (v) => { const n = Math.round(Number(v) * 10) / 10; if (n > 0) { st.e.alto = n; st.altoManual = true; } pintar(); };
 
