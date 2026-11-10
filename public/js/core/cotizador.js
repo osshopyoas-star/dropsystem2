@@ -79,6 +79,8 @@ export const CONFIG_DEFECTO = {
     { id: "base", nombre: "Con base para mesa", desc: "Base en acrílico para poner sobre un mueble.", precio: 35000 }
   ],
   anchoMin: 20, anchoMax: 200, anchoDefecto: 60,
+  // Letreros que no caben en la máquina propia: se mandan a cortar afuera y sale más caro
+  grandeDesde: 90, grandePct: 30,
   redondeo: 1000,
   // Mientras se hace la maqueta: SOLO cosas que de verdad ofreces
   beneficios: ["Hecho a mano en Colombia", "Te mostramos el diseño antes de fabricar", "Envíos a todo el país"],
@@ -144,6 +146,8 @@ export function limpiarConfig(c = {}) {
     formas: lista(c.formas, d.formas, { pct: "n" }),
     anchoMin, anchoMax,
     anchoDefecto: Math.min(anchoMax, Math.max(anchoMin, num(c.anchoDefecto, d.anchoDefecto))),
+    grandeDesde: Math.min(1000, Math.max(5, num(c.grandeDesde, d.grandeDesde))),
+    grandePct: Math.min(300, Math.max(0, num(c.grandePct, d.grandePct))),
     redondeo: [1, 100, 500, 1000, 5000, 10000].includes(num(c.redondeo)) ? num(c.redondeo) : d.redondeo,
     beneficios: (Array.isArray(c.beneficios) ? c.beneficios : d.beneficios).map(b => texto(b, 80)).filter(Boolean).slice(0, 8),
     cinta: (Array.isArray(c.cinta) ? c.cinta : d.cinta).map(b => texto(b, 60)).filter(Boolean).slice(0, 10),
@@ -229,7 +233,10 @@ export function cotizar(cfg, eleccion = {}) {
   const materiales = [...laminas, laser, ...otros].reduce((t, x) => t + x.valor, 0);
   const manoObra = materiales * c.manoObraPct / 100;
   const gananciaProducto = (materiales + manoObra) * c.gananciaProductoPct / 100;
-  const fabricacion = materiales + manoObra + gananciaProducto;
+  // Si el lado más largo pasa de la medida de la máquina, se suma el recargo al costo de hacerlo
+  const grande = Math.max(ancho, alto) > c.grandeDesde && c.grandePct > 0;
+  const recargoGrande = grande ? (materiales + manoObra + gananciaProducto) * c.grandePct / 100 : 0;
+  const fabricacion = materiales + manoObra + gananciaProducto + recargoGrande;
 
   // 2. Opciones del cliente
   const recargoLuz = luz ? fabricacion * luz.pct / 100 : 0;
@@ -262,7 +269,7 @@ export function cotizar(cfg, eleccion = {}) {
     colorFondo: mat.pideColores ? String(eleccion.colorFondo || "").replace(/[<>]/g, "").slice(0, 40).trim() : "",
     colorLogo: mat.pideColores ? String(eleccion.colorLogo || "").replace(/[<>]/g, "").slice(0, 40).trim() : "",
     detalle: { laminas: laminas.map(x => ({ ...x, valor: red(x.valor) })), laser: { ...laser, valor: red(laser.valor) }, otros: otros.map(x => ({ ...x, valor: red(x.valor) })) },
-    materiales: red(materiales), manoObra: red(manoObra), gananciaProducto: red(gananciaProducto), fabricacion: red(fabricacion),
+    materiales: red(materiales), manoObra: red(manoObra), gananciaProducto: red(gananciaProducto), fabricacion: red(fabricacion), recargoGrande: red(recargoGrande),
     recargoLuz: red(recargoLuz), recargoUbicacion: red(recargoUbicacion), recargoForma: red(recargoForma), precioMontaje: red(precioMontaje), forma,
     unidad: red(unidad), costoPedido: red(costoPedido), pauta: red(pauta), flete: red(flete), ganancia: red(ganancia),
     total, anticipo, saldo: total - anticipo

@@ -130,6 +130,7 @@ function pruebaHTML() {
       ${fila("Materiales", r.materiales, "sub")}
       ${fila(`Mano de obra (${st.cfg.manoObraPct}%)`, r.manoObra)}
       ${fila(`Ganancia del producto (${st.cfg.gananciaProductoPct}%)`, r.gananciaProducto)}
+      ${r.recargoGrande ? fila(`Tamaño grande (más de ${st.cfg.grandeDesde} cm, +${st.cfg.grandePct}%)`, r.recargoGrande) : ""}
       ${fila("FABRICACIÓN", r.fabricacion, "fab")}
       ${r.recargoLuz ? fila(`Luz: ${esc(r.luz.nombre)}`, r.recargoLuz) : ""}${r.recargoUbicacion ? fila(esc(r.ubicacion.nombre), r.recargoUbicacion) : ""}${r.recargoForma ? fila(`Forma: ${esc(r.forma.nombre)}`, r.recargoForma) : ""}${r.precioMontaje ? fila(esc(r.montaje.nombre), r.precioMontaje) : ""}
       ${fila("Pauta", r.pauta)}
@@ -518,6 +519,8 @@ function render() {
         <label>Ancho mínimo (cm)<input type="number" value="${c.anchoMin}" oninput="ctCfg('anchoMin', Number(this.value))"></label>
         <label>Ancho máximo (cm)<input type="number" value="${c.anchoMax}" oninput="ctCfg('anchoMax', Number(this.value))"></label>
         <label>Ancho con el que arranca (cm)<input type="number" value="${c.anchoDefecto}" oninput="ctCfg('anchoDefecto', Number(this.value))"></label>
+        <label title="Lo que cabe en tu máquina. Se mide el lado más largo (ancho o alto)">Tamaño grande: desde (cm)<input type="number" min="5" value="${c.grandeDesde}" oninput="ctCfg('grandeDesde', Number(this.value))"></label>
+        <label title="Se suma al costo de hacerlo cuando el lado más largo pasa de esa medida (porque toca mandarlo a cortar afuera). 0 = no cobra recargo">Recargo por tamaño grande (%)<input type="number" min="0" max="300" value="${c.grandePct}" oninput="ctCfg('grandePct', Number(this.value))"></label>
         <label class="ct-check" style="grid-column:1/-1"><input type="checkbox" ${c.envioGratis ? "checked" : ""} onchange="ctCfg('envioGratis', this.checked)"> Mostrar el gancho de envío gratis en el resumen (el flete ya va dentro del precio)</label>
         <label>Texto del envío gratis<input value="${esc(c.envioTexto)}" oninput="ctCfg('envioTexto', this.value)"></label>
         <label>Anticipo para empezar (%)<input type="number" min="0" max="100" value="${c.anticipoPct}" oninput="ctCfg('anticipoPct', Number(this.value))"></label>
