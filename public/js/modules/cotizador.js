@@ -41,7 +41,7 @@ const codigoShopify = () => `<div id="cdx-caja" style="width:100%;margin:0;paddi
     var h = document.querySelector("header, .header-wrapper, sticky-header, .shopify-section-header-sticky");
     var menu = h && /fixed|sticky/.test(getComputedStyle(h).position) ? h.getBoundingClientRect().height : 0;
     var alto = top < vista * 0.5 ? vista - top : vista - menu - 10;
-    f.style.height = Math.max(420, Math.round(alto - 6)) + "px";
+    f.style.height = Math.max(420, Math.round(alto)) + "px";
   }
   ajustar();
   window.addEventListener("load", ajustar);
@@ -52,6 +52,13 @@ const codigoShopify = () => `<div id="cdx-caja" style="width:100%;margin:0;paddi
   window.addEventListener("message", function (e) {
     if (e.origin !== "${location.origin}" || !e.data) return;
     if (typeof e.data.cdxIr === "string" && /^https:\/\//.test(e.data.cdxIr)) { f.contentWindow.postMessage({ cdxVoy: true }, e.origin); window.location.href = e.data.cdxIr; }
+    // Al cambiar de paso: si la tienda quedó corrida, volver a dejar el cotizador justo debajo del menú
+    if (e.data.cdxArriba) {
+      var h = document.querySelector("header, .header-wrapper, sticky-header, .shopify-section-header-sticky");
+      var menu = h && /fixed|sticky/.test(getComputedStyle(h).position) ? h.getBoundingClientRect().height : 0;
+      var top = f.getBoundingClientRect().top;
+      if (Math.abs(top - menu) > 4) window.scrollTo({ top: Math.max(0, top + (window.pageYOffset || 0) - menu), behavior: "smooth" });
+    }
   });
 })();
 </script>`;

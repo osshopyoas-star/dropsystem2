@@ -68,7 +68,8 @@
     body.con-barra .fila-paso, body.con-barra .precio-linea { display: none; }
     .barra { bottom: var(--barra-abajo, 0px); transition: bottom .12s linear; }
     /* Dentro de Shopify (como app): sin barra gris de desplazamiento y barra de abajo compacta */
-    html.modo-app { scrollbar-width: none; }
+    html.modo-app { scrollbar-width: none; overscroll-behavior: contain; }
+    html.modo-app body { overscroll-behavior: contain; }
     html.modo-app::-webkit-scrollbar { display: none; }
     html.modo-app .barra { padding: 10px 14px calc(10px + env(safe-area-inset-bottom)); }
     html.modo-app .barra .in { gap: 8px; }

@@ -69,6 +69,7 @@ setInterval(avisarAlto, 1500);
 if (enShopify) document.documentElement.classList.add("en-shopify");
 const arriba = () => {
   window.scrollTo({ top: 0 });
+  if (modoApp) { try { parent.postMessage({ cdxArriba: true }, "*"); } catch {} return; }
   if (!enShopify) return;
   // Primero el alto nuevo, después subir (si sube antes, la tienda se queda abajo con la página vacía)
   avisarAlto();
@@ -81,6 +82,15 @@ const arriba = () => {
 const bajarA = (el, arriba = false) => {
   if (!el) return;
   setTimeout(() => {
+    // Modo app (código nuevo en Shopify): mover SOLO el cotizador por dentro, nunca la página de la tienda
+    if (modoApp) {
+      const r = el.getBoundingClientRect();
+      const barra = document.body.classList.contains("con-barra") ? ($("barra")?.getBoundingClientRect().height || 120) : 0;
+      const libre = window.innerHeight - barra;
+      const y = window.scrollY + r.top - (arriba ? 12 : Math.max(12, (libre - r.height) / 2));
+      window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+      return;
+    }
     const conMarca = window.self !== window.top && !modoApp && window.__visible?.alto;
     if (enShopify && !conMarca) {
       // Le dice a la tienda dónde está lo siguiente (posición dentro del cotizador) para que ella baje la pantalla
