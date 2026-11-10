@@ -99,20 +99,33 @@ export function registrarRutasCotizadorPublico(app) {
       if (!cfg.activo) return res.status(404).json({ error: "El cotizador está apagado por ahora" });
       const { limites, ...publica } = cfg;
       const g = gastoDelMes(c);
-      res.json({ ...publica, conMaqueta: limites.usdMes > g.usd + PRECIO_IMAGEN && limites.maquetasPorDia > 0, galeria: (c.galeria || []).map(x => ({ url: `/api/cotiza/img/${x.id}`, ...(x.idAntes ? { urlAntes: `/api/cotiza/img/${x.idAntes}`, real: x.real !== false } : {}), ...(x.tipo === "resena" ? { nombre: x.nombre || "", ciudad: x.ciudad || "", texto: x.texto || "", estrellas: x.estrellas || 0 } : {}), ...(x.tipo === "ejemplo" ? { material: x.material, grupo: x.grupo || "materiales" } : {}), tipo: x.tipo, titulo: x.titulo || "" })) });
+      res.json({ ...publica, conMaqueta: limites.usdMes > g.usd + PRECIO_IMAGEN && limites.maquetasPorDia > 0, galeria: (c.galeria || []).map(x => ({ url: `/ci/${x.id}.jpg`, ...(x.idAntes ? { urlAntes: `/ci/${x.idAntes}.jpg`, real: x.real !== false } : {}), ...(x.tipo === "resena" ? { nombre: x.nombre || "", ciudad: x.ciudad || "", texto: x.texto || "", estrellas: x.estrellas || 0 } : {}), ...(x.tipo === "ejemplo" ? { material: x.material, grupo: x.grupo || "materiales" } : {}), tipo: x.tipo, titulo: x.titulo || "" })) });
     } catch (err) { console.error("Cotizador config:", err); res.status(500).json({ error: "No se pudo abrir el cotizador" }); }
   });
 
-  app.get("/api/cotiza/img/:id", limiteGeneral, async (req, res) => {
+  // Las imágenes no cambian nunca (cada una tiene su id): se guardan en memoria y el navegador / Cloudflare las guardan un año
+  const memoria = new Map(); let enMemoria = 0; const MAX_MEMORIA = 80 * 1024 * 1024;
+  const servirImagen = async (req, res) => {
     try {
-      if (!idValido(req.params.id)) return res.sendStatus(404);
-      const im = await CotizadorImagen.findById(req.params.id).select("mime datos").lean();
-      if (!im) return res.sendStatus(404);
-      res.setHeader("Content-Type", im.mime || "image/jpeg");
+      const id = String(req.params.id || "").replace(/\.(jpg|jpeg|png|webp)$/i, "");
+      if (!idValido(id)) return res.sendStatus(404);
+      let im = memoria.get(id);
+      if (!im) {
+        const d = await CotizadorImagen.findById(id).select("mime datos").lean();
+        if (!d) return res.sendStatus(404);
+        im = { mime: d.mime || "image/jpeg", datos: Buffer.isBuffer(d.datos) ? d.datos : Buffer.from(d.datos.buffer || d.datos) };
+        if (im.datos.length < 4 * 1024 * 1024) {
+          memoria.set(id, im); enMemoria += im.datos.length;
+          for (const [k, v] of memoria) { if (enMemoria <= MAX_MEMORIA) break; memoria.delete(k); enMemoria -= v.datos.length; }
+        }
+      }
+      res.setHeader("Content-Type", im.mime);
       res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-      res.send(Buffer.isBuffer(im.datos) ? im.datos : Buffer.from(im.datos.buffer || im.datos));
+      res.send(im.datos);
     } catch { res.sendStatus(404); }
-  });
+  };
+  app.get("/api/cotiza/img/:id", limiteGeneral, servirImagen);
+  app.get("/ci/:id", servirImagen);
 
   // Sube el logo, guarda la cotización y (si alcanza el tope) hace la maqueta con IA
   // Quien tiene la sesión abierta en CoDropX (tú probando tu página) no tiene el límite de maquetas seguidas
@@ -175,7 +188,7 @@ export function registrarRutasCotizadorPublico(app) {
       await Cotizacion.updateOne({ _id: cot._id }, { $set: { maqueta: maq._id } });
       const gastado = PRECIO_IMAGEN + PRECIO_REFERENCIA * (r.referencias || 1);
       await CotizadorConfig.updateOne({ _id: c._id }, { $set: { gasto: { mes: mesActual(), usd: Math.round((g.usd + gastado) * 1000) / 1000, maquetas: g.maquetas + 1 } } });
-      res.json({ cotizacion: String(cot._id), maqueta: `/api/cotiza/img/${maq._id}`, total: q.total, anticipo: q.anticipo });
+      res.json({ cotizacion: String(cot._id), maqueta: `/ci/${maq._id}.jpg`, total: q.total, anticipo: q.anticipo });
     } catch (err) {
       console.error("Cotizador maqueta:", err);
       res.status(500).json({ error: "No se pudo procesar tu logo. Intenta de nuevo." });
@@ -257,7 +270,7 @@ export function registrarRutasCotizadorPublico(app) {
 
 // Rutas de CoDropX (con sesión): configurar precios, galería y ver las cotizaciones
 export function registrarRutasCotizador(app) {
-  const vista = (c) => ({ clave: c.clave, config: limpiarConfig(c.config), galeria: (c.galeria || []).map(x => ({ ...x, url: `/api/cotiza/img/${x.id}`, ...(x.idAntes ? { urlAntes: `/api/cotiza/img/${x.idAntes}` } : {}) })), gasto: { mes: mesActual(), ...gastoDelMes(c) } });
+  const vista = (c) => ({ clave: c.clave, config: limpiarConfig(c.config), galeria: (c.galeria || []).map(x => ({ ...x, url: `/ci/${x.id}.jpg`, ...(x.idAntes ? { urlAntes: `/ci/${x.idAntes}.jpg` } : {}) })), gasto: { mes: mesActual(), ...gastoDelMes(c) } });
 
   app.get("/api/cotizador", async (req, res) => {
     try { res.json(vista(await configDe(req.user.uid))); }

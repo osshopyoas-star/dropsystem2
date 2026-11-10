@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Cotiza tu letrero</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
   <style>
     :root { --fondo: #07080d; --caja: #11131c; --caja2: #171a26; --borde: #262a3a; --texto: #f1f3f9; --suave: #9aa1b8; --a1: #22d3ee; --a2: #a855f7; --a3: #ec4899; --ok: #34d399; }
     * { box-sizing: border-box; }
@@ -105,6 +106,10 @@
     .contador span { min-width: 30px; text-align: center; font-weight: 700; font-size: 18px; }
     .mini { color: var(--suave); font-size: 12.5px; text-align: center; margin-top: 10px; }
     .oculto { display: none !important; }
+    .cargando { display: flex; justify-content: center; gap: 8px; padding: 80px 0; }
+    .cargando span { width: 10px; height: 10px; border-radius: 50%; background: var(--a2); animation: punto 1s ease-in-out infinite; }
+    .cargando span:nth-child(2) { animation-delay: .15s; } .cargando span:nth-child(3) { animation-delay: .3s; }
+    @keyframes punto { 0%, 100% { opacity: .25; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-6px); } }
     /* Opción elegida: borde de luz de colores que da vueltas */
     .op { position: relative; isolation: isolate; scroll-margin-top: 14px; }
     .op.on { border-color: transparent; overflow: hidden; box-shadow: 0 0 22px rgba(168,85,247,.45), 0 0 46px rgba(34,211,238,.18); animation: opBrillo 2.4s ease-in-out infinite; }
@@ -216,7 +221,12 @@
   </style>
 </head>
 <body>
-  <main class="cx" id="app"><p class="sub">Cargando…</p></main>
+  <main class="cx" id="app"><div class="cargando"><span></span><span></span><span></span></div></main>
+  <script>
+    // Pedir la configuración de una vez, en paralelo con el resto de la página
+    window.__cdxConfig = fetch("/api/cotiza/" + encodeURIComponent((location.pathname.split("/").filter(Boolean)[1] || "")) + "/config").then(r => r.json().then(d => (r.ok ? d : Promise.reject(new Error(d.error || "No se pudo abrir el cotizador")))));
+    window.__cdxConfig.catch(() => {});
+  </script>
   <div class="barra" id="barra"><div class="in">
     <div class="barra-precio"><div><small id="barraTxt">Precio estimado</small><span class="total" id="barraTotal">—</span></div></div>
     <div class="barra-btns"><button class="btn claro" id="barraAtras">Atrás</button><button class="btn" id="barraBtn">Continuar</button></div>

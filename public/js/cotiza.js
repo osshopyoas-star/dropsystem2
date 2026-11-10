@@ -99,7 +99,7 @@ async function api(metodo, url, body) {
 
 async function iniciar() {
   try {
-    st.cfg = await api("GET", `/api/cotiza/${encodeURIComponent(clave)}/config`);
+    st.cfg = await (window.__cdxConfig || api("GET", `/api/cotiza/${encodeURIComponent(clave)}/config`));
     document.title = `${st.cfg.titulo} · ${st.cfg.marca}`;
     if (st.cfg.icono) for (const rel of ["icon", "apple-touch-icon"]) { const l = document.createElement("link"); l.rel = rel; l.href = st.cfg.icono; document.head.appendChild(l); }
     st.e.ancho = st.cfg.anchoDefecto;
