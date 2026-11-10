@@ -105,7 +105,7 @@ export function registrarRutasCotizadorPublico(app) {
       if (!cfg.activo) return res.status(404).json({ error: "El cotizador está apagado por ahora" });
       // Solo lo que el cliente necesita ver: nada de costos, márgenes, pauta ni los textos que se le dan a la IA
       const { limites, laminas, costos, laser, manoObraPct, gananciaProductoPct, gananciaPct, tramos, extrasV, ...publica } = cfg;
-      publica.materiales = cfg.materiales.map(({ id, nombre, desc, conLuz }) => ({ id, nombre, desc, conLuz }));
+      publica.materiales = cfg.materiales.map(({ id, nombre, desc, conLuz, pideColores }) => ({ id, nombre, desc, conLuz, pideColores }));
       const g = gastoDelMes(c);
       res.json({ ...publica, conMaqueta: limites.usdMes > g.usd + PRECIO_IMAGEN && limites.maquetasPorDia > 0, galeria: (c.galeria || []).map(x => ({ url: `/ci/${x.id}.jpg`, ...(x.idAntes ? { urlAntes: `/ci/${x.idAntes}.jpg`, real: x.real !== false } : {}), ...(x.tipo === "resena" ? { nombre: x.nombre || "", ciudad: x.ciudad || "", texto: x.texto || "", estrellas: x.estrellas || 0 } : {}), ...(x.tipo === "ejemplo" ? { material: x.material, grupo: x.grupo || "materiales" } : {}), tipo: x.tipo, titulo: x.titulo || "" })) });
     } catch (err) { console.error("Cotizador config:", err); res.status(500).json({ error: "No se pudo abrir el cotizador" }); }
@@ -151,7 +151,7 @@ export function registrarRutasCotizadorPublico(app) {
       const q = cotizar(ent.cfg, req.body?.eleccion || {});
       if (!q) return res.status(400).json({ error: "Elige el material" });
       const nom = (x) => (x ? { id: x.id, nombre: x.nombre } : null);
-      res.json({ total: q.total, anticipo: q.anticipo, flete: q.flete, ancho: q.ancho, alto: q.alto, cantidad: q.cantidad, colorLuz: q.colorLuz || "",
+      res.json({ total: q.total, anticipo: q.anticipo, flete: q.flete, ancho: q.ancho, alto: q.alto, cantidad: q.cantidad, colorLuz: q.colorLuz || "", colorFondo: q.colorFondo || "", colorLogo: q.colorLogo || "",
         material: nom(q.material), luz: nom(q.luz), ubicacion: nom(q.ubicacion), forma: nom(q.forma), montaje: nom(q.montaje) });
     } catch (err) { console.error("Cotizador precio:", err); res.status(500).json({ error: "No se pudo calcular el precio" }); }
   });
@@ -172,7 +172,7 @@ export function registrarRutasCotizadorPublico(app) {
       if (!q) return res.status(400).json({ error: "Elige el material" });
 
       const logoDoc = await CotizadorImagen.create({ owner: c.owner, tipo: "logo", mime: logo.tipo, datos: logo.datos });
-      const cot = await Cotizacion.create({ owner: c.owner, logo: logoDoc._id, eleccion: { material: q.material.id, luz: q.luz?.id || "", ubicacion: q.ubicacion?.id || "", montaje: q.montaje?.id || "", forma: q.forma?.id || "", colorLuz: q.colorLuz || "", ancho: q.ancho, alto: q.alto, cantidad: q.cantidad }, total: q.total, anticipo: q.anticipo, moneda: cfg.moneda });
+      const cot = await Cotizacion.create({ owner: c.owner, logo: logoDoc._id, eleccion: { material: q.material.id, luz: q.luz?.id || "", ubicacion: q.ubicacion?.id || "", montaje: q.montaje?.id || "", forma: q.forma?.id || "", colorLuz: q.colorLuz || "", colorFondo: q.colorFondo || "", colorLogo: q.colorLogo || "", ancho: q.ancho, alto: q.alto, cantidad: q.cantidad }, total: q.total, anticipo: q.anticipo, moneda: cfg.moneda });
 
       // ¿Puede hacer maqueta? Tope por persona al día y tope de gasto del mes
       const k = `${req.ip}|${hoy()}`;
@@ -247,6 +247,8 @@ export function registrarRutasCotizadorPublico(app) {
         { key: "Tamaño", value: `${q.ancho} × ${q.alto} cm` },
         { key: "Luz", value: q.luz ? `${q.luz.nombre}${q.colorLuz ? ` · ${q.colorLuz}` : ""}` : "" },
         { key: "Va en", value: q.ubicacion?.nombre || "" },
+        { key: "Color del fondo", value: q.colorFondo || "" },
+        { key: "Color del logo/letras", value: q.colorLogo || "" },
         { key: "Forma", value: q.forma?.nombre || "" },
         { key: "Montaje", value: q.montaje?.nombre || "" },
         { key: "Notas del cliente", value: notas },
@@ -285,7 +287,7 @@ export function registrarRutasCotizadorPublico(app) {
       let maquetaUrl = "";
       if (idValido(req.body?.cotizacion)) {
         const cot = await Cotizacion.findOneAndUpdate({ _id: req.body.cotizacion, owner: c.owner },
-          { $set: { pidio: true, notas, total: q.total, anticipo: q.anticipo, eleccion: { material: q.material.id, luz: q.luz?.id || "", ubicacion: q.ubicacion?.id || "", montaje: q.montaje?.id || "", forma: q.forma?.id || "", colorLuz: q.colorLuz || "", ancho: q.ancho, alto: q.alto, cantidad: q.cantidad } } }, { new: true }).lean();
+          { $set: { pidio: true, notas, total: q.total, anticipo: q.anticipo, eleccion: { material: q.material.id, luz: q.luz?.id || "", ubicacion: q.ubicacion?.id || "", montaje: q.montaje?.id || "", forma: q.forma?.id || "", colorLuz: q.colorLuz || "", colorFondo: q.colorFondo || "", colorLogo: q.colorLogo || "", ancho: q.ancho, alto: q.alto, cantidad: q.cantidad } } }, { new: true }).lean();
         const origen = `${req.protocol}://${req.get("host")}`;
         if (cot?.maqueta) maquetaUrl = `${origen}/api/cotiza/img/${cot.maqueta}`;
         else if (cot?.logo) maquetaUrl = `${origen}/api/cotiza/img/${cot.logo}`;

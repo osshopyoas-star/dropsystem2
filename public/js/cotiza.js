@@ -314,6 +314,28 @@ function colorLuzHTML(c) {
     <input id="cxColorLuz" placeholder="O escribe el color (ej: verde menta)" value="${esc(v)}" maxlength="40" oninput="cxColorTexto(this.value)">
   </div>`;
 }
+// Acrílico sin luz (o el tipo que pida colores): color del fondo y del logo/letras
+const COLORES_ACRILICO = [["Blanco", "#f8fafc"], ["Negro", "#111827"], ["Dorado espejo", "linear-gradient(135deg,#fde68a,#b45309)"], ["Plateado espejo", "linear-gradient(135deg,#f1f5f9,#94a3b8)"], ["Rojo", "#ef4444"], ["Azul", "#2563eb"], ["Verde", "#16a34a"], ["Amarillo", "#facc15"], ["Rosado", "#f472b6"], ["Transparente", "repeating-conic-gradient(#cbd5e1 0 25%, #f8fafc 0 50%) 0 0/8px 8px"]];
+function coloresAcrilicoHTML(m) {
+  if (!m?.pideColores) return "";
+  const fila = (campo, titulo, ej) => {
+    const v = st.e[campo] || "";
+    return `<div class="color-luz" id="grp-${campo}"><b>${titulo}</b>
+      <div class="colores">${COLORES_ACRILICO.map(([n, bg]) => `<button class="color ${v.toLowerCase() === n.toLowerCase() ? "on" : ""}" onclick="cxColorAc('${campo}','${n}')"><i style="background:${bg}"></i>${n}</button>`).join("")}</div>
+      <input placeholder="O escribe el color (ej: ${ej})" value="${esc(v)}" maxlength="40" oninput="cxColorAcTexto('${campo}', this.value, this)">
+    </div>`;
+  };
+  return `<h2 id="grp-colores" style="margin-top:26px">¿De qué colores lo quieres?</h2>
+    ${fila("colorFondo", "Color del fondo", "negro mate")}
+    <div style="height:10px"></div>
+    ${fila("colorLogo", "Color del logo o las letras", "dorado espejo")}`;
+}
+window.cxColorAc = (campo, n) => {
+  st.e[campo] = n; pintar();
+  bajarA(campo === "colorFondo" ? $("grp-colorLogo") : document.querySelector("#app .fila"));
+};
+window.cxColorAcTexto = (campo, v, el) => { st.e[campo] = v; el.closest(".color-luz").querySelectorAll(".color").forEach(b => b.classList.toggle("on", b.textContent.trim().toLowerCase() === v.trim().toLowerCase())); };
+
 window.cxColor = (n) => { st.e.colorLuz = n; pintar(); bajarA(document.querySelector("#app .fila")); };
 window.cxColorTexto = (v) => { st.e.colorLuz = v; document.querySelectorAll(".color-luz .color").forEach(b => b.classList.toggle("on", b.textContent.trim().toLowerCase() === v.trim().toLowerCase())); };
 
@@ -399,6 +421,7 @@ function pintar() {
       <div class="opciones dos">${c.ubicaciones.map(u => opcion("ubicacion", u, u.pct ? `+${u.pct}%` : "")).join("")}</div>
       ${(c.formas || []).length > 1 ? `<h2 id="grp-forma" style="margin-top:26px">¿Qué forma quieres?</h2><div class="opciones dos" style="margin-top:12px">${c.formas.map(f => opcion("forma", f, f.pct ? `+${f.pct}%` : "")).join("")}</div>` : ""}
       ${m?.conLuz ? `<h2 id="grp-luz" style="margin-top:26px">¿Qué luz quieres?</h2><div class="opciones dos" style="margin-top:12px">${c.luces.map(l => opcion("luz", l, l.pct ? `+${l.pct}%` : "")).join("")}</div>${colorLuzHTML(c)}` : ""}
+      ${coloresAcrilicoHTML(m)}
       ${precioLinea(r)}<div class="fila fila-paso"><button class="btn claro" onclick="cxIr('material')">Atrás</button><button class="btn" onclick="cxIr('tamano')">Continuar</button></div>`;
   } else if (st.paso === "tamano") {
     html = `${pasos()}<h2>¿De qué tamaño?</h2><p class="sub">Mueve la barra. El alto sale solo según la forma de tu logo (puedes cambiarlo).</p>
@@ -419,6 +442,8 @@ function pintar() {
         <div class="contador"><span style="flex:1;text-align:left;font-weight:600;font-size:15px">Cantidad</span><button onclick="cxCantidad(-1)">−</button><span>${st.e.cantidad}</span><button onclick="cxCantidad(1)">+</button></div>
         ${r ? `<table class="desglose">
           <tr><td>${esc(r.material.nombre)}</td><td>${r.ancho} × ${r.alto} cm</td></tr>
+          ${r.colorFondo ? `<tr><td>Color del fondo</td><td>${esc(r.colorFondo)}</td></tr>` : ""}
+          ${r.colorLogo ? `<tr><td>Color del logo</td><td>${esc(r.colorLogo)}</td></tr>` : ""}
           ${r.luz ? `<tr><td>Luz</td><td>${esc(r.luz.nombre)}${r.colorLuz ? ` · ${esc(r.colorLuz)}` : ""}</td></tr>` : ""}
           ${r.ubicacion ? `<tr><td>Va en</td><td>${esc(r.ubicacion.nombre)}</td></tr>` : ""}
           ${r.forma ? `<tr><td>Forma</td><td>${esc(r.forma.nombre)}</td></tr>` : ""}
@@ -474,7 +499,7 @@ window.cxElegir = (grupo, id) => {
   const fila = document.querySelector("#app .fila:not(.res) .btn:not(.claro)")?.closest(".fila");
   let sig = null;
   if (grupo === "ubicacion") sig = $("grp-forma") || $("grp-luz");
-  else if (grupo === "forma") sig = $("grp-luz");
+  else if (grupo === "forma") sig = $("grp-luz") || $("grp-colores");
   else if (grupo === "luz") { const l = st.cfg.luces.find(x => x.id === id); sig = l?.pideColor ? $("grp-color") : null; }
   // Material: la elegida sube y se ven las de abajo (así el cliente nota que hay más opciones)
   if (grupo === "material") { bajarA(document.querySelector("#app .op.on"), true); return; }

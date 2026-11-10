@@ -173,10 +173,12 @@ function costosLimpios(c, lista) {
   // Configs guardadas antes de que existiera "Acrílico con impresión y luz neonflex": se le agrega una vez
   let matsIn = nueva ? [...(c.materiales || [])] : d.materiales;
   if (nueva && (c.extrasV || 0) < 2 && !matsIn.some(x => x?.id === "impresion_neon")) matsIn.push(d.materiales.find(x => x.id === "impresion_neon"));
-  const materiales = lista(matsIn, d.materiales, { conLuz: "bool", neon: "bool" }).map((m, i) => {
+  const materiales = lista(matsIn, d.materiales, { conLuz: "bool", neon: "bool", pideColores: "bool" }).map((m, i) => {
     const orig = matsIn?.[i] || {};
     const capas = (Array.isArray(orig.capas) ? orig.capas : []).map(String).filter(x => ids.includes(x));
     if (orig.neon === undefined) m.neon = !!d.materiales.find(x => x.id === m.id)?.neon;
+    // "pideColores": el cliente elige el color del fondo y del logo (configs viejas: el acrílico sin luz lo pide)
+    if (orig.pideColores === undefined) m.pideColores = m.id === "espejo";
     const extras = (Array.isArray(orig.extras) ? orig.extras : d.materiales.find(x => x.id === m.id)?.extras || []).map(String).filter(x => opcionales.includes(x));
     return { ...m, capas: capas.length ? [...new Set(capas)] : [ids[0]], extras: [...new Set(extras)], aspecto: texto(orig.aspecto ?? d.materiales.find(x => x.id === m.id)?.aspecto ?? "", 2500) };
   });
@@ -257,6 +259,8 @@ export function cotizar(cfg, eleccion = {}) {
   return {
     material: mat, luz, ubicacion: ubi, montaje: mon, ancho, alto, cantidad, area,
     colorLuz: luz?.pideColor ? String(eleccion.colorLuz || "").replace(/[<>]/g, "").slice(0, 40).trim() : "",
+    colorFondo: mat.pideColores ? String(eleccion.colorFondo || "").replace(/[<>]/g, "").slice(0, 40).trim() : "",
+    colorLogo: mat.pideColores ? String(eleccion.colorLogo || "").replace(/[<>]/g, "").slice(0, 40).trim() : "",
     detalle: { laminas: laminas.map(x => ({ ...x, valor: red(x.valor) })), laser: { ...laser, valor: red(laser.valor) }, otros: otros.map(x => ({ ...x, valor: red(x.valor) })) },
     materiales: red(materiales), manoObra: red(manoObra), gananciaProducto: red(gananciaProducto), fabricacion: red(fabricacion),
     recargoLuz: red(recargoLuz), recargoUbicacion: red(recargoUbicacion), recargoForma: red(recargoForma), precioMontaje: red(precioMontaje), forma,
@@ -279,6 +283,8 @@ export function mensajeWhatsapp(cfg, q, { maquetaUrl = "", notas = "" } = {}) {
     `Hola ${cfg.marca} 👋 Quiero este letrero:`,
     `• Material: ${q.material.nombre}`,
     q.luz ? `• Luz: ${q.luz.nombre}${q.colorLuz ? ` — color ${q.colorLuz}` : ""}` : "",
+    q.colorFondo ? `• Color del fondo: ${q.colorFondo}` : "",
+    q.colorLogo ? `• Color del logo/letras: ${q.colorLogo}` : "",
     q.ubicacion ? `• Va en: ${q.ubicacion.nombre}` : "",
     `• Tamaño: ${q.ancho} × ${q.alto} cm`,
     q.forma ? `• Forma: ${q.forma.nombre}` : "",
@@ -322,6 +328,7 @@ export function promptMaqueta(cfg, q, { conEjemplo = false } = {}) {
       : "DISEÑO DEL CLIENTE: es el de la imagen de referencia. Cópialo IDÉNTICO: misma forma, mismas letras escritas igual, mismos colores y proporciones. No agregues textos, no cambies palabras, no inventes partes, no le pongas marcas.",
     `MATERIAL: ${m.nombre}. ${m.aspecto || m.desc || ""}`,
     (m.extras || []).includes("impresion") ? "IMPRESIÓN: los colores, degradados e imágenes del logo van IMPRESOS a todo color directamente sobre el material (impresión UV), nítidos y con los colores exactos del logo." : "",
+    (q.colorFondo || q.colorLogo) ? `COLORES QUE ELIGIÓ EL CLIENTE (esto manda sobre los colores del logo y del material): ${q.colorFondo ? `la base/fondo es de acrílico color ${q.colorFondo}` : ""}${q.colorFondo && q.colorLogo ? "; " : ""}${q.colorLogo ? `el logo y las letras van en acrílico color ${q.colorLogo}` : ""}. Se respetan la forma y los detalles del logo; solo cambian los colores.` : "",
     `LUZ: ${luz}`,
     `DÓNDE: montado ${escena}.`,
     `TAMAÑO REAL: ${q.ancho} cm de ancho por ${q.alto} cm de alto; que se note la escala con lo que hay alrededor.`,
