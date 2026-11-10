@@ -80,7 +80,7 @@ export const CONFIG_DEFECTO = {
   ],
   anchoMin: 20, anchoMax: 200, anchoDefecto: 60,
   // Letreros que no caben en la máquina propia: se mandan a cortar afuera y sale más caro
-  grandeDesde: 90, grandePct: 30,
+  grandeDesde: 90, grandeCorto: 60, grandePct: 30,
   redondeo: 1000,
   // Mientras se hace la maqueta: SOLO cosas que de verdad ofreces
   beneficios: ["Hecho a mano en Colombia", "Te mostramos el diseño antes de fabricar", "Envíos a todo el país"],
@@ -147,6 +147,7 @@ export function limpiarConfig(c = {}) {
     anchoMin, anchoMax,
     anchoDefecto: Math.min(anchoMax, Math.max(anchoMin, num(c.anchoDefecto, d.anchoDefecto))),
     grandeDesde: Math.min(1000, Math.max(5, num(c.grandeDesde, d.grandeDesde))),
+    grandeCorto: Math.min(1000, Math.max(5, num(c.grandeCorto, d.grandeCorto))),
     grandePct: Math.min(300, Math.max(0, num(c.grandePct, d.grandePct))),
     redondeo: [1, 100, 500, 1000, 5000, 10000].includes(num(c.redondeo)) ? num(c.redondeo) : d.redondeo,
     beneficios: (Array.isArray(c.beneficios) ? c.beneficios : d.beneficios).map(b => texto(b, 80)).filter(Boolean).slice(0, 8),
@@ -233,8 +234,9 @@ export function cotizar(cfg, eleccion = {}) {
   const materiales = [...laminas, laser, ...otros].reduce((t, x) => t + x.valor, 0);
   const manoObra = materiales * c.manoObraPct / 100;
   const gananciaProducto = (materiales + manoObra) * c.gananciaProductoPct / 100;
-  // Si el lado más largo pasa de la medida de la máquina, se suma el recargo al costo de hacerlo
-  const grande = Math.max(ancho, alto) > c.grandeDesde && c.grandePct > 0;
+  // Si no cabe en la máquina (se puede girar: lado largo vs. largo de la máquina y lado corto vs. corto), se suma el recargo al costo de hacerlo
+  const maqLargo = Math.max(c.grandeDesde, c.grandeCorto), maqCorto = Math.min(c.grandeDesde, c.grandeCorto);
+  const grande = (Math.max(ancho, alto) > maqLargo || Math.min(ancho, alto) > maqCorto) && c.grandePct > 0;
   const recargoGrande = grande ? (materiales + manoObra + gananciaProducto) * c.grandePct / 100 : 0;
   const fabricacion = materiales + manoObra + gananciaProducto + recargoGrande;
 

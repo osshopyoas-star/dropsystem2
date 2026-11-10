@@ -104,7 +104,7 @@ export function registrarRutasCotizadorPublico(app) {
       const cfg = limpiarConfig(c.config);
       if (!cfg.activo) return res.status(404).json({ error: "El cotizador está apagado por ahora" });
       // Solo lo que el cliente necesita ver: nada de costos, márgenes, pauta ni los textos que se le dan a la IA
-      const { limites, laminas, costos, laser, manoObraPct, gananciaProductoPct, gananciaPct, tramos, extrasV, grandeDesde, grandePct, ...publica } = cfg;
+      const { limites, laminas, costos, laser, manoObraPct, gananciaProductoPct, gananciaPct, tramos, extrasV, grandeDesde, grandeCorto, grandePct, ...publica } = cfg;
       publica.materiales = cfg.materiales.map(({ id, nombre, desc, conLuz, pideColores }) => ({ id, nombre, desc, conLuz, pideColores }));
       const g = gastoDelMes(c);
       res.json({ ...publica, conMaqueta: limites.usdMes > g.usd + PRECIO_IMAGEN && limites.maquetasPorDia > 0, galeria: (c.galeria || []).map(x => ({ url: `/ci/${x.id}.jpg`, ...(x.idAntes ? { urlAntes: `/ci/${x.idAntes}.jpg`, real: x.real !== false } : {}), ...(x.tipo === "resena" ? { nombre: x.nombre || "", ciudad: x.ciudad || "", texto: x.texto || "", estrellas: x.estrellas || 0 } : {}), ...(x.tipo === "ejemplo" ? { material: x.material, grupo: x.grupo || "materiales" } : {}), tipo: x.tipo, titulo: x.titulo || "" })) });
