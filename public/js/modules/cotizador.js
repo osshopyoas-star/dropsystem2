@@ -190,6 +190,13 @@ function costosHTML() {
       <label>Minutos por cada metro de contorno${num("laser.minPorMetro", c.laser.minPorMetro, 1)}</label>
     </div>
     <p class="ct-mini">${[[30, 30], [60, 40], [100, 80]].map(([an, al]) => { const m = c.laser.minFijos + 2 * (an + al) / 100 * c.laser.minPorMetro; return `${an} × ${al} cm (${(2 * (an + al) / 100).toLocaleString("es-CO")} m de contorno): ${Math.round(m)} min = ${f(m * c.laser.precioMinuto)}`; }).join(" · ")}</p>
+    <h4 style="margin:16px 0 6px">Letreros que no caben en tu máquina</h4>
+    <div class="ct-grid">
+      <label>Tu máquina corta hasta: ancho (cm)${num("grandeDesde", c.grandeDesde, 1)}</label>
+      <label>Tu máquina corta hasta: alto (cm)${num("grandeCorto", c.grandeCorto, 1)}</label>
+      <label>Recargo si no cabe (%)${num("grandePct", c.grandePct, 1)}</label>
+    </div>
+    <p class="ct-mini">Si el letrero no cabe en la máquina ni girándolo, toca mandarlo a cortar afuera: se suma este % al costo de hacerlo (tu ganancia se calcula encima). Pon 0 para no cobrar recargo.</p>
   </section>
 
   <section class="ct-card">
@@ -519,9 +526,6 @@ function render() {
         <label>Ancho mínimo (cm)<input type="number" value="${c.anchoMin}" oninput="ctCfg('anchoMin', Number(this.value))"></label>
         <label>Ancho máximo (cm)<input type="number" value="${c.anchoMax}" oninput="ctCfg('anchoMax', Number(this.value))"></label>
         <label>Ancho con el que arranca (cm)<input type="number" value="${c.anchoDefecto}" oninput="ctCfg('anchoDefecto', Number(this.value))"></label>
-        <label title="Medida de corte de tu máquina. Si el letrero no cabe (aunque se gire), se cobra el recargo">Tu máquina corta hasta: ancho (cm)<input type="number" min="5" value="${c.grandeDesde}" oninput="ctCfg('grandeDesde', Number(this.value))"></label>
-        <label title="Medida de corte de tu máquina. Si el letrero no cabe (aunque se gire), se cobra el recargo">Tu máquina corta hasta: alto (cm)<input type="number" min="5" value="${c.grandeCorto}" oninput="ctCfg('grandeCorto', Number(this.value))"></label>
-        <label title="Se suma al costo de hacerlo cuando el lado más largo pasa de esa medida (porque toca mandarlo a cortar afuera). 0 = no cobra recargo">Recargo por tamaño grande (%)<input type="number" min="0" max="300" value="${c.grandePct}" oninput="ctCfg('grandePct', Number(this.value))"></label>
         <label class="ct-check" style="grid-column:1/-1"><input type="checkbox" ${c.envioGratis ? "checked" : ""} onchange="ctCfg('envioGratis', this.checked)"> Mostrar el gancho de envío gratis en el resumen (el flete ya va dentro del precio)</label>
         <label>Texto del envío gratis<input value="${esc(c.envioTexto)}" oninput="ctCfg('envioTexto', this.value)"></label>
         <label>Anticipo para empezar (%)<input type="number" min="0" max="100" value="${c.anticipoPct}" oninput="ctCfg('anticipoPct', Number(this.value))"></label>
