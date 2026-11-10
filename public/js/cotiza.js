@@ -294,7 +294,7 @@ function precioLinea(r) {
   return `<div class="precio-linea" id="cxPrecioLinea"><span><small>${r.ancho} × ${r.alto} cm · precio</small><b>${plata(r.total)}</b></span>${st.cfg.envioGratis ? `<em>🚚 Envío gratis</em>` : ""}</div>`;
 }
 
-// La maqueta se dibuja en un lienzo con marca de agua (no queda como foto para "Guardar imagen")
+// La maqueta se dibuja en un lienzo (no queda como foto para "Guardar imagen")
 let maquetaImg = null;
 function dibujarMaqueta() {
   const cv = $("cxMaqueta"); if (!cv) return;
@@ -303,23 +303,6 @@ function dibujarMaqueta() {
     cv.width = ancho; cv.height = alto;
     const cx = cv.getContext("2d");
     cx.drawImage(img, 0, 0, ancho, alto);
-    // Marca de agua en diagonal, repetida
-    const texto = `${(st.cfg.marca || "").toUpperCase()} · MAQUETA`;
-    cx.save();
-    cx.translate(ancho / 2, alto / 2); cx.rotate(-Math.PI / 7);
-    cx.font = `800 ${Math.round(ancho / 22)}px Inter, system-ui, sans-serif`;
-    cx.textAlign = "center"; cx.textBaseline = "middle";
-    cx.fillStyle = "rgba(255,255,255,.16)"; cx.strokeStyle = "rgba(0,0,0,.12)"; cx.lineWidth = 1;
-    const paso = Math.round(ancho / 4.2);
-    for (let y = -alto; y <= alto; y += paso) for (let x = -ancho; x <= ancho; x += paso * 2.6) {
-      const dx = x + ((y / paso) % 2 ? paso * 1.3 : 0);
-      cx.fillText(texto, dx, y); cx.strokeText(texto, dx, y);
-    }
-    cx.restore();
-    // Sello abajo
-    cx.font = `700 ${Math.round(ancho / 34)}px Inter, system-ui, sans-serif`;
-    cx.textAlign = "right"; cx.fillStyle = "rgba(255,255,255,.55)";
-    cx.fillText(`Maqueta de referencia · ${st.cfg.marca || ""}`, ancho - 14, alto - 14);
   };
   if (maquetaImg && maquetaImg.src.endsWith(st.maqueta)) return pintarla(maquetaImg);
   const img = new Image();
