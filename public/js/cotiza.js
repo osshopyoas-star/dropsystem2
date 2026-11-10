@@ -23,6 +23,7 @@ const q = () => (st.cfg && st.e.material ? cotizar(st.cfg, st.e) : null);
 const modoApp = new URLSearchParams(location.search).get("modo") === "app";
 // enShopify = dentro de Shopify con el código VIEJO (estirado a todo lo largo). Con el código nuevo (modo app) funciona como el link directo.
 const enShopify = window.self !== window.top && !modoApp;
+if (modoApp) document.documentElement.classList.add("modo-app");
 const avisarAlto = () => {
   if (!enShopify) return;
   try {

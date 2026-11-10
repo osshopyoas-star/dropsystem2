@@ -65,6 +65,14 @@
     .barra-btns { display: grid; grid-template-columns: 1fr 1.6fr; gap: 10px; }
     .barra-btns .btn { padding: 13px 14px; }
     body.con-barra .fila-paso { display: none; }
+    /* Dentro de Shopify (como app): sin barra gris de desplazamiento y barra de abajo compacta */
+    html.modo-app { scrollbar-width: none; }
+    html.modo-app::-webkit-scrollbar { display: none; }
+    html.modo-app .barra { padding: 10px 14px calc(10px + env(safe-area-inset-bottom)); }
+    html.modo-app .barra .in { gap: 8px; }
+    html.modo-app .barra .total { font-size: 19px; }
+    html.modo-app .barra-btns .btn { padding: 11px 12px; font-size: 15px; }
+    html.modo-app .cx { padding-top: 14px; }
     body.con-barra .cx { padding-bottom: 170px; }
     @media (min-width: 640px) { .barra .in { flex-direction: row; align-items: center; justify-content: space-between; } .barra-btns { min-width: 360px; } }
     .barra .total { font-size: 22px; font-weight: 800; }

@@ -33,13 +33,17 @@ const codigoShopify = () => `<div id="cdx-caja" style="width:100%;margin:0;paddi
 <script>
 (function () {
   var f = document.getElementById("cdx-cotiza");
-  // Alto = la pantalla menos el menú de la tienda (el cotizador se desliza por dentro, como una app)
+  // Alto = desde donde empieza el cotizador hasta el final de la pantalla (cabe completo, con los botones siempre a la vista)
   function ajustar() {
+    var top = f.getBoundingClientRect().top + (window.pageYOffset || document.documentElement.scrollTop);
     var h = document.querySelector("header, .header-wrapper, sticky-header, .shopify-section-header-sticky");
-    var menu = h ? h.getBoundingClientRect().height : 0;
-    f.style.height = Math.max(480, window.innerHeight - menu) + "px";
+    var menu = h && /fixed|sticky/.test(getComputedStyle(h).position) ? h.getBoundingClientRect().height : 0;
+    var alto = window.innerHeight - Math.min(top, Math.max(menu, 0) + 40);
+    f.style.height = Math.max(460, Math.round(top < window.innerHeight * 0.5 ? window.innerHeight - top : alto)) + "px";
   }
   ajustar();
+  window.addEventListener("load", ajustar);
+  setTimeout(ajustar, 600);
   window.addEventListener("resize", ajustar);
   window.addEventListener("message", function (e) {
     if (e.origin !== "${location.origin}" || !e.data) return;
