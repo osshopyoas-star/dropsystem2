@@ -2,7 +2,7 @@
 // Página pública del cotizador de letreros (/cotiza/:clave)
 // Pasos: inicio → subir logo → material → dónde va y luz → tamaño → maqueta → precio y pedido
 // =============================================
-import { cotizar, altoDe, formatoPlata, complejidadDe, COMPLEJIDADES } from "./core/cotizador.js";
+import { cotizar, altoDe, formatoPlata } from "./core/cotizador.js";
 
 const clave = decodeURIComponent(location.pathname.split("/").filter(Boolean)[1] || "");
 const $ = (id) => document.getElementById(id);
@@ -12,7 +12,7 @@ const app = $("app");
 const st = {
   cfg: null, paso: "inicio",
   logo: null,            // { dataUrl, ratio }
-  e: { material: "", luz: "", ubicacion: "", montaje: "", forma: "", ancho: 60, alto: 60, cantidad: 1, complejidad: "medio" },
+  e: { material: "", luz: "", ubicacion: "", montaje: "", forma: "", ancho: 60, alto: 60, cantidad: 1 },
   altoManual: false, maqueta: null, cotizacion: null, aviso: "", error: "", notas: "", enviando: false
 };
 const PASOS = ["subir", "material", "lugar", "tamano", "resultado"];
@@ -457,36 +457,6 @@ window.cxAlto = (v) => { const n = Math.round(Number(v) * 10) / 10; if (n > 0) {
 document.addEventListener("dragover", (e) => { if (e.target.closest?.(".subir")) e.preventDefault(); });
 document.addEventListener("drop", (e) => { if (!e.target.closest?.(".subir")) return; e.preventDefault(); const f = e.dataTransfer?.files?.[0]; if (f) cxArchivo(f); });
 
-// Mide qué tan complejo es el diseño: separa el logo del fondo y cuenta cuánto borde tiene.
-// Más bordes (letras, detalles, piezas) = más minutos de láser.
-function medirComplejidad(img) {
-  try {
-    const lado = 220, k = Math.min(1, lado / Math.max(img.width, img.height));
-    const w = Math.max(8, Math.round(img.width * k)), h = Math.max(8, Math.round(img.height * k));
-    const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
-    const cx = cv.getContext("2d"); cx.drawImage(img, 0, 0, w, h);
-    const d = cx.getImageData(0, 0, w, h).data;
-    // Color del fondo: el promedio de las 4 esquinas
-    const esquina = (x, y) => { const i = (y * w + x) * 4; return [d[i], d[i + 1], d[i + 2], d[i + 3]]; };
-    const es = [esquina(0, 0), esquina(w - 1, 0), esquina(0, h - 1), esquina(w - 1, h - 1)];
-    const fondo = [0, 1, 2, 3].map(j => es.reduce((t, e) => t + e[j], 0) / 4);
-    const transparente = fondo[3] < 40;
-    const lleno = new Uint8Array(w * h);
-    for (let p = 0; p < w * h; p++) {
-      const i = p * 4;
-      lleno[p] = transparente ? (d[i + 3] > 100 ? 1 : 0)
-        : (Math.abs(d[i] - fondo[0]) + Math.abs(d[i + 1] - fondo[1]) + Math.abs(d[i + 2] - fondo[2]) > 90 ? 1 : 0);
-    }
-    let bordes = 0, relleno = 0;
-    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-      const p = y * w + x;
-      if (!lleno[p]) continue;
-      relleno++;
-      if (x === 0 || y === 0 || x === w - 1 || y === h - 1 || !lleno[p - 1] || !lleno[p + 1] || !lleno[p - w] || !lleno[p + w]) bordes++;
-    }
-    return complejidadDe({ bordes, relleno });
-  } catch { return "medio"; }
-}
 
 // Achica la imagen en el navegador (máx. 1400 px) para subirla rápido
 window.cxArchivo = (file) => {

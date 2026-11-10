@@ -142,7 +142,7 @@ export function registrarRutasCotizadorPublico(app) {
       if (!q) return res.status(400).json({ error: "Elige el material" });
 
       const logoDoc = await CotizadorImagen.create({ owner: c.owner, tipo: "logo", mime: logo.tipo, datos: logo.datos });
-      const cot = await Cotizacion.create({ owner: c.owner, logo: logoDoc._id, eleccion: { material: q.material.id, luz: q.luz?.id || "", ubicacion: q.ubicacion?.id || "", montaje: q.montaje?.id || "", forma: q.forma?.id || "", colorLuz: q.colorLuz || "", ancho: q.ancho, alto: q.alto, cantidad: q.cantidad, complejidad: q.complejidad }, total: q.total, anticipo: q.anticipo, moneda: cfg.moneda });
+      const cot = await Cotizacion.create({ owner: c.owner, logo: logoDoc._id, eleccion: { material: q.material.id, luz: q.luz?.id || "", ubicacion: q.ubicacion?.id || "", montaje: q.montaje?.id || "", forma: q.forma?.id || "", colorLuz: q.colorLuz || "", ancho: q.ancho, alto: q.alto, cantidad: q.cantidad }, total: q.total, anticipo: q.anticipo, moneda: cfg.moneda });
 
       // ¿Puede hacer maqueta? Tope por persona al día y tope de gasto del mes
       const k = `${req.ip}|${hoy()}`;
@@ -254,7 +254,7 @@ export function registrarRutasCotizadorPublico(app) {
       let maquetaUrl = "";
       if (idValido(req.body?.cotizacion)) {
         const cot = await Cotizacion.findOneAndUpdate({ _id: req.body.cotizacion, owner: c.owner },
-          { $set: { pidio: true, notas, total: q.total, anticipo: q.anticipo, eleccion: { material: q.material.id, luz: q.luz?.id || "", ubicacion: q.ubicacion?.id || "", montaje: q.montaje?.id || "", forma: q.forma?.id || "", colorLuz: q.colorLuz || "", ancho: q.ancho, alto: q.alto, cantidad: q.cantidad, complejidad: q.complejidad } } }, { new: true }).lean();
+          { $set: { pidio: true, notas, total: q.total, anticipo: q.anticipo, eleccion: { material: q.material.id, luz: q.luz?.id || "", ubicacion: q.ubicacion?.id || "", montaje: q.montaje?.id || "", forma: q.forma?.id || "", colorLuz: q.colorLuz || "", ancho: q.ancho, alto: q.alto, cantidad: q.cantidad } } }, { new: true }).lean();
         const origen = `${req.protocol}://${req.get("host")}`;
         if (cot?.maqueta) maquetaUrl = `${origen}/api/cotiza/img/${cot.maqueta}`;
         else if (cot?.logo) maquetaUrl = `${origen}/api/cotiza/img/${cot.logo}`;

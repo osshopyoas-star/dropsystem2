@@ -5,7 +5,7 @@
 // =============================================
 import { registrarRuta } from "./navegacion.js";
 import { escapeHTML } from "../core/utils.js";
-import { cotizar, formatoPlata, precioCm2, COMPLEJIDADES } from "../core/cotizador.js";
+import { cotizar, formatoPlata, precioCm2 } from "../core/cotizador.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (v) => escapeHTML(v ?? "");

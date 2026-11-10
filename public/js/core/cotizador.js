@@ -191,7 +191,6 @@ function costosLimpios(c, lista) {
 
 // Precio del cm² de una lámina
 export const precioCm2 = (l) => (l && l.m2 > 0 ? l.precio / (l.m2 * 10000) : 0);
-export const COMPLEJIDADES = { sencillo: "Sencillo", medio: "Medio", complejo: "Complejo" };
 const AREA_BASE = 900, CONTORNO_BASE = 120;   // el letrero de 30 × 30 del Excel
 
 const buscar = (arr, id) => (arr || []).find(x => x.id === id) || (arr || [])[0] || null;
@@ -203,7 +202,7 @@ export const altoDe = (ancho, proporcion = 1) => Math.round(num(ancho) * Math.mi
  * Precio de un letrero, con la misma cuenta del Excel de fabricación:
  *   materiales (láminas × área + láser + costos) → + mano de obra % → + ganancia del producto % = FABRICACIÓN
  *   + recargos (luz, exterior) y montaje → × cantidad → + pauta y flete (según el tramo) → + tu ganancia % = PRECIO
- * eleccion: { material, luz, ubicacion, montaje, ancho, alto, cantidad, complejidad }
+ * eleccion: { material, luz, ubicacion, forma, montaje, ancho, alto, cantidad, colorLuz }
  */
 export function cotizar(cfg, eleccion = {}) {
   const c = cfg?.laminas ? cfg : limpiarConfig(cfg);
@@ -216,7 +215,6 @@ export function cotizar(cfg, eleccion = {}) {
   const ancho = Math.min(c.anchoMax, Math.max(c.anchoMin, num(eleccion.ancho, c.anchoDefecto)));
   const alto = Math.max(1, num(eleccion.alto, ancho));
   const cantidad = Math.min(50, Math.max(1, Math.round(num(eleccion.cantidad, 1))));
-  const complejidad = COMPLEJIDADES[eleccion.complejidad] ? eleccion.complejidad : "medio";
   const area = ancho * alto, contorno = 2 * (ancho + alto);
 
   // 1. Materiales
@@ -257,7 +255,7 @@ export function cotizar(cfg, eleccion = {}) {
   const anticipo = Math.ceil(total * c.anticipoPct / 100 / r) * r;
   const red = Math.round;
   return {
-    material: mat, luz, ubicacion: ubi, montaje: mon, ancho, alto, cantidad, area, complejidad,
+    material: mat, luz, ubicacion: ubi, montaje: mon, ancho, alto, cantidad, area,
     colorLuz: luz?.pideColor ? String(eleccion.colorLuz || "").replace(/[<>]/g, "").slice(0, 40).trim() : "",
     detalle: { laminas: laminas.map(x => ({ ...x, valor: red(x.valor) })), laser: { ...laser, valor: red(laser.valor) }, otros: otros.map(x => ({ ...x, valor: red(x.valor) })) },
     materiales: red(materiales), manoObra: red(manoObra), gananciaProducto: red(gananciaProducto), fabricacion: red(fabricacion),
@@ -267,13 +265,6 @@ export function cotizar(cfg, eleccion = {}) {
   };
 }
 
-// Qué tan complejo es un diseño, medido en el navegador: cuánto borde tiene comparado con su tamaño.
-// Un círculo lleno da ~3,5; letras y logos con detalle dan mucho más. Devuelve "sencillo", "medio" o "complejo".
-export function complejidadDe({ bordes = 0, relleno = 0 } = {}) {
-  if (!relleno) return "medio";
-  const indice = bordes / Math.sqrt(relleno);
-  return indice < 9 ? "sencillo" : indice < 22 ? "medio" : "complejo";
-}
 
 export function formatoPlata(v, moneda = "COP") {
   const n = Math.round(num(v));
