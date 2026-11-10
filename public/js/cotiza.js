@@ -32,7 +32,17 @@ new ResizeObserver(avisarAlto).observe(document.getElementById("app"));
 document.addEventListener("load", (e) => { if (e.target.tagName === "IMG") avisarAlto(); }, true);
 setInterval(avisarAlto, 1500);
 if (enShopify) document.documentElement.classList.add("en-shopify");
-const arriba = () => { window.scrollTo({ top: 0, behavior: "smooth" }); try { parent.postMessage({ cdxArriba: true }, "*"); } catch {} };
+const arriba = () => {
+  window.scrollTo({ top: 0 });
+  if (!enShopify) return;
+  // Primero el alto nuevo, después subir (si sube antes, la tienda se queda abajo con la página vacía)
+  avisarAlto();
+  const subir = () => { try { parent.postMessage({ cdxArriba: true }, "*"); } catch {} try { document.getElementById("app").scrollIntoView({ block: "start" }); } catch {} };
+  setTimeout(subir, 80);
+  setTimeout(subir, 450);
+};
+// Lleva la vista hasta un elemento (también dentro de Shopify)
+const bajarA = (el) => { if (el) setTimeout(() => { try { el.scrollIntoView({ behavior: "smooth", block: "center" }); } catch {} }, 60); };
 
 async function api(metodo, url, body) {
   const r = await fetch(url, { method: metodo, headers: body ? { "Content-Type": "application/json" } : undefined, body: body ? JSON.stringify(body) : undefined });
@@ -174,12 +184,12 @@ function colorLuzHTML(c) {
   const luz = c.luces.find(l => l.id === st.e.luz);
   if (!luz?.pideColor) return "";
   const v = st.e.colorLuz || "";
-  return `<div class="color-luz"><b>¿De qué color quieres la luz?</b>
+  return `<div class="color-luz" id="grp-color"><b>¿De qué color quieres la luz?</b>
     <div class="colores">${COLORES.map(([n, hex]) => `<button class="color ${v.toLowerCase() === n.toLowerCase() ? "on" : ""}" onclick="cxColor('${n}')"><i style="background:${hex};box-shadow:0 0 10px ${hex}"></i>${n}</button>`).join("")}</div>
     <input id="cxColorLuz" placeholder="O escribe el color (ej: verde menta)" value="${esc(v)}" maxlength="40" oninput="cxColorTexto(this.value)">
   </div>`;
 }
-window.cxColor = (n) => { st.e.colorLuz = n; pintar(); };
+window.cxColor = (n) => { st.e.colorLuz = n; pintar(); bajarA(document.querySelector("#app .fila")); };
 window.cxColorTexto = (v) => { st.e.colorLuz = v; document.querySelectorAll(".color-luz .color").forEach(b => b.classList.toggle("on", b.textContent.trim().toLowerCase() === v.trim().toLowerCase())); };
 
 function opcion(grupo, x, extra = "") {
@@ -209,24 +219,25 @@ function pintar() {
       <div class="seccion"><button class="btn" onclick="cxIr('subir')">Sube tu logo y míralo</button></div>`;
   } else if (st.paso === "subir") {
     html = `${pasos()}<h2>Sube tu logo o diseño</h2><p class="sub">Una foto, captura o archivo de tu logo. Mientras más claro, mejor sale.</p>
-      <label class="subir" for="cxArchivo">
+      ${st.recorte || st.logo ? "" : `<label class="subir" for="cxArchivo">
         <span class="nube"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg></span>
         <small class="arrastra">O arrastra tu archivo aquí</small>
         <span class="btn-subir">${st.logo || st.recorte ? "Cambiar imagen" : "Toca para subir"}</span>
         <small>Gratis · sin compromiso</small>
         <span class="formatos"><i>PNG</i><i>JPG</i><i>WEBP</i></span>
-      </label>
+      </label>`}
       <input id="cxArchivo" type="file" accept="image/png,image/jpeg,image/webp" class="oculto" onchange="cxArchivo(this.files[0])">
       ${st.error ? `<div class="error">${esc(st.error)}</div>` : ""}
       ${st.recorte ? `
-        <h2 style="margin-top:22px;font-size:20px">Recorta tu logo</h2>
+        <h2 style="margin-top:6px;font-size:20px">Recorta tu logo</h2>
         <div class="recorte" id="cxRecorte"><img src="${st.recorte.dataUrl}" alt="Tu imagen" draggable="false">
           <div class="caja-rec" id="cxCaja" style="${cajaEstilo()}"><i data-h="nw"></i><i data-h="ne"></i><i data-h="sw"></i><i data-h="se"></i></div></div>
         <p class="mini">ⓘ Arrastra las esquinas para dejar solo el logo. Deja un poquito de espacio alrededor.</p>
-        <div class="fila"><button class="btn claro" onclick="cxSinRecorte()">Usar completa</button><button class="btn" onclick="cxRecortar()">Recortar y continuar</button></div>`
+        <div class="fila"><button class="btn claro" onclick="cxSinRecorte()">Usar completa</button><button class="btn" onclick="cxRecortar()">Recortar y continuar</button></div>
+        <p class="mini"><label class="enlace" for="cxArchivo">Cambiar por otra imagen</label></p>`
       : st.logo ? `<div style="margin-top:14px">${pared()}</div>
         <div class="fila"><button class="btn claro" onclick="cxIr('inicio')">Atrás</button><button class="btn" onclick="cxIr('material')">Continuar</button></div>
-        <p class="mini"><button class="enlace" onclick="cxVolverRecortar()">Recortar de nuevo</button></p>`
+        <p class="mini"><button class="enlace" onclick="cxVolverRecortar()">Recortar de nuevo</button> · <label class="enlace" for="cxArchivo">Cambiar por otra imagen</label></p>`
       : `<div class="fila"><button class="btn claro" onclick="cxIr('inicio')">Atrás</button><button class="btn" disabled>Continuar</button></div>`}
       ${resenas()}`;
   } else if (st.paso === "material") {
@@ -237,8 +248,8 @@ function pintar() {
     const m = c.materiales.find(x => x.id === st.e.material);
     html = `${pasos()}<h2>¿Dónde lo vas a poner?</h2><p class="sub">Así sabemos qué tan resistente tiene que ser.</p>
       <div class="opciones dos">${c.ubicaciones.map(u => opcion("ubicacion", u, u.pct ? `+${u.pct}%` : "")).join("")}</div>
-      ${(c.formas || []).length > 1 ? `<h2 style="margin-top:26px">¿Qué forma quieres?</h2><div class="opciones dos" style="margin-top:12px">${c.formas.map(f => opcion("forma", f, f.pct ? `+${f.pct}%` : "")).join("")}</div>` : ""}
-      ${m?.conLuz ? `<h2 style="margin-top:26px">¿Qué luz quieres?</h2><div class="opciones dos" style="margin-top:12px">${c.luces.map(l => opcion("luz", l, l.pct ? `+${l.pct}%` : "")).join("")}</div>${colorLuzHTML(c)}` : ""}
+      ${(c.formas || []).length > 1 ? `<h2 id="grp-forma" style="margin-top:26px">¿Qué forma quieres?</h2><div class="opciones dos" style="margin-top:12px">${c.formas.map(f => opcion("forma", f, f.pct ? `+${f.pct}%` : "")).join("")}</div>` : ""}
+      ${m?.conLuz ? `<h2 id="grp-luz" style="margin-top:26px">¿Qué luz quieres?</h2><div class="opciones dos" style="margin-top:12px">${c.luces.map(l => opcion("luz", l, l.pct ? `+${l.pct}%` : "")).join("")}</div>${colorLuzHTML(c)}` : ""}
       <div class="fila"><button class="btn claro" onclick="cxIr('material')">Atrás</button><button class="btn" onclick="cxIr('tamano')">Continuar</button></div>`;
   } else if (st.paso === "tamano") {
     html = `${pasos()}<h2>¿De qué tamaño?</h2><p class="sub">Mueve la barra. El alto sale solo según la forma de tu logo (puedes cambiarlo).</p>
@@ -290,7 +301,7 @@ function pintar() {
   app.innerHTML = html;
   // Barra de precio abajo (desde que eliges material hasta antes del resultado)
   const barra = $("barra");
-  const verBarra = r && ["material", "lugar", "tamano"].includes(st.paso);
+  const verBarra = !enShopify && r && ["material", "lugar", "tamano"].includes(st.paso);
   barra.classList.toggle("ver", !!verBarra);
   if (verBarra) {
     $("barraTotal").textContent = plata(r.total);
@@ -302,7 +313,16 @@ function pintar() {
 }
 
 window.cxIr = (paso) => { st.error = ""; st.paso = paso; pintar(); arriba(); };
-window.cxElegir = (grupo, id) => { st.e[grupo] = id; pintar(); };
+window.cxElegir = (grupo, id) => {
+  st.e[grupo] = id; pintar();
+  // Al elegir, baja solo a la siguiente pregunta o al botón Continuar
+  const fila = document.querySelector("#app .fila:not(.res) .btn:not(.claro)")?.closest(".fila");
+  let sig = null;
+  if (grupo === "ubicacion") sig = $("grp-forma") || $("grp-luz");
+  else if (grupo === "forma") sig = $("grp-luz");
+  else if (grupo === "luz") { const l = st.cfg.luces.find(x => x.id === id); sig = l?.pideColor ? $("grp-color") : null; }
+  if (["material", "ubicacion", "forma", "luz"].includes(grupo)) bajarA(sig || fila);
+};
 window.cxNotas = (v) => { st.notas = v; };
 window.cxCantidad = (d) => { st.e.cantidad = Math.min(50, Math.max(1, st.e.cantidad + d)); pintar(); };
 window.cxAncho = (v) => {
