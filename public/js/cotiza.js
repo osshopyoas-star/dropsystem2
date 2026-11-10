@@ -335,7 +335,7 @@ function pintar() {
         <div class="fila" style="margin-top:10px"><label class="btn claro" for="cxArchivo">Cambiar</label><button class="btn" onclick="cxRecortar()">Recortar y continuar</button></div>
         <p class="mini" style="margin-top:8px"><button class="enlace" onclick="cxSinRecorte()">Usar la imagen completa</button></p>
         </div>`
-      : st.logo ? `<div style="margin-top:14px">${pared()}</div>
+      : st.logo ? `<div class="logo-listo"><img src="${st.logo.dataUrl}" alt="Tu logo"></div>
         <div class="fila"><button class="btn claro" onclick="cxIr('inicio')">Atrás</button><button class="btn" onclick="cxIr('material')">Continuar</button></div>
         <p class="mini"><button class="enlace" onclick="cxVolverRecortar()">Recortar de nuevo</button> · <label class="enlace" for="cxArchivo">Cambiar por otra imagen</label></p>`
       : `<div class="fila"><button class="btn claro" onclick="cxIr('inicio')">Atrás</button><button class="btn" disabled>Continuar</button></div>`}
