@@ -170,6 +170,10 @@ function reglaHTML() {
         <input class="rango" type="range" min="${c.anchoMin}" max="${c.anchoMax}" step="1" value="${st.e.ancho}" oninput="cxAncho(this.value)" style="--p:${pct}%"></div>
       <button class="regla-btn" onclick="cxPaso(1)" aria-label="Más grande">+</button></div>
     <div class="regla-marcas"><span>${c.anchoMin} cm</span><i></i><span>${c.anchoMax} cm</span></div>
+    <div class="medidas medidas-mini">
+      <label>Ancho<input type="number" inputmode="decimal" min="${c.anchoMin}" max="${c.anchoMax}" value="${st.e.ancho}" onchange="cxAncho(this.value)"><em>cm</em></label>
+      <label>Alto<input type="number" inputmode="decimal" min="5" max="${c.anchoMax * 3}" value="${st.e.alto}" onchange="cxAlto(this.value)"><em>cm</em></label>
+    </div>
   </div>`;
 }
 window.cxPaso = (d) => cxAncho(st.e.ancho + d * (st.e.ancho >= 100 ? 5 : 2));
@@ -355,10 +359,6 @@ function pintar() {
     html = `${pasos()}<h2>¿De qué tamaño?</h2><p class="sub">Mueve la barra. El alto sale solo según la forma de tu logo (puedes cambiarlo).</p>
       ${pared()}
       ${(!enShopify || barraFlotante) ? "" : reglaHTML()}
-      <div class="medidas">
-        <label class="campo">Ancho (cm)<input type="number" min="${c.anchoMin}" max="${c.anchoMax}" value="${st.e.ancho}" onchange="cxAncho(this.value)"></label>
-        <label class="campo">Alto (cm)<input type="number" min="5" max="${c.anchoMax * 3}" value="${st.e.alto}" onchange="cxAlto(this.value)"></label>
-      </div>
       ${precioLinea(r)}<div class="fila fila-paso"><button class="btn claro" onclick="cxIr('lugar')">Atrás</button><button class="btn" onclick="cxMaqueta()">${c.conMaqueta ? "Ver mi letrero" : "Ver mi precio"}</button></div>`;
   } else if (st.paso === "generando") {
     html = `<h2>Haciendo tu maqueta…</h2><p class="sub">Estamos convirtiendo tu logo en letrero. Tarda menos de un minuto.</p>

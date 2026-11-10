@@ -102,13 +102,17 @@
     .contador span { min-width: 30px; text-align: center; font-weight: 700; font-size: 18px; }
     .mini { color: var(--suave); font-size: 12.5px; text-align: center; margin-top: 10px; }
     .oculto { display: none !important; }
+    .medidas-mini { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+    .medidas-mini label { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 10px; background: var(--caja2); border: 1px solid var(--borde); font-size: 12px; color: var(--suave); }
+    .medidas-mini input { flex: 1; min-width: 0; width: 100%; background: transparent; border: 0; color: var(--texto); font: inherit; font-size: 16px; font-weight: 700; text-align: right; outline: none; }
+    .medidas-mini em { font-style: normal; font-size: 12px; }
     .logo-listo { margin-top: 14px; display: flex; align-items: center; justify-content: center; min-height: 200px; padding: 18px; border-radius: 18px; background: var(--caja); border: 1px solid var(--borde); }
     .logo-listo img { max-width: 100%; max-height: 300px; object-fit: contain; border-radius: 8px; }
     /* Paso del tamaño: pared con marco que brilla, cotas y regla */
     .pared { background: radial-gradient(60% 50% at 50% 35%, #2a2d3a, #15171f 70%), #15171f; aspect-ratio: 4 / 3.2; }
     .pared .planta { position: absolute; left: 5%; bottom: 22%; width: 9%; height: 26%; border-radius: 40% 40% 10% 10%; background: radial-gradient(circle at 50% 30%, #1f3b2c, #0d1a13); opacity: .8; }
     .pared .lampara { position: absolute; right: 6%; bottom: 22%; width: 7%; height: 9%; border-radius: 40% 40% 4px 4px; background: radial-gradient(circle at 50% 20%, #ffd58a, #a86a1d); box-shadow: 0 0 40px 12px rgba(255,190,90,.25); }
-    .marco { position: relative; z-index: 1; max-height: 70%; border: 3px solid #fde68a; border-radius: 6px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.25); box-shadow: 0 0 10px rgba(253,230,138,.8), 0 0 34px rgba(250,204,21,.45), inset 0 0 18px rgba(250,204,21,.18); transition: width .12s; }
+    .marco { position: relative; z-index: 1; max-height: 62%; max-width: 70%; border: 3px solid #fde68a; border-radius: 6px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.25); box-shadow: 0 0 10px rgba(253,230,138,.8), 0 0 34px rgba(250,204,21,.45), inset 0 0 18px rgba(250,204,21,.18); transition: width .12s; }
     .marco img { max-width: 86%; max-height: 86%; object-fit: contain; }
     .marco.luz img { filter: drop-shadow(0 0 6px rgba(255,255,255,.5)) drop-shadow(0 0 18px rgba(168,85,247,.5)); }
     .cota { position: absolute; color: #93c5fd; font-size: 12px; font-weight: 700; white-space: nowrap; }
