@@ -236,7 +236,7 @@ function pintar() {
       ${resenas()}
       <div class="seccion"><button class="btn" onclick="cxIr('subir')">Sube tu logo y míralo</button></div>`;
   } else if (st.paso === "subir") {
-    html = `${pasos()}<h2>Sube tu logo o diseño</h2><p class="sub">Una foto, captura o archivo de tu logo. Mientras más claro, mejor sale.</p>
+    html = `${st.recorte ? "" : `${pasos()}<h2>Sube tu logo o diseño</h2><p class="sub">Una foto, captura o archivo de tu logo. Mientras más claro, mejor sale.</p>`}
       ${st.recorte || st.logo ? "" : `<label class="subir" for="cxArchivo">
         <span class="nube"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg></span>
         <small class="arrastra">O arrastra tu archivo aquí</small>
@@ -247,12 +247,14 @@ function pintar() {
       <input id="cxArchivo" type="file" accept="image/png,image/jpeg,image/webp" class="oculto" onchange="cxArchivo(this.files[0])">
       ${st.error ? `<div class="error">${esc(st.error)}</div>` : ""}
       ${st.recorte ? `
-        <h2 style="margin-top:6px;font-size:20px">Recorta tu logo</h2>
-        <div class="recorte" id="cxRecorte"><img src="${st.recorte.dataUrl}" alt="Tu imagen" draggable="false">
-          <div class="caja-rec" id="cxCaja" style="${cajaEstilo()}"><i data-h="nw"></i><i data-h="ne"></i><i data-h="sw"></i><i data-h="se"></i></div></div>
-        <p class="mini">ⓘ Arrastra las esquinas para dejar solo el logo. Deja un poquito de espacio alrededor.</p>
-        <div class="fila"><button class="btn claro" onclick="cxSinRecorte()">Usar completa</button><button class="btn" onclick="cxRecortar()">Recortar y continuar</button></div>
-        <p class="mini"><label class="enlace" for="cxArchivo">Cambiar por otra imagen</label></p>`
+        <div class="recorte-paso">
+        <h2 style="margin:0 0 10px;font-size:22px">Recorta tu logo</h2>
+        <div class="recorte-zona"><div class="recorte" id="cxRecorte"><img src="${st.recorte.dataUrl}" alt="Tu imagen" draggable="false">
+          <div class="caja-rec" id="cxCaja" style="${cajaEstilo()}"><i data-h="nw"></i><i data-h="ne"></i><i data-h="sw"></i><i data-h="se"></i></div></div></div>
+        <p class="mini" style="margin:8px 0 0">ⓘ Arrastra las esquinas para dejar solo el logo. Deja un poquito de espacio alrededor.</p>
+        <div class="fila" style="margin-top:10px"><label class="btn claro" for="cxArchivo">Cambiar</label><button class="btn" onclick="cxRecortar()">Recortar y continuar</button></div>
+        <p class="mini" style="margin-top:8px"><button class="enlace" onclick="cxSinRecorte()">Usar la imagen completa</button></p>
+        </div>`
       : st.logo ? `<div style="margin-top:14px">${pared()}</div>
         <div class="fila"><button class="btn claro" onclick="cxIr('inicio')">Atrás</button><button class="btn" onclick="cxIr('material')">Continuar</button></div>
         <p class="mini"><button class="enlace" onclick="cxVolverRecortar()">Recortar de nuevo</button> · <label class="enlace" for="cxArchivo">Cambiar por otra imagen</label></p>`

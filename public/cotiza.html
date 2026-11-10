@@ -134,8 +134,11 @@
     .op.con-foto img { width: 104px; height: 104px; object-fit: contain; border-radius: 12px; display: block; background: #0b0d14; border: 1px solid #222637; padding: 4px; box-sizing: border-box; }
     .op-foto em { position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); font-style: normal; font-size: 9px; font-weight: 800; letter-spacing: .12em; color: #fff; background: rgba(0,0,0,.65); padding: 3px 7px; border-radius: 999px; backdrop-filter: blur(4px); }
     /* Recortar */
-    .recorte { position: relative; margin-top: 12px; border-radius: 14px; overflow: hidden; touch-action: none; user-select: none; background: #e5e7eb repeating-conic-gradient(#d1d5db 0% 25%, #f3f4f6 0% 50%) 0 0 / 20px 20px; }
-    .recorte img { width: 100%; display: block; pointer-events: none; }
+    /* Recorte: la imagen cabe completa en la pantalla (sea horizontal o vertical) y los botones quedan a la vista */
+    .recorte-zona { display: flex; justify-content: center; margin-top: 4px; }
+    .recorte { position: relative; display: inline-block; border-radius: 10px; overflow: hidden; touch-action: none; user-select: none; background: #e5e7eb repeating-conic-gradient(#d1d5db 0% 25%, #f3f4f6 0% 50%) 0 0 / 20px 20px; }
+    .recorte img { display: block; max-width: 100%; max-height: calc(100vh - 250px); max-height: calc(100svh - 250px); min-height: 120px; width: auto; height: auto; pointer-events: none; }
+    .recorte-paso { text-align: center; }
     .caja-rec { position: absolute; border: 2px dashed #fff; box-shadow: 0 0 0 9999px rgba(0,0,0,.55); cursor: move; touch-action: none; }
     .caja-rec i { position: absolute; width: 26px; height: 26px; border: 3px solid #fff; background: rgba(255,255,255,.15); touch-action: none; }
     .caja-rec i[data-h="nw"] { left: -13px; top: -13px; cursor: nwse-resize; }
