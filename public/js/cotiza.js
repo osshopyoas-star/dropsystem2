@@ -294,6 +294,39 @@ function precioLinea(r) {
   return `<div class="precio-linea" id="cxPrecioLinea"><span><small>${r.ancho} × ${r.alto} cm · precio</small><b>${plata(r.total)}</b></span>${st.cfg.envioGratis ? `<em>🚚 Envío gratis</em>` : ""}</div>`;
 }
 
+// La maqueta se dibuja en un lienzo con marca de agua (no queda como foto para "Guardar imagen")
+let maquetaImg = null;
+function dibujarMaqueta() {
+  const cv = $("cxMaqueta"); if (!cv) return;
+  const pintarla = (img) => {
+    const ancho = Math.min(1100, img.naturalWidth || 1024), alto = Math.round(ancho * (img.naturalHeight / img.naturalWidth || .75));
+    cv.width = ancho; cv.height = alto;
+    const cx = cv.getContext("2d");
+    cx.drawImage(img, 0, 0, ancho, alto);
+    // Marca de agua en diagonal, repetida
+    const texto = `${(st.cfg.marca || "").toUpperCase()} · MAQUETA`;
+    cx.save();
+    cx.translate(ancho / 2, alto / 2); cx.rotate(-Math.PI / 7);
+    cx.font = `800 ${Math.round(ancho / 22)}px Inter, system-ui, sans-serif`;
+    cx.textAlign = "center"; cx.textBaseline = "middle";
+    cx.fillStyle = "rgba(255,255,255,.16)"; cx.strokeStyle = "rgba(0,0,0,.12)"; cx.lineWidth = 1;
+    const paso = Math.round(ancho / 4.2);
+    for (let y = -alto; y <= alto; y += paso) for (let x = -ancho; x <= ancho; x += paso * 2.6) {
+      const dx = x + ((y / paso) % 2 ? paso * 1.3 : 0);
+      cx.fillText(texto, dx, y); cx.strokeText(texto, dx, y);
+    }
+    cx.restore();
+    // Sello abajo
+    cx.font = `700 ${Math.round(ancho / 34)}px Inter, system-ui, sans-serif`;
+    cx.textAlign = "right"; cx.fillStyle = "rgba(255,255,255,.55)";
+    cx.fillText(`Maqueta de referencia · ${st.cfg.marca || ""}`, ancho - 14, alto - 14);
+  };
+  if (maquetaImg && maquetaImg.src.endsWith(st.maqueta)) return pintarla(maquetaImg);
+  const img = new Image();
+  img.onload = () => { maquetaImg = img; pintarla(img); };
+  img.src = st.maqueta;
+}
+
 function opcion(grupo, x, extra = "") {
   const on = st.e[grupo] === x.id;
   const lista = { material: "materiales", ubicacion: "ubicaciones", forma: "formas", luz: "luces", montaje: "montajes" }[grupo];
@@ -368,7 +401,7 @@ function pintar() {
   } else if (st.paso === "resultado") {
     html = `${pasos()}<h2>Así se vería tu letrero</h2><p class="sub">${st.maqueta ? "Maqueta hecha con IA a partir de tu logo. Antes de fabricar te mandamos el diseño final para que lo apruebes." : "Tu logo en la pared con la medida que elegiste."}</p>
       ${st.aviso ? `<div class="aviso">${esc(st.aviso)}</div>` : ""}
-      ${st.maqueta ? `<img class="maqueta" src="${esc(st.maqueta)}" alt="Maqueta de tu letrero">` : pared()}
+      ${st.maqueta ? `<div class="maqueta-caja" oncontextmenu="return false"><canvas id="cxMaqueta" class="maqueta" aria-label="Maqueta de tu letrero"></canvas><div class="maqueta-tapa"></div></div>` : pared()}
       ${c.montajes.length > 1 ? `<h2 style="margin-top:26px;font-size:20px">¿Cómo lo vas a montar?</h2><div class="opciones dos" style="margin-top:12px">${c.montajes.map(m => opcion("montaje", m, m.precio ? `+${plata(m.precio)}` : "Incluido")).join("")}</div>` : ""}
       <div class="caja" style="margin-top:18px">
         <div class="contador"><span style="flex:1;text-align:left;font-weight:600;font-size:15px">Cantidad</span><button onclick="cxCantidad(-1)">−</button><span>${st.e.cantidad}</span><button onclick="cxCantidad(1)">+</button></div>
@@ -399,6 +432,7 @@ function pintar() {
       ${resenas()}`;
   }
   app.innerHTML = html;
+  if (st.paso === "resultado" && st.maqueta) dibujarMaqueta();
   // Barra de precio abajo (desde que eliges material hasta antes del resultado)
   const barra = $("barra");
   const verBarra = (!enShopify || barraFlotante) && r && ["material", "lugar", "tamano"].includes(st.paso);

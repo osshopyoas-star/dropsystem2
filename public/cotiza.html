@@ -49,7 +49,9 @@
     .formatos i { font-style: normal; font-size: 12px; font-weight: 600; color: #94a3b8; padding: 5px 14px; border-radius: 999px; background: #161a26; border: 1px solid #262b3c; }
     .pared { position: relative; border-radius: 18px; overflow: hidden; aspect-ratio: 4 / 3.2; background: radial-gradient(60% 50% at 50% 35%, #2a2d3a, #15171f 70%), #15171f; border: 1px solid var(--borde); display: flex; align-items: center; justify-content: center; }
     .pared::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 30%; background: linear-gradient(180deg, rgba(0,0,0,.3), rgba(0,0,0,.6)); pointer-events: none; }
-    .maqueta { width: 100%; border-radius: 18px; border: 1px solid var(--borde); display: block; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+    .maqueta { width: 100%; height: auto; border-radius: 18px; border: 1px solid var(--borde); display: block; box-shadow: 0 20px 60px rgba(0,0,0,.5); background: #11131c; min-height: 160px; }
+    .maqueta-caja { position: relative; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+    .maqueta-tapa { position: absolute; inset: 0; border-radius: 18px; }
     .rango { width: 100%; accent-color: var(--a2); margin: 14px 0 6px; }
     .medidas { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
     label.campo { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--suave); }
