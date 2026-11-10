@@ -2,7 +2,7 @@
 // Página pública del cotizador de letreros (/cotiza/:clave)
 // Pasos: inicio → subir logo → material → dónde va y luz → tamaño → maqueta → precio y pedido
 // =============================================
-import { cotizar, altoDe, formatoPlata } from "./core/cotizador.js";
+import { altoDe, formatoPlata } from "./core/cotizador.js";
 
 const clave = decodeURIComponent(location.pathname.split("/").filter(Boolean)[1] || "");
 const $ = (id) => document.getElementById(id);
@@ -17,7 +17,36 @@ const st = {
 };
 const PASOS = ["subir", "material", "lugar", "tamano", "resultado"];
 const plata = (v) => formatoPlata(v, st.cfg?.moneda);
-const q = () => (st.cfg && st.e.material ? cotizar(st.cfg, st.e) : null);
+// El precio lo calcula el servidor (aquí no hay costos). Se guarda el último y se pide de nuevo al cambiar algo.
+let precio = null, precioClave = "", relojPrecio = null;
+const claveE = () => JSON.stringify(st.e);
+function pedirPrecio() {
+  if (!st.cfg || !st.e.material) return;
+  const k = claveE();
+  if (k === precioClave) return;
+  clearTimeout(relojPrecio);
+  relojPrecio = setTimeout(async () => {
+    try {
+      const r = await api("POST", `/api/cotiza/${encodeURIComponent(clave)}/precio`, { eleccion: st.e });
+      if (claveE() !== k) return pedirPrecio();
+      precio = r; precioClave = k; refrescarPrecio();
+    } catch {}
+  }, 90);
+}
+const q = () => { pedirPrecio(); return precio; };
+// Al llegar un precio nuevo: en el tamaño solo se cambian los números (para no cortar el arrastre de la barra)
+function refrescarPrecio() {
+  const r = precio;
+  if (!r) return;
+  const barraVisible = $("barra")?.classList.contains("ver");
+  if ((st.paso === "tamano" || (["material", "lugar"].includes(st.paso) && barraVisible)) && st.paso !== "resultado") {
+    if ($("barraTotal")) { $("barraTotal").textContent = plata(r.total); $("barraTxt").textContent = `${r.ancho} × ${r.alto} cm · precio estimado${st.cfg.envioGratis ? " · ✓ envío gratis" : ""}`; }
+    const pl = $("cxPrecioLinea"); if (pl) pl.outerHTML = precioLinea(r);
+    if (!barraVisible && st.paso === "tamano") pintar();
+    return;
+  }
+  pintar();
+}
 
 // Altura para Shopify: la página va dentro de un iframe y le avisa cuánto mide
 const modoApp = new URLSearchParams(location.search).get("modo") === "app";
@@ -461,7 +490,6 @@ window.cxAncho = (v) => {
   if (p) p.outerHTML = pared();
   const r = q();
   const pl = $("cxPrecioLinea"); if (pl && r) pl.outerHTML = precioLinea(r);
-  if (r) { $("barraTotal").textContent = plata(r.total); $("barraTxt").textContent = `${r.ancho} × ${r.alto} cm · precio estimado${st.cfg.envioGratis ? " · ✓ envío gratis" : ""}`; }
   document.querySelectorAll(".medidas input")[0] && (document.querySelectorAll(".medidas input")[0].value = st.e.ancho);
   document.querySelectorAll(".medidas input")[1] && (document.querySelectorAll(".medidas input")[1].value = st.e.alto);
   const pct = (st.e.ancho - st.cfg.anchoMin) / Math.max(1, st.cfg.anchoMax - st.cfg.anchoMin) * 100;

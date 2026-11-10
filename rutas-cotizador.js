@@ -15,6 +15,8 @@ import { tiendaDe, crearPedidoBorrador, productoOculto } from "./rutas-shopify.j
 import { limpiarConfig, cotizar, promptMaqueta, mensajeWhatsapp } from "./public/js/core/cotizador.js";
 
 const MAX_GALERIA = 12;
+// Para borrar la config guardada en memoria del endpoint de precio cuando se guardan cambios
+const configPublicaCache = { limpiar: () => {} };
 
 const configSchema = new mongoose.Schema({
   owner: { type: mongoose.Schema.Types.ObjectId, ref: "Usuario", index: true, unique: true },
@@ -101,7 +103,9 @@ export function registrarRutasCotizadorPublico(app) {
       if (!c) return res.status(404).json({ error: "Este cotizador no existe" });
       const cfg = limpiarConfig(c.config);
       if (!cfg.activo) return res.status(404).json({ error: "El cotizador está apagado por ahora" });
-      const { limites, ...publica } = cfg;
+      // Solo lo que el cliente necesita ver: nada de costos, márgenes, pauta ni los textos que se le dan a la IA
+      const { limites, laminas, costos, laser, manoObraPct, gananciaProductoPct, gananciaPct, tramos, extrasV, ...publica } = cfg;
+      publica.materiales = cfg.materiales.map(({ id, nombre, desc, conLuz }) => ({ id, nombre, desc, conLuz }));
       const g = gastoDelMes(c);
       res.json({ ...publica, conMaqueta: limites.usdMes > g.usd + PRECIO_IMAGEN && limites.maquetasPorDia > 0, galeria: (c.galeria || []).map(x => ({ url: `/ci/${x.id}.jpg`, ...(x.idAntes ? { urlAntes: `/ci/${x.idAntes}.jpg`, real: x.real !== false } : {}), ...(x.tipo === "resena" ? { nombre: x.nombre || "", ciudad: x.ciudad || "", texto: x.texto || "", estrellas: x.estrellas || 0 } : {}), ...(x.tipo === "ejemplo" ? { material: x.material, grupo: x.grupo || "materiales" } : {}), tipo: x.tipo, titulo: x.titulo || "" })) });
     } catch (err) { console.error("Cotizador config:", err); res.status(500).json({ error: "No se pudo abrir el cotizador" }); }
@@ -129,6 +133,28 @@ export function registrarRutasCotizadorPublico(app) {
     } catch { res.sendStatus(404); }
   };
   app.get("/api/cotiza/img/:id", limiteGeneral, servirImagen);
+
+  // Precio calculado en el servidor (el navegador nunca ve los costos)
+  const cacheCfg = new Map();
+  configPublicaCache.limpiar = () => cacheCfg.clear();
+  const limitePrecio = rateLimit({ windowMs: 6e4, max: 240 });
+  app.post("/api/cotiza/:clave/precio", limitePrecio, async (req, res) => {
+    try {
+      const clave = String(req.params.clave).slice(0, 20);
+      let ent = cacheCfg.get(clave);
+      if (!ent || Date.now() - ent.t > 60000) {
+        const c = await CotizadorConfig.findOne({ clave }).select("config").lean();
+        if (!c) return res.status(404).json({ error: "Este cotizador no existe" });
+        ent = { t: Date.now(), cfg: limpiarConfig(c.config) };
+        cacheCfg.set(clave, ent);
+      }
+      const q = cotizar(ent.cfg, req.body?.eleccion || {});
+      if (!q) return res.status(400).json({ error: "Elige el material" });
+      const nom = (x) => (x ? { id: x.id, nombre: x.nombre } : null);
+      res.json({ total: q.total, anticipo: q.anticipo, flete: q.flete, ancho: q.ancho, alto: q.alto, cantidad: q.cantidad, colorLuz: q.colorLuz || "",
+        material: nom(q.material), luz: nom(q.luz), ubicacion: nom(q.ubicacion), forma: nom(q.forma), montaje: nom(q.montaje) });
+    } catch (err) { console.error("Cotizador precio:", err); res.status(500).json({ error: "No se pudo calcular el precio" }); }
+  });
   app.get("/ci/:id", servirImagen);
 
   // Sube el logo, guarda la cotización y (si alcanza el tope) hace la maqueta con IA
@@ -200,7 +226,8 @@ export function registrarRutasCotizadorPublico(app) {
   });
 
   // El cliente le da "Pagar ahora": se recalcula el precio aquí y se crea el pedido en Shopify con ese valor exacto
-  app.post("/api/cotiza/:clave/pagar", limiteGeneral, async (req, res) => {
+  const limitePagar = rateLimit({ windowMs: 10 * 6e4, max: 8, message: "Muchos intentos de pago seguidos. Espera unos minutos." });
+  app.post("/api/cotiza/:clave/pagar", limitePagar, async (req, res) => {
     try {
       const c = await CotizadorConfig.findOne({ clave: String(req.params.clave).slice(0, 20) }).lean();
       if (!c) return res.status(404).json({ error: "Este cotizador no existe" });
@@ -285,6 +312,7 @@ export function registrarRutasCotizador(app) {
     try {
       await configDe(req.user.uid);
       const c = await CotizadorConfig.findOneAndUpdate({ owner: req.user.uid }, { $set: { config: limpiarConfig(req.body?.config || {}), actualizado: new Date() } }, { new: true });
+      configPublicaCache.limpiar();
       res.json(vista(c));
     } catch (err) {
       console.error("Cotizador guardar:", err);
