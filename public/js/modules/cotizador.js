@@ -34,17 +34,21 @@ const codigoShopify = () => `<div id="cdx-caja" style="width:100%;margin:0;paddi
 (function () {
   var f = document.getElementById("cdx-cotiza");
   // Alto = desde donde empieza el cotizador hasta el final de la pantalla (cabe completo, con los botones siempre a la vista)
+  // En iPhone se usa la parte VISIBLE de la pantalla (sin la barra de Safari de abajo)
   function ajustar() {
+    var vista = window.visualViewport ? window.visualViewport.height : window.innerHeight;
     var top = f.getBoundingClientRect().top + (window.pageYOffset || document.documentElement.scrollTop);
     var h = document.querySelector("header, .header-wrapper, sticky-header, .shopify-section-header-sticky");
     var menu = h && /fixed|sticky/.test(getComputedStyle(h).position) ? h.getBoundingClientRect().height : 0;
-    var alto = window.innerHeight - Math.min(top, Math.max(menu, 0) + 40);
-    f.style.height = Math.max(460, Math.round(top < window.innerHeight * 0.5 ? window.innerHeight - top : alto)) + "px";
+    var alto = top < vista * 0.5 ? vista - top : vista - menu - 10;
+    f.style.height = Math.max(420, Math.round(alto - 6)) + "px";
   }
   ajustar();
   window.addEventListener("load", ajustar);
   setTimeout(ajustar, 600);
+  setTimeout(ajustar, 1500);
   window.addEventListener("resize", ajustar);
+  if (window.visualViewport) window.visualViewport.addEventListener("resize", ajustar);
   window.addEventListener("message", function (e) {
     if (e.origin !== "${location.origin}" || !e.data) return;
     if (typeof e.data.cdxIr === "string" && /^https:\/\//.test(e.data.cdxIr)) { f.contentWindow.postMessage({ cdxVoy: true }, e.origin); window.location.href = e.data.cdxIr; }
