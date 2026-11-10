@@ -346,25 +346,89 @@ function tiendasPago() {
     ${sinPermiso ? `<small class="ct-mini rojo">A esta tienda le falta el permiso <b>write_draft_orders</b>: agrégalo en el Dev Dashboard de su app (Versions → Access scopes), dale Release, apruébalo en la tienda y en Integraciones dale Probar.</small>` : ""}`;
 }
 
+// ---------- Cotizaciones: tablero de producción con filtros ----------
+const ESTADOS = [
+  ["nuevo", "🆕 Nuevo"], ["falta_material", "🧱 Falta material"], ["en_produccion", "🔧 En producción"], ["listo", "✅ Listo para enviar"], ["entregado", "📦 Entregado"]
+];
+const nombreEstado = (e) => (ESTADOS.find(x => x[0] === e) || ESTADOS[0])[1];
+const filtroCots = (() => { try { return JSON.parse(localStorage.getItem("ct_filtro") || "{}"); } catch { return {}; } })();
+filtroCots.tipo ||= "pidieron"; filtroCots.orden ||= "nuevas";
+let conteoEstados = {};
+async function cargarCots() {
+  st.cotizaciones = "cargando";
+  const p = new URLSearchParams(Object.entries(filtroCots).filter(([, v]) => v));
+  try {
+    const res = await fetch(`/api/cotizador/cotizaciones?${p}`);
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error || "No se pudieron leer las cotizaciones");
+    try { conteoEstados = JSON.parse(res.headers.get("X-Conteo") || "{}"); } catch { conteoEstados = {}; }
+    st.cotizaciones = d;
+  } catch (e) { st.cotizaciones = { error: e.message }; }
+  render();
+}
+window.ctFiltro = (k, v) => { filtroCots[k] = v; try { localStorage.setItem("ct_filtro", JSON.stringify(filtroCots)); } catch {} cargarCots(); };
+window.ctEstado = async (id, estado) => {
+  try {
+    const r = await api("PUT", `/api/cotizador/cotizaciones/${id}`, { estado });
+    const c = st.cotizaciones.find(x => x.id === id); if (c) Object.assign(c, r);
+    avisar(`Pedido marcado: ${nombreEstado(estado)}`);
+    cargarCots();
+  } catch (e) { avisar(e.message, "error"); }
+};
+window.ctNotaPedido = async (id, nota) => {
+  try { await api("PUT", `/api/cotizador/cotizaciones/${id}`, { notaInterna: nota }); avisar("Nota guardada"); }
+  catch (e) { avisar(e.message, "error"); }
+};
+window.ctBorrarCot = async (id) => {
+  if (!confirm("¿Borrar este pedido con su logo y su maqueta? No se puede deshacer.")) return;
+  try { await api("DELETE", `/api/cotizador/cotizaciones/${id}`); avisar("Pedido borrado"); cargarCots(); }
+  catch (e) { avisar(e.message, "error"); }
+};
+
+function filtrosCotsHTML() {
+  const f = filtroCots;
+  const chip = (k, v, t, n) => `<button class="ct-chip ${f[k] === v || (!f[k] && !v) ? "on" : ""}" onclick="ctFiltro('${k}','${v}')">${t}${n ? ` <em>${n}</em>` : ""}</button>`;
+  const total = Object.values(conteoEstados).reduce((a, b) => a + b, 0);
+  return `<div class="ct-filtros">
+    <div class="ct-chips">${chip("estado", "", "Todos", total)}${ESTADOS.map(([k, t]) => chip("estado", k, t, conteoEstados[k] || 0)).join("")}</div>
+    <div class="ct-filtros-fila">
+      <label>Mostrar<select onchange="ctFiltro('tipo', this.value)">
+        <option value="pidieron" ${f.tipo === "pidieron" ? "selected" : ""}>Solo los que pidieron</option>
+        <option value="miraron" ${f.tipo === "miraron" ? "selected" : ""}>Solo los que miraron</option>
+        <option value="todas" ${f.tipo === "todas" ? "selected" : ""}>Todas</option></select></label>
+      <label>Orden<select onchange="ctFiltro('orden', this.value)">
+        <option value="nuevas" ${f.orden !== "viejas" ? "selected" : ""}>Más nuevas primero</option>
+        <option value="viejas" ${f.orden === "viejas" ? "selected" : ""}>Orden de llegada (más viejas primero)</option></select></label>
+      <label>Desde<input type="date" value="${esc(f.desde || "")}" onchange="ctFiltro('desde', this.value)"></label>
+      <label>Hasta<input type="date" value="${esc(f.hasta || "")}" onchange="ctFiltro('hasta', this.value)"></label>
+      ${f.desde || f.hasta || f.estado ? `<button class="ct-link" onclick="ctFiltro('desde','');ctFiltro('hasta','');ctFiltro('estado','')">Quitar filtros</button>` : ""}
+    </div></div>`;
+}
+
 function cotizacionesHTML() {
-  if (st.cotizaciones === null) {
-    st.cotizaciones = "cargando";
-    api("GET", "/api/cotizador/cotizaciones").then(l => { st.cotizaciones = l; render(); }).catch(e => { st.cotizaciones = { error: e.message }; render(); });
-  }
-  if (st.cotizaciones === "cargando") return `<p class="ct-mini">Cargando…</p>`;
-  if (st.cotizaciones?.error) return `<p class="ct-mini rojo">${esc(st.cotizaciones.error)}</p>`;
-  if (!st.cotizaciones.length) return `<p class="ct-mini">Todavía no hay cotizaciones. Abre tu link y prueba con un logo.</p>`;
+  if (st.cotizaciones === null) cargarCots();
+  if (st.cotizaciones === null || st.cotizaciones === "cargando") return `${filtrosCotsHTML()}<p class="ct-mini">Cargando…</p>`;
+  if (st.cotizaciones?.error) return `${filtrosCotsHTML()}<p class="ct-mini rojo">${esc(st.cotizaciones.error)}</p>`;
+  if (!st.cotizaciones.length) return `${filtrosCotsHTML()}<p class="ct-mini">No hay cotizaciones con estos filtros.</p>`;
   const nombre = (grupo, id) => st.cfg[grupo]?.find(x => x.id === id)?.nombre || id || "";
-  return `<div class="ct-cots">${st.cotizaciones.map(c => `
-    <div class="ct-cot">
+  const fecha = (d) => new Date(d).toLocaleString("es-CO", { day: "2-digit", month: "short", hour: "numeric", minute: "2-digit" });
+  return `${filtrosCotsHTML()}<div class="ct-cots">${st.cotizaciones.map((c, i) => `
+    <div class="ct-cot est-${esc(c.estado)}">
+      <span class="ct-num">#${i + 1}</span>
       <a href="${esc(c.maqueta || c.logo)}" target="_blank" rel="noopener"><img src="${esc(c.maqueta || c.logo)}" alt=""></a>
       <div>
-        <b>${formatoPlata(c.total, c.moneda)}</b> ${c.pidio ? `<span class="ct-tag ok">pidió</span>` : `<span class="ct-tag">solo miró</span>`}
+        <b>${formatoPlata(c.total, c.moneda)}</b> ${c.pidio ? `<span class="ct-tag ok">${c.pago ? "fue a pagar" : "pidió"}</span>` : `<span class="ct-tag">solo miró</span>`}
         <small>${esc(nombre("materiales", c.eleccion?.material))} · ${c.eleccion?.ancho} × ${c.eleccion?.alto} cm${c.eleccion?.cantidad > 1 ? ` · ×${c.eleccion.cantidad}` : ""}</small>
-        <small>${esc(nombre("ubicaciones", c.eleccion?.ubicacion))}${c.eleccion?.luz ? ` · ${esc(nombre("luces", c.eleccion.luz))}` : ""} · ${new Date(c.creado).toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" })}</small>
-        ${c.notas ? `<small class="ct-nota">📝 ${esc(c.notas)}</small>` : ""}
+        <small>${esc(nombre("ubicaciones", c.eleccion?.ubicacion))}${c.eleccion?.luz ? ` · ${esc(nombre("luces", c.eleccion.luz))}${c.eleccion?.colorLuz ? ` (${esc(c.eleccion.colorLuz)})` : ""}` : ""}${c.eleccion?.forma ? ` · ${esc(nombre("formas", c.eleccion.forma))}` : ""}</small>
+        <small>🕒 Llegó: ${fecha(c.creado)}${c.cambioEstado ? ` · cambió: ${fecha(c.cambioEstado)}` : ""}</small>
+        ${c.notas ? `<small class="ct-nota">📝 Cliente: ${esc(c.notas)}</small>` : ""}
         ${c.error ? `<small class="rojo">⚠ No salió la maqueta: ${esc(c.error)}</small>` : ""}
-        ${c.logo && c.maqueta ? `<a class="ct-link" href="${esc(c.logo)}" target="_blank" rel="noopener">Ver logo original</a>` : ""}
+        ${c.pidio ? `<select class="ct-estado" onchange="ctEstado('${esc(c.id)}', this.value)">${ESTADOS.map(([k, t]) => `<option value="${k}" ${c.estado === k ? "selected" : ""}>${t}</option>`).join("")}</select>
+        <input class="ct-nota-int" placeholder="Nota interna (ej: falta acrílico espejo)" value="${esc(c.notaInterna)}" onchange="ctNotaPedido('${esc(c.id)}', this.value)">` : ""}
+        <div class="ct-cot-acc">
+          ${c.logo && c.maqueta ? `<a class="ct-link" href="${esc(c.logo)}" target="_blank" rel="noopener">Ver logo original</a>` : ""}
+          <button class="ct-link rojo" onclick="ctBorrarCot('${esc(c.id)}')">${c.estado === "entregado" ? "Borrar (ya entregado)" : "Borrar"}</button>
+        </div>
       </div>
     </div>`).join("")}</div>`;
 }
@@ -482,7 +546,7 @@ function render() {
     ${espacioHTML()}
 
     <section class="ct-card">
-      <div class="ct-card-head"><h3><i data-lucide="inbox"></i> Cotizaciones</h3><small>Las últimas 60: lo que eligieron y su maqueta (no se guardan datos personales)</small>
+      <div class="ct-card-head"><h3><i data-lucide="inbox"></i> Cotizaciones</h3><small>Tablero de producción: filtra, marca cómo va cada pedido y bórralo cuando se entregue</small>
         <button class="ct-btn claro chico" onclick="ctRecargarCots()"><i data-lucide="refresh-cw"></i> Actualizar</button></div>
       ${cotizacionesHTML()}
     </section>
@@ -542,7 +606,7 @@ window.ctCopiar = async (que) => {
   try { await navigator.clipboard.writeText(que === "codigo" ? codigoShopify() : enlace()); avisar(que === "codigo" ? "Código copiado. Pégalo en la sección Liquid personalizado." : "Link copiado"); }
   catch { avisar("No se pudo copiar", "error"); }
 };
-window.ctRecargarCots = () => { st.cotizaciones = null; render(); };
+window.ctRecargarCots = () => cargarCots();
 
 // Fotos de la galería: se achican en el navegador antes de subir
 function achicar(file, max = 1400) {

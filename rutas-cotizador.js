@@ -44,7 +44,11 @@ const cotizacionSchema = new mongoose.Schema({
   notas: { type: String, default: "" },
   pidio: { type: Boolean, default: false },
   pago: { type: String, default: "" },           // id del pedido borrador de Shopify (si fue a pagar)
-  error: { type: String, default: "" },          // por qué no salió la maqueta (si falló)        // le dio "Pedir por WhatsApp"
+  error: { type: String, default: "" },          // por qué no salió la maqueta (si falló)
+  // Producción: nuevo · falta_material · en_produccion · listo · entregado
+  estado: { type: String, default: "nuevo" },
+  notaInterna: { type: String, default: "" },
+  cambioEstado: { type: Date, default: null },
   creado: { type: Date, default: Date.now, index: true }
 });
 const Cotizacion = mongoose.model("Cotizacion", cotizacionSchema);
@@ -374,11 +378,49 @@ export function registrarRutasCotizador(app) {
     } catch (err) { console.error("Limpiar cotizaciones:", err); res.status(500).json({ error: `No se pudo borrar: ${String(err?.message || err).slice(0, 200)}` }); }
   });
 
+  // Filtros: tipo (pidieron | miraron | todas), estado, desde/hasta (AAAA-MM-DD, hora Colombia), orden (nuevas | viejas)
+  const ESTADOS = ["nuevo", "falta_material", "en_produccion", "listo", "entregado"];
   app.get("/api/cotizador/cotizaciones", async (req, res) => {
     try {
-      const lista = await Cotizacion.find({ owner: req.user.uid }).sort({ creado: -1 }).limit(60).lean();
+      const q = req.query || {};
+      const filtro = { owner: req.user.uid };
+      if (q.tipo === "pidieron") filtro.pidio = true;
+      else if (q.tipo === "miraron") filtro.pidio = false;
+      if (ESTADOS.includes(q.estado)) filtro.estado = q.estado === "nuevo" ? { $in: ["nuevo", null] } : q.estado;
+      const fecha = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v || "")) ? String(v) : null);
+      const desde = fecha(q.desde), hasta = fecha(q.hasta);
+      if (desde || hasta) filtro.creado = { ...(desde ? { $gte: new Date(`${desde}T00:00:00-05:00`) } : {}), ...(hasta ? { $lte: new Date(`${hasta}T23:59:59-05:00`) } : {}) };
+      const lista = await Cotizacion.find(filtro).sort({ creado: q.orden === "viejas" ? 1 : -1 }).limit(200).lean();
+      const conteo = await Cotizacion.aggregate([{ $match: { owner: new mongoose.Types.ObjectId(String(req.user.uid)), pidio: true } }, { $group: { _id: { $ifNull: ["$estado", "nuevo"] }, n: { $sum: 1 } } }]);
+      res.set("X-Conteo", JSON.stringify(Object.fromEntries(conteo.map(c => [c._id, c.n]))));
       res.json(lista.map(x => ({ id: String(x._id), creado: x.creado, eleccion: x.eleccion, total: x.total, anticipo: x.anticipo, moneda: x.moneda, notas: x.notas, pidio: !!x.pidio, error: x.error || "",
+        estado: x.estado || "nuevo", notaInterna: x.notaInterna || "", cambioEstado: x.cambioEstado || null, pago: !!x.pago,
         logo: x.logo ? `/api/cotiza/img/${x.logo}` : "", maqueta: x.maqueta ? `/api/cotiza/img/${x.maqueta}` : "" })));
     } catch (err) { console.error("Cotizaciones:", err); res.status(500).json({ error: "No se pudieron leer las cotizaciones" }); }
+  });
+
+  // Cambiar el estado de producción o la nota interna de un pedido
+  app.put("/api/cotizador/cotizaciones/:id", async (req, res) => {
+    try {
+      if (!idValido(req.params.id)) return res.status(400).json({ error: "Cotización no válida" });
+      const set = {};
+      if (ESTADOS.includes(req.body?.estado)) { set.estado = req.body.estado; set.cambioEstado = new Date(); }
+      if (req.body?.notaInterna !== undefined) set.notaInterna = String(req.body.notaInterna || "").replace(/[<>]/g, "").slice(0, 300);
+      const x = await Cotizacion.findOneAndUpdate({ _id: req.params.id, owner: req.user.uid }, { $set: set }, { new: true }).lean();
+      if (!x) return res.status(404).json({ error: "No existe" });
+      res.json({ ok: true, estado: x.estado, notaInterna: x.notaInterna, cambioEstado: x.cambioEstado });
+    } catch (err) { console.error("Cotización estado:", err); res.status(500).json({ error: "No se pudo guardar" }); }
+  });
+
+  // Borrar una cotización con su logo y su maqueta (por ejemplo, cuando ya se entregó)
+  app.delete("/api/cotizador/cotizaciones/:id", async (req, res) => {
+    try {
+      if (!idValido(req.params.id)) return res.status(400).json({ error: "Cotización no válida" });
+      const x = await Cotizacion.findOneAndDelete({ _id: req.params.id, owner: req.user.uid }).lean();
+      if (!x) return res.status(404).json({ error: "No existe" });
+      const ids = [x.logo, x.maqueta].filter(Boolean);
+      if (ids.length) await CotizadorImagen.deleteMany({ _id: { $in: ids }, owner: req.user.uid });
+      res.json({ ok: true });
+    } catch (err) { console.error("Cotización borrar:", err); res.status(500).json({ error: "No se pudo borrar" }); }
   });
 }
