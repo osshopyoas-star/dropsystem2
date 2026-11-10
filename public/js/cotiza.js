@@ -201,6 +201,12 @@ function colorLuzHTML(c) {
 window.cxColor = (n) => { st.e.colorLuz = n; pintar(); bajarA(document.querySelector("#app .fila")); };
 window.cxColorTexto = (v) => { st.e.colorLuz = v; document.querySelectorAll(".color-luz .color").forEach(b => b.classList.toggle("on", b.textContent.trim().toLowerCase() === v.trim().toLowerCase())); };
 
+// Precio que se va actualizando mientras el cliente elige (dentro de Shopify, donde no hay barra fija abajo)
+function precioLinea(r) {
+  if (!r || !enShopify) return "";
+  return `<div class="precio-linea" id="cxPrecioLinea"><span><small>${r.ancho} × ${r.alto} cm · precio</small><b>${plata(r.total)}</b></span>${st.cfg.envioGratis ? `<em>🚚 Envío gratis</em>` : ""}</div>`;
+}
+
 function opcion(grupo, x, extra = "") {
   const on = st.e[grupo] === x.id;
   const lista = { material: "materiales", ubicacion: "ubicaciones", forma: "formas", luz: "luces", montaje: "montajes" }[grupo];
@@ -252,14 +258,14 @@ function pintar() {
   } else if (st.paso === "material") {
     html = `${pasos()}<h2>¿En qué material lo quieres?</h2><p class="sub">Lo fabricamos con corte láser a la medida.</p>
       <div class="opciones dos">${c.materiales.map(m => opcion("material", m)).join("")}</div>
-      <div class="fila"><button class="btn claro" onclick="cxIr('subir')">Atrás</button><button class="btn" onclick="cxIr('lugar')">Continuar</button></div>`;
+      ${precioLinea(r)}<div class="fila"><button class="btn claro" onclick="cxIr('subir')">Atrás</button><button class="btn" onclick="cxIr('lugar')">Continuar</button></div>`;
   } else if (st.paso === "lugar") {
     const m = c.materiales.find(x => x.id === st.e.material);
     html = `${pasos()}<h2>¿Dónde lo vas a poner?</h2><p class="sub">Así sabemos qué tan resistente tiene que ser.</p>
       <div class="opciones dos">${c.ubicaciones.map(u => opcion("ubicacion", u, u.pct ? `+${u.pct}%` : "")).join("")}</div>
       ${(c.formas || []).length > 1 ? `<h2 id="grp-forma" style="margin-top:26px">¿Qué forma quieres?</h2><div class="opciones dos" style="margin-top:12px">${c.formas.map(f => opcion("forma", f, f.pct ? `+${f.pct}%` : "")).join("")}</div>` : ""}
       ${m?.conLuz ? `<h2 id="grp-luz" style="margin-top:26px">¿Qué luz quieres?</h2><div class="opciones dos" style="margin-top:12px">${c.luces.map(l => opcion("luz", l, l.pct ? `+${l.pct}%` : "")).join("")}</div>${colorLuzHTML(c)}` : ""}
-      <div class="fila"><button class="btn claro" onclick="cxIr('material')">Atrás</button><button class="btn" onclick="cxIr('tamano')">Continuar</button></div>`;
+      ${precioLinea(r)}<div class="fila"><button class="btn claro" onclick="cxIr('material')">Atrás</button><button class="btn" onclick="cxIr('tamano')">Continuar</button></div>`;
   } else if (st.paso === "tamano") {
     html = `${pasos()}<h2>¿De qué tamaño?</h2><p class="sub">Mueve la barra. El alto sale solo según la forma de tu logo (puedes cambiarlo).</p>
       ${pared()}
@@ -268,7 +274,7 @@ function pintar() {
         <label class="campo">Ancho (cm)<input type="number" min="${c.anchoMin}" max="${c.anchoMax}" value="${st.e.ancho}" onchange="cxAncho(this.value)"></label>
         <label class="campo">Alto (cm)<input type="number" min="5" max="${c.anchoMax * 3}" value="${st.e.alto}" onchange="cxAlto(this.value)"></label>
       </div>
-      <div class="fila"><button class="btn claro" onclick="cxIr('lugar')">Atrás</button><button class="btn" onclick="cxMaqueta()">${c.conMaqueta ? "Ver mi letrero" : "Ver mi precio"}</button></div>`;
+      ${precioLinea(r)}<div class="fila"><button class="btn claro" onclick="cxIr('lugar')">Atrás</button><button class="btn" onclick="cxMaqueta()">${c.conMaqueta ? "Ver mi letrero" : "Ver mi precio"}</button></div>`;
   } else if (st.paso === "generando") {
     html = `<h2>Haciendo tu maqueta…</h2><p class="sub">Estamos convirtiendo tu logo en letrero. Tarda menos de un minuto.</p>
       <div class="esfera" id="cxEsfera"></div>
@@ -330,7 +336,7 @@ window.cxElegir = (grupo, id) => {
   if (grupo === "ubicacion") sig = $("grp-forma") || $("grp-luz");
   else if (grupo === "forma") sig = $("grp-luz");
   else if (grupo === "luz") { const l = st.cfg.luces.find(x => x.id === id); sig = l?.pideColor ? $("grp-color") : null; }
-  if (["material", "ubicacion", "forma", "luz"].includes(grupo)) bajarA(sig || fila);
+  if (["material", "ubicacion", "forma", "luz"].includes(grupo)) bajarA(sig || $("cxPrecioLinea") || fila);
 };
 window.cxNotas = (v) => { st.notas = v; };
 window.cxCantidad = (d) => { st.e.cantidad = Math.min(50, Math.max(1, st.e.cantidad + d)); pintar(); };
@@ -341,6 +347,7 @@ window.cxAncho = (v) => {
   const p = document.querySelector(".pared");
   if (p) p.outerHTML = pared();
   const r = q();
+  const pl = $("cxPrecioLinea"); if (pl && r) pl.outerHTML = precioLinea(r);
   if (r) { $("barraTotal").textContent = plata(r.total); $("barraTxt").textContent = `${r.ancho} × ${r.alto} cm · precio estimado${st.cfg.envioGratis ? " · ✓ envío gratis" : ""}`; }
   document.querySelectorAll(".medidas input")[0] && (document.querySelectorAll(".medidas input")[0].value = st.e.ancho);
   document.querySelectorAll(".medidas input")[1] && (document.querySelectorAll(".medidas input")[1].value = st.e.alto);
