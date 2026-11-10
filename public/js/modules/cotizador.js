@@ -36,7 +36,15 @@ const codigoShopify = () => `<div style="width:100%;max-width:100%;margin:0;padd
   window.addEventListener("message", function (e) {
     if (e.origin !== "${location.origin}" || !e.data) return;
     if (e.data.cdxAlto) { f.style.height = e.data.cdxAlto + "px"; f.height = e.data.cdxAlto; }
-    if (e.data.cdxArriba) f.scrollIntoView({ behavior: "smooth", block: "start" });
+    // Mover la pantalla de la tienda (en iPhone el cotizador no puede hacerlo solo)
+    var irY = function (y) {
+      var top = f.getBoundingClientRect().top + (window.pageYOffset || document.documentElement.scrollTop) + y;
+      var tapa = 0, h = document.querySelector("header, .header-wrapper, .shopify-section-header-sticky, sticky-header");
+      if (h) { var cs = getComputedStyle(h); if (cs.position === "fixed" || cs.position === "sticky") tapa = h.getBoundingClientRect().height; }
+      window.scrollTo({ top: Math.max(0, top - tapa - 8), behavior: "smooth" });
+    };
+    if (e.data.cdxArriba) irY(0);
+    if (typeof e.data.cdxBajar === "number") irY(Math.max(0, e.data.cdxBajar - window.innerHeight / 2));
     if (typeof e.data.cdxIr === "string" && /^https:\/\//.test(e.data.cdxIr)) { f.contentWindow.postMessage({ cdxVoy: true }, e.origin); window.location.href = e.data.cdxIr; }
   });
 })();

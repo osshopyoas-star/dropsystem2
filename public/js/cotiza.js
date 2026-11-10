@@ -37,12 +37,21 @@ const arriba = () => {
   if (!enShopify) return;
   // Primero el alto nuevo, después subir (si sube antes, la tienda se queda abajo con la página vacía)
   avisarAlto();
-  const subir = () => { try { parent.postMessage({ cdxArriba: true }, "*"); } catch {} try { document.getElementById("app").scrollIntoView({ block: "start" }); } catch {} };
+  const subir = () => { try { parent.postMessage({ cdxArriba: true }, "*"); } catch {} };
   setTimeout(subir, 80);
   setTimeout(subir, 450);
 };
 // Lleva la vista hasta un elemento (también dentro de Shopify)
-const bajarA = (el) => { if (el) setTimeout(() => { try { el.scrollIntoView({ behavior: "smooth", block: "center" }); } catch {} }, 60); };
+const bajarA = (el) => {
+  if (!el) return;
+  setTimeout(() => {
+    if (enShopify) {
+      // Le dice a la tienda dónde está lo siguiente (posición dentro del cotizador) para que ella baje la pantalla
+      const r = el.getBoundingClientRect();
+      try { parent.postMessage({ cdxBajar: Math.round(r.top + window.scrollY + r.height / 2) }, "*"); } catch {}
+    } else { try { el.scrollIntoView({ behavior: "smooth", block: "center" }); } catch {} }
+  }, 60);
+};
 
 async function api(metodo, url, body) {
   const r = await fetch(url, { method: metodo, headers: body ? { "Content-Type": "application/json" } : undefined, body: body ? JSON.stringify(body) : undefined });
