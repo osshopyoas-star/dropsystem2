@@ -35,6 +35,26 @@ const fijarAltoVista = () => {
 };
 fijarAltoVista();
 window.addEventListener("resize", fijarAltoVista);
+
+// Dentro de la tienda: averiguar qué parte del cotizador se ve en la pantalla y poner la barra (precio + botones)
+// justo en el borde de abajo de lo visible, sin importar qué código esté pegado en Shopify
+let barraFlotante = false;
+if (window.self !== window.top && "IntersectionObserver" in window) {
+  const guia = document.createElement("div");
+  guia.style.cssText = "position:fixed;left:0;top:0;bottom:0;width:1px;pointer-events:none;opacity:0";
+  const poner = () => {
+    document.body.appendChild(guia);
+    const umbrales = Array.from({ length: 201 }, (_, i) => i / 200);
+    new IntersectionObserver((ents) => {
+      const e = ents[ents.length - 1];
+      // cuánto de la parte de abajo del cotizador queda fuera de la pantalla
+      const oculto = e.isIntersecting ? Math.max(0, window.innerHeight - e.intersectionRect.bottom) : 0;
+      document.documentElement.style.setProperty("--barra-abajo", Math.round(oculto) + "px");
+    }, { threshold: umbrales }).observe(guia);
+    barraFlotante = true;
+  };
+  if (document.body) poner(); else document.addEventListener("DOMContentLoaded", poner);
+}
 const avisarAlto = () => {
   if (!enShopify) return;
   try {
@@ -332,7 +352,7 @@ function pintar() {
   app.innerHTML = html;
   // Barra de precio abajo (desde que eliges material hasta antes del resultado)
   const barra = $("barra");
-  const verBarra = !enShopify && r && ["material", "lugar", "tamano"].includes(st.paso);
+  const verBarra = (!enShopify || barraFlotante) && r && ["material", "lugar", "tamano"].includes(st.paso);
   barra.classList.toggle("ver", !!verBarra);
   document.body.classList.toggle("con-barra", !!verBarra);
   if (verBarra) {

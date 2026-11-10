@@ -64,7 +64,8 @@
     .barra-precio { display: flex; align-items: center; justify-content: space-between; }
     .barra-btns { display: grid; grid-template-columns: 1fr 1.6fr; gap: 10px; }
     .barra-btns .btn { padding: 13px 14px; }
-    body.con-barra .fila-paso { display: none; }
+    body.con-barra .fila-paso, body.con-barra .precio-linea { display: none; }
+    .barra { bottom: var(--barra-abajo, 0px); transition: bottom .12s linear; }
     /* Dentro de Shopify (como app): sin barra gris de desplazamiento y barra de abajo compacta */
     html.modo-app { scrollbar-width: none; }
     html.modo-app::-webkit-scrollbar { display: none; }
