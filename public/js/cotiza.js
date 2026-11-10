@@ -24,6 +24,9 @@ const modoApp = new URLSearchParams(location.search).get("modo") === "app";
 // enShopify = dentro de Shopify con el código VIEJO (estirado a todo lo largo). Con el código nuevo (modo app) funciona como el link directo.
 const enShopify = window.self !== window.top && !modoApp;
 if (modoApp) document.documentElement.classList.add("modo-app");
+// iPhone/iPad: la barra de Safari flota encima de la parte de abajo; dentro de la tienda subimos los botones para que no queden tapados
+const esIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+if (esIOS && window.self !== window.top) document.documentElement.classList.add("ios-tienda");
 // Alto real de la pantalla del celular (dentro de Shopify con el código viejo, "100vh" es el cuadro entero y no la pantalla)
 const fijarAltoVista = () => {
   const pantalla = (window.screen && screen.height) ? screen.height - 260 : window.innerHeight;
