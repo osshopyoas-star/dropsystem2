@@ -37,6 +37,7 @@ const codigoShopify = () => `<div style="width:100%;max-width:100%;margin:0;padd
     if (e.origin !== "${location.origin}" || !e.data) return;
     if (e.data.cdxAlto) { f.style.height = e.data.cdxAlto + "px"; f.height = e.data.cdxAlto; }
     if (e.data.cdxArriba) f.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (typeof e.data.cdxIr === "string" && /^https:\/\//.test(e.data.cdxIr)) { f.contentWindow.postMessage({ cdxVoy: true }, e.origin); window.location.href = e.data.cdxIr; }
   });
 })();
 </script>`;

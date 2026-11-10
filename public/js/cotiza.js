@@ -488,8 +488,15 @@ window.cxPagar = async () => {
   st.error = ""; st.enviando = true; pintar();
   try {
     const r = await api("POST", `/api/cotiza/${encodeURIComponent(clave)}/pagar`, { cotizacion: st.cotizacion, eleccion: st.e, notas: st.notas });
-    try { window.top.location.href = r.url; }
-    catch { window.open(r.url, "_blank", "noopener"); }
+    if (enShopify) {
+      // Le pide a la tienda que se vaya al pago (el código de Shopify lo hace en la misma pestaña)
+      let laTiendaVa = false;
+      const oye = (e) => { if (e.data?.cdxVoy) laTiendaVa = true; };
+      window.addEventListener("message", oye);
+      parent.postMessage({ cdxIr: r.url }, "*");
+      // Por si la tienda tiene el código viejo (no responde): intentar directo
+      setTimeout(() => { if (laTiendaVa) return; try { window.top.location.href = r.url; } catch { window.open(r.url, "_blank", "noopener"); } }, 900);
+    } else location.href = r.url;
     st.enviando = false; pintar();
   } catch (e) { st.enviando = false; st.error = e.message; pintar(); }
 };

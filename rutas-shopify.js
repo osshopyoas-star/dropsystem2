@@ -390,14 +390,35 @@ export async function guardarProducto(t, { productoId, titulo, html, media, prec
 
 // ---------- Pedido borrador con precio exacto (cotizador): devuelve el link de pago del checkout de Shopify ----------
 // Necesita el permiso write_draft_orders. El envío lo pone el checkout de la tienda (configúralo gratis: ya va dentro del precio).
-export async function crearPedidoBorrador(t, { titulo, precio, cantidad = 1, atributos = [], nota = "", etiquetas = [] }) {
+// Producto oculto (no se publica en la tienda) con la maqueta como foto, para que se vea en el checkout y en el pedido
+export async function productoOculto(t, { titulo, precio, imagenUrl }) {
+  const d = await gql(t, `mutation Oculto($product: ProductCreateInput!, $media: [CreateMediaInput!]) {
+    productCreate(product: $product, media: $media) { product { id variants(first: 1) { nodes { id } } } userErrors { field message } } }`, {
+    product: { title: String(titulo).slice(0, 250), status: "ACTIVE", productType: "Letrero personalizado", tags: ["cotizador", "oculto"] },
+    media: imagenUrl ? [{ originalSource: imagenUrl, mediaContentType: "IMAGE", alt: "Maqueta del letrero" }] : []
+  });
+  erroresUsuario(d?.productCreate);
+  const p = d?.productCreate?.product, variante = p?.variants?.nodes?.[0]?.id;
+  if (!variante) throw new ErrorShopify("Shopify no creó el producto", 502);
+  const d2 = await gql(t, `mutation Precio($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
+    productVariantsBulkUpdate(productId: $productId, variants: $variants) { userErrors { field message } } }`, {
+    productId: p.id, variants: [{ id: variante, price: String(Math.round(precio)), inventoryPolicy: "CONTINUE", inventoryItem: { tracked: false, requiresShipping: true } }]
+  });
+  erroresUsuario(d2?.productVariantsBulkUpdate);
+  return { productoId: p.id, varianteId: variante };
+}
+
+export async function crearPedidoBorrador(t, { titulo, precio, cantidad = 1, atributos = [], nota = "", etiquetas = [], varianteId = null }) {
   let data;
+  const attrs = atributos.filter(a => a.value).map(a => ({ key: String(a.key).slice(0, 60), value: String(a.value).slice(0, 500) }));
   try {
     data = await gql(t, `mutation Borrador($input: DraftOrderInput!) {
       draftOrderCreate(input: $input) { draftOrder { id invoiceUrl } userErrors { field message } } }`, {
       input: {
-        lineItems: [{ title: String(titulo).slice(0, 250), originalUnitPriceWithCurrency: { amount: String(Math.round(precio)), currencyCode: t.moneda || "COP" }, quantity: Math.max(1, cantidad), requiresShipping: true, taxable: false,
-          customAttributes: atributos.filter(a => a.value).map(a => ({ key: String(a.key).slice(0, 60), value: String(a.value).slice(0, 500) })) }],
+        lineItems: [varianteId
+          ? { variantId: varianteId, quantity: Math.max(1, cantidad), customAttributes: attrs }
+          : { title: String(titulo).slice(0, 250), originalUnitPriceWithCurrency: { amount: String(Math.round(precio)), currencyCode: t.moneda || "COP" }, quantity: Math.max(1, cantidad), requiresShipping: true, taxable: false,
+          customAttributes: attrs }],
         note: String(nota || "").slice(0, 2000),
         tags: etiquetas
       }

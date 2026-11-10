@@ -11,7 +11,7 @@ import mongoose from "mongoose";
 import { rateLimit, getSession } from "./auth.js";
 import { leerDataUrl } from "./modelo-imagenes.js";
 import { pedirImagen, PRECIO_IMAGEN, PRECIO_REFERENCIA } from "./rutas-ia-imagenes.js";
-import { tiendaDe, crearPedidoBorrador } from "./rutas-shopify.js";
+import { tiendaDe, crearPedidoBorrador, productoOculto } from "./rutas-shopify.js";
 import { limpiarConfig, cotizar, promptMaqueta, mensajeWhatsapp } from "./public/js/core/cotizador.js";
 
 const MAX_GALERIA = 12;
@@ -209,10 +209,18 @@ export function registrarRutasCotizadorPublico(app) {
         { key: "Logo", value: cot?.logo ? `${origen}/api/cotiza/img/${cot.logo}` : "" },
         { key: "Maqueta", value: cot?.maqueta ? `${origen}/api/cotiza/img/${cot.maqueta}` : "" }
       ];
-      const r = await crearPedidoBorrador(t, {
-        titulo: `Letrero personalizado · ${q.material.nombre} ${q.ancho}×${q.alto} cm`, precio: unidad, cantidad: q.cantidad, atributos,
-        nota: `Cotizador CoDropX${notas ? ` · Notas: ${notas}` : ""}`, etiquetas: ["cotizador", "letrero"]
-      });
+      const titulo = `Letrero personalizado · ${q.material.nombre} ${q.ancho}×${q.alto} cm`;
+      const datosPedido = { titulo, precio: unidad, cantidad: q.cantidad, atributos, nota: `Cotizador CoDropX${notas ? ` · Notas: ${notas}` : ""}`, etiquetas: ["cotizador", "letrero"] };
+      // Con foto: un producto oculto con la maqueta (o el logo). Si algo falla, el pedido sale igual sin foto.
+      let r;
+      const img = cot?.maqueta || cot?.logo;
+      try {
+        const prod = await productoOculto(t, { titulo, precio: unidad, imagenUrl: img ? `${origen}/api/cotiza/img/${img}` : "" });
+        r = await crearPedidoBorrador(t, { ...datosPedido, varianteId: prod.varianteId });
+      } catch (e) {
+        console.warn("Cotizador: no se pudo con foto, va sin foto:", e.message);
+        r = await crearPedidoBorrador(t, datosPedido);
+      }
       if (cot) await Cotizacion.updateOne({ _id: cot._id }, { $set: { pidio: true, pago: r.id, notas, total: q.total, anticipo: q.anticipo } });
       res.json({ url: r.url, total: q.total });
     } catch (err) {
