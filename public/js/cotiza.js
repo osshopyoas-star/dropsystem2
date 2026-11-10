@@ -24,6 +24,14 @@ const modoApp = new URLSearchParams(location.search).get("modo") === "app";
 // enShopify = dentro de Shopify con el código VIEJO (estirado a todo lo largo). Con el código nuevo (modo app) funciona como el link directo.
 const enShopify = window.self !== window.top && !modoApp;
 if (modoApp) document.documentElement.classList.add("modo-app");
+// Alto real de la pantalla del celular (dentro de Shopify con el código viejo, "100vh" es el cuadro entero y no la pantalla)
+const fijarAltoVista = () => {
+  const pantalla = (window.screen && screen.height) ? screen.height - 260 : window.innerHeight;
+  const vista = enShopify ? Math.min(window.innerHeight, pantalla) : window.innerHeight;
+  document.documentElement.style.setProperty("--vista", Math.max(360, vista) + "px");
+};
+fijarAltoVista();
+window.addEventListener("resize", fijarAltoVista);
 const avisarAlto = () => {
   if (!enShopify) return;
   try {
