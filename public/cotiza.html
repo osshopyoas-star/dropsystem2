@@ -102,6 +102,14 @@
     .contador span { min-width: 30px; text-align: center; font-weight: 700; font-size: 18px; }
     .mini { color: var(--suave); font-size: 12.5px; text-align: center; margin-top: 10px; }
     .oculto { display: none !important; }
+    /* Opción elegida: borde de luz de colores que da vueltas */
+    .op { position: relative; isolation: isolate; }
+    .op.on { border-color: transparent; overflow: hidden; box-shadow: 0 0 22px rgba(168,85,247,.45), 0 0 46px rgba(34,211,238,.18); animation: opBrillo 2.4s ease-in-out infinite; }
+    .op.on::before { content: ""; position: absolute; z-index: -2; left: 50%; top: 50%; width: 220%; aspect-ratio: 1; transform: translate(-50%, -50%); background: conic-gradient(from 0deg, #22d3ee, #3b82f6, #a855f7, #ec4899, #f59e0b, #22d3ee); animation: opGira 2.8s linear infinite; }
+    .op.on::after { content: ""; position: absolute; z-index: -1; inset: 2px; border-radius: 14px; background: linear-gradient(180deg, #151829, #10121c); }
+    @keyframes opGira { to { transform: translate(-50%, -50%) rotate(360deg); } }
+    @keyframes opBrillo { 0%, 100% { box-shadow: 0 0 18px rgba(168,85,247,.4), 0 0 40px rgba(34,211,238,.15); } 50% { box-shadow: 0 0 28px rgba(236,72,153,.5), 0 0 56px rgba(59,130,246,.25); } }
+    @media (prefers-reduced-motion: reduce) { .op.on::before, .op.on { animation: none; } }
     .precio-linea { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 18px; padding: 12px 14px; border-radius: 14px; background: linear-gradient(90deg, rgba(14,165,233,.12), rgba(124,58,237,.14)); border: 1px solid rgba(124,58,237,.35); }
     .precio-linea span { display: flex; flex-direction: column; }
     .precio-linea small { color: var(--suave); font-size: 12px; }
