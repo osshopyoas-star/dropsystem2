@@ -402,7 +402,7 @@ export async function productoOculto(t, { titulo, precio, imagenUrl }) {
   if (!variante) throw new ErrorShopify("Shopify no creó el producto", 502);
   const d2 = await gql(t, `mutation Precio($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
     productVariantsBulkUpdate(productId: $productId, variants: $variants) { userErrors { field message } } }`, {
-    productId: p.id, variants: [{ id: variante, price: String(Math.round(precio)), inventoryPolicy: "CONTINUE", inventoryItem: { tracked: false, requiresShipping: true } }]
+    productId: p.id, variants: [{ id: variante, price: String(Math.round(precio)), taxable: false, inventoryPolicy: "CONTINUE", inventoryItem: { tracked: false, requiresShipping: true } }]
   });
   erroresUsuario(d2?.productVariantsBulkUpdate);
   return { productoId: p.id, varianteId: variante };
@@ -420,6 +420,7 @@ export async function crearPedidoBorrador(t, { titulo, precio, cantidad = 1, atr
           : { title: String(titulo).slice(0, 250), originalUnitPriceWithCurrency: { amount: String(Math.round(precio)), currencyCode: t.moneda || "COP" }, quantity: Math.max(1, cantidad), requiresShipping: true, taxable: false,
           customAttributes: attrs }],
         note: String(nota || "").slice(0, 2000),
+        taxExempt: true,   // el precio del cotizador es el precio final: sin impuestos encima
         tags: etiquetas
       }
     });
