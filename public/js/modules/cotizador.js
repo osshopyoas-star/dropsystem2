@@ -27,24 +27,22 @@ function avisar(texto, tipo = "ok") {
 }
 
 const enlace = () => `${location.origin}/cotiza/${st.datos?.clave || ""}`;
-const codigoShopify = () => `<div style="width:100%;max-width:100%;margin:0;padding:0;overflow:hidden">
-<iframe id="cdx-cotiza" src="${enlace()}" width="100%" height="1600" scrolling="no" frameborder="0" style="display:block;width:100%;min-width:100%;height:1600px;border:0;margin:0;background:#07080d" allow="clipboard-write" title="Cotiza tu letrero"></iframe>
+const codigoShopify = () => `<div id="cdx-caja" style="width:100%;margin:0;padding:0">
+<iframe id="cdx-cotiza" src="${enlace()}?modo=app" width="100%" frameborder="0" style="display:block;width:100%;height:100vh;border:0;margin:0;background:#07080d" allow="clipboard-write" title="Cotiza tu letrero"></iframe>
 </div>
 <script>
 (function () {
   var f = document.getElementById("cdx-cotiza");
+  // Alto = la pantalla menos el menú de la tienda (el cotizador se desliza por dentro, como una app)
+  function ajustar() {
+    var h = document.querySelector("header, .header-wrapper, sticky-header, .shopify-section-header-sticky");
+    var menu = h ? h.getBoundingClientRect().height : 0;
+    f.style.height = Math.max(480, window.innerHeight - menu) + "px";
+  }
+  ajustar();
+  window.addEventListener("resize", ajustar);
   window.addEventListener("message", function (e) {
     if (e.origin !== "${location.origin}" || !e.data) return;
-    if (e.data.cdxAlto) { f.style.height = e.data.cdxAlto + "px"; f.height = e.data.cdxAlto; }
-    // Mover la pantalla de la tienda (en iPhone el cotizador no puede hacerlo solo)
-    var irY = function (y) {
-      var top = f.getBoundingClientRect().top + (window.pageYOffset || document.documentElement.scrollTop) + y;
-      var tapa = 0, h = document.querySelector("header, .header-wrapper, .shopify-section-header-sticky, sticky-header");
-      if (h) { var cs = getComputedStyle(h); if (cs.position === "fixed" || cs.position === "sticky") tapa = h.getBoundingClientRect().height; }
-      window.scrollTo({ top: Math.max(0, top - tapa - 8), behavior: "smooth" });
-    };
-    if (e.data.cdxArriba) irY(0);
-    if (typeof e.data.cdxBajar === "number") irY(Math.max(0, e.data.cdxBajar - window.innerHeight / 2));
     if (typeof e.data.cdxIr === "string" && /^https:\/\//.test(e.data.cdxIr)) { f.contentWindow.postMessage({ cdxVoy: true }, e.origin); window.location.href = e.data.cdxIr; }
   });
 })();
