@@ -76,14 +76,17 @@ const arriba = () => {
   setTimeout(subir, 450);
 };
 // Lleva la vista hasta un elemento (también dentro de Shopify)
-const bajarA = (el) => {
+// arriba = true: deja el elemento cerca de la parte de arriba (para que se vea lo que hay debajo)
+const bajarA = (el, arriba = false) => {
   if (!el) return;
   setTimeout(() => {
     if (enShopify) {
       // Le dice a la tienda dónde está lo siguiente (posición dentro del cotizador) para que ella baje la pantalla
       const r = el.getBoundingClientRect();
-      try { parent.postMessage({ cdxBajar: Math.round(r.top + window.scrollY + r.height / 2) }, "*"); } catch {}
-    } else { try { el.scrollIntoView({ behavior: "smooth", block: "center" }); } catch {} }
+      const y = arriba ? r.top + window.scrollY + Math.round((screen?.height || 800) * 0.42) : r.top + window.scrollY + r.height / 2;
+      try { parent.postMessage({ cdxBajar: Math.round(y) }, "*"); } catch {}
+    }
+    try { el.scrollIntoView({ behavior: "smooth", block: arriba ? "start" : "center" }); } catch {}
   }, 60);
 };
 
@@ -366,7 +369,12 @@ function pintar() {
   setTimeout(avisarAlto, 50);
 }
 
-window.cxIr = (paso) => { st.error = ""; st.paso = paso; pintar(); arriba(); };
+window.cxIr = (paso) => {
+  st.error = "";
+  // Al llegar al material desde el logo, queda elegida la primera opción (si vuelve con Atrás, se respeta lo que eligió)
+  if (paso === "material" && st.paso === "subir") st.e.material = st.cfg.materiales[0]?.id || st.e.material;
+  st.paso = paso; pintar(); arriba();
+};
 window.cxElegir = (grupo, id) => {
   st.e[grupo] = id; pintar();
   // Al elegir, baja solo a la siguiente pregunta o al botón Continuar
@@ -375,6 +383,8 @@ window.cxElegir = (grupo, id) => {
   if (grupo === "ubicacion") sig = $("grp-forma") || $("grp-luz");
   else if (grupo === "forma") sig = $("grp-luz");
   else if (grupo === "luz") { const l = st.cfg.luces.find(x => x.id === id); sig = l?.pideColor ? $("grp-color") : null; }
+  // Material: la elegida sube y se ven las de abajo (así el cliente nota que hay más opciones)
+  if (grupo === "material") { bajarA(document.querySelector("#app .op.on"), true); return; }
   if (["material", "ubicacion", "forma", "luz"].includes(grupo)) bajarA(sig || (document.body.classList.contains("con-barra") ? null : ($("cxPrecioLinea") || fila)));
 };
 window.cxNotas = (v) => { st.notas = v; };
