@@ -49,6 +49,7 @@ if (window.self !== window.top && "IntersectionObserver" in window) {
       const e = ents[ents.length - 1];
       // cuánto de la parte de abajo del cotizador queda fuera de la pantalla
       const oculto = e.isIntersecting ? Math.max(0, window.innerHeight - e.intersectionRect.bottom) : 0;
+      if (e.isIntersecting) window.__visible = { top: e.intersectionRect.top, alto: e.intersectionRect.height };
       document.documentElement.style.setProperty("--barra-abajo", Math.round(oculto) + "px");
     }, { threshold: umbrales }).observe(guia);
     barraFlotante = true;
@@ -80,11 +81,27 @@ const arriba = () => {
 const bajarA = (el, arriba = false) => {
   if (!el) return;
   setTimeout(() => {
-    if (enShopify) {
+    const conMarca = window.self !== window.top && !modoApp && window.__visible?.alto;
+    if (enShopify && !conMarca) {
       // Le dice a la tienda dónde está lo siguiente (posición dentro del cotizador) para que ella baje la pantalla
       const r = el.getBoundingClientRect();
       const y = arriba ? r.top + window.scrollY + Math.round((screen?.height || 800) * 0.42) : r.top + window.scrollY + r.height / 2;
       try { parent.postMessage({ cdxBajar: Math.round(y) }, "*"); } catch {}
+    }
+    // Dentro de la tienda con el cotizador estirado: bajar sin pasarse del final del cotizador
+    // (si no, la tienda sigue bajando y aparece el pie de página "Suscríbete…" debajo de los botones)
+    if (window.self !== window.top && !modoApp && window.__visible?.alto) {
+      const docH = document.documentElement.scrollHeight;
+      const alto = window.__visible.alto;
+      const r = el.getBoundingClientRect();
+      const arribaEl = r.top + window.scrollY - (arriba ? 90 : Math.max(90, (alto - r.height) / 2));
+      const abajo = Math.min(docH, arribaEl + alto);
+      const marca = document.createElement("div");
+      marca.style.cssText = `position:absolute;left:0;width:1px;height:1px;top:${Math.max(0, abajo - 1)}px;pointer-events:none`;
+      document.body.appendChild(marca);
+      try { marca.scrollIntoView({ behavior: "smooth", block: "end" }); } catch {}
+      setTimeout(() => marca.remove(), 1500);
+      return;
     }
     try { el.scrollIntoView({ behavior: "smooth", block: arriba ? "start" : "center" }); } catch {}
   }, 60);
