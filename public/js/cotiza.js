@@ -441,7 +441,7 @@ function pintar() {
       ${precioLinea(r)}<div class="fila fila-paso"><button class="btn claro" onclick="cxIr('lugar')">Atrás</button><button class="btn" onclick="cxMaqueta()">${c.conMaqueta ? "Ver mi letrero" : "Ver mi precio"}</button></div>`;
   } else if (st.paso === "datos") {
     const k = st.contacto;
-    html = `${pasos()}<h2>¿A dónde te enviamos tu diseño?</h2><p class="sub">Déjanos tus datos y te mostramos ${c.conMaqueta ? "cómo queda tu letrero" : "tu precio"}. También te lo guardamos por si quieres pedirlo después.</p>
+    html = `${pasos()}<h2>¡Ya casi está tu letrero! ✨</h2><p class="sub">Escribe tus datos para ver ${c.conMaqueta ? "cómo queda" : "tu precio"}.</p>
       <div class="datos-cli">
         <label class="campo">Nombre<input id="cx-nombre" autocomplete="name" maxlength="60" placeholder="Tu nombre" value="${esc(k.nombre)}" oninput="cxDato('nombre', this.value)"></label>
         <label class="campo">Celular con WhatsApp<input id="cx-whatsapp" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="${c.moneda === "USD" ? "Ej: 0991234567" : "Ej: 300 123 4567"}" value="${esc(k.whatsapp)}" oninput="cxDato('whatsapp', this.value)"></label>
