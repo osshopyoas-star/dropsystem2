@@ -262,6 +262,10 @@
     @keyframes tfEntra { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
     @keyframes tfVuelve { from { opacity: 0; transform: translateY(-18px); } to { opacity: 1; transform: none; } }
     .desglose tr.anticipo-fila td { color: #4ade80; font-weight: 700; }
+    .barra-ant { text-align: right; }
+    .barra-ant small { display: block; font-size: 11px; color: var(--suave); }
+    .barra-ant b { font-size: 20px; color: #4ade80; }
+    .precio-linea .ant { color: #4ade80; font-size: 13px; font-weight: 700; display: block; }
 </style>
 </head>
 <body>
@@ -273,7 +277,7 @@
   </script>
   <div class="barra" id="barra"><div class="in">
     <div id="barraRegla"></div>
-    <div class="barra-precio"><div><small id="barraTxt">Precio estimado</small><span class="total" id="barraTotal">—</span></div></div>
+    <div class="barra-precio"><div><small id="barraTxt">Precio estimado</small><span class="total" id="barraTotal">—</span></div><div class="barra-ant" id="barraAnt"></div></div>
     <div class="barra-btns"><button class="btn claro" id="barraAtras">Atrás</button><button class="btn" id="barraBtn">Continuar</button></div>
   </div></div>
   <script type="module" src="/js/cotiza.js"></script>

@@ -52,7 +52,7 @@ function refrescarPrecio() {
   if (!r) return;
   const barraVisible = $("barra")?.classList.contains("ver");
   if ((st.paso === "tamano" || (["material", "lugar"].includes(st.paso) && barraVisible)) && st.paso !== "resultado") {
-    if ($("barraTotal")) { $("barraTotal").textContent = plata(r.total); $("barraTxt").textContent = `${r.ancho} × ${r.alto} cm · precio estimado${st.cfg.envioGratis ? " · ✓ envío gratis" : ""}`; }
+    if ($("barraTotal")) pintarBarraPrecio(r);
     const pl = $("cxPrecioLinea"); if (pl) pl.outerHTML = precioLinea(r);
     if (!barraVisible && st.paso === "tamano") pintar();
     return;
@@ -368,9 +368,16 @@ window.cxColor = (n) => { st.e.colorLuz = n; pintar(); if (st.paso === "lugar") 
 window.cxColorTexto = (v) => { st.e.colorLuz = v; document.querySelectorAll(".color-luz .color").forEach(b => b.classList.toggle("on", b.textContent.trim().toLowerCase() === v.trim().toLowerCase())); };
 
 // Precio que se va actualizando mientras el cliente elige (dentro de Shopify, donde no hay barra fija abajo)
+// Anticipo que se paga para empezar (solo si es entre 1 y 99%)
+const conAnticipo = () => st.cfg && st.cfg.anticipoPct > 0 && st.cfg.anticipoPct < 100;
+function pintarBarraPrecio(r) {
+  $("barraTotal").textContent = plata(r.total);
+  $("barraTxt").textContent = `${r.ancho} × ${r.alto} cm · precio total${st.cfg.envioGratis ? " · ✓ envío gratis" : ""}`;
+  $("barraAnt").innerHTML = conAnticipo() ? `<small>Anticipo ${st.cfg.anticipoPct}%</small><b>${plata(r.anticipo)}</b>` : "";
+}
 function precioLinea(r) {
   if (!r || !enShopify) return "";
-  return `<div class="precio-linea" id="cxPrecioLinea"><span><small>${r.ancho} × ${r.alto} cm · precio</small><b>${plata(r.total)}</b></span>${st.cfg.envioGratis ? `<em>🚚 Envío gratis</em>` : ""}</div>`;
+  return `<div class="precio-linea" id="cxPrecioLinea"><span><small>${r.ancho} × ${r.alto} cm · precio</small><b>${plata(r.total)}</b>${conAnticipo() ? `<span class="ant">Anticipo ${st.cfg.anticipoPct}%: ${plata(r.anticipo)}</span>` : ""}</span>${st.cfg.envioGratis ? `<em>🚚 Envío gratis</em>` : ""}</div>`;
 }
 
 // La maqueta se dibuja en un lienzo (no queda como foto para "Guardar imagen")
@@ -525,8 +532,7 @@ function pintar() {
   if (verBarra) {
     const atras = { material: "subir", lugar: "material", tamano: "lugar", datos: "tamano" }[st.paso];
     $("barraAtras").onclick = () => (st.paso === "lugar" ? cxLugar(-1) : cxIr(atras));
-    $("barraTotal").textContent = plata(r.total);
-    $("barraTxt").textContent = `${r.ancho} × ${r.alto} cm · precio estimado${st.cfg.envioGratis ? " · ✓ envío gratis" : ""}`;
+    pintarBarraPrecio(r);
     $("barraBtn").onclick = () => (st.paso === "datos" ? cxDatosListos() : st.paso === "tamano" ? cxMaqueta() : st.paso === "lugar" ? cxLugar(1) : cxIr("lugar"));
     $("barraBtn").textContent = ["tamano", "datos"].includes(st.paso) ? (st.cfg.conMaqueta ? "Ver mi letrero" : "Ver mi precio") : "Continuar";
     $("barraRegla").innerHTML = st.paso === "tamano" ? reglaHTML() : "";
