@@ -408,7 +408,7 @@ export async function productoOculto(t, { titulo, precio, imagenUrl }) {
   return { productoId: p.id, varianteId: variante };
 }
 
-export async function crearPedidoBorrador(t, { titulo, precio, cantidad = 1, atributos = [], nota = "", etiquetas = [], varianteId = null }) {
+export async function crearPedidoBorrador(t, { titulo, precio, cantidad = 1, atributos = [], nota = "", etiquetas = [], varianteId = null, correo = "", telefono = "", nombre = "" }) {
   let data;
   const attrs = atributos.filter(a => a.value).map(a => ({ key: String(a.key).slice(0, 60), value: String(a.value).slice(0, 500) }));
   try {
@@ -421,7 +421,10 @@ export async function crearPedidoBorrador(t, { titulo, precio, cantidad = 1, atr
           customAttributes: attrs }],
         note: String(nota || "").slice(0, 2000),
         taxExempt: true,   // el precio del cotizador es el precio final: sin impuestos encima
-        tags: etiquetas
+        tags: etiquetas,
+        // El cliente ya dejó sus datos en el cotizador: el checkout le llega con el correo puesto
+        ...(correo ? { email: correo } : {}),
+        ...(telefono || nombre ? { shippingAddress: { ...(nombre ? { firstName: nombre.split(" ")[0], lastName: nombre.split(" ").slice(1).join(" ") || "" } : {}), ...(telefono ? { phone: telefono } : {}), countryCode: t.moneda === "USD" ? "EC" : "CO" } } : {})
       }
     });
   } catch (e) {

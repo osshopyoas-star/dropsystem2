@@ -13,8 +13,19 @@ const st = {
   cfg: null, paso: "inicio",
   logo: null,            // { dataUrl, ratio }
   e: { material: "", luz: "", ubicacion: "", montaje: "", forma: "", ancho: 60, alto: 60, cantidad: 1 },
-  altoManual: false, maqueta: null, cotizacion: null, aviso: "", error: "", notas: "", enviando: false
+  altoManual: false, maqueta: null, cotizacion: null, aviso: "", error: "", notas: "", enviando: false,
+  contacto: (() => { try { return JSON.parse(localStorage.getItem("cxContacto") || "null") || { nombre: "", whatsapp: "", correo: "" }; } catch { return { nombre: "", whatsapp: "", correo: "" }; } })()
 };
+// Nombre, WhatsApp y correo: se piden antes de ver el letrero
+function contactoError() {
+  const k = st.contacto, cop = st.cfg?.moneda !== "USD";
+  let tel = String(k.whatsapp || "").replace(/\D/g, "");
+  if (cop && tel.length === 12 && tel.startsWith("57")) tel = tel.slice(2);
+  if (String(k.nombre || "").trim().length < 2) return ["nombre", "Escribe tu nombre"];
+  if (cop ? !/^3\d{9}$/.test(tel) : !/^\d{7,15}$/.test(tel)) return ["whatsapp", cop ? "Escribe tu WhatsApp de 10 números (ej: 3001234567)" : "Escribe tu número de WhatsApp"];
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(k.correo || "").trim())) return ["correo", "Revisa tu correo (ej: nombre@gmail.com)"];
+  return null;
+}
 const PASOS = ["subir", "material", "lugar", "tamano", "resultado"];
 const plata = (v) => formatoPlata(v, st.cfg?.moneda);
 // El precio lo calcula el servidor (aquí no hay costos). Se guarda el último y se pide de nuevo al cambiar algo.
@@ -171,7 +182,7 @@ async function iniciar() {
 }
 
 function pasos() {
-  const i = PASOS.indexOf(st.paso === "generando" ? "resultado" : st.paso);
+  const i = PASOS.indexOf(st.paso === "generando" ? "resultado" : st.paso === "datos" ? "tamano" : st.paso);
   return i < 0 ? "" : `<div class="pasos">${PASOS.map((_, n) => `<i class="${n <= i ? "on" : ""}"></i>`).join("")}</div>`;
 }
 
@@ -428,6 +439,17 @@ function pintar() {
       ${pared()}
       ${(!enShopify || barraFlotante) ? "" : reglaHTML()}
       ${precioLinea(r)}<div class="fila fila-paso"><button class="btn claro" onclick="cxIr('lugar')">Atrás</button><button class="btn" onclick="cxMaqueta()">${c.conMaqueta ? "Ver mi letrero" : "Ver mi precio"}</button></div>`;
+  } else if (st.paso === "datos") {
+    const k = st.contacto;
+    html = `${pasos()}<h2>¿A dónde te enviamos tu diseño?</h2><p class="sub">Déjanos tus datos y te mostramos ${c.conMaqueta ? "cómo queda tu letrero" : "tu precio"}. También te lo guardamos por si quieres pedirlo después.</p>
+      <div class="datos-cli">
+        <label class="campo">Nombre<input id="cx-nombre" autocomplete="name" maxlength="60" placeholder="Tu nombre" value="${esc(k.nombre)}" oninput="cxDato('nombre', this.value)"></label>
+        <label class="campo">Celular con WhatsApp<input id="cx-whatsapp" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="${c.moneda === "USD" ? "Ej: 0991234567" : "Ej: 300 123 4567"}" value="${esc(k.whatsapp)}" oninput="cxDato('whatsapp', this.value)"></label>
+        <label class="campo">Correo<input id="cx-correo" type="email" inputmode="email" autocomplete="email" maxlength="100" placeholder="tucorreo@gmail.com" value="${esc(k.correo)}" oninput="cxDato('correo', this.value)"></label>
+      </div>
+      ${st.error ? `<div class="error">${esc(st.error)}</div>` : ""}
+      <p class="mini">🔒 Solo los usamos para enviarte tu diseño y tu cotización. No te llenamos de mensajes.</p>
+      ${precioLinea(r)}<div class="fila fila-paso"><button class="btn claro" onclick="cxIr('tamano')">Atrás</button><button class="btn" onclick="cxDatosListos()">${c.conMaqueta ? "Ver mi letrero" : "Ver mi precio"}</button></div>`;
   } else if (st.paso === "generando") {
     html = `<h2>Haciendo tu maqueta…</h2><p class="sub">Estamos convirtiendo tu logo en letrero. Tarda menos de un minuto.</p>
       <div class="esfera" id="cxEsfera"></div>
@@ -472,16 +494,16 @@ function pintar() {
   if (st.paso === "resultado" && st.maqueta) dibujarMaqueta();
   // Barra de precio abajo (desde que eliges material hasta antes del resultado)
   const barra = $("barra");
-  const verBarra = (!enShopify || barraFlotante) && r && ["material", "lugar", "tamano"].includes(st.paso);
+  const verBarra = (!enShopify || barraFlotante) && r && ["material", "lugar", "tamano", "datos"].includes(st.paso);
   barra.classList.toggle("ver", !!verBarra);
   document.body.classList.toggle("con-barra", !!verBarra);
   if (verBarra) {
-    const atras = { material: "subir", lugar: "material", tamano: "lugar" }[st.paso];
+    const atras = { material: "subir", lugar: "material", tamano: "lugar", datos: "tamano" }[st.paso];
     $("barraAtras").onclick = () => cxIr(atras);
     $("barraTotal").textContent = plata(r.total);
     $("barraTxt").textContent = `${r.ancho} × ${r.alto} cm · precio estimado${st.cfg.envioGratis ? " · ✓ envío gratis" : ""}`;
-    $("barraBtn").onclick = () => (st.paso === "tamano" ? cxMaqueta() : cxIr(st.paso === "material" ? "lugar" : "tamano"));
-    $("barraBtn").textContent = st.paso === "tamano" ? (st.cfg.conMaqueta ? "Ver mi letrero" : "Ver mi precio") : "Continuar";
+    $("barraBtn").onclick = () => (st.paso === "datos" ? cxDatosListos() : st.paso === "tamano" ? cxMaqueta() : cxIr(st.paso === "material" ? "lugar" : "tamano"));
+    $("barraBtn").textContent = ["tamano", "datos"].includes(st.paso) ? (st.cfg.conMaqueta ? "Ver mi letrero" : "Ver mi precio") : "Continuar";
     $("barraRegla").innerHTML = st.paso === "tamano" ? reglaHTML() : "";
   }
   setTimeout(avisarAlto, 50);
@@ -633,8 +655,21 @@ window.cxSinRecorte = () => aplicarRecorte(true);
 window.cxVolverRecortar = () => { if (st.recorteHecho) { st.recorte = st.recorteHecho; st.logo = null; pintar(); } };
 
 // Pide la maqueta a la IA (mientras, muestra los beneficios de la marca)
+window.cxDato = (k, v) => { st.contacto[k] = v; document.getElementById(`cx-${k}`)?.classList.remove("mal"); };
+window.cxDatosListos = () => {
+  const e = contactoError();
+  if (e) {
+    st.error = e[1]; pintar();
+    const el = document.getElementById(`cx-${e[0]}`);
+    if (el) { el.classList.add("mal"); el.focus(); }
+    return;
+  }
+  try { localStorage.setItem("cxContacto", JSON.stringify(st.contacto)); } catch {}
+  cxMaqueta();
+};
 window.cxMaqueta = async () => {
   if (!st.logo) return cxIr("subir");
+  if (contactoError()) return cxIr("datos");
   st.error = ""; st.aviso = "";
   st.paso = "generando"; pintar(); arriba();
   const colores = ["#22d3ee", "#a855f7", "#ec4899", "#facc15", "#34d399", "#f97316", "#6366f1"];
@@ -648,9 +683,11 @@ window.cxMaqueta = async () => {
   }, 1600);
   try {
     if (!st.cfg.conMaqueta) await new Promise(r => setTimeout(r, 1500));
-    const r = await api("POST", `/api/cotiza/${encodeURIComponent(clave)}/maqueta`, { logo: st.logo.envio || st.logo.dataUrl, eleccion: st.e });
+    const r = await api("POST", `/api/cotiza/${encodeURIComponent(clave)}/maqueta`, { logo: st.logo.envio || st.logo.dataUrl, eleccion: st.e, contacto: st.contacto });
     st.cotizacion = r.cotizacion; st.maqueta = r.maqueta; st.aviso = r.aviso || "";
   } catch (e) {
+    // Si el servidor no aceptó los datos, vuelve a pedirlos
+    if (/WhatsApp y tu correo/.test(e.message || "")) { clearInterval(reloj); st.error = e.message; st.paso = "datos"; pintar(); arriba(); return; }
     st.aviso = e.message;
   }
   clearInterval(reloj);
