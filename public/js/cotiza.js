@@ -487,7 +487,7 @@ function pintar() {
       <p class="beneficio" id="cxBeneficio">${esc(c.beneficios[0] || "")}</p>
       <div class="progreso"><div id="cxProgreso"></div></div>`;
   } else if (st.paso === "resultado") {
-    html = `${pasos()}<h2>Así se vería tu letrero</h2><p class="sub">${st.maqueta ? "Maqueta hecha con IA a partir de tu logo. Antes de fabricar te mandamos el diseño final para que lo apruebes." : "Tu logo en la pared con la medida que elegiste."}</p>
+    html = `${pasos()}<h2>Así se vería tu letrero</h2>
       ${st.aviso ? `<div class="aviso">${esc(st.aviso)}</div>` : ""}
       ${st.maqueta ? `<div class="maqueta-caja" oncontextmenu="return false"><canvas id="cxMaqueta" class="maqueta" aria-label="Maqueta de tu letrero"></canvas><div class="maqueta-tapa"></div></div>` : pared()}
       ${c.montajes.length > 1 ? `<h2 style="margin-top:26px;font-size:20px">¿Cómo lo vas a montar?</h2><div class="opciones dos" style="margin-top:12px">${c.montajes.map(m => opcion("montaje", m, m.precio ? `+${plata(m.precio)}` : "Incluido")).join("")}</div>` : ""}
