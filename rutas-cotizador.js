@@ -12,7 +12,7 @@ import { rateLimit, getSession } from "./auth.js";
 import { leerDataUrl } from "./modelo-imagenes.js";
 import { pedirImagen, PRECIO_IMAGEN, PRECIO_REFERENCIA } from "./rutas-ia-imagenes.js";
 import { tiendaDe, crearPedidoBorrador, productoOculto } from "./rutas-shopify.js";
-import { limpiarConfig, cotizar, promptMaqueta, mensajeWhatsapp } from "./public/js/core/cotizador.js";
+import { limpiarConfig, cotizar, promptMaqueta, mensajeWhatsapp, formatoPlata } from "./public/js/core/cotizador.js";
 
 const MAX_GALERIA = 12;
 // Para borrar la config guardada en memoria del endpoint de precio cuando se guardan cambios
@@ -46,7 +46,8 @@ const cotizacionSchema = new mongoose.Schema({
   notas: { type: String, default: "" },
   contacto: { type: mongoose.Schema.Types.Mixed, default: null },   // { nombre, whatsapp, correo } que deja el cliente antes de ver su letrero
   pidio: { type: Boolean, default: false },
-  pago: { type: String, default: "" },           // id del pedido borrador de Shopify (si fue a pagar)
+  pago: { type: String, default: "" },
+  pagoAnticipo: { type: Number, default: 0 },    // si fue a pagar solo el anticipo, cuánto           // id del pedido borrador de Shopify (si fue a pagar)
   error: { type: String, default: "" },          // por qué no salió la maqueta (si falló)
   // Producción: nuevo · falta_material · en_produccion · listo · entregado
   estado: { type: String, default: "nuevo" },
@@ -255,8 +256,12 @@ export function registrarRutasCotizadorPublico(app) {
       const origen = `${req.protocol}://${req.get("host")}`;
       let cot = null;
       if (idValido(req.body?.cotizacion)) cot = await Cotizacion.findOne({ _id: req.body.cotizacion, owner: c.owner }).lean();
-      const unidad = Math.ceil(q.total / q.cantidad);
+      // Con anticipo (entre 1 y 99%): en Shopify se cobra solo el anticipo; el saldo se paga cuando el letrero esté listo
+      const conAnticipo = cfg.anticipoPct > 0 && cfg.anticipoPct < 100;
+      const cobrar = conAnticipo ? q.anticipo : q.total;
+      const unidad = Math.ceil(cobrar / q.cantidad);
       const atributos = [
+        ...(conAnticipo ? [{ key: "Pago", value: `Anticipo ${cfg.anticipoPct}% · Total del letrero ${formatoPlata(q.total, cfg.moneda)} · Saldo ${formatoPlata(q.total - q.anticipo, cfg.moneda)} cuando esté listo` }] : []),
         { key: "Material", value: q.material.nombre },
         { key: "Tamaño", value: `${q.ancho} × ${q.alto} cm` },
         { key: "Luz", value: q.luz ? `${q.luz.nombre}${q.colorLuz ? ` · ${q.colorLuz}` : ""}` : "" },
@@ -269,10 +274,10 @@ export function registrarRutasCotizadorPublico(app) {
         { key: "Logo", value: cot?.logo ? `${origen}/api/cotiza/img/${cot.logo}` : "" },
         { key: "Maqueta", value: cot?.maqueta ? `${origen}/api/cotiza/img/${cot.maqueta}` : "" }
       ];
-      const titulo = `Letrero personalizado · ${q.material.nombre} ${q.ancho}×${q.alto} cm`;
+      const titulo = `${conAnticipo ? `Anticipo ${cfg.anticipoPct}% · ` : ""}Letrero personalizado · ${q.material.nombre} ${q.ancho}×${q.alto} cm`;
       const ct = cot?.contacto || null;
       if (ct) atributos.unshift({ key: "Cliente", value: `${ct.nombre} · WhatsApp ${ct.whatsapp}` });
-      const datosPedido = { titulo, precio: unidad, cantidad: q.cantidad, atributos, correo: ct?.correo || "", telefono: ct?.whatsapp ? (cfg.moneda === "COP" ? `+57${ct.whatsapp}` : `+${ct.whatsapp}`) : "", nombre: ct?.nombre || "", nota: `Cotizador CoDropX${notas ? ` · Notas: ${notas}` : ""}`, etiquetas: ["cotizador", "letrero"] };
+      const datosPedido = { titulo, precio: unidad, cantidad: q.cantidad, atributos, correo: ct?.correo || "", telefono: ct?.whatsapp ? (cfg.moneda === "COP" ? `+57${ct.whatsapp}` : `+${ct.whatsapp}`) : "", nombre: ct?.nombre || "", nota: `Cotizador CoDropX${conAnticipo ? ` · ANTICIPO ${cfg.anticipoPct}%: total ${formatoPlata(q.total, cfg.moneda)}, anticipo ${formatoPlata(q.anticipo, cfg.moneda)}, falta ${formatoPlata(q.total - q.anticipo, cfg.moneda)}` : ""}${notas ? ` · Notas: ${notas}` : ""}`, etiquetas: ["cotizador", "letrero"] };
       // Con foto: un producto oculto con la maqueta (o el logo). Si algo falla, el pedido sale igual sin foto.
       let r;
       const img = cot?.maqueta || cot?.logo;
@@ -288,8 +293,8 @@ export function registrarRutasCotizadorPublico(app) {
           r = await crearPedidoBorrador(t, { ...datosPedido, correo: "", telefono: "", nombre: "" });
         }
       }
-      if (cot) await Cotizacion.updateOne({ _id: cot._id }, { $set: { pidio: true, pago: r.id, notas, total: q.total, anticipo: q.anticipo } });
-      res.json({ url: r.url, total: q.total });
+      if (cot) await Cotizacion.updateOne({ _id: cot._id }, { $set: { pidio: true, pago: r.id, notas, total: q.total, anticipo: q.anticipo, pagoAnticipo: conAnticipo ? q.anticipo : 0 } });
+      res.json({ url: r.url, total: q.total, cobrado: cobrar });
     } catch (err) {
       console.error("Cotizador pagar:", err);
       res.status(err.status && err.status < 500 ? 400 : 500).json({ error: "No pudimos abrir el pago en este momento. Escríbenos por WhatsApp y te ayudamos." });
@@ -444,7 +449,7 @@ export function registrarRutasCotizador(app) {
       const lista = await Cotizacion.find(filtro).sort({ creado: q.orden === "viejas" ? 1 : -1 }).limit(200).lean();
       const conteo = await Cotizacion.aggregate([{ $match: { owner: new mongoose.Types.ObjectId(String(req.user.uid)), pidio: true } }, { $group: { _id: { $ifNull: ["$estado", "nuevo"] }, n: { $sum: 1 } } }]);
       res.set("X-Conteo", JSON.stringify(Object.fromEntries(conteo.map(c => [c._id, c.n]))));
-      res.json(lista.map(x => ({ id: String(x._id), creado: x.creado, eleccion: x.eleccion, total: x.total, anticipo: x.anticipo, moneda: x.moneda, notas: x.notas, contacto: x.contacto || null, pidio: !!x.pidio, error: x.error || "",
+      res.json(lista.map(x => ({ id: String(x._id), creado: x.creado, eleccion: x.eleccion, total: x.total, anticipo: x.anticipo, moneda: x.moneda, notas: x.notas, contacto: x.contacto || null, pagoAnticipo: x.pagoAnticipo || 0, pidio: !!x.pidio, error: x.error || "",
         estado: x.estado || "nuevo", notaInterna: x.notaInterna || "", cambioEstado: x.cambioEstado || null, pago: !!x.pago,
         logo: x.logo ? `/api/cotiza/img/${x.logo}` : "", maqueta: x.maqueta ? `/api/cotiza/img/${x.maqueta}` : "" })));
     } catch (err) { console.error("Cotizaciones:", err); res.status(500).json({ error: "No se pudieron leer las cotizaciones" }); }

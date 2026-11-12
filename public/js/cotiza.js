@@ -500,14 +500,15 @@ function pintar() {
         ${c.envioGratis ? `<div class="envio-gratis"><span class="camion">🚚</span><span><b>${esc(c.envioTexto)}</b><small>Ya va incluido en tu precio: no pagas nada más</small></span></div>` : ""}
         <table class="desglose">
           <tr class="tot"><td>Total</td><td>${plata(r.total)}</td></tr>
-          ${c.cierre !== "shopify" && c.anticipoPct > 0 && c.anticipoPct < 100 ? `<tr><td>Anticipo para empezar (${c.anticipoPct}%)</td><td>${plata(r.anticipo)}</td></tr>` : ""}
+          ${c.anticipoPct > 0 && c.anticipoPct < 100 ? `<tr class="anticipo-fila"><td>${c.cierre === "shopify" ? "Pagas hoy" : "Anticipo para empezar"} (${c.anticipoPct}%)</td><td>${plata(r.anticipo)}</td></tr>
+          <tr><td>Pagas cuando tu letrero esté listo</td><td>${plata(r.total - r.anticipo)}</td></tr>` : ""}
         </table>` : ""}
       </div>
       <label class="campo" style="margin-top:16px">¿Algún cambio o detalle? (opcional)<textarea id="cxNotas" placeholder="Colores, letras, dónde va, para cuándo lo necesitas…" oninput="cxNotas(this.value)">${esc(st.notas)}</textarea></label>
       ${st.error ? `<div class="error">${esc(st.error)}</div>` : ""}
       ${c.cierre === "shopify" && c.tiendaPago
-        ? `<div class="fila"><button class="btn wa" onclick="cxPagar()" ${st.enviando ? "disabled" : ""}>${st.enviando ? "Abriendo el pago…" : `Pagar ahora · ${r ? plata(r.total) : ""}`}</button></div>
-           <p class="mini">🔒 Pago seguro en nuestra tienda: tarjeta, PSE o billeteras. Envío gratis.</p>
+        ? `<div class="fila"><button class="btn wa" onclick="cxPagar()" ${st.enviando ? "disabled" : ""}>${st.enviando ? "Abriendo el pago…" : (c.anticipoPct > 0 && c.anticipoPct < 100 ? `Pagar anticipo · ${r ? plata(r.anticipo) : ""}` : `Pagar ahora · ${r ? plata(r.total) : ""}`)}</button></div>
+           <p class="mini">🔒 Pago seguro en nuestra tienda: tarjeta, PSE o billeteras.${c.anticipoPct > 0 && c.anticipoPct < 100 ? ` Hoy pagas solo el ${c.anticipoPct}% y el resto cuando tu letrero esté listo.` : ""} Envío gratis.</p>
 `
         : `<div class="fila"><button class="btn wa" onclick="cxPedir()" ${st.enviando ? "disabled" : ""}>${st.enviando ? "Armando tu pedido…" : c.whatsapp ? "Pedir por WhatsApp" : "Quiero este letrero"}</button></div>`}
       <div class="fila"><button class="btn claro" onclick="cxIr('tamano')">Cambiar tamaño u opciones</button></div>

@@ -426,7 +426,7 @@ function cotizacionesHTML() {
       <span class="ct-num">#${i + 1}</span>
       <a href="${esc(c.maqueta || c.logo)}" target="_blank" rel="noopener"><img src="${esc(c.maqueta || c.logo)}" alt=""></a>
       <div>
-        <b>${formatoPlata(c.total, c.moneda)}</b> ${c.pidio ? `<span class="ct-tag ok">${c.pago ? "fue a pagar" : "pidió"}</span>` : `<span class="ct-tag">solo miró</span>`}
+        <b>${formatoPlata(c.total, c.moneda)}</b> ${c.pidio ? `<span class="ct-tag ok">${c.pago ? (c.pagoAnticipo ? `fue a pagar anticipo ${formatoPlata(c.pagoAnticipo, c.moneda)}` : "fue a pagar") : "pidió"}</span>` : `<span class="ct-tag">solo miró</span>`}
         <small>${esc(nombre("materiales", c.eleccion?.material))} · ${c.eleccion?.ancho} × ${c.eleccion?.alto} cm${c.eleccion?.cantidad > 1 ? ` · ×${c.eleccion.cantidad}` : ""}</small>
         <small>${esc(nombre("ubicaciones", c.eleccion?.ubicacion))}${c.eleccion?.luz ? ` · ${esc(nombre("luces", c.eleccion.luz))}${c.eleccion?.colorLuz ? ` (${esc(c.eleccion.colorLuz)})` : ""}` : ""}${c.eleccion?.colorFondo || c.eleccion?.colorLogo ? ` · colores: ${esc([c.eleccion.colorFondo, c.eleccion.colorLogo].filter(Boolean).join(" / "))}` : ""}${c.eleccion?.forma ? ` · ${esc(nombre("formas", c.eleccion.forma))}` : ""}</small>
         ${c.contacto ? `<small class="ct-cliente">👤 <b>${esc(c.contacto.nombre)}</b> · <a href="https://wa.me/${c.moneda === "USD" ? "" : "57"}${esc(c.contacto.whatsapp)}?text=${encodeURIComponent(`Hola ${c.contacto.nombre.split(" ")[0]}, te escribimos de ${st.cfg.marca} por el letrero que cotizaste 😊`)}" target="_blank" rel="noopener">WhatsApp ${esc(c.contacto.whatsapp)}</a> · <a href="mailto:${esc(c.contacto.correo)}">${esc(c.contacto.correo)}</a></small>` : ""}
