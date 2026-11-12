@@ -13,6 +13,7 @@ const st = {
   cfg: null, paso: "inicio",
   logo: null,            // { dataUrl, ratio }
   e: { material: "", luz: "", ubicacion: "", montaje: "", forma: "", ancho: 60, alto: 60, cantidad: 1 },
+  sub: 0,                // pregunta en la que va dentro de "lugar" (una por pantalla, estilo Typeform)
   altoManual: false, maqueta: null, cotizacion: null, aviso: "", error: "", notas: "", enviando: false,
   contacto: (() => { try { return JSON.parse(localStorage.getItem("cxContacto") || "null") || { nombre: "", whatsapp: "", correo: "" }; } catch { return { nombre: "", whatsapp: "", correo: "" }; } })()
 };
@@ -327,6 +328,18 @@ function colorLuzHTML(c) {
 }
 // Acrílico sin luz (o el tipo que pida colores): color del fondo y del logo/letras
 const COLORES_ACRILICO = [["Blanco", "#f8fafc"], ["Negro", "#111827"], ["Dorado espejo", "linear-gradient(135deg,#fde68a,#b45309)"], ["Plateado espejo", "linear-gradient(135deg,#f1f5f9,#94a3b8)"], ["Rojo", "#ef4444"], ["Azul", "#2563eb"], ["Verde", "#16a34a"], ["Amarillo", "#facc15"], ["Rosado", "#f472b6"], ["Transparente", "repeating-conic-gradient(#cbd5e1 0 25%, #f8fafc 0 50%) 0 0/8px 8px"]];
+// Preguntas del paso "lugar", una por pantalla: dónde va → forma → luz → colores (según el material)
+function subsLugar() {
+  const m = st.cfg.materiales.find(x => x.id === st.e.material);
+  return ["ubicacion", (st.cfg.formas || []).length > 1 && "forma", m?.conLuz && "luz", m?.pideColores && "colores"].filter(Boolean);
+}
+// Siguiente (+1) o anterior (-1) pregunta; al pasarse, va al tamaño o vuelve al material
+window.cxLugar = (d) => {
+  const subs = subsLugar(), n = st.sub + d;
+  if (n < 0) return cxIr("material");
+  if (n >= subs.length) return cxIr("tamano");
+  st.error = ""; st.sub = n; st.tfDir = d; pintar(); arriba();
+};
 function coloresAcrilicoHTML(m) {
   if (!m?.pideColores) return "";
   const fila = (campo, titulo, ej) => {
@@ -336,18 +349,22 @@ function coloresAcrilicoHTML(m) {
       <input placeholder="O escribe el color (ej: ${ej})" value="${esc(v)}" maxlength="40" oninput="cxColorAcTexto('${campo}', this.value, this)">
     </div>`;
   };
-  return `<h2 id="grp-colores" style="margin-top:26px">¿De qué colores lo quieres?</h2>
+  return `<h2 id="grp-colores">¿De qué colores lo quieres?</h2><p class="sub">Elige el del fondo y el del logo o las letras.</p>
     ${fila("colorFondo", "Color del fondo", "negro mate")}
     <div style="height:10px"></div>
     ${fila("colorLogo", "Color del logo o las letras", "dorado espejo")}`;
 }
 window.cxColorAc = (campo, n) => {
   st.e[campo] = n; pintar();
-  bajarA(campo === "colorFondo" ? $("grp-colorLogo") : document.querySelector("#app .fila"));
+  if (campo === "colorFondo" && !st.e.colorLogo) return bajarA($("grp-colorLogo"));
+  if (st.paso === "lugar" && st.e.colorFondo && st.e.colorLogo) return tfSiguiente();
+  bajarA(document.querySelector("#app .fila"));
 };
 window.cxColorAcTexto = (campo, v, el) => { st.e[campo] = v; el.closest(".color-luz").querySelectorAll(".color").forEach(b => b.classList.toggle("on", b.textContent.trim().toLowerCase() === v.trim().toLowerCase())); };
 
-window.cxColor = (n) => { st.e.colorLuz = n; pintar(); bajarA(document.querySelector("#app .fila")); };
+// Typeform: al elegir el color, pasa sola a la siguiente pregunta
+const tfSiguiente = () => { const sub = st.sub; clearTimeout(window.__tfReloj); window.__tfReloj = setTimeout(() => { if (st.paso === "lugar" && st.sub === sub) cxLugar(1); }, 450); };
+window.cxColor = (n) => { st.e.colorLuz = n; pintar(); if (st.paso === "lugar") tfSiguiente(); else bajarA(document.querySelector("#app .fila")); };
 window.cxColorTexto = (v) => { st.e.colorLuz = v; document.querySelectorAll(".color-luz .color").forEach(b => b.classList.toggle("on", b.textContent.trim().toLowerCase() === v.trim().toLowerCase())); };
 
 // Precio que se va actualizando mientras el cliente elige (dentro de Shopify, donde no hay barra fija abajo)
@@ -428,12 +445,20 @@ function pintar() {
       ${precioLinea(r)}<div class="fila fila-paso"><button class="btn claro" onclick="cxIr('subir')">Atrás</button><button class="btn" onclick="cxIr('lugar')">Continuar</button></div>`;
   } else if (st.paso === "lugar") {
     const m = c.materiales.find(x => x.id === st.e.material);
-    html = `${pasos()}<h2>¿Dónde lo vas a poner?</h2><p class="sub">Así sabemos qué tan resistente tiene que ser.</p>
-      <div class="opciones dos">${c.ubicaciones.map(u => opcion("ubicacion", u, u.pct ? `+${u.pct}%` : "")).join("")}</div>
-      ${(c.formas || []).length > 1 ? `<h2 id="grp-forma" style="margin-top:26px">¿Qué forma quieres?</h2><div class="opciones dos" style="margin-top:12px">${c.formas.map(f => opcion("forma", f, f.pct ? `+${f.pct}%` : "")).join("")}</div>` : ""}
-      ${m?.conLuz ? `<h2 id="grp-luz" style="margin-top:26px">¿Qué luz quieres?</h2><div class="opciones dos" style="margin-top:12px">${c.luces.map(l => opcion("luz", l, l.pct ? `+${l.pct}%` : "")).join("")}</div>${colorLuzHTML(c)}` : ""}
-      ${coloresAcrilicoHTML(m)}
-      ${precioLinea(r)}<div class="fila fila-paso"><button class="btn claro" onclick="cxIr('material')">Atrás</button><button class="btn" onclick="cxIr('tamano')">Continuar</button></div>`;
+    const subs = subsLugar();
+    st.sub = Math.min(Math.max(0, st.sub), subs.length - 1);
+    const preg = subs[st.sub];
+    const cuerpo = preg === "ubicacion" ? `<h2>¿Dónde lo vas a poner?</h2><p class="sub">Así sabemos qué tan resistente tiene que ser.</p>
+        <div class="opciones dos">${c.ubicaciones.map(u => opcion("ubicacion", u, u.pct ? `+${u.pct}%` : "")).join("")}</div>`
+      : preg === "forma" ? `<h2 id="grp-forma">¿Qué forma quieres?</h2><p class="sub">Así cortamos tu letrero con el láser.</p>
+        <div class="opciones dos">${c.formas.map(f => opcion("forma", f, f.pct ? `+${f.pct}%` : "")).join("")}</div>`
+      : preg === "luz" ? `<h2 id="grp-luz">¿Qué luz quieres?</h2><p class="sub">La luz LED va por dentro del letrero.</p>
+        <div class="opciones dos">${c.luces.map(l => opcion("luz", l, l.pct ? `+${l.pct}%` : "")).join("")}</div>${colorLuzHTML(c)}`
+      : coloresAcrilicoHTML(m);
+    html = `${pasos()}${subs.length > 1 ? `<p class="tf-n">Pregunta ${st.sub + 1} de ${subs.length}</p>` : ""}
+      <div class="tf ${st.tfDir > 0 ? "entra" : st.tfDir < 0 ? "atras" : ""}">${cuerpo}</div>
+      ${precioLinea(r)}<div class="fila fila-paso"><button class="btn claro" onclick="cxLugar(-1)">Atrás</button><button class="btn" onclick="cxLugar(1)">Continuar</button></div>`;
+    st.tfDir = 0;
   } else if (st.paso === "tamano") {
     html = `${pasos()}<h2>¿De qué tamaño?</h2><p class="sub">Mueve la barra. El alto sale solo según la forma de tu logo (puedes cambiarlo).</p>
       ${pared()}
@@ -498,10 +523,10 @@ function pintar() {
   document.body.classList.toggle("con-barra", !!verBarra);
   if (verBarra) {
     const atras = { material: "subir", lugar: "material", tamano: "lugar", datos: "tamano" }[st.paso];
-    $("barraAtras").onclick = () => cxIr(atras);
+    $("barraAtras").onclick = () => (st.paso === "lugar" ? cxLugar(-1) : cxIr(atras));
     $("barraTotal").textContent = plata(r.total);
     $("barraTxt").textContent = `${r.ancho} × ${r.alto} cm · precio estimado${st.cfg.envioGratis ? " · ✓ envío gratis" : ""}`;
-    $("barraBtn").onclick = () => (st.paso === "datos" ? cxDatosListos() : st.paso === "tamano" ? cxMaqueta() : cxIr(st.paso === "material" ? "lugar" : "tamano"));
+    $("barraBtn").onclick = () => (st.paso === "datos" ? cxDatosListos() : st.paso === "tamano" ? cxMaqueta() : st.paso === "lugar" ? cxLugar(1) : cxIr("lugar"));
     $("barraBtn").textContent = ["tamano", "datos"].includes(st.paso) ? (st.cfg.conMaqueta ? "Ver mi letrero" : "Ver mi precio") : "Continuar";
     $("barraRegla").innerHTML = st.paso === "tamano" ? reglaHTML() : "";
   }
@@ -512,10 +537,20 @@ window.cxIr = (paso) => {
   st.error = "";
   // Al llegar al material desde el logo, queda elegida la primera opción (si vuelve con Atrás, se respeta lo que eligió)
   if (paso === "material" && st.paso === "subir") st.e.material = st.cfg.materiales[0]?.id || st.e.material;
+  if (paso === "lugar") { st.sub = st.paso === "material" ? 0 : subsLugar().length - 1; st.tfDir = st.paso === "material" ? 1 : -1; }
   st.paso = paso; pintar(); arriba();
 };
 window.cxElegir = (grupo, id) => {
   st.e[grupo] = id; pintar();
+  // Estilo Typeform: en "lugar", al tocar una opción pasa sola a la siguiente pregunta (si la luz pide color, se queda para elegirlo)
+  if (st.paso === "lugar" && ["ubicacion", "forma", "luz"].includes(grupo)) {
+    const l = grupo === "luz" ? st.cfg.luces.find(x => x.id === id) : null;
+    if (l?.pideColor) { bajarA($("grp-color")); return; }
+    const sub = st.sub;
+    clearTimeout(window.__tfReloj);
+    window.__tfReloj = setTimeout(() => { if (st.paso === "lugar" && st.sub === sub) cxLugar(1); }, 380);
+    return;
+  }
   // Al elegir, baja solo a la siguiente pregunta o al botón Continuar
   const fila = document.querySelector("#app .fila:not(.res) .btn:not(.claro)")?.closest(".fila");
   let sig = null;
