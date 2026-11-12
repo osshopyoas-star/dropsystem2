@@ -448,7 +448,7 @@ function pintar() {
         <label class="campo">Correo<input id="cx-correo" type="email" inputmode="email" autocomplete="email" maxlength="100" placeholder="tucorreo@gmail.com" value="${esc(k.correo)}" oninput="cxDato('correo', this.value)"></label>
       </div>
       ${st.error ? `<div class="error">${esc(st.error)}</div>` : ""}
-      <p class="mini">🔒 Solo los usamos para enviarte tu diseño y tu cotización. No te llenamos de mensajes.</p>
+      <p class="mini">🔒 Tus datos están seguros con nosotros.</p>
       ${precioLinea(r)}<div class="fila fila-paso"><button class="btn claro" onclick="cxIr('tamano')">Atrás</button><button class="btn" onclick="cxDatosListos()">${c.conMaqueta ? "Ver mi letrero" : "Ver mi precio"}</button></div>`;
   } else if (st.paso === "generando") {
     html = `<h2>Haciendo tu maqueta…</h2><p class="sub">Estamos convirtiendo tu logo en letrero. Tarda menos de un minuto.</p>
