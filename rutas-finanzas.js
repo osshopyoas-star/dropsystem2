@@ -753,7 +753,7 @@ Sin rodeos, sin inventar datos que no estén en las cifras. Si la publicidad est
         const id = String(a?.campanaId || "");
         const clave = String(a?.clave ?? "");
         if (!/^\d{3,30}$/.test(id)) continue;
-        if (clave && clave !== "x" && !/^[pg]:[\w-]{1,58}$/.test(clave)) continue;
+        if (clave && clave !== "x" && !/^[pg]:(shp:)?[\w-]{1,58}$/.test(clave)) continue;
         if (clave) mapa[id] = clave; else delete mapa[id];
         if (!clave || clave === "x") continue;
         const gasto = Math.max(0, Number(a?.gasto) || 0);
@@ -819,7 +819,7 @@ Sin rodeos, sin inventar datos que no estén en las cifras. Si la publicidad est
       const id = String(req.body?.campanaId || "");
       const clave = String(req.body?.clave ?? "");
       if (!/^\d{3,30}$/.test(id)) return res.status(400).json({ error: "Campaña inválida" });
-      if (clave && clave !== "x" && !/^[pg]:[\w-]{1,58}$/.test(clave)) return res.status(400).json({ error: "Producto inválido" });
+      if (clave && clave !== "x" && !/^[pg]:(shp:)?[\w-]{1,58}$/.test(clave)) return res.status(400).json({ error: "Producto inválido" });
       const cfg = await FinanzasConfig.findOne({ owner: req.user.uid, pais: p }).lean();
       const mapa = { ...(cfg?.metaCampanas || {}) };
       if (clave) mapa[id] = clave; else delete mapa[id];

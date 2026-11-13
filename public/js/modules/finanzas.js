@@ -604,7 +604,20 @@ window.fzRevisar = async () => {
       original: (c.diasOriginal || {})[st.dia] || 0, meta: c.dias[st.dia], gasto: c.dias[st.dia], editado: false,
       clave, claveInicial: clave, origen: c.origen };
   }).sort((a, b) => b.gasto - a.gasto);
-  rev.productos = (s.productos || []).slice().sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+  rev.productos = (s.productos || []).slice();
+  // + los productos que vendieron ese día en Shopify (enlazados a Dropi o no)
+  rev.shopDia = new Set();
+  try {
+    await cargarShopify();
+    if (st.shop.pais === st.pais && !st.shop.error) {
+      for (const l of lineasShopify().filter(l => l.fecha === rev.fecha)) {
+        const clave = claveProducto(l.productoId, grupos());
+        rev.shopDia.add(clave);
+        if (!rev.productos.some(p => p.clave === clave)) rev.productos.push({ clave, nombre: l.enlazado ? nombreDe(clave) : l.producto, shopify: true });
+      }
+    }
+  } catch {}
+  rev.productos.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
   rev.tab = rev.filas.some(f => !f.clave) ? "sin" : "asig";
   rev.buscar = ""; rev.sel = new Set(); rev.producto = "";
   rev.abierta = true;
@@ -699,6 +712,7 @@ function pintarRev(entero = false) {
     : filas.length > 1 ? `<button class="fz-link" onclick="fzRevSelTodo(true)">Seleccionar las ${filas.length}</button>` : "";
   // Productos: los que vendieron ese día + los que ya tienen campañas
   const delDia = new Set(controlDiario(st.lineas, { desde: rev.fecha, hasta: rev.fecha, grupos: grupos(), devPct: 0 }).filter(f => f.pedidos).map(f => f.clave));
+  for (const k of rev.shopDia || []) delDia.add(k);
   rev.filas.forEach(f => { if (f.clave && f.clave !== "x") delDia.add(f.clave); });
   const prods = [...delDia].map(clave => ({ clave, nombre: nombreProd(clave), gasto: suma(rev.filas.filter(f => f.clave === clave)), n: rev.filas.filter(f => f.clave === clave).length }))
     .sort((a, b) => b.gasto - a.gasto || a.nombre.localeCompare(b.nombre, "es"));
