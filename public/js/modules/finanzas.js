@@ -672,7 +672,7 @@ function pintarRev(entero = false) {
     + (rev.producto ? `<span class="fz-rev-filtro">${esc(nombreProd(rev.producto))} <button onclick="fzRevProducto('')" title="Quitar filtro">×</button></span>` : "");
   // Lista
   const filas = visibles.filter(f => tabDe(f) === rev.tab);
-  const opciones = (f) => `<option value="" ${!f.clave ? "selected" : ""}>Sin asignar...</option>${rev.productos.map(p => `<option value="${esc(p.clave)}" ${f.clave === p.clave ? "selected" : ""}>${esc(p.nombre)}</option>`).join("")}<option value="x" ${f.clave === "x" ? "selected" : ""}>Otras (no es de un producto)</option>`;
+  const opciones = (f) => `<option value="" ${!f.clave ? "selected" : ""}>Sin asignar...</option><option value="__nuevo">+ Crear producto nuevo</option>${rev.productos.map(p => `<option value="${esc(p.clave)}" ${f.clave === p.clave ? "selected" : ""}>${esc(p.nombre)}</option>`).join("")}<option value="x" ${f.clave === "x" ? "selected" : ""}>Otras (no es de un producto)</option>`;
   $("fzRevLista").innerHTML = filas.map(f => {
     const i = rev.filas.indexOf(f);
     return `
@@ -695,7 +695,7 @@ function pintarRev(entero = false) {
     </div>`;
   }).join("") || `<p class="fz-rev-vacio">${rev.tab === "sin" ? (rev.filas.length ? "¡Todo asignado! 🎉" : "Meta no tiene gasto este día en tus cuentas elegidas.") : rev.tab === "asig" ? "Aún no hay campañas asignadas." : "Aquí van las campañas que no son de un producto (marca, pruebas, etc.)."}</p>`;
   // Masivo
-  $("fzRevMasivo").innerHTML = rev.sel.size ? `<b>${rev.sel.size} seleccionada${rev.sel.size === 1 ? "" : "s"}</b> → <select onchange="fzRevAsignarSel(this.value)"><option value="">Asignar a...</option>${rev.productos.map(p => `<option value="${esc(p.clave)}">${esc(p.nombre)}</option>`).join("")}<option value="x">Otras</option></select> <button class="fz-link" onclick="fzRevSelTodo(false)">Quitar selección</button>`
+  $("fzRevMasivo").innerHTML = rev.sel.size ? `<b>${rev.sel.size} seleccionada${rev.sel.size === 1 ? "" : "s"}</b> → <select onchange="fzRevAsignarSel(this.value)"><option value="">Asignar a...</option><option value="__nuevo">+ Crear producto nuevo</option>${rev.productos.map(p => `<option value="${esc(p.clave)}">${esc(p.nombre)}</option>`).join("")}<option value="x">Otras</option></select> <button class="fz-link" onclick="fzRevSelTodo(false)">Quitar selección</button>`
     : filas.length > 1 ? `<button class="fz-link" onclick="fzRevSelTodo(true)">Seleccionar las ${filas.length}</button>` : "";
   // Productos: los que vendieron ese día + los que ya tienen campañas
   const delDia = new Set(controlDiario(st.lineas, { desde: rev.fecha, hasta: rev.fecha, grupos: grupos(), devPct: 0 }).filter(f => f.pedidos).map(f => f.clave));
@@ -723,8 +723,30 @@ window.fzRevSelTodo = (v) => {
   if (v) { const q = normalizar(rev.buscar); rev.filas.forEach((f, i) => { if (tabDe(f) === rev.tab && (!q || normalizar(f.nombre).includes(q)) && (!rev.producto || f.clave === rev.producto)) rev.sel.add(i); }); }
   pintarRev();
 };
-window.fzRevAsignar = (i, clave) => { const f = rev.filas[i]; if (!f) return; f.clave = clave; rev.sel.delete(i); pintarRev(); };
-window.fzRevAsignarSel = (clave) => { if (!clave) return; for (const i of rev.sel) rev.filas[i].clave = clave; rev.sel.clear(); pintarRev(); };
+// "+ Crear producto nuevo": pide el nombre, lo guarda y le asigna la(s) campaña(s)
+async function crearProductoRev(sugerido = "") {
+  const nombre = (prompt("Nombre del producto nuevo:", sugerido) || "").trim();
+  if (!nombre) return null;
+  try {
+    const p = await api("POST", "/api/finanzas/productos", { pais: st.pais, nombre });
+    if (!rev.productos.some(x => x.clave === p.clave)) rev.productos = [...rev.productos, p].sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+    if (st.meta.sync?.productos && !st.meta.sync.productos.some(x => x.clave === p.clave)) st.meta.sync.productos.push(p);
+    avisar(`Producto "${p.nombre}" creado ✓`);
+    return p.clave;
+  } catch (err) { avisar(err.message, "error"); return null; }
+}
+// Nombre sugerido a partir de la campaña: sin fechas, "TESTEO" ni lo que va después del guion
+const nombreDeCampana = (n) => String(n || "").replace(/\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/g, "").replace(/\btesteo\b/gi, "").split(/\s[-–|]\s/)[0].replace(/\s+/g, " ").trim();
+window.fzRevAsignar = async (i, clave) => {
+  const f = rev.filas[i]; if (!f) return;
+  if (clave === "__nuevo") { clave = await crearProductoRev(nombreDeCampana(f.nombre)); if (!clave) return pintarRev(); }
+  f.clave = clave; rev.sel.delete(i); pintarRev();
+};
+window.fzRevAsignarSel = async (clave) => {
+  if (!clave) return;
+  if (clave === "__nuevo") { clave = await crearProductoRev(nombreDeCampana(rev.filas[[...rev.sel][0]]?.nombre)); if (!clave) return pintarRev(); }
+  for (const i of rev.sel) rev.filas[i].clave = clave; rev.sel.clear(); pintarRev();
+};
 window.fzRevMonto = (i, v) => {
   const f = rev.filas[i]; if (!f) return;
   const n = Math.max(0, deVer(Number(v) || 0));

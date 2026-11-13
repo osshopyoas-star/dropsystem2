@@ -81,6 +81,7 @@ const configSchema = new mongoose.Schema({
   grupos: { type: [mongoose.Schema.Types.Mixed], default: [] },   // { id, nombre, ids: [productoId] }
   metaCuentas: { type: [String], default: [] },                    // cuentas publicitarias cuyo gasto se suma
   metaCampanas: { type: mongoose.Schema.Types.Mixed, default: {} }, // { campanaId: clave | "x" (no es de ningún producto) }
+  productosExtra: { type: [mongoose.Schema.Types.Mixed], default: [] }, // { clave: "p:n...", nombre } creados a mano (aún sin pedidos en Dropi)
   trm: { type: Number, default: null },                           // 1 USD en COP que tú fijaste (si no, la TRM del día)
   trmManual: { type: Boolean, default: false },
   costosOperativos: { type: [mongoose.Schema.Types.Mixed], default: [] },   // { id, mes: "2026-09", desc, valor, moneda }
@@ -648,6 +649,8 @@ Sin rodeos, sin inventar datos que no estén en las cifras. Si la publicidad est
         const clave = claveProducto(l.productoId, grupos);
         if (!vistos.has(clave)) vistos.set(clave, grupos.find(g => `g:${g.id}` === clave)?.nombre || l.producto || "Producto");
       }
+      // + los que creaste a mano en "Revisa el gasto de Meta" (todavía sin pedidos)
+      for (const x of cfg?.productosExtra || []) if (x?.clave && !vistos.has(x.clave)) vistos.set(x.clave, x.nombre);
       const productos = [...vistos].map(([clave, nombre]) => ({ clave, nombre }));
 
       const llaveCache = `${req.user.uid}|${cuentasIds.join(",")}|${desde}|${hasta}`;
@@ -786,6 +789,26 @@ Sin rodeos, sin inventar datos que no estén en las cifras. Si la publicidad est
     } catch (err) {
       console.error("Error guardando pauta de Meta:", err);
       res.status(500).json({ error: "No se pudo guardar la pauta" });
+    }
+  });
+
+  // Crear un producto a mano (para asignarle pauta aunque todavía no tenga pedidos en Dropi)
+  app.post("/api/finanzas/productos", async (req, res) => {
+    try {
+      const p = pais(req.body?.pais);
+      const nombre = String(req.body?.nombre || "").replace(/[<>]/g, "").replace(/\s+/g, " ").trim().slice(0, 80);
+      if (nombre.length < 2) return res.status(400).json({ error: "Escribe el nombre del producto" });
+      const cfg = await FinanzasConfig.findOne({ owner: req.user.uid, pais: p }).lean();
+      const extra = cfg?.productosExtra || [];
+      const igual = extra.find(x => String(x.nombre).toLowerCase() === nombre.toLowerCase());
+      if (igual) return res.json(igual);
+      const nuevo = { clave: `p:n${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, nombre };
+      await FinanzasConfig.findOneAndUpdate({ owner: req.user.uid, pais: p },
+        { $push: { productosExtra: { $each: [nuevo], $slice: -300 } }, $set: { actualizado: new Date() }, $setOnInsert: { owner: req.user.uid, pais: p } }, { upsert: true });
+      res.json(nuevo);
+    } catch (err) {
+      console.error("Error creando producto:", err);
+      res.status(500).json({ error: "No se pudo crear el producto" });
     }
   });
 
