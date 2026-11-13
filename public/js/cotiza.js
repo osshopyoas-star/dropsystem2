@@ -175,6 +175,9 @@ async function iniciar() {
     st.e.luz = st.cfg.luces[0]?.id || "";
     st.e.ubicacion = st.cfg.ubicaciones[0]?.id || "";
     st.e.montaje = st.cfg.montajes[0]?.id || "";
+    // Orden de las formas: primero "con la forma de tu logo", luego redondo y al final rectangular
+    const rangoForma = (f) => (f.id === "silueta" || /forma de tu logo|silueta/i.test(f.nombre) ? 0 : /redond/i.test(`${f.id} ${f.nombre}`) ? 1 : /rect/i.test(`${f.id} ${f.nombre}`) ? 3 : 2);
+    st.cfg.formas = (st.cfg.formas || []).map((f, i) => ({ f, i })).sort((a, b) => rangoForma(a.f) - rangoForma(b.f) || a.i - b.i).map(x => x.f);
     st.e.forma = st.cfg.formas?.[0]?.id || "";
     pintar();
   } catch (e) {
