@@ -680,10 +680,12 @@ Sin rodeos, sin inventar datos que no estén en las cifras. Si la publicidad est
           const link = links[f.campanaId] || "";
           const handle = (link.match(/\/products\/([^/?#]+)/i) || [])[1] || "";
           const auto = elegida ? null : (emparejarCampana(`${f.campana} ${decodeURIComponent(handle).replace(/[-_]+/g, " ")}`, productos) || null);
-          const clave = elegida === "x" ? null : (elegida && vistos.has(elegida) ? elegida : auto);
+          // Lo que asignaste a mano vale aunque el producto no esté en Dropi (productos de Shopify "p:shp:…" o creados a mano)
+          const valida = elegida && elegida !== "x" && (vistos.has(elegida) || /^[pg]:(shp:)?[\w-]{1,58}$/.test(elegida));
+          const clave = elegida === "x" ? null : (valida ? elegida : auto);
           c = { id: f.campanaId, nombre: f.campana, account_id: f.account_id, moneda: f.moneda, gasto: 0, compras: 0, dias: {}, diasOriginal: {}, clave,
             link, linkProducto: link ? !!handle : null,
-            origen: elegida === "x" ? "ignorada" : elegida && vistos.has(elegida) ? "manual" : auto ? "auto" : null };
+            origen: elegida === "x" ? "ignorada" : valida ? "manual" : auto ? "auto" : null };
           campanas.set(f.campanaId, c);
         }
         c.gasto += gasto; c.compras += f.compras;
