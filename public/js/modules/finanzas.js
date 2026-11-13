@@ -94,10 +94,8 @@ async function cargar(forzar = false) {
   if (!st.meta.estado) st.meta.estado = await api("GET", "/api/meta/estado").catch(() => ({ conectado: false }));
   st.pauta = Object.fromEntries(pauta.map(p => [`${p.fecha}|${p.clave}`, p]));
   st.cargadoPais = st.pais;
-  if (!st.dia || !config.dias.includes(st.dia)) {
-    const ayer = sumarDias(hoyISO(), -1);
-    st.dia = config.dias.includes(ayer) ? ayer : (config.hasta || ayer);
-  }
+  // Al entrar, el día que sale es siempre ayer (el día anterior a hoy), haya o no Excel de ese día
+  if (!st.dia) st.dia = sumarDias(hoyISO(), -1);
 }
 
 const grupos = () => st.config?.grupos || [];
@@ -2132,6 +2130,7 @@ const PAGINAS = { "control-diario": renderControl, "reporte-financiero": renderR
 for (const [ruta, render] of Object.entries(PAGINAS)) {
   registrarRuta(ruta, async (view) => {
     st.pagina = ruta;
+    st.dia = null;   // cada vez que entras, arranca en ayer
     window.marcarMenuActivo?.(ruta);
     abrirMenuFinanzas(true);
     view.innerHTML = `<div class="fz-page"><p class="est-muted">Cargando...</p></div>`;
