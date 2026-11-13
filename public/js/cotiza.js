@@ -165,11 +165,33 @@ async function api(metodo, url, body) {
   return d;
 }
 
+// ---------- Píxel de Meta (si lo pusiste en CoDropX) ----------
+const fbclid = new URLSearchParams(location.search).get("fbclid") || "";
+const galleta = (n) => (document.cookie.match(new RegExp(`(?:^|; )${n}=([^;]*)`)) || [])[1] || "";
+function pixelIniciar() {
+  const id = st.cfg?.pixelId;
+  if (!id || window.fbq) return;
+  /* eslint-disable */
+  !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version="2.0";n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,"script","https://connect.facebook.net/en_US/fbevents.js");
+  /* eslint-enable */
+  fbq("init", id);
+  fbq("track", "PageView");
+  fbq("track", "ViewContent", { content_name: "Cotizador de letreros", content_category: "letreros" });
+}
+// Mismo eventID en el navegador y en el servidor: Meta lo cuenta una sola vez
+function pixel(evento, datos = {}) {
+  const eventId = `${evento}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  try { if (window.fbq && st.cfg?.pixelId) fbq("track", evento, { currency: st.cfg.moneda, content_name: "Cotizador de letreros", ...datos }, { eventID: eventId }); } catch {}
+  const fbc = galleta("_fbc") || (fbclid ? `fb.1.${Date.now()}.${fbclid}` : "");
+  return { eventId, fbp: galleta("_fbp"), fbc, url: location.href };
+}
+
 async function iniciar() {
   try {
     st.cfg = await (window.__cdxConfig || api("GET", `/api/cotiza/${encodeURIComponent(clave)}/config`));
     document.title = `${st.cfg.titulo} · ${st.cfg.marca}`;
     if (st.cfg.icono) for (const rel of ["icon", "apple-touch-icon"]) { const l = document.createElement("link"); l.rel = rel; l.href = st.cfg.icono; document.head.appendChild(l); }
+    try { pixelIniciar(); } catch {}
     st.e.ancho = st.cfg.anchoDefecto;
     st.e.material = st.cfg.materiales[0]?.id || "";
     st.e.luz = st.cfg.luces[0]?.id || "";
@@ -728,7 +750,7 @@ window.cxMaqueta = async () => {
   }, 1600);
   try {
     if (!st.cfg.conMaqueta) await new Promise(r => setTimeout(r, 1500));
-    const r = await api("POST", `/api/cotiza/${encodeURIComponent(clave)}/maqueta`, { logo: st.logo.envio || st.logo.dataUrl, eleccion: st.e, contacto: st.contacto });
+    const r = await api("POST", `/api/cotiza/${encodeURIComponent(clave)}/maqueta`, { logo: st.logo.envio || st.logo.dataUrl, eleccion: st.e, contacto: st.contacto, pixel: pixel("Lead", { value: Math.round(precio?.total || 0) }) });
     st.cotizacion = r.cotizacion; st.maqueta = r.maqueta; st.aviso = r.aviso || "";
   } catch (e) {
     // Si el servidor no aceptó los datos, vuelve a pedirlos
@@ -743,7 +765,7 @@ window.cxMaqueta = async () => {
 window.cxPagar = async () => {
   st.error = ""; st.enviando = true; pintar();
   try {
-    const r = await api("POST", `/api/cotiza/${encodeURIComponent(clave)}/pagar`, { cotizacion: st.cotizacion, eleccion: st.e, notas: st.notas });
+    const r = await api("POST", `/api/cotiza/${encodeURIComponent(clave)}/pagar`, { cotizacion: st.cotizacion, eleccion: st.e, notas: st.notas, pixel: pixel("InitiateCheckout", { value: Math.round((st.cfg.anticipoPct > 0 && st.cfg.anticipoPct < 100 ? precio?.anticipo : precio?.total) || 0) }) });
     if (window.self !== window.top) {
       // Le pide a la tienda que se vaya al pago (el código de Shopify lo hace en la misma pestaña)
       let laTiendaVa = false;

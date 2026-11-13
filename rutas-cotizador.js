@@ -24,8 +24,39 @@ const configSchema = new mongoose.Schema({
   config: { type: mongoose.Schema.Types.Mixed, default: {} },
   galeria: { type: [mongoose.Schema.Types.Mixed], default: [] },     // { id (imagen), tipo: "trabajo" | "resena", titulo }
   gasto: { type: mongoose.Schema.Types.Mixed, default: {} },          // { mes: "2026-11", usd, maquetas }
+  capiToken: { type: String, default: "" },                          // token de la API de Conversiones de Meta (nunca sale al navegador)
+  capiEstado: { type: mongoose.Schema.Types.Mixed, default: null },  // { ok, error, evento, fecha } del último envío
   actualizado: { type: Date, default: Date.now }
 });
+
+// ---------- Meta: API de Conversiones (desde el servidor, aunque el navegador bloquee el píxel) ----------
+const sha = (v) => (v ? crypto.createHash("sha256").update(String(v).trim().toLowerCase()).digest("hex") : undefined);
+async function eventoMeta(c, cfg, req, { evento, eventId, valor, contacto, fbp, fbc, url }) {
+  if (!cfg.pixelId || !c.capiToken) return;
+  const tel = contacto?.whatsapp ? `${cfg.moneda === "USD" ? "593" : "57"}${String(contacto.whatsapp).replace(/^0/, "")}` : "";
+  const nombre = String(contacto?.nombre || "").split(" ");
+  const user_data = {
+    client_ip_address: req.ip, client_user_agent: String(req.get("user-agent") || "").slice(0, 400),
+    ...(contacto?.correo ? { em: [sha(contacto.correo)] } : {}), ...(tel ? { ph: [sha(tel)] } : {}),
+    ...(nombre[0] ? { fn: [sha(nombre[0])] } : {}), ...(nombre[1] ? { ln: [sha(nombre.slice(1).join(" "))] } : {}),
+    country: [sha(cfg.moneda === "USD" ? "ec" : "co")],
+    ...(/^fb\.\d\.\d+\.[\w.-]+$/.test(fbp || "") ? { fbp } : {}), ...(/^fb\.\d\.\d+\.[\w.-]+$/.test(fbc || "") ? { fbc } : {})
+  };
+  const datos = { event_name: evento, event_time: Math.floor(Date.now() / 1000), event_id: String(eventId || "").slice(0, 80) || undefined, action_source: "website",
+    event_source_url: String(url || req.get("referer") || "").slice(0, 500) || undefined, user_data,
+    custom_data: { currency: cfg.moneda, ...(valor ? { value: Math.round(valor) } : {}), content_name: "Cotizador de letreros", content_category: "letreros" } };
+  try {
+    const r = await fetch(`https://graph.facebook.com/v21.0/${cfg.pixelId}/events?access_token=${encodeURIComponent(c.capiToken)}`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: [datos] })
+    });
+    const d = await r.json().catch(() => ({}));
+    const estado = r.ok ? { ok: true, evento, fecha: new Date() } : { ok: false, evento, error: String(d?.error?.error_user_msg || d?.error?.message || `Error ${r.status}`).slice(0, 300), fecha: new Date() };
+    await CotizadorConfig.updateOne({ _id: c._id }, { $set: { capiEstado: estado } }).catch(() => {});
+  } catch (e) {
+    await CotizadorConfig.updateOne({ _id: c._id }, { $set: { capiEstado: { ok: false, evento, error: String(e.message).slice(0, 300), fecha: new Date() } } }).catch(() => {});
+  }
+}
+const datosPixel = (b = {}) => ({ eventId: String(b.eventId || "").slice(0, 80), fbp: String(b.fbp || "").slice(0, 200), fbc: String(b.fbc || "").slice(0, 300), url: String(b.url || "").slice(0, 500) });
 export const CotizadorConfig = mongoose.model("CotizadorConfig", configSchema);
 
 const imagenSchema = new mongoose.Schema({
@@ -188,6 +219,8 @@ export function registrarRutasCotizadorPublico(app) {
 
       const logoDoc = await CotizadorImagen.create({ owner: c.owner, tipo: "logo", mime: logo.tipo, datos: logo.datos });
       const cot = await Cotizacion.create({ owner: c.owner, logo: logoDoc._id, eleccion: { material: q.material.id, luz: q.luz?.id || "", ubicacion: q.ubicacion?.id || "", montaje: q.montaje?.id || "", forma: q.forma?.id || "", colorLuz: q.colorLuz || "", colorFondo: q.colorFondo || "", colorLogo: q.colorLogo || "", ancho: q.ancho, alto: q.alto, cantidad: q.cantidad }, contacto, total: q.total, anticipo: q.anticipo, moneda: cfg.moneda });
+      // Meta: "Lead" (dejó nombre, WhatsApp y correo) — sin esperar
+      eventoMeta(c, cfg, req, { evento: "Lead", valor: q.total, contacto, ...datosPixel(req.body?.pixel) });
 
       // ¿Puede hacer maqueta? Tope por persona al día y tope de gasto del mes
       const k = `${req.ip}|${hoy()}`;
@@ -293,6 +326,7 @@ export function registrarRutasCotizadorPublico(app) {
           r = await crearPedidoBorrador(t, { ...datosPedido, correo: "", telefono: "", nombre: "" });
         }
       }
+      eventoMeta(c, cfg, req, { evento: "InitiateCheckout", valor: cobrar, contacto: cot?.contacto, ...datosPixel(req.body?.pixel) });
       if (cot) await Cotizacion.updateOne({ _id: cot._id }, { $set: { pidio: true, pago: r.id, notas, total: q.total, anticipo: q.anticipo, pagoAnticipo: conAnticipo ? q.anticipo : 0 } });
       res.json({ url: r.url, total: q.total, cobrado: cobrar });
     } catch (err) {
@@ -329,7 +363,18 @@ export function registrarRutasCotizadorPublico(app) {
 
 // Rutas de CoDropX (con sesión): configurar precios, galería y ver las cotizaciones
 export function registrarRutasCotizador(app) {
-  const vista = (c) => ({ clave: c.clave, config: limpiarConfig(c.config), galeria: (c.galeria || []).map(x => ({ ...x, url: `/ci/${x.id}.jpg`, ...(x.idAntes ? { urlAntes: `/ci/${x.idAntes}.jpg` } : {}) })), gasto: { mes: mesActual(), ...gastoDelMes(c) } });
+  const vista = (c) => ({ clave: c.clave, config: limpiarConfig(c.config), galeria: (c.galeria || []).map(x => ({ ...x, url: `/ci/${x.id}.jpg`, ...(x.idAntes ? { urlAntes: `/ci/${x.idAntes}.jpg` } : {}) })), gasto: { mes: mesActual(), ...gastoDelMes(c) }, capi: { conToken: !!c.capiToken, estado: c.capiEstado || null } });
+
+  // Guardar (o borrar) el token de la API de Conversiones de Meta
+  app.put("/api/cotizador/capi", async (req, res) => {
+    try {
+      const token = String(req.body?.token || "").trim();
+      if (token && !/^[A-Za-z0-9_-]{20,600}$/.test(token)) return res.status(400).json({ error: "Ese token no parece válido. Cópialo completo desde el Administrador de eventos." });
+      await configDe(req.user.uid);
+      const c = await CotizadorConfig.findOneAndUpdate({ owner: req.user.uid }, { $set: { capiToken: token, capiEstado: null } }, { new: true });
+      res.json(vista(c));
+    } catch (err) { console.error("Cotizador capi:", err); res.status(500).json({ error: "No se pudo guardar el token" }); }
+  });
 
   app.get("/api/cotizador", async (req, res) => {
     try { res.json(vista(await configDe(req.user.uid))); }

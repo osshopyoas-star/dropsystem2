@@ -33,6 +33,9 @@ const codigoShopify = () => `<div id="cdx-caja" style="width:100%;margin:0;paddi
 <script>
 (function () {
   var f = document.getElementById("cdx-cotiza");
+  // Píxel de Meta: le pasa al cotizador el clic del anuncio (fbclid) para que Meta sepa de qué anuncio vino
+  var clic = window.location.search.match(/[?&]fbclid=([^&#]+)/);
+  if (clic && f.src.indexOf("fbclid=") < 0) f.src = f.src + "&fbclid=" + clic[1];
   // Alto = desde donde empieza el cotizador hasta el final de la pantalla (cabe completo, con los botones siempre a la vista)
   // En iPhone se usa la parte VISIBLE de la pantalla (sin la barra de Safari de abajo)
   function ajustar() {
@@ -536,6 +539,16 @@ function render() {
     </section>
 
     <section class="ct-card">
+      <div class="ct-card-head"><h3><i data-lucide="activity"></i> Píxel de Meta</h3><small>Para que tus campañas sepan quién deja sus datos y quién va a pagar</small></div>
+      <div class="ct-grid">
+        <label>ID del píxel (conjunto de datos)<input inputmode="numeric" placeholder="Ej: 123456789012345" value="${esc(c.pixelId || "")}" oninput="ctCfg('pixelId', this.value.replace(/\D/g, ''))"></label>
+        <label>Token de la API de Conversiones ${st.datos.capi?.conToken ? `<span class="ct-tag ok">guardado</span>` : ""}<span style="display:flex;gap:6px"><input id="ctCapiToken" type="password" autocomplete="off" placeholder="${st.datos.capi?.conToken ? "•••••••• (pega uno nuevo para cambiarlo)" : "Pégalo aquí"}" style="flex:1"><button class="ct-btn claro chico" onclick="ctGuardarCapi()">Guardar</button></span></label>
+      </div>
+      <p class="ct-mini">Eventos que se envían: <b>PageView</b> y <b>ViewContent</b> (abre el cotizador), <b>Lead</b> (deja nombre, WhatsApp y correo) e <b>InitiateCheckout</b> (le da pagar). La compra (<b>Purchase</b>) la manda Shopify desde el pago si tu tienda usa este mismo píxel. Con el token, los eventos también salen desde el servidor con el correo y el WhatsApp cifrados, así llegan aunque el navegador bloquee el píxel.</p>
+      ${st.datos.capi?.estado ? `<p class="ct-mini ${st.datos.capi.estado.ok ? "" : "rojo"}">Último envío a Meta (${esc(st.datos.capi.estado.evento || "")}, ${new Date(st.datos.capi.estado.fecha).toLocaleString("es-CO")}): ${st.datos.capi.estado.ok ? "✓ recibido" : `✗ ${esc(st.datos.capi.estado.error || "falló")}`}</p>` : ""}
+    </section>
+
+    <section class="ct-card">
       <div class="ct-card-head"><h3><i data-lucide="shield"></i> Frenos de gasto de la IA</h3><small>La página es pública: así nadie se gasta tu saldo de xAI</small></div>
       <div class="ct-grid">
         <label>Maquetas por persona al día<input type="number" min="0" max="500" value="${c.limites.maquetasPorDia}" oninput="ctLimite('maquetasPorDia', Number(this.value))"></label>
@@ -565,6 +578,12 @@ function render() {
 }
 
 window.ctCfg = (k, v) => { st.cfg[k] = v; marcarCambio(); };
+window.ctGuardarCapi = async () => {
+  const token = ($("ctCapiToken")?.value || "").trim();
+  if (!token && !confirm("¿Quitar el token de la API de Conversiones?")) return;
+  try { st.datos = await api("PUT", "/api/cotizador/capi", { token }); avisar(token ? "Token guardado ✓" : "Token quitado"); render(); }
+  catch (e) { avisar(e.message, "error"); }
+};
 window.ctLimite = (k, v) => { st.cfg.limites[k] = v; marcarCambio(); };
 window.ctCampo = (grupo, i, k, v) => { st.cfg[grupo][i][k] = v; marcarCambio(); };
 window.ctQuitar = (grupo, i) => {

@@ -124,6 +124,8 @@ export function limpiarConfig(c = {}) {
   const anchoMax = Math.min(1000, Math.max(anchoMin + 5, num(c.anchoMax, d.anchoMax)));
   return {
     activo: c.activo === undefined ? d.activo : !!c.activo,
+    // Píxel de Meta (el ID es público; el token de la API de Conversiones se guarda aparte, nunca en la config)
+    pixelId: String(c.pixelId ?? "").replace(/\D/g, "").slice(0, 20),
     marca: texto(c.marca, 60, d.marca) || d.marca,
     cabecera: ["nada", "nombre", "logo"].includes(c.cabecera) ? c.cabecera : d.cabecera,
     logo: rutaImagen(c.logo, d.logo),
