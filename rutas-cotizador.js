@@ -218,13 +218,15 @@ export function registrarRutasCotizadorPublico(app) {
       if (!logo) return res.status(400).json({ error: "Sube tu logo en JPG, PNG o WEBP (máximo 3 MB)" });
       const q = cotizar(cfg, req.body?.eleccion || {});
       if (!q) return res.status(400).json({ error: "Elige el material" });
+      // "pre": la maqueta empieza mientras el cliente escribe sus datos; no se le muestra hasta que los deje (ruta /contacto)
+      const pre = req.body?.pre === true;
       const contacto = leerContacto(req.body?.contacto, cfg.moneda);
-      if (!contacto) return res.status(400).json({ error: "Escribe tu nombre, tu WhatsApp y tu correo para ver tu letrero", faltaContacto: true });
+      if (!contacto && !pre) return res.status(400).json({ error: "Escribe tu nombre, tu WhatsApp y tu correo para ver tu letrero", faltaContacto: true });
 
       const logoDoc = await CotizadorImagen.create({ owner: c.owner, tipo: "logo", mime: logo.tipo, datos: logo.datos });
       const cot = await Cotizacion.create({ owner: c.owner, logo: logoDoc._id, eleccion: { material: q.material.id, luz: q.luz?.id || "", ubicacion: q.ubicacion?.id || "", montaje: q.montaje?.id || "", forma: q.forma?.id || "", colorLuz: q.colorLuz || "", colorFondo: q.colorFondo || "", colorLogo: q.colorLogo || "", ancho: q.ancho, alto: q.alto, cantidad: q.cantidad }, contacto, total: q.total, anticipo: q.anticipo, moneda: cfg.moneda });
       // Meta: "Lead" (dejó nombre, WhatsApp y correo) — sin esperar
-      eventoMeta(c, cfg, req, { evento: "Lead", valor: q.total, contacto, ...datosPixel(req.body?.pixel) });
+      if (contacto) eventoMeta(c, cfg, req, { evento: "Lead", valor: q.total, contacto, ...datosPixel(req.body?.pixel) });
 
       // ¿Puede hacer maqueta? Tope por persona al día y tope de gasto del mes
       const k = `${req.ip}|${hoy()}`;
@@ -271,11 +273,27 @@ export function registrarRutasCotizadorPublico(app) {
       await Cotizacion.updateOne({ _id: cot._id }, { $set: { maqueta: maq._id, segundosIA: Math.round((Date.now() - t0) / 1000) } });
       const gastado = PRECIO_IMAGEN + PRECIO_REFERENCIA * (r.referencias || 1);
       await CotizadorConfig.updateOne({ _id: c._id }, { $set: { gasto: { mes: mesActual(), usd: Math.round((g.usd + gastado) * 1000) / 1000, maquetas: g.maquetas + 1 } } });
-      res.json({ cotizacion: String(cot._id), maqueta: `/ci/${maq._id}.jpg`, total: q.total, anticipo: q.anticipo });
+      res.json({ cotizacion: String(cot._id), maqueta: pre ? null : `/ci/${maq._id}.jpg`, pre, total: q.total, anticipo: q.anticipo });
     } catch (err) {
       console.error("Cotizador maqueta:", err);
       res.status(500).json({ error: "No se pudo procesar tu logo. Intenta de nuevo." });
     }
+  });
+
+  // Deja sus datos después de la maqueta adelantada: se guardan y ahí sí se le muestra su letrero
+  app.post("/api/cotiza/:clave/contacto", limiteGeneral, async (req, res) => {
+    try {
+      const c = await CotizadorConfig.findOne({ clave: String(req.params.clave).slice(0, 20) }).lean();
+      if (!c) return res.status(404).json({ error: "Este cotizador no existe" });
+      const cfg = limpiarConfig(c.config);
+      const contacto = leerContacto(req.body?.contacto, cfg.moneda);
+      if (!contacto) return res.status(400).json({ error: "Escribe tu nombre, tu WhatsApp y tu correo para ver tu letrero", faltaContacto: true });
+      if (!idValido(req.body?.cotizacion)) return res.status(400).json({ error: "Falta la cotización" });
+      const cot = await Cotizacion.findOneAndUpdate({ _id: req.body.cotizacion, owner: c.owner, contacto: null }, { $set: { contacto } }, { new: true }).lean();
+      if (!cot) return res.status(404).json({ error: "No encontramos tu cotización. Intenta de nuevo." });
+      eventoMeta(c, cfg, req, { evento: "Lead", valor: cot.total, contacto, ...datosPixel(req.body?.pixel) });
+      res.json({ cotizacion: String(cot._id), maqueta: cot.maqueta ? `/ci/${cot.maqueta}.jpg` : null });
+    } catch (err) { console.error("Cotizador contacto:", err); res.status(500).json({ error: "No se pudieron guardar tus datos. Intenta de nuevo." }); }
   });
 
   // El cliente le da "Pagar ahora": se recalcula el precio aquí y se crea el pedido en Shopify con ese valor exacto

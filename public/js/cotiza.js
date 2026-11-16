@@ -733,7 +733,18 @@ window.cxSinRecorte = () => aplicarRecorte(true);
 window.cxVolverRecortar = () => { if (st.recorteHecho) { st.recorte = st.recorteHecho; st.logo = null; pintar(); } };
 
 // Pide la maqueta a la IA (mientras, muestra los beneficios de la marca)
-window.cxDato = (k, v) => { st.contacto[k] = v; document.getElementById(`cx-${k}`)?.classList.remove("mal"); };
+// Maqueta adelantada: arranca cuando el cliente empieza a escribir su primer dato (mientras llena el resto, la IA trabaja)
+let pre = null;
+const clavePre = () => `${JSON.stringify(st.e)}|${(st.logo?.envio || st.logo?.dataUrl || "").length}`;
+function iniciarPre() {
+  if (pre?.k === clavePre() || !st.cfg?.conMaqueta || !st.logo) return;
+  const k = clavePre();
+  pre = { k, promesa: api("POST", `/api/cotiza/${encodeURIComponent(clave)}/maqueta`, { logo: st.logo.envio || st.logo.dataUrl, eleccion: { ...st.e }, pre: true }).catch(e => ({ error: e.message })) };
+}
+window.cxDato = (k, v) => {
+  st.contacto[k] = v; document.getElementById(`cx-${k}`)?.classList.remove("mal");
+  if (st.paso === "datos" && String(v).trim()) iniciarPre();
+};
 window.cxDatosListos = () => {
   const e = contactoError();
   if (e) {
@@ -761,8 +772,17 @@ window.cxMaqueta = async () => {
   }, 1600);
   try {
     if (!st.cfg.conMaqueta) await new Promise(r => setTimeout(r, 1500));
-    const r = await api("POST", `/api/cotiza/${encodeURIComponent(clave)}/maqueta`, { logo: st.logo.envio || st.logo.dataUrl, eleccion: st.e, contacto: st.contacto, pixel: pixel("Lead", { value: Math.round(precio?.total || 0) }) });
-    st.cotizacion = r.cotizacion; st.maqueta = r.maqueta; st.aviso = r.aviso || "";
+    const adelantada = pre && pre.k === clavePre() ? pre : null;
+    pre = null;
+    const pr = adelantada ? await adelantada.promesa : null;
+    if (pr && !pr.error && pr.cotizacion) {
+      // La maqueta ya se estaba haciendo: se guardan los datos y se muestra
+      const rc = await api("POST", `/api/cotiza/${encodeURIComponent(clave)}/contacto`, { cotizacion: pr.cotizacion, contacto: st.contacto, pixel: pixel("Lead", { value: Math.round(precio?.total || 0) }) });
+      st.cotizacion = rc.cotizacion; st.maqueta = rc.maqueta; st.aviso = pr.aviso || "";
+    } else {
+      const r = await api("POST", `/api/cotiza/${encodeURIComponent(clave)}/maqueta`, { logo: st.logo.envio || st.logo.dataUrl, eleccion: st.e, contacto: st.contacto, pixel: pixel("Lead", { value: Math.round(precio?.total || 0) }) });
+      st.cotizacion = r.cotizacion; st.maqueta = r.maqueta; st.aviso = r.aviso || "";
+    }
   } catch (e) {
     // Si el servidor no aceptó los datos, vuelve a pedirlos
     if (/WhatsApp y tu correo/.test(e.message || "")) { clearInterval(reloj); st.error = e.message; st.paso = "datos"; pintar(); arriba(); return; }
