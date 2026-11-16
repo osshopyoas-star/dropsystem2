@@ -80,7 +80,8 @@ const cotizacionSchema = new mongoose.Schema({
   pago: { type: String, default: "" },
   pagoAnticipo: { type: Number, default: 0 },
   pagoCliente: { type: mongoose.Schema.Types.Mixed, default: null }, // { ip, ua, fbp, fbc, url } de cuando fue a pagar (para mandarle la compra a Meta)
-  comprado: { type: Date, default: null },        // cuándo pagó en Shopify
+  comprado: { type: Date, default: null },
+  segundosIA: { type: Number, default: 0 },       // cuánto se demoró la IA en hacer la maqueta        // cuándo pagó en Shopify
   pedidoShopify: { type: String, default: "" },   // número del pedido (#1234)    // si fue a pagar solo el anticipo, cuánto           // id del pedido borrador de Shopify (si fue a pagar)
   error: { type: String, default: "" },          // por qué no salió la maqueta (si falló)
   // Producción: nuevo · falta_material · en_produccion · listo · entregado
@@ -243,6 +244,7 @@ export function registrarRutasCotizadorPublico(app) {
       porPersona.set(k, usadas + 1);
       const dataLogo = `data:${logo.tipo};base64,${logo.datos.toString("base64")}`;
       let r;
+      const t0 = Date.now();
       try {
         // Foto de ejemplo de este tipo de letrero (si la subiste): la IA copia el acabado, no el dibujo
         const fotos = [dataLogo];
@@ -266,7 +268,7 @@ export function registrarRutasCotizadorPublico(app) {
         return res.json({ cotizacion: String(cot._id), maqueta: null, aviso: "No pudimos hacer la maqueta en este momento. Te mostramos tu logo en la pared y el precio igual.", total: q.total, anticipo: q.anticipo });
       }
       const maq = await CotizadorImagen.create({ owner: c.owner, tipo: "maqueta", mime: r.tipo, datos: r.datos });
-      await Cotizacion.updateOne({ _id: cot._id }, { $set: { maqueta: maq._id } });
+      await Cotizacion.updateOne({ _id: cot._id }, { $set: { maqueta: maq._id, segundosIA: Math.round((Date.now() - t0) / 1000) } });
       const gastado = PRECIO_IMAGEN + PRECIO_REFERENCIA * (r.referencias || 1);
       await CotizadorConfig.updateOne({ _id: c._id }, { $set: { gasto: { mes: mesActual(), usd: Math.round((g.usd + gastado) * 1000) / 1000, maquetas: g.maquetas + 1 } } });
       res.json({ cotizacion: String(cot._id), maqueta: `/ci/${maq._id}.jpg`, total: q.total, anticipo: q.anticipo });
@@ -535,7 +537,7 @@ export function registrarRutasCotizador(app) {
       const lista = await Cotizacion.find(filtro).sort({ creado: q.orden === "viejas" ? 1 : -1 }).limit(200).lean();
       const conteo = await Cotizacion.aggregate([{ $match: { owner: new mongoose.Types.ObjectId(String(req.user.uid)), pidio: true } }, { $group: { _id: { $ifNull: ["$estado", "nuevo"] }, n: { $sum: 1 } } }]);
       res.set("X-Conteo", JSON.stringify(Object.fromEntries(conteo.map(c => [c._id, c.n]))));
-      res.json(lista.map(x => ({ id: String(x._id), creado: x.creado, eleccion: x.eleccion, total: x.total, anticipo: x.anticipo, moneda: x.moneda, notas: x.notas, contacto: x.contacto || null, pagoAnticipo: x.pagoAnticipo || 0, comprado: x.comprado || null, pedidoShopify: x.pedidoShopify || "", pidio: !!x.pidio, error: x.error || "",
+      res.json(lista.map(x => ({ id: String(x._id), creado: x.creado, eleccion: x.eleccion, total: x.total, anticipo: x.anticipo, moneda: x.moneda, notas: x.notas, contacto: x.contacto || null, pagoAnticipo: x.pagoAnticipo || 0, comprado: x.comprado || null, segundosIA: x.segundosIA || 0, pedidoShopify: x.pedidoShopify || "", pidio: !!x.pidio, error: x.error || "",
         estado: x.estado || "nuevo", notaInterna: x.notaInterna || "", cambioEstado: x.cambioEstado || null, pago: !!x.pago,
         logo: x.logo ? `/api/cotiza/img/${x.logo}` : "", maqueta: x.maqueta ? `/api/cotiza/img/${x.maqueta}` : "" })));
     } catch (err) { console.error("Cotizaciones:", err); res.status(500).json({ error: "No se pudieron leer las cotizaciones" }); }

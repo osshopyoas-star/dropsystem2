@@ -674,7 +674,17 @@ document.addEventListener("pointerup", () => { arrastre = null; });
 
 // Lo que se le manda a la IA: sin transparencia. Un PNG con fondo transparente y dibujo negro le llega
 // "negro sobre negro" (vacío) y la IA termina copiando la foto de ejemplo. Se pone un fondo que contraste.
+// Para que suba y la IA lo procese más rápido: máximo 1280 px por lado (de sobra para la maqueta)
+function achicar(cv, max = 1280) {
+  const k = Math.min(1, max / Math.max(cv.width, cv.height));
+  if (k >= 1) return cv;
+  const out = document.createElement("canvas");
+  out.width = Math.round(cv.width * k); out.height = Math.round(cv.height * k);
+  const cx = out.getContext("2d"); cx.imageSmoothingQuality = "high"; cx.drawImage(cv, 0, 0, out.width, out.height);
+  return out;
+}
 function paraLaIA(cv) {
+  cv = achicar(cv);
   try {
     const d = cv.getContext("2d").getImageData(0, 0, cv.width, cv.height).data;
     let transp = 0, suma = 0, n = 0;
