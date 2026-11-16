@@ -542,6 +542,9 @@ function pintar() {
         </table>` : ""}
       </div>
       <label class="campo" style="margin-top:16px">¿Algún cambio o detalle? (opcional)<textarea id="cxNotas" placeholder="Colores, letras, dónde va, para cuándo lo necesitas…" oninput="cxNotas(this.value)">${esc(st.notas)}</textarea></label>
+      ${c.cierre === "shopify" && c.tiendaPago
+        ? `<div class="fila"><button class="btn wa" onclick="cxPagar()" ${st.enviando ? "disabled" : ""}>${st.enviando ? "Abriendo el pago…" : (c.anticipoPct > 0 && c.anticipoPct < 100 ? `Pagar anticipo · ${r ? plata(r.anticipo) : ""}` : `Pagar ahora · ${r ? plata(r.total) : ""}`)}</button></div>`
+        : `<div class="fila"><button class="btn wa" onclick="cxPedir()" ${st.enviando ? "disabled" : ""}>${st.enviando ? "Armando tu pedido…" : c.whatsapp ? "Pedir por WhatsApp" : "Quiero este letrero"}</button></div>`}
       <div class="fila"><button class="btn claro" onclick="cxIr('tamano')">Cambiar tamaño u opciones</button></div>
       ${galeria("trabajo", "Trabajos que ya entregamos")}
       ${resenas()}`;
