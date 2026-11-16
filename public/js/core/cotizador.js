@@ -15,6 +15,8 @@ export const CONFIG_DEFECTO = {
   moneda: "COP",
   whatsapp: "",
   anticipoPct: 50,
+  // Píxel de Meta "CEGUMON" (el mismo de la tienda de Shopify)
+  pixelId: "1950250168895240",
   // Gancho de envío gratis en el resumen (el flete ya va dentro del precio)
   envioGratis: true,
   envioTexto: "ENVÍO GRATIS a toda Colombia",
@@ -125,7 +127,7 @@ export function limpiarConfig(c = {}) {
   return {
     activo: c.activo === undefined ? d.activo : !!c.activo,
     // Píxel de Meta (el ID es público; el token de la API de Conversiones se guarda aparte, nunca en la config)
-    pixelId: String(c.pixelId ?? "").replace(/\D/g, "").slice(0, 20),
+    pixelId: String(c.pixelId ?? d.pixelId).replace(/\D/g, "").slice(0, 20),
     marca: texto(c.marca, 60, d.marca) || d.marca,
     cabecera: ["nada", "nombre", "logo"].includes(c.cabecera) ? c.cabecera : d.cabecera,
     logo: rutaImagen(c.logo, d.logo),
