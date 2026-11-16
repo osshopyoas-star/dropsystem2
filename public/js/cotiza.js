@@ -517,6 +517,12 @@ function pintar() {
       ${st.aviso ? `<div class="aviso">${esc(st.aviso)}</div>` : ""}
       ${st.maqueta ? `<div class="maqueta-caja" oncontextmenu="return false"><canvas id="cxMaqueta" class="maqueta" aria-label="Maqueta de tu letrero"></canvas><div class="maqueta-tapa"></div></div>` : pared()}
       <div class="nota-diseno">💬 <span><b>El diseño definitivo y final lo cuadramos contigo por WhatsApp</b> antes de fabricar tu letrero.</span></div>
+      ${st.error ? `<div class="error">${esc(st.error)}</div>` : ""}
+      ${c.cierre === "shopify" && c.tiendaPago
+        ? `<div class="fila"><button class="btn wa" onclick="cxPagar()" ${st.enviando ? "disabled" : ""}>${st.enviando ? "Abriendo el pago…" : (c.anticipoPct > 0 && c.anticipoPct < 100 ? `Pagar anticipo · ${r ? plata(r.anticipo) : ""}` : `Pagar ahora · ${r ? plata(r.total) : ""}`)}</button></div>
+           <p class="mini">🔒 Pago seguro en nuestra tienda: tarjeta, PSE o billeteras.${c.anticipoPct > 0 && c.anticipoPct < 100 ? ` Hoy pagas solo el ${c.anticipoPct}% y el resto cuando tu letrero esté listo.` : ""} Envío gratis.</p>
+`
+        : `<div class="fila"><button class="btn wa" onclick="cxPedir()" ${st.enviando ? "disabled" : ""}>${st.enviando ? "Armando tu pedido…" : c.whatsapp ? "Pedir por WhatsApp" : "Quiero este letrero"}</button></div>`}
       ${c.montajes.length > 1 ? `<h2 style="margin-top:26px;font-size:20px">¿Cómo lo vas a montar?</h2><div class="opciones dos" style="margin-top:12px">${c.montajes.map(m => opcion("montaje", m, m.precio ? `+${plata(m.precio)}` : "Incluido")).join("")}</div>` : ""}
       <div class="caja" style="margin-top:18px">
         <div class="contador"><span style="flex:1;text-align:left;font-weight:600;font-size:15px">Cantidad</span><button onclick="cxCantidad(-1)">−</button><span>${st.e.cantidad}</span><button onclick="cxCantidad(1)">+</button></div>
@@ -539,12 +545,6 @@ function pintar() {
         </table>` : ""}
       </div>
       <label class="campo" style="margin-top:16px">¿Algún cambio o detalle? (opcional)<textarea id="cxNotas" placeholder="Colores, letras, dónde va, para cuándo lo necesitas…" oninput="cxNotas(this.value)">${esc(st.notas)}</textarea></label>
-      ${st.error ? `<div class="error">${esc(st.error)}</div>` : ""}
-      ${c.cierre === "shopify" && c.tiendaPago
-        ? `<div class="fila"><button class="btn wa" onclick="cxPagar()" ${st.enviando ? "disabled" : ""}>${st.enviando ? "Abriendo el pago…" : (c.anticipoPct > 0 && c.anticipoPct < 100 ? `Pagar anticipo · ${r ? plata(r.anticipo) : ""}` : `Pagar ahora · ${r ? plata(r.total) : ""}`)}</button></div>
-           <p class="mini">🔒 Pago seguro en nuestra tienda: tarjeta, PSE o billeteras.${c.anticipoPct > 0 && c.anticipoPct < 100 ? ` Hoy pagas solo el ${c.anticipoPct}% y el resto cuando tu letrero esté listo.` : ""} Envío gratis.</p>
-`
-        : `<div class="fila"><button class="btn wa" onclick="cxPedir()" ${st.enviando ? "disabled" : ""}>${st.enviando ? "Armando tu pedido…" : c.whatsapp ? "Pedir por WhatsApp" : "Quiero este letrero"}</button></div>`}
       <div class="fila"><button class="btn claro" onclick="cxIr('tamano')">Cambiar tamaño u opciones</button></div>
       ${galeria("trabajo", "Trabajos que ya entregamos")}
       ${resenas()}`;
