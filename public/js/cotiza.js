@@ -539,6 +539,7 @@ function pintar() {
       </div>
       <label class="campo" style="margin-top:16px">¿Algún cambio o detalle? (opcional)<textarea id="cxNotas" placeholder="Colores, letras, dónde va, para cuándo lo necesitas…" oninput="cxNotas(this.value)">${esc(st.notas)}</textarea></label>
       ${st.error ? `<div class="error">${esc(st.error)}</div>` : ""}
+      <div class="nota-diseno">💬 <span><b>El diseño definitivo y final lo cuadramos contigo por WhatsApp</b> antes de fabricar tu letrero.</span></div>
       ${c.cierre === "shopify" && c.tiendaPago
         ? `<div class="fila"><button class="btn wa" onclick="cxPagar()" ${st.enviando ? "disabled" : ""}>${st.enviando ? "Abriendo el pago…" : (c.anticipoPct > 0 && c.anticipoPct < 100 ? `Pagar anticipo · ${r ? plata(r.anticipo) : ""}` : `Pagar ahora · ${r ? plata(r.total) : ""}`)}</button></div>
            <p class="mini">🔒 Pago seguro en nuestra tienda: tarjeta, PSE o billeteras.${c.anticipoPct > 0 && c.anticipoPct < 100 ? ` Hoy pagas solo el ${c.anticipoPct}% y el resto cuando tu letrero esté listo.` : ""} Envío gratis.</p>
