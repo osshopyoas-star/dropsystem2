@@ -523,7 +523,6 @@ function pintar() {
            <p class="mini">🔒 Pago seguro en nuestra tienda: tarjeta, PSE o billeteras.${c.anticipoPct > 0 && c.anticipoPct < 100 ? ` Hoy pagas solo el ${c.anticipoPct}% y el resto cuando tu letrero esté listo.` : ""} Envío gratis.</p>
 `
         : `<div class="fila"><button class="btn wa" onclick="cxPedir()" ${st.enviando ? "disabled" : ""}>${st.enviando ? "Armando tu pedido…" : c.whatsapp ? "Pedir por WhatsApp" : "Quiero este letrero"}</button></div>`}
-      ${c.montajes.length > 1 ? `<h2 style="margin-top:26px;font-size:20px">¿Cómo lo vas a montar?</h2><div class="opciones dos" style="margin-top:12px">${c.montajes.map(m => opcion("montaje", m, m.precio ? `+${plata(m.precio)}` : "Incluido")).join("")}</div>` : ""}
       <div class="caja" style="margin-top:18px">
         <div class="contador"><span style="flex:1;text-align:left;font-weight:600;font-size:15px">Cantidad</span><button onclick="cxCantidad(-1)">−</button><span>${st.e.cantidad}</span><button onclick="cxCantidad(1)">+</button></div>
         ${r ? `<table class="desglose">
