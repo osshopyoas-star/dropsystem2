@@ -11,7 +11,7 @@ import mongoose from "mongoose";
 import { rateLimit, getSession } from "./auth.js";
 import { leerDataUrl } from "./modelo-imagenes.js";
 import { pedirImagen, PRECIO_IMAGEN, PRECIO_REFERENCIA } from "./rutas-ia-imagenes.js";
-import { tiendaDe, crearPedidoBorrador, productoOculto } from "./rutas-shopify.js";
+import { tiendaDe, crearPedidoBorrador, productoOculto, gql } from "./rutas-shopify.js";
 import { limpiarConfig, cotizar, promptMaqueta, mensajeWhatsapp, formatoPlata } from "./public/js/core/cotizador.js";
 
 const MAX_GALERIA = 12;
@@ -36,14 +36,14 @@ async function eventoMeta(c, cfg, req, { evento, eventId, valor, contacto, fbp, 
   const tel = contacto?.whatsapp ? `${cfg.moneda === "USD" ? "593" : "57"}${String(contacto.whatsapp).replace(/^0/, "")}` : "";
   const nombre = String(contacto?.nombre || "").split(" ");
   const user_data = {
-    client_ip_address: req.ip, client_user_agent: String(req.get("user-agent") || "").slice(0, 400),
+    client_ip_address: req.ip, client_user_agent: String(req.get?.("user-agent") || req.ua || "").slice(0, 400),
     ...(contacto?.correo ? { em: [sha(contacto.correo)] } : {}), ...(tel ? { ph: [sha(tel)] } : {}),
     ...(nombre[0] ? { fn: [sha(nombre[0])] } : {}), ...(nombre[1] ? { ln: [sha(nombre.slice(1).join(" "))] } : {}),
     country: [sha(cfg.moneda === "USD" ? "ec" : "co")],
     ...(/^fb\.\d\.\d+\.[\w.-]+$/.test(fbp || "") ? { fbp } : {}), ...(/^fb\.\d\.\d+\.[\w.-]+$/.test(fbc || "") ? { fbc } : {})
   };
   const datos = { event_name: evento, event_time: Math.floor(Date.now() / 1000), event_id: String(eventId || "").slice(0, 80) || undefined, action_source: "website",
-    event_source_url: String(url || req.get("referer") || "").slice(0, 500) || undefined, user_data,
+    event_source_url: String(url || req.get?.("referer") || "").slice(0, 500) || undefined, user_data,
     custom_data: { currency: cfg.moneda, ...(valor ? { value: Math.round(valor) } : {}), content_name: "Cotizador de letreros", content_category: "letreros" } };
   try {
     const r = await fetch(`https://graph.facebook.com/v21.0/${cfg.pixelId}/events?access_token=${encodeURIComponent(c.capiToken)}`, {
@@ -78,7 +78,10 @@ const cotizacionSchema = new mongoose.Schema({
   contacto: { type: mongoose.Schema.Types.Mixed, default: null },   // { nombre, whatsapp, correo } que deja el cliente antes de ver su letrero
   pidio: { type: Boolean, default: false },
   pago: { type: String, default: "" },
-  pagoAnticipo: { type: Number, default: 0 },    // si fue a pagar solo el anticipo, cuánto           // id del pedido borrador de Shopify (si fue a pagar)
+  pagoAnticipo: { type: Number, default: 0 },
+  pagoCliente: { type: mongoose.Schema.Types.Mixed, default: null }, // { ip, ua, fbp, fbc, url } de cuando fue a pagar (para mandarle la compra a Meta)
+  comprado: { type: Date, default: null },        // cuándo pagó en Shopify
+  pedidoShopify: { type: String, default: "" },   // número del pedido (#1234)    // si fue a pagar solo el anticipo, cuánto           // id del pedido borrador de Shopify (si fue a pagar)
   error: { type: String, default: "" },          // por qué no salió la maqueta (si falló)
   // Producción: nuevo · falta_material · en_produccion · listo · entregado
   estado: { type: String, default: "nuevo" },
@@ -327,7 +330,8 @@ export function registrarRutasCotizadorPublico(app) {
         }
       }
       eventoMeta(c, cfg, req, { evento: "InitiateCheckout", valor: cobrar, contacto: cot?.contacto, ...datosPixel(req.body?.pixel) });
-      if (cot) await Cotizacion.updateOne({ _id: cot._id }, { $set: { pidio: true, pago: r.id, notas, total: q.total, anticipo: q.anticipo, pagoAnticipo: conAnticipo ? q.anticipo : 0 } });
+      if (cot) await Cotizacion.updateOne({ _id: cot._id }, { $set: { pidio: true, pago: r.id, notas, total: q.total, anticipo: q.anticipo, pagoAnticipo: conAnticipo ? q.anticipo : 0,
+        pagoCliente: { ip: req.ip, ua: String(req.get("user-agent") || "").slice(0, 400), ...datosPixel(req.body?.pixel) } } });
       res.json({ url: r.url, total: q.total, cobrado: cobrar });
     } catch (err) {
       console.error("Cotizador pagar:", err);
@@ -362,7 +366,43 @@ export function registrarRutasCotizadorPublico(app) {
 }
 
 // Rutas de CoDropX (con sesión): configurar precios, galería y ver las cotizaciones
+// ¿Ya pagaron? Revisa en Shopify los pedidos borrador del cotizador; al completarse, marca la cotización
+// y le manda la COMPRA a Meta desde el servidor (el checkout de Shopify no siempre la manda)
+let revisando = false;
+export async function revisarPagosCotizador() {
+  if (revisando) return;
+  revisando = true;
+  try {
+    const pendientes = await Cotizacion.find({ pago: { $ne: "" }, comprado: null, creado: { $gte: new Date(Date.now() - 30 * 864e5) } }).limit(100).lean();
+    const porDueno = new Map();
+    for (const x of pendientes) porDueno.set(String(x.owner), [...(porDueno.get(String(x.owner)) || []), x]);
+    for (const [owner, lista] of porDueno) {
+      const c = await CotizadorConfig.findOne({ owner }).lean();
+      if (!c) continue;
+      const cfg = limpiarConfig(c.config);
+      const t = cfg.tiendaPago ? await tiendaDe(owner, cfg.tiendaPago) : null;
+      if (!t) continue;
+      const ids = lista.map(x => x.pago).filter(id => /^gid:\/\/shopify\/DraftOrder\/\d+$/.test(id));
+      if (!ids.length) continue;
+      const d = await gql(t, `query Borradores($ids: [ID!]!) { nodes(ids: $ids) { ... on DraftOrder { id status order { id name totalPriceSet { shopMoney { amount } } } } } }`, { ids });
+      for (const n of d?.nodes || []) {
+        if (!n || n.status !== "COMPLETED" || !n.order) continue;
+        const cot = lista.find(x => x.pago === n.id);
+        if (!cot) continue;
+        const ok = await Cotizacion.updateOne({ _id: cot._id, comprado: null }, { $set: { comprado: new Date(), pedidoShopify: n.order.name || "" } });
+        if (!ok.modifiedCount) continue;
+        const pc = cot.pagoCliente || {};
+        eventoMeta(c, cfg, { ip: pc.ip, ua: pc.ua }, { evento: "Purchase", eventId: `Purchase-${String(n.order.id).split("/").pop()}`,
+          valor: Number(n.order.totalPriceSet?.shopMoney?.amount) || cot.pagoAnticipo || cot.total, contacto: cot.contacto, fbp: pc.fbp, fbc: pc.fbc, url: pc.url });
+      }
+    }
+  } catch (e) { console.warn("Cotizador revisar pagos:", e.message); }
+  revisando = false;
+}
+
 export function registrarRutasCotizador(app) {
+  setTimeout(revisarPagosCotizador, 60e3);
+  setInterval(revisarPagosCotizador, 10 * 60e3);
   const vista = (c) => ({ clave: c.clave, config: limpiarConfig(c.config), galeria: (c.galeria || []).map(x => ({ ...x, url: `/ci/${x.id}.jpg`, ...(x.idAntes ? { urlAntes: `/ci/${x.idAntes}.jpg` } : {}) })), gasto: { mes: mesActual(), ...gastoDelMes(c) }, capi: { conToken: !!c.capiToken, estado: c.capiEstado || null } });
 
   // Guardar (o borrar) el token de la API de Conversiones de Meta
@@ -482,6 +522,7 @@ export function registrarRutasCotizador(app) {
   // Filtros: tipo (pidieron | miraron | todas), estado, desde/hasta (AAAA-MM-DD, hora Colombia), orden (nuevas | viejas)
   const ESTADOS = ["nuevo", "falta_material", "en_produccion", "listo", "entregado"];
   app.get("/api/cotizador/cotizaciones", async (req, res) => {
+    revisarPagosCotizador();
     try {
       const q = req.query || {};
       const filtro = { owner: req.user.uid };
@@ -494,7 +535,7 @@ export function registrarRutasCotizador(app) {
       const lista = await Cotizacion.find(filtro).sort({ creado: q.orden === "viejas" ? 1 : -1 }).limit(200).lean();
       const conteo = await Cotizacion.aggregate([{ $match: { owner: new mongoose.Types.ObjectId(String(req.user.uid)), pidio: true } }, { $group: { _id: { $ifNull: ["$estado", "nuevo"] }, n: { $sum: 1 } } }]);
       res.set("X-Conteo", JSON.stringify(Object.fromEntries(conteo.map(c => [c._id, c.n]))));
-      res.json(lista.map(x => ({ id: String(x._id), creado: x.creado, eleccion: x.eleccion, total: x.total, anticipo: x.anticipo, moneda: x.moneda, notas: x.notas, contacto: x.contacto || null, pagoAnticipo: x.pagoAnticipo || 0, pidio: !!x.pidio, error: x.error || "",
+      res.json(lista.map(x => ({ id: String(x._id), creado: x.creado, eleccion: x.eleccion, total: x.total, anticipo: x.anticipo, moneda: x.moneda, notas: x.notas, contacto: x.contacto || null, pagoAnticipo: x.pagoAnticipo || 0, comprado: x.comprado || null, pedidoShopify: x.pedidoShopify || "", pidio: !!x.pidio, error: x.error || "",
         estado: x.estado || "nuevo", notaInterna: x.notaInterna || "", cambioEstado: x.cambioEstado || null, pago: !!x.pago,
         logo: x.logo ? `/api/cotiza/img/${x.logo}` : "", maqueta: x.maqueta ? `/api/cotiza/img/${x.maqueta}` : "" })));
     } catch (err) { console.error("Cotizaciones:", err); res.status(500).json({ error: "No se pudieron leer las cotizaciones" }); }
