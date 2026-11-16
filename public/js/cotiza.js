@@ -196,7 +196,6 @@ async function iniciar() {
     st.e.material = st.cfg.materiales[0]?.id || "";
     st.e.luz = st.cfg.luces[0]?.id || "";
     st.e.ubicacion = st.cfg.ubicaciones[0]?.id || "";
-    st.e.montaje = st.cfg.montajes[0]?.id || "";
     // Orden de las formas: primero "con la forma de tu logo", luego redondo y al final rectangular
     const rangoForma = (f) => (f.id === "silueta" || /forma de tu logo|silueta/i.test(f.nombre) ? 0 : /redond/i.test(`${f.id} ${f.nombre}`) ? 1 : /rect/i.test(`${f.id} ${f.nombre}`) ? 3 : 2);
     // Solo cambia el orden: la que viene marcada sigue siendo la misma de antes (la primera de tu lista)
@@ -532,7 +531,6 @@ function pintar() {
           ${r.luz ? `<tr><td>Luz</td><td>${esc(r.luz.nombre)}${r.colorLuz ? ` · ${esc(r.colorLuz)}` : ""}</td></tr>` : ""}
           ${r.ubicacion ? `<tr><td>Va en</td><td>${esc(r.ubicacion.nombre)}</td></tr>` : ""}
           ${r.forma ? `<tr><td>Forma</td><td>${esc(r.forma.nombre)}</td></tr>` : ""}
-          ${r.montaje ? `<tr><td>Montaje</td><td>${esc(r.montaje.nombre)}</td></tr>` : ""}
           ${r.cantidad > 1 ? `<tr><td>Cantidad</td><td>${r.cantidad}</td></tr>` : ""}
           ${c.envioGratis ? `<tr class="envio-fila"><td>Envío</td><td>${r.flete ? `<s>${plata(r.flete)}</s> ` : ""}<b>GRATIS</b></td></tr>` : ""}
         </table>

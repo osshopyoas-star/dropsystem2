@@ -221,7 +221,8 @@ export function cotizar(cfg, eleccion = {}) {
   if (!mat) return null;
   const luz = mat.conLuz ? buscar(c.luces, eleccion.luz) : null;
   const ubi = buscar(c.ubicaciones, eleccion.ubicacion);
-  const mon = buscar(c.montajes, eleccion.montaje);
+  // Montaje: solo si se eligió uno a propósito (el cotizador del cliente ya no lo pregunta)
+  const mon = eleccion.montaje ? (c.montajes || []).find(x => x.id === eleccion.montaje) || null : null;
   const forma = buscar(c.formas, eleccion.forma);
   const ancho = Math.min(c.anchoMax, Math.max(c.anchoMin, num(eleccion.ancho, c.anchoDefecto)));
   const alto = Math.max(1, num(eleccion.alto, ancho));
