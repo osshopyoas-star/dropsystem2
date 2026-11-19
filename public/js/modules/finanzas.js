@@ -102,7 +102,7 @@ const grupos = () => st.config?.grupos || [];
 // Lo que usa el Control Diario: pauta, % de devolución y, para los pedidos sin datos de Dropi, el % de cancelados y el flete de tu tienda
 const opcionesControl = () => ({
   grupos: grupos(), pauta: st.pauta, devPct: st.config?.devPct ?? 25, historial: historialPrecios(),
-  cancDefecto: st.config?.cancPct ?? cancelacion30(), fleteDefecto: st.config?.fletePromedio ?? null
+  cancDefecto: st.config?.cancPct ?? cancelacion30(), fleteDefecto: st.config?.fletePromedio ?? null, cancTodos: st.config?.cancPct ?? null
 });
 // Pedidos de Dropi + los de Shopify ya traídos: de aquí sale el precio, costo y flete promedio de cada producto
 const historialPrecios = () => (st.shop?.lineas?.length && st.shop.pais === st.pais ? [...st.lineas, ...st.shop.lineas] : st.lineas);
