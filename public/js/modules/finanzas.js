@@ -26,7 +26,7 @@ const st = {
   meta: { estado: null, sync: null, cargando: false, error: "", abierto: false, rango: null },
   lineas: [], config: null, pauta: {}, cargadoPais: null,
   dia: null,
-  rango: { modo: "7d", desde: "", hasta: "", clave: "", porProducto: false },
+  rango: { modo: "7d", desde: "", hasta: "", clave: "", porProducto: true, resultado: "", orden: null },   // orden: { k, dir: 1 | -1 }
   rep: { periodo: "todo", desde: "", hasta: "", clave: "", referencia: 70, rentOrden: "neta", mesCostos: "", guardado: null },
   log: { periodo: "todo", desde: "", hasta: "", filtro: "activos", estatus: "", buscar: "", pagina: 1, porPagina: 25, ciudadesN: 5, ciudadesPag: 1, ciudadOrden: "total", priorizar: true, prodBuscar: "", ciudadTransp: "" },
   pagina: null,
@@ -801,12 +801,17 @@ window.fzRevGuardar = async () => {
 };
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && rev.abierta) fzRevCerrar(); });
 
-function tablaControl(filas, t, conFecha) {
+const COLS_CONTROL = [["pedidos", "Pedidos"], ["sinConfirmar", "S/confirmar"], ["uds", "Uds"], ["cancelados", "Cancelados"], ["pctCanc", "%Canc"], ["devPct", "%Dev"], ["efectivas", "Efectivas"],
+  ["precio", "Precio"], ["proveedor", "Proveedor"], ["fleteBase", "Flete base"], ["fleteDev", "Flete c/dev"], ["meta", "Meta"], ["tiktok", "TikTok"], ["gasto", "Gasto"], ["cpa", "CPA"],
+  ["equilibrio", "CPA equilibrio", "Lo máximo que puedes pagar de publicidad por pedido entregado sin perder"], ["utilProd", "Util x prod"], ["utilidad", "Utilidad"], ["roi", "ROI"]];
+// orden: { k, dir } — si se pasa, los encabezados se pueden tocar para ordenar
+function tablaControl(filas, t, conFecha, orden = null) {
+  const th = (k, tx, cls = "", title = "") => orden
+    ? `<th class="${cls} fz-ord ${orden.k === k ? "on" : ""}" ${title ? `title="${title}"` : ""} onclick="fzRangoOrden('${k}')">${tx}${orden.k === k ? (orden.dir > 0 ? " ▲" : " ▼") : ""}</th>`
+    : `<th class="${cls}" ${title ? `title="${title}"` : ""}>${tx}</th>`;
   return `<div class="fz-scroll"><table class="fz-tabla">
     <thead><tr>
-      ${conFecha ? `<th>Fecha</th>` : ""}<th>Producto</th><th>Tipo</th><th class="n">Pedidos</th><th class="n">S/confirmar</th><th class="n">Uds</th><th class="n">Cancelados</th><th class="n">%Canc</th><th class="n">%Dev</th><th class="n">Efectivas</th>
-      <th class="n">Precio</th><th class="n">Proveedor</th><th class="n">Flete base</th><th class="n">Flete c/dev</th><th class="n">Meta</th><th class="n">TikTok</th><th class="n">Gasto</th><th class="n">CPA</th>
-      <th class="n" title="Lo máximo que puedes pagar de publicidad por pedido entregado sin perder">CPA equilibrio</th><th class="n">Util x prod</th><th class="n">Utilidad</th><th class="n">ROI</th>
+      ${conFecha ? th("fecha", "Fecha") : ""}${th("nombre", "Producto")}${th("tipo", "Tipo")}${COLS_CONTROL.map(([k, tx, ti]) => th(k, tx, "n", ti || "")).join("")}
     </tr></thead>
     <tbody>
       ${filas.map(f => `<tr>
@@ -836,7 +841,7 @@ function rangoFechas() {
   return [r.desde || st.config?.desde || hasta, r.hasta || hasta];
 }
 
-function rangoHTML() {
+function filasRango() {
   const r = st.rango;
   const [desde, hasta] = rangoFechas();
   let filas = controlDiario(lineasRango(), { desde, hasta, grupos: grupos(), ...opcionesControl() });
@@ -859,6 +864,25 @@ function rangoHTML() {
         devPct: a.pedidos ? (1 - a.efectivas / Math.max(1e-9, a.pedidos - a.cancelados)) * 100 : a.devPct, roi: a.gasto > 0 ? a.utilidad / a.gasto : null };
     }).sort((x, y) => y.utilidad - x.utilidad);
   }
+  // Filtro por resultado
+  if (r.resultado === "gana") filas = filas.filter(f => f.utilidad > 0);
+  if (r.resultado === "pierde") filas = filas.filter(f => f.utilidad < 0);
+  // Orden por la columna que tocaste (los vacíos al final)
+  if (r.orden?.k) {
+    const k = r.orden.k, dir = r.orden.dir;
+    const val = (f) => (k === "nombre" || k === "tipo" || k === "fecha" ? String(f[k] ?? "") : f[k] === null || f[k] === undefined ? null : Number(f[k]));
+    filas = filas.slice().sort((x, y) => {
+      const a = val(x), b = val(y);
+      if (a === null) return 1; if (b === null) return -1;
+      return (typeof a === "string" ? a.localeCompare(b, "es") : a - b) * dir;
+    });
+  }
+  return { filas, desde, hasta, dias };
+}
+
+function rangoHTML() {
+  const r = st.rango;
+  const { filas, desde, hasta, dias } = filasRango();
   const t = totalesControl(filas);
   const ventas = filas.reduce((s, f) => s + f.efectivas * (f.precio || 0), 0);
   const costoProd = filas.reduce((s, f) => s + f.efectivas * (f.proveedor || 0), 0);
@@ -872,10 +896,17 @@ function rangoHTML() {
       ${[["7d", "Últimos 7 días"], ["mes", "Este mes"], ["mesPasado", "Mes pasado"], ["rango", "Rango"]].map(([k, tx]) => `<button class="fz-chip ${r.modo === k ? "activo" : ""}" onclick="fzRango('${k}')">${tx}</button>`).join("")}
       ${r.modo === "rango" ? `<input type="date" value="${desde}" onchange="fzRangoFecha('desde', this.value)"> a <input type="date" value="${hasta}" onchange="fzRangoFecha('hasta', this.value)">` : ""}
       <select onchange="fzRangoProducto(this.value)"><option value="">Todos los productos</option>${productos().map(p => `<option value="${esc(p.clave)}" ${r.clave === p.clave ? "selected" : ""}>${esc(p.nombre)}</option>`).join("")}</select>
-      <label class="fz-check"><input type="checkbox" ${r.porProducto ? "checked" : ""} onchange="fzRangoTotal(this.checked)"> Total por producto</label>
       <button class="fz-btn claro chico" onclick="fzExportarRango()"><i data-lucide="download"></i> Exportar</button>
     </div>
-    ${filas.length ? tablaControl(filas, t, true) : `<p class="fz-sin">No hay pedidos en ese rango (${fechaCorta(desde)} a ${fechaCorta(hasta)}).</p>`}
+    <div class="fz-chips">
+      <small>VER:</small>
+      <button class="fz-chip ${r.porProducto ? "activo" : ""}" onclick="fzRangoTotal(true)">Un renglón por producto</button>
+      <button class="fz-chip ${!r.porProducto ? "activo" : ""}" onclick="fzRangoTotal(false)">Día por día</button>
+      <small style="margin-left:10px">RESULTADO:</small>
+      ${[["", "Todos"], ["gana", "Con ganancia"], ["pierde", "Con pérdida"]].map(([k, tx]) => `<button class="fz-chip ${r.resultado === k ? "activo" : ""}" onclick="fzRangoResultado('${k}')">${tx}</button>`).join("")}
+      ${r.orden?.k ? `<button class="fz-link" onclick="fzRangoOrden('')">Quitar orden</button>` : `<small class="fz-mini" style="margin:0">Toca el nombre de una columna para ordenar de mayor a menor</small>`}
+    </div>
+    ${filas.length ? tablaControl(filas, t, true, r.orden || { k: "" }) : `<p class="fz-sin">${r.resultado ? `No hay productos ${r.resultado === "gana" ? "con ganancia" : "con pérdida"} en ese rango.` : `No hay pedidos en ese rango (${fechaCorta(desde)} a ${fechaCorta(hasta)}).`}</p>`}
     ${filas.length ? `
     <div class="fz-resumen">
       <div><small>DÍAS</small><b>${dias}</b></div>
@@ -901,6 +932,13 @@ window.fzRangoFecha = (k, v) => { st.rango[k] = v; renderControl($("view")); met
 function metaRango() { const r = st.meta.rango; if (!st.meta.cargando && st.meta.sync && r && rangoFechas()[0] < r.desde) metaSync(false); }
 window.fzRangoProducto = (v) => { st.rango.clave = v; renderControl($("view")); };
 window.fzRangoTotal = (v) => { st.rango.porProducto = v; renderControl($("view")); };
+window.fzRangoResultado = (v) => { st.rango.resultado = v; renderControl($("view")); };
+// Primer toque: de mayor a menor; segundo: de menor a mayor; tercero: sin orden
+window.fzRangoOrden = (k) => {
+  const o = st.rango.orden;
+  st.rango.orden = !k ? null : o?.k !== k ? { k, dir: -1 } : o.dir === -1 ? { k, dir: 1 } : null;
+  renderControl($("view"));
+};
 
 // ---------- Día ----------
 window.fzIrDia = (v) => { if (/^\d{4}-\d{2}-\d{2}$/.test(v)) { st.dia = v; renderControl($("view")); metaAlDia(); if (st.fuente === "shopify") cargarShopify(); } };
@@ -1056,9 +1094,7 @@ const ENC_CSV = ["Fecha", "Producto", "Tipo", "Pedidos", "Uds", "Cancelados", "%
 const filaCSV = (f) => [f.fecha, f.nombre, f.tipo, f.pedidos, f.uds, f.cancelados, f.devPct, f.efectivas, f.precio, f.proveedor, f.fleteBase, f.fleteDev, f.meta, f.tiktok, f.gasto, f.cpa, f.equilibrio, f.utilProd, f.utilidad];
 window.fzExportarDia = () => descargarCSV(`control-diario-${st.pais}-${st.dia}.csv`, [ENC_CSV, ...filasDelDia().map(filaCSV)]);
 window.fzExportarRango = () => {
-  const [desde, hasta] = rangoFechas();
-  let filas = controlDiario(lineasRango(), { desde, hasta, grupos: grupos(), ...opcionesControl() });
-  if (st.rango.clave) filas = filas.filter(f => f.clave === st.rango.clave);
+  const { filas, desde, hasta } = filasRango();
   descargarCSV(`control-diario-${st.pais}-${desde}-a-${hasta}.csv`, [ENC_CSV, ...filas.map(filaCSV)]);
 };
 

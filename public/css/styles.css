@@ -4495,6 +4495,9 @@ main:has(.pl-page) { overflow-x: clip; overflow-y: visible; }
 .fz-tabla tfoot td { font-weight: 800; background: #fafaf9; border-top: 1.5px solid #0f172a; color: #2563eb; }
 .fz-tabla th.clic { cursor: pointer; }
 .fz-tabla th.activo { color: #2563eb; }
+.fz-tabla th.fz-ord { cursor: pointer; user-select: none; }
+.fz-tabla th.fz-ord:hover { color: #2563eb; }
+.fz-tabla th.fz-ord.on { color: #2563eb; }
 .fz-edit td { white-space: normal; }
 .fz-sin { text-align: center; color: #94a3b8; padding: 18px !important; }
 .gris { color: #94a3b8; }
