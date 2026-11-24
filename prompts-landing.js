@@ -291,7 +291,7 @@ LO QUE ES VERDAD Y VA EN ESTA IMAGEN (nada más):
 - "PAGAS AL RECIBIR": primero recibe el producto en su casa y luego paga
 - "${pr.envioGratis ? pais.envio.replace("Envío", "Envío gratis") : pais.envio}"
 ${pr.entrega ? `- Tiempo de entrega: "${limpio(pr.entrega, 60)}"
-` : "- Sin tiempo de entrega en la Ficha: no escribas días\n"}${pr.transportadoras ? `- "Enviamos con ${limpio(pr.transportadoras, 120)}" (sus nombres en círculos o chips; nunca "aliadas" ni "oficial")\n` : ""}${pr.garantia ? `- Garantía: "${limpio(pr.garantia, 60)}"
+` : "- Sin tiempo de entrega en la Ficha: no escribas días\n"}${pr.transportadoras ? `- "Enviamos con ${limpio(normalizarTransportadoras(pr.transportadoras), 120)}" (sus nombres en círculos o chips; nunca "aliadas" ni "oficial")\n` : ""}${pr.garantia ? `- Garantía: "${limpio(pr.garantia, 60)}"
 ` : "- NO hay garantía: no la menciones\n"}${n ? `- Entregas reales: "${n.entregas} entregas exitosas en ${n.pais.toLowerCase().replace(/\b(colombia|ecuador)\b/, (x) => x[0].toUpperCase() + x.slice(1))}"
 ` : ""}Sin logos de entidades, sellos de 'tienda verificada', 'compra 100% garantizada' ni urgencia ('solo por hoy').`;
 }
@@ -339,6 +339,39 @@ function textoFormato(p) {
 
 const lista = (arr) => arr.map(x => `- ${x}`).join("\n");
 
+// Transportadoras: siempre bien escritas (Interrreapidisimo → Interrapidísimo)
+const TRANSPORTADORAS = [[/inter\s*-?\s*r+[a-z]{0,3}?p+i+d+[ií]s+i+m+o/i, "Interrapidísimo"], [/servi\s*-?\s*entr?ega/i, "Servientrega"], [/^env[ií]a$/i, "Envía"], [/coordi?nadora/i, "Coordinadora"], [/^t\.?c\.?c\.?$/i, "TCC"], [/depris+a/i, "Deprisa"]];
+export function normalizarTransportadoras(txt) {
+  return String(txt || "").split(/\s*(?:,|;|\/|\by\b|\be\b)\s*/i).map(x => x.trim()).filter(Boolean)
+    .map(x => (TRANSPORTADORAS.find(([re]) => re.test(x.normalize("NFC")))?.[1]) || x)
+    .filter((x, i, a) => a.indexOf(x) === i).join(", ");
+}
+const corregirTransportadoras = (l) => l.replace(/inter\s*-?\s*r+[a-záéíóú]{0,3}?p+i+d+[ií]s+i+m+o/gi, "Interrapidísimo").replace(/servi\s*-?\s*entr?ega/gi, "Servientrega");
+// Medidas de la Ficha (una sola medida tipo "26 x 20 cm"): la IA no las redondea
+const RE_MEDIDA = /\d+(?:[.,]\d+)?\s*[x×X]\s*\d+(?:[.,]\d+)?(?:\s*[x×X]\s*\d+(?:[.,]\d+)?)?\s*cm/g;
+const medidaFicha = (p) => { const m = String(p?.ficha?.medidas || "").match(RE_MEDIDA); return m && m.length === 1 ? m[0].replace(/\s*[xX×]\s*/g, " × ") : ""; };
+
+// ---------- 2.5 Cero promesas inventadas: solo si la Ficha lo dice ----------
+const textoFicha = (p) => { const f = p?.ficha || {}, pr = f.promesas || {}, r = p?.revision || {};
+  return [f.descripcion, f.notas, f.medidas, r.descripcionFisica, pr.garantia, pr.entrega].map(x => String(x || "")).join(" ").toLowerCase(); };
+export const PROMESAS_RIESGO = [
+  { nombre: "impermeable", re: /impermeable|a prueba de agua|resistente al agua|waterproof/i, ok: (t) => /impermeable|prueba de agua|resistente al agua/.test(t) },
+  { nombre: "lavable o fácil planchado", re: /lavable|se puede lavar|f[aá]cil (?:de )?(?:lavar|planchar|planchado)|lav(?:a|ar) en lavadora|planchado|no necesita plancha|no se arruga/i, ok: (t) => /lavable|lavar|lavadora|planch|arrug/.test(t) },
+  { nombre: "no se oxida / inoxidable", re: /no se oxida|inoxidable|anti\s?[óo]xido|antioxid/i, ok: (t) => /inoxidable|oxid/.test(t) },
+  { nombre: "no se gasta / irrompible / de por vida", re: /no se (?:gasta|desgasta|desti[ñn]e|rompe|deforma|rasga)|irrompible|indestructible|de por vida|para siempre|dura a[ñn]os/i, ok: () => false },
+  { nombre: "cambio o devolución gratis", re: /(?:cambio|cambia|devoluci[oó]n|devuelve)[a-z ]{0,20}gratis|te devolvemos (?:tu|el) dinero|cambio de talla sin costo/i, ok: (t) => /cambio|devoluci|devolvemos/.test(t) },
+  { nombre: "garantía", re: /garant[ií]a/i, ok: (_, p) => !!p?.ficha?.promesas?.garantia },
+  { nombre: "entrega hoy o el mismo día", re: /(?:entrega|rec[ií]belo|recibe tu pedido|llega|te llega)[a-z ]{0,12}(?:hoy|el mismo d[ií]a|en 24 ?h)|mismo d[ií]a|entrega inmediata/i, ok: (_, p) => /hoy|mismo d[ií]a|24 ?h/i.test(String(p?.ficha?.promesas?.entrega || "")) },
+  { nombre: "número de clientes o vendidos", re: /\+?\s?\d[\d.]*\s*(?:mil\s*)?(?:clientes|vendid|compradores|pedidos|personas felices|hinchas|usuarios)/i, ok: (_, p) => !!numerosPrueba(p) },
+  { nombre: "calificación inventada", re: /\b[34][.,]\d\s*(?:\/\s*5|estrellas|★|de 5)|calificaci[oó]n/i, ok: (_, p) => resenasReales(p).length >= 2 }
+];
+export function promesasFalsas(p) {
+  const t = textoFicha(p);
+  return PROMESAS_RIESGO.filter(x => !x.ok(t, p));
+}
+const TIPOS_TALLAS = new Set(["moda_guia_tallas", "tamano_variantes", "moda_precio_tallas"]);
+const cuidadoEnFicha = (p) => /lav|planch|secad|cuidado/.test(textoFicha(p));
+
 // ---------- Contexto del producto (se usa en todos los pasos) ----------
 export function contextoProducto(p) {
   const f = p.ficha || {};
@@ -355,7 +388,7 @@ export function contextoProducto(p) {
     pr.garantia ? `Garantía: ${limpio(pr.garantia, 60)}` : "NO hay garantía: no la menciones",
     pr.original ? "El producto es original/licenciado (se puede decir)" : "NO digas 'original' ni 'oficial'",
     pr.entrega ? `Tiempo de entrega: ${limpio(pr.entrega, 60)}` : null,
-    pr.transportadoras ? `Enviamos con: ${limpio(pr.transportadoras, 120)} (escríbelo "Enviamos con …" o sus nombres en círculos; nunca "aliadas", "oficial" ni convenio)` : null
+    pr.transportadoras ? `Enviamos con: ${limpio(normalizarTransportadoras(pr.transportadoras), 120)} (escríbelo "Enviamos con …" o sus nombres en círculos; nunca "aliadas", "oficial" ni convenio)` : null
   ].filter(Boolean);
 
   return `
@@ -365,7 +398,7 @@ DESCRIPCIÓN DEL PROVEEDOR:
 ${limpio(f.descripcion, 4000) || "(sin descripción)"}
 
 DESCRIPCIÓN FÍSICA VERIFICADA: ${limpio(r.descripcionFisica, 2000) || "(aún no verificada)"}
-TAMAÑO REAL: ${limpio(f.medidas || r.tamano, 300) || "(sin medidas: pídelas en las notas)"}
+TAMAÑO REAL: ${limpio(f.medidas || r.tamano, 300) || "(sin medidas: pídelas en las notas)"}${f.medidas ? " (si las escribes en la imagen, cópialas EXACTAS: no las redondees)" : ""}
 LO QUE NO TIENE NI TRAE: ${limpio(listaNoTiene(f.noTiene, r.noTiene).join("; "), 800) || "(no indicado)"}
 VARIANTES / TALLAS / COLORES${variantesDe(f).colores.length || variantesDe(f).tallas.length ? " (nombres EXACTOS, escríbelos tal cual)" : ""}: ${limpio(variantesTexto(f), 400) || "(una sola versión)"}
 PRECIO: ${precio || "(sin precio)"}${antes ? ` · ANTES: ${antes}` : ""}${desc ? ` · DESCUENTO: ${desc}%` : ""}${f.precioEn === "releasit" ? " · DÓNDE VA: NO en la portada (va en el formulario de Releasit, paquetes y oferta de cierre)" : f.precioEn === "solo_releasit" ? " · DÓNDE VA: en NINGUNA imagen (solo en el formulario de Releasit)" : ""}
@@ -826,6 +859,14 @@ export function problemasDeTextos(textos, p, seccion = {}) {
       if (!okSellos.has(soloDigitos(m))) out.push({ tipo: "precio", texto: `Sale el porcentaje ${m.trim()}, que no es de la Ficha` });
     }
     for (const x of prohibidos) if (x && txt.toLowerCase().includes(x)) out.push({ tipo: "prohibido", texto: `Sale "${x}", que está en "Textos que NO deben salir"` });
+    for (const x of promesasFalsas(p)) if (x.re.test(txt)) out.push({ tipo: "promesa", texto: `Promete "${(txt.match(x.re) || [""])[0]}", que la Ficha no dice` });
+  }
+  const tit = limpiarTitular(seccion.titular) || (() => { const m = String(seccion.prompt || "").match(/Titular[^:\n]{0,40}:\s*[“"]([^“"”]+)[”"]/i); return m ? { l1: m[1] } : null; })();
+  if (tit && !sinTitular(seccion.tipo) && (textos || []).length) {
+    const palabras = normalizarTxt(tit.l1).split(" ").filter(w => w.length > 2);
+    const todo = normalizarTxt((textos || []).join(" "));
+    const vistas = palabras.filter(w => todo.includes(w)).length;
+    if (palabras.length && vistas / palabras.length < 0.6) out.push({ tipo: "titular", texto: `El titular de la imagen no es "${tit.l1}"` });
   }
   return out;
 }
@@ -839,8 +880,10 @@ export function usaNombreProducto(titular, nombre) {
   if (!n) return false;
   return normalizarTxt(`${titular?.l1 || ""} ${titular?.l2 || ""}`).includes(n);
 }
+// Los titulares nunca llevan precios ni montos de ahorro ("AHORRA $149.900", "LLEVA 2 POR $139.900")
+const sinPrecioTitular = (v) => String(v || "").replace(/(?:\b(?:ahorra|ahorras|lleva|llevas|paga|pagas|solo|desde|a|por)\s+)*(?:\d+\s+(?:por|x)\s+)?\$\s?\d[\d.,]*/gi, " ").replace(/[-–]?\d{1,2}\s?%\s?(?:off|dcto)?/gi, " ").replace(/\b(?:lleva|llevas|ahorra)\s+\d+\s+(?:por|x)\s*$/i, "").replace(/\s+(?:por|a|x|de)\s*$/i, "");
 export function limpiarTitular(t) {
-  const linea = (v) => String(v || "").replace(/[<>"“”]/g, "").replace(/\s+/g, " ").trim().toUpperCase().slice(0, 40);
+  const linea = (v) => sinPrecioTitular(v).replace(/[<>"“”]/g, "").replace(/\s+/g, " ").trim().toUpperCase().slice(0, 40);
   const l1 = linea(Array.isArray(t) ? t[0] : t?.l1), l2 = linea(Array.isArray(t) ? t[1] : t?.l2);
   return l1 ? { l1, l2 } : null;
 }
@@ -858,6 +901,7 @@ REGLAS:
 - Hablan de lo que GANA el cliente (comodidad, estilo, tiempo, ahorro, tranquilidad, resultado), no del producto ni de su categoría.
 - NUNCA uses el nombre del producto ("${limpio(String(p.nombre || "").replace(/\d+/g, "").trim(), 80)}") ni la descripción del proveedor como titular.
 - Los ${cuantosTitulares("oferta")} de la portada usan ángulos DISTINTOS (comodidad, estilo, precio u oferta, uso diario, sorpresa), no la misma frase con otras palabras.
+- NUNCA precios, montos de ahorro ni porcentajes en el titular (el precio va aparte, en su caja).
 - Sin promesas de salud ni de resultados que no se puedan cumplir. Sin preguntas sobre atributos personales ("¿Sufres de…?", "¿Eres…?"). Sin marcas de terceros.
 - Español de ${pais.nombre}, con tildes. Que se lea en 2 segundos.
 - Ejemplo del nivel (de OTRO producto, no lo copies): "ELEGANTE COMO CARTERA" / "CÓMODO COMO MORRAL"; "MANOS LIBRES" / "ESTILO TODO EL DÍA".
@@ -883,7 +927,8 @@ export function conTitular(texto, seccion = {}) {
 }
 export function bloqueProhibidos(p) {
   const t = textosProhibidos(p);
-  return `TEXTOS QUE NO DEBEN SALIR (aunque aparezcan en las fotos de referencia): ${t.length ? t.map(x => `"${x}"`).join(", ") + ". " : ""}Tampoco copies referencias, códigos, cantidades por caja, precios de mayorista ni el nombre del proveedor que se vean en las fotos. No escribas ningún otro texto aparte de los que están entre comillas.`;
+  const falsas = promesasFalsas(p).map(x => x.nombre);
+  return `TEXTOS QUE NO DEBEN SALIR (aunque aparezcan en las fotos de referencia): ${t.length ? t.map(x => `"${x}"`).join(", ") + ". " : ""}Tampoco copies referencias, códigos, cantidades por caja, precios de mayorista ni el nombre del proveedor que se vean en las fotos. No escribas ningún otro texto aparte de los que están entre comillas.${falsas.length ? ` NO afirmes nada que la Ficha no dice: ${falsas.join(", ")}.` : ""}${cuidadoEnFicha(p) ? "" : " Sin íconos de cuidado (lavadora, plancha, secadora)."}`;
 }
 // Quita del texto que escribió la IA los montos y porcentajes que no son de la Ficha, y los textos prohibidos
 export function limpiarMontos(texto, p, seccion = {}) {
@@ -892,29 +937,62 @@ export function limpiarMontos(texto, p, seccion = {}) {
   const okSellos = new Set(o.sellos.map(soloDigitos));
   const prohibidos = textosProhibidos(p).map(x => new RegExp(x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"));
   // Línea por línea: si a un texto entre comillas se le quitó todo, se quita ese texto (o la línea entera si no le queda nada)
-  return String(texto || "").split("\n").map((linea) => {
+  const falsas = promesasFalsas(p);
+  const medida = TIPOS_TALLAS.has(seccion.tipo) ? "" : medidaFicha(p);
+  const titularLinea = (l) => /^\s*-?\s*Titular[^:]{0,40}:/i.test(l);
+  return String(texto || "").split("\n").map((linea0) => {
+    let linea = corregirTransportadoras(linea0);
+    if (medida) linea = linea.replace(RE_MEDIDA, medida);
+    // Promesas que la Ficha no respalda: fuera el texto entre comillas que la dice (o la línea, si no es un texto)
+    if (!cuidadoEnFicha(p) && !/[“"]/.test(linea) && /[íi]conos? de cuidado|instrucciones de (?:cuidado|lavado)/i.test(linea)) return null;
+    if (falsas.some(x => x.re.test(linea))) {
+      if (!/[“"]/.test(linea)) {
+        for (const x of falsas) linea = linea.replace(new RegExp(x.re.source, "gi"), "");
+        linea = linea.replace(/\s*([,·/]|\by\b)\s*(?=([,·/.:]|\by\b|$))/g, "").replace(/:\s*[,·/]\s*/g, ": ").replace(/\s{2,}/g, " ").trimEnd();
+        return linea.replace(/[^A-Za-zÁÉÍÓÚÑáéíóúñ]/g, "").length < 4 ? null : linea;
+      }
+      linea = linea.replace(/[“"]([^“"”]*)[”"](\s*\([^)]{0,60}\))?/g, (m, t) => (falsas.some(x => x.re.test(t)) ? "" : m)).replace(/:\s*(?:[·/,]\s*)+/g, ": ").replace(/\s*(·|\/|,)\s*(?=(·|\/|,|$))/g, "").trimEnd();
+      if (!/[“"][^“"”]*[A-Za-zÁÉÍÓÚÑáéíóúñ0-9][^“"”]*[”"]/.test(linea)) return null;
+    }
     let quito = false;
     const fuera = (ok) => (m) => (ok(m) ? m : ((quito = true), ""));
     let l = linea
-      .replace(/\$\s?\d[\d.,]*\d|\$\s?\d/g, fuera((m) => okMontos.has(soloDigitos(m))))
+      // El precio va UNA sola vez: en el bloque PRECIO que arma el código. Ningún "$" en lo que escribió la IA
+      .replace(/(?:\b(?:ahorra|ahorras|lleva|llevas|paga|pagas|por solo|solo|desde|a solo|antes|ahora)\s+)?(?:\d+\s+(?:por|x)\s+)?\$\s?\d[\d.,]*\d|\$\s?\d/gi, fuera(() => false))
       .replace(/[-–]\s?\d{1,2}\s?%/g, fuera((m) => okSellos.has(soloDigitos(m))))
       .replace(/\d{1,2}\s?%\s?(OFF|DCTO|de descuento|descuento)/gi, fuera((m) => okSellos.has(soloDigitos(m))));
     for (const re of prohibidos) l = l.replace(re, () => ((quito = true), ""));
     if (!quito) return linea;
-    l = l.replace(/[“"]\s*[”"]/g, "").replace(/\(\s*\)/g, "").replace(/\s{2,}/g, " ").trimEnd();
-    if (/[“"]/.test(linea) && !/[“"][^“"”]*[A-Za-zÁÉÍÓÚÑáéíóúñ0-9][^“"”]*[”"]/.test(l)) return null;   // texto de la lista que quedó vacío
+    l = l.replace(/[“"]\s*[”"]/g, "").replace(/[“"][^“"”]*:\s*[”"]/g, "").replace(/\(\s*\)/g, "").replace(/\s{2,}/g, " ").trimEnd();
+    if (titularLinea(linea)) l = l.replace(/[“"]([^“"”]*)[”"]/g, (m, t) => `"${sinPrecioTitular(t).replace(/\s+/g, " ").trim()}"`).replace(/[“"]\s*[”"]\s*(\([^)]*\))?\s*\/?\s*/g, "").replace(/\/\s*$/, "").trimEnd();
+    if (/[“"]/.test(linea) && !/[“"][^“"”]*[A-Za-zÁÉÍÓÚÑáéíóúñ0-9][^“"”]*[”"]/.test(l)) return /^\s*\d+\)/.test(l) ? l.replace(/\s+(y|con|,)\s*\.?$/i, ".") : null;   // texto de la lista que quedó vacío (en la composición queda la línea)
     return l;
   }).filter(l => l !== null).join("\n");
 }
 
+// TEXTOS (exactos) va al FINAL del prompt, y al inicio una línea que dice que son los únicos textos
+export const LINEA_SOLO_TEXTOS = "Los únicos textos de esta imagen son los de la lista TEXTOS (al final). Ignora cualquier texto que veas en las fotos adjuntas.";
+function textosAlFinal(texto) {
+  const lineas = String(texto || "").split("\n").filter(l => l.trim() !== LINEA_SOLO_TEXTOS);
+  const ini = lineas.map((l, i) => (/^TEXTOS( \(exactos\))?:/.test(l.trim()) ? i : -1)).filter(i => i >= 0);
+  if (ini.length !== 1) return lineas.join("\n");
+  let fin = ini[0] + 1;
+  while (fin < lineas.length && lineas[fin].trim() !== "" && !/^(ZONA LIBRE|TEXTO PARA SHOPIFY)/.test(lineas[fin].trim())) fin++;
+  const bloque = lineas.splice(ini[0], fin - ini[0]);
+  return { cuerpo: lineas.join("\n").replace(/\n{3,}/g, "\n\n").trim(), bloque: bloque.join("\n").trim() };
+}
 export function cierreSeccion(texto, p, seccion = {}) {
   // El precio y los prohibidos los pega el código al final (se rehacen cada vez: si cambias el precio en la Ficha, quedan al día)
-  const sinBloques = String(texto || "").replace(/\n+(VARIANTES EN ESTA SECCIÓN|OFERTA EN ESTA SECCIÓN|PRECIO \(cópialo EXACTO|PROHIBIDO EN ESTA IMAGEN|TEXTOS QUE NO DEBEN SALIR)[\s\S]*?(?=\n\n|$)/g, "");
+  const sinBloques = String(texto || "").replace(/\n+(VARIANTES EN ESTA SECCIÓN|OFERTA EN ESTA SECCIÓN|PRECIO \(cópialo EXACTO|PROHIBIDO EN ESTA IMAGEN|TEXTOS QUE NO DEBEN SALIR)[\s\S]*?(?=\n\n|$)/g, "").replace(/\n+MARGEN ABAJO[^\n]*/g, "");
   const base = conCierreResenas(conTitular(limpiarMontos(sinBloques, p, seccion), seccion), p, seccion.tipo, seccion.variante);
   const galeria = p?.formato === "normal" && seccion.tipo === "galeria";
   const oferta = bloqueOferta(p, seccion), variantes = bloqueVariantes(p, seccion);
-  const conBloques = String(base).replace(/\n+MARGEN ABAJO[\s\S]*?(?=\n\n|$)/, "").trimEnd() + `${variantes ? `\n\n${variantes}` : ""}${oferta ? `\n\n${oferta}` : ""}\n\n${bloquePrecio(p, seccion)}\n\n${bloqueProhibidos(p)}`;
-  return galeria ? conBloques : conBloques + margenAbajo(p, seccion.formato || (p?.formato === "normal" ? "1:1" : "9:16"));
+  const sinMargen = String(base).replace(/\n+MARGEN ABAJO[\s\S]*?(?=\n\n|$)/, "").trimEnd();
+  const t = textosAlFinal(sinMargen);
+  const cuerpo = typeof t === "string" ? t : `${LINEA_SOLO_TEXTOS}\n${t.cuerpo}`;
+  const conBloques = cuerpo + `${variantes ? `\n\n${variantes}` : ""}${oferta ? `\n\n${oferta}` : ""}\n\n${bloquePrecio(p, seccion)}\n\n${bloqueProhibidos(p)}`;
+  const final = galeria ? conBloques : conBloques + margenAbajo(p, seccion.formato || (p?.formato === "normal" ? "1:1" : "9:16"));
+  return typeof t === "string" ? final : `${final}\n\n${t.bloque}`;
 }
 
 export function promptSeccion(p, seccion, avatar, otras = []) {

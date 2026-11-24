@@ -237,6 +237,10 @@ export function registrarRutasIAImagenes(app, { cargarRama, guardarRama, actuali
       const uso = Array.isArray(x.p.ficha?.usoFotos) ? x.p.ficha.usoFotos : [];
       const sirven = todas.map((_, i) => i).filter(i => uso[i] !== "referencia");
       if (!sirven.length) return res.status(400).json({ error: "Todas tus fotos están marcadas como 'Referencia'. Marca al menos una como 'Producto solo' en la Ficha." });
+      // Si la revisión vio textos del proveedor en TODAS las fotos que van y el dueño no las ha tocado: no se genera (la IA copia el flyer)
+      const revFotos = Array.isArray(x.p.revision?.fotos) ? x.p.revision.fotos : [];
+      const conTexto = (i) => uso[i] === undefined && revFotos.some(f => Number(f.n) === i + 1 && f.tipo === "referencia");
+      if (sirven.every(conTexto)) return res.status(400).json({ error: "Tu foto tiene textos del proveedor; la IA los va a copiar. Recórtala o sube una foto limpia (en la Ficha). Si estás seguro de que sirve, márcala como 'Producto solo'." });
       const pedidas = Array.isArray(req.body?.refs) ? [...new Set(req.body.refs.map(Number))].filter(i => sirven.includes(i)) : [];
       let fotos = (pedidas.length ? pedidas : sirven).map(i => todas[i]).slice(0, MAX_REFERENCIAS);
       // Reseñas: 1 foto del producto + las fotos reales que mandaron los clientes (en el orden de las reseñas)

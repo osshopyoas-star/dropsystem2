@@ -1454,7 +1454,7 @@ window.estProponerTitulares = () => conCarga("estBtnTitulares", "Pensando titula
 const editandoPrompt = new Set();
 window.estVerPrompt = (id, editar) => { if (editar) editandoPrompt.add(id); else editandoPrompt.delete(id); renderPaso(); };
 // Etiquetas del prompt en negrita (FOTOGRAFÍA REAL, COMPOSICIÓN, TEXTOS (exactos), PRECIO…) y números de la composición resaltados
-const ETIQUETAS_PROMPT = /^(FOTOGRAFÍA REAL|COMPOSICIÓN[^:\n]*:|TEXTOS \(exactos\):|TEXTOS:|IDEA:|ZONA LIBRE:|MARGEN ABAJO|PRECIO \(cópialo EXACTO[^)]*\):|PROHIBIDO EN ESTA IMAGEN:|TEXTOS QUE NO DEBEN SALIR[^:]*:|VARIANTES EN ESTA SECCIÓN[^:]*:|OFERTA EN ESTA SECCIÓN[^:]*:|TEXTO PARA SHOPIFY|FOTO \d+[^\n]*|IMAGEN (ANTES|DESPUÉS)|Titular:|No escribas ningún otro texto[^\n]*|Ningún texto tapa[^\n]*)/;
+const ETIQUETAS_PROMPT = /^(Los únicos textos de esta imagen[^\n]*|FOTOGRAFÍA REAL|COMPOSICIÓN[^:\n]*:|TEXTOS \(exactos\):|TEXTOS:|IDEA:|ZONA LIBRE:|MARGEN ABAJO|PRECIO \(cópialo EXACTO[^)]*\):|PROHIBIDO EN ESTA IMAGEN:|TEXTOS QUE NO DEBEN SALIR[^:]*:|VARIANTES EN ESTA SECCIÓN[^:]*:|OFERTA EN ESTA SECCIÓN[^:]*:|TEXTO PARA SHOPIFY|FOTO \d+[^\n]*|IMAGEN (ANTES|DESPUÉS)|Titular:|No escribas ningún otro texto[^\n]*|Ningún texto tapa[^\n]*)/;
 function promptFormateado(texto) {
   return String(texto || "").split("\n").map(l => {
     const e = esc(l);
