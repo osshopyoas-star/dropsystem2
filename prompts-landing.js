@@ -6,7 +6,7 @@ import { limpiarFuentes } from "./public/js/core/fuentes.js";
 // y todas las landings nuevas la tendrán en cuenta.
 // =============================================
 
-import { SECCIONES, FORMATOS, varianteDe, tiposDe, claveDe, ACABADOS, ETAPAS_AIDA, etapaDe, ORDEN_BASE } from "./public/js/core/plantilla.js";
+import { SECCIONES, FORMATOS, varianteDe, tiposDe, claveDe, ACABADOS, ETAPAS_AIDA, etapaDe, ORDEN_BASE, llevaBarra } from "./public/js/core/plantilla.js";
 import { cifraPrueba } from "./public/js/core/finanzas.js";
 import { ofertaDe } from "./public/js/core/oferta.js";
 import { variantesDe, variantesTexto, colorDeSeccion, PORTADAS_V, SECCION_VARIANTES } from "./public/js/core/variantes.js";
@@ -517,7 +517,9 @@ ${lista([...ESTILOS_BASE_USADOS, ...usados])}
 TAREA: Propón 3 estilos visuales DISTINTOS entre sí para la landing de este producto, pensados para su cliente.
 Cada estilo es una identidad completa de CAMPAÑA: el mundo donde pasan las fotos (lugar, ambiente y luz, como una campaña de marca grande), colores con código hex, tipografía, recursos gráficos que la hacen reconocible, tipo de tarjetas, personas y tono.
 Ejemplo del nivel que quiero (otro producto, no lo copies): mundo = "campaña de marca de gimnasio: deportistas reales con piel con textura y un poco de sudor, luz dramática de gimnasio o de estadio de noche"; recursos = "líneas diagonales de velocidad en cian, titulares ligeramente inclinados, leve brillo cian en los acentos".
-Lo que siempre se mantiene en cualquier estilo: titular de dos líneas con dos colores y barra de confianza abajo; en las imágenes que llevan precio (portada, paquetes y cierre), precio protagonista con el "antes" tachado y sello de descuento.
+Lo que siempre se mantiene en cualquier estilo: titular de dos líneas con dos colores; barra de confianza SOLO en portada, cómo funciona, por qué comprar aquí, entrega y cierre; en las imágenes que llevan precio (portada, paquetes y cierre), precio protagonista con el "antes" tachado y sello de descuento.
+ESTILO SEGÚN EL NICHO: antes de proponer, piensa en el nicho del producto y en la emoción del cliente al usarlo. Al menos 2 de los 3 estilos salen directo de ese nicho. Ejemplos: fútbol e hinchas → estadio de noche, fondo oscuro con neón del color del equipo; bares y negocios → negro y dorado; Halloween → negro y naranja; moda femenina → claro o rosado elegante; hogar y cocina → cálido y luminoso; gimnasio → oscuro con un color eléctrico.
+Los 3 estilos: ALTO CONTRASTE, titulares gruesos con efecto (brillo, borde o textura) y UNA sola paleta que se repite en toda la landing.
 Recuerda: venta directa (empuja a comprar), no editorial. El rojo vende si encaja con el producto.
 Acabado que pide el dueño (los 3 estilos lo respetan): ${acabadoTexto(p)}${coloresFijosTexto(p)}
 
@@ -728,11 +730,11 @@ const dondeVaPrecio = (normal, precioEn) => precioEn === "solo_releasit" ? "el f
   : normal ? "Paquetes y Oferta de cierre" : "la portada, Paquetes y Oferta de cierre";
 
 // ---------- Lo que CoDropX pega al final de cada prompt de sección (no lo escribe la IA, así siempre se cumple) ----------
-export function margenAbajo(p, formato = "9:16") {
+export function margenAbajo(p, formato = "9:16", barra = true) {
   const m = Number(p?.plantilla?.margenAbajo) || 0;
   if (!m) return "";
   const alto = formato === "1:1" ? 1080 : formato === "16:9" ? 1080 : formato === "4:5" ? 1350 : 1920;
-  return `\n\nMARGEN ABAJO (el botón de compra de la tienda tapa esa parte): el ${m}% de abajo de la imagen (unos ${Math.round(alto * m / 100)} px de ${alto}) va SOLO con el fondo de la escena, continuo y sin nada encima: sin textos, íconos, barra de confianza, precio, botones ni producto. La barra de confianza va justo ENCIMA de ese margen, nunca pegada al borde de abajo.`;
+  return `\n\nMARGEN ABAJO (el botón de compra de la tienda tapa esa parte): el ${m}% de abajo de la imagen (unos ${Math.round(alto * m / 100)} px de ${alto}) va SOLO con el fondo de la escena, continuo y sin nada encima: sin textos, íconos, barra de confianza, precio, botones ni producto.${barra ? " La barra de confianza va justo ENCIMA de ese margen, nunca pegada al borde de abajo." : ""}`;
 }
 // ---------- Precios y textos prohibidos: los arma el código (la IA nunca escribe ni cambia un número) ----------
 const soloDigitos = (s) => String(s || "").replace(/\D/g, "");
@@ -992,6 +994,43 @@ export function limpiarMontos(texto, p, seccion = {}) {
   }).filter(l => l !== null).join("\n");
 }
 
+// ---------- 2.3 Reparto de la landing: personas que rotan y un plano distinto por sección ----------
+const SIN_PERSONAS = new Set(["detalles", "moda_material", "moda_ficha", "por_que_aqui", "moda_por_que", "que_incluye", "foto_real", "resenas", "moda_chats", "resumen_resenas", "numeros_reales", "preguntas", "confianza", "tamano_variantes", "moda_guia_tallas", "galeria"]);
+const PLANOS = ["cuerpo entero en acción", "medio plano con emoción", "primer plano de las manos usando el producto", "plano general del lugar con la persona pequeña al fondo", "plano 3/4 de lado, caminando"];
+export function repartoDe(p, seccion = {}) {
+  if (SIN_PERSONAS.has(seccion.tipo)) return "";
+  const secs = (Array.isArray(p?.secciones) ? p.secciones : []).filter(s => !SIN_PERSONAS.has(s.tipo));
+  const k = Math.max(0, secs.findIndex(s => s.id === seccion.id));
+  const o = ofertaDe(p?.ficha || {}, p?.pais === "EC" ? "EC" : "CO");
+  const portada = PORTADAS.has(seccion.tipo);
+  const quien = portada ? (["2x1", "xy"].includes(o.tipo) ? "la PERSONA 1 y la PERSONA 2 juntas" : "la PERSONA 1") : k % 2 ? "la PERSONA 2" : "la PERSONA 1";
+  const extra = seccion.tipo === "entrega" ? `un domiciliario (ropa lisa, sin logos) y ${quien} recibiendo`
+    : seccion.tipo === "como_funciona" ? `${quien} en los pasos 1 y 2, y en el paso 3 un domiciliario entregándole la caja` : quien;
+  const receta = conReceta(p, seccion.tipo) ? SECCIONES[seccion.tipo].receta : null;
+  const plano = receta?.escena || PLANOS[k % PLANOS.length];
+  return `
+PERSONAS DE ESTA LANDING (reparto fijo): PERSONA 1 = el avatar. PERSONA 2 = otra persona del mismo público pero DISTINTA (otra cara, otro peinado, otra ropa; puede ser su amigo, amiga o pareja). De apoyo: domiciliario y cliente recibiendo.
+EN ESTA IMAGEN: ${extra}. Plano: ${plano}. Nunca la misma pose de otra sección y NUNCA "de espaldas mirando por encima del hombro".`;
+}
+
+// ---------- 2.2 Barra de confianza solo donde toca (Mi plantilla decide por sección) ----------
+const conBarra = (p, tipo) => esNormal(p) ? true : llevaBarra(tipo, p?.plantilla);
+const RE_CONFIANZA = /pago contra entrega|pagas? al recibir|paga al recibir|env[ií]o gratis|pago seguro|compra segura|env[ií]o (?:a todo el pa[ií]s|r[aá]pido)/i;
+export function bloqueSinBarra(p, seccion = {}) {
+  if (conBarra(p, seccion.tipo) || ["galeria", "foto_real", "antes_despues"].includes(seccion.tipo)) return "";
+  return `SIN BARRA DE CONFIANZA EN ESTA IMAGEN: PROHIBIDO barra de confianza, íconos de envío o pago, "pago contra entrega", "envío gratis" y "pago seguro" (eso ya lo dice el botón de la tienda debajo de cada imagen).`;
+}
+function sinConfianza(texto, p, seccion) {
+  if (conBarra(p, seccion.tipo)) return texto;
+  return String(texto || "").split("\n").map(l => {
+    if (!/[“"]/.test(l)) return /barra de confianza/i.test(l) ? null : l;
+    if (!RE_CONFIANZA.test(l) && !/barra de confianza|^\s*barra\s*:/i.test(l)) return l;
+    if (/barra de confianza|^\s*-?\s*barra\s*[:(]/i.test(l)) return null;
+    const out = l.replace(/[“"]([^“"”]*)[”"](\s*\([^)]{0,60}\))?/g, (m, t) => (RE_CONFIANZA.test(t) ? "" : m)).replace(/:\s*(?:[·/,]\s*)+/g, ": ").replace(/\s*[·/,]\s*$/, "").trimEnd();
+    return /[“"][^“"”]*[A-Za-zÁÉÍÓÚÑáéíóúñ0-9][^“"”]*[”"]/.test(out) ? out : null;
+  }).filter(l => l !== null).join("\n");
+}
+
 // TEXTOS (exactos) va al FINAL del prompt, y al inicio una línea que dice que son los únicos textos
 export const LINEA_SOLO_TEXTOS = "Los únicos textos de esta imagen son los de la lista TEXTOS (al final). Ignora cualquier texto que veas en las fotos adjuntas.";
 function textosAlFinal(texto) {
@@ -1005,15 +1044,16 @@ function textosAlFinal(texto) {
 }
 export function cierreSeccion(texto, p, seccion = {}) {
   // El precio y los prohibidos los pega el código al final (se rehacen cada vez: si cambias el precio en la Ficha, quedan al día)
-  const sinBloques = String(texto || "").replace(/\n+(VARIANTES EN ESTA SECCIÓN|OFERTA EN ESTA SECCIÓN|PRECIO \(cópialo EXACTO|PROHIBIDO EN ESTA IMAGEN|TEXTOS QUE NO DEBEN SALIR)[\s\S]*?(?=\n\n|$)/g, "").replace(/\n+MARGEN ABAJO[^\n]*/g, "");
-  const base = conCierreResenas(conTitular(limpiarMontos(sinBloques, p, seccion), seccion), p, seccion.tipo, seccion.variante);
+  const sinBloques = String(texto || "").replace(/\n+(VARIANTES EN ESTA SECCIÓN|OFERTA EN ESTA SECCIÓN|PRECIO \(cópialo EXACTO|PROHIBIDO EN ESTA IMAGEN|SIN BARRA DE CONFIANZA|TEXTOS QUE NO DEBEN SALIR)[\s\S]*?(?=\n\n|$)/g, "").replace(/\n+MARGEN ABAJO[^\n]*/g, "");
+  const base = conCierreResenas(conTitular(sinConfianza(limpiarMontos(sinBloques, p, seccion), p, seccion), seccion), p, seccion.tipo, seccion.variante);
   const galeria = p?.formato === "normal" && seccion.tipo === "galeria";
   const oferta = bloqueOferta(p, seccion), variantes = bloqueVariantes(p, seccion);
   const sinMargen = String(base).replace(/\n+MARGEN ABAJO[\s\S]*?(?=\n\n|$)/, "").trimEnd();
   const t = textosAlFinal(sinMargen);
   const cuerpo = typeof t === "string" ? t : `${LINEA_SOLO_TEXTOS}\n${t.cuerpo}`;
-  const conBloques = cuerpo + `${variantes ? `\n\n${variantes}` : ""}${oferta ? `\n\n${oferta}` : ""}\n\n${bloquePrecio(p, seccion)}\n\n${bloqueProhibidos(p)}`;
-  const final = galeria ? conBloques : conBloques + margenAbajo(p, seccion.formato || (p?.formato === "normal" ? "1:1" : "9:16"));
+  const sinBarra = bloqueSinBarra(p, seccion);
+  const conBloques = cuerpo + `${variantes ? `\n\n${variantes}` : ""}${oferta ? `\n\n${oferta}` : ""}\n\n${bloquePrecio(p, seccion)}${sinBarra ? `\n\n${sinBarra}` : ""}\n\n${bloqueProhibidos(p)}`;
+  const final = galeria ? conBloques : conBloques + margenAbajo(p, seccion.formato || (p?.formato === "normal" ? "1:1" : "9:16"), conBarra(p, seccion.tipo));
   return typeof t === "string" ? final : `${final}\n\n${t.bloque}`;
 }
 
@@ -1067,7 +1107,7 @@ TITULAR YA ELEGIDO POR EL DUEÑO (úsalo EXACTO en TEXTOS, línea 1 en el color 
 El titular NUNCA es el nombre del producto: es un beneficio corto para el cliente.`}
 Qué debe tener: ${tipo?.def || seccion.proposito || ""}
 Propósito: ${seccion.proposito || ""}
-Composición asignada: ${receta ? "la de la RECETA" : seccion.composicion || "elige una que no se repita"}${bloqueReceta}${diseno}${formato}${seccion.tipo === "resenas" ? bloqueResenas(p) : ""}${seccion.tipo === "moda_chats" ? bloqueChats(p) : ""}${seccion.tipo === "numeros_reales" ? bloqueNumeros(p) : ""}${seccion.tipo === "resumen_resenas" ? bloqueCalificacion(p) : ""}${seccion.tipo === "pagas_al_recibir" ? bloquePagasAlRecibir(p) : ""}${seccion.tipo === "causa" ? `
+Composición asignada: ${receta ? "la de la RECETA" : seccion.composicion || "elige una que no se repita"}${bloqueReceta}${normal ? "" : repartoDe(p, seccion)}${diseno}${formato}${seccion.tipo === "resenas" ? bloqueResenas(p) : ""}${seccion.tipo === "moda_chats" ? bloqueChats(p) : ""}${seccion.tipo === "numeros_reales" ? bloqueNumeros(p) : ""}${seccion.tipo === "resumen_resenas" ? bloqueCalificacion(p) : ""}${seccion.tipo === "pagas_al_recibir" ? bloquePagasAlRecibir(p) : ""}${seccion.tipo === "causa" ? `
 CÓMO HACER "LA VERDADERA CAUSA": foto real de la escena con un gráfico MUY simple encima (líneas tipo tiza, flecha, lupa o etiquetas tachadas). Titular tipo "No es X, es Y" o "El problema no es lo que crees". Máximo 3 textos cortos además del titular. Cierra con la frase puente al producto. Nada de anatomía detallada, nada médico.` : ""}${diseno && !receta ? `
 (El diseño de Mi plantilla define DÓNDE van los bloques; la imagen sigue siendo una escena de foto real con vida, no un catálogo plano.)` : ""}
 
@@ -1102,11 +1142,11 @@ ZONA LIBRE: [zona lisa del mismo fondo si el dueño debe pegar algo después; si
 1) TITULAR arriba.
 2) FOTO ([qué % de la imagen ocupa]): [ESCENA concreta y distinta a las otras secciones: quién (edad, aspecto, ropa), pose o acción exacta, lugar, ángulo de cámara, luz y emoción]. El producto [PUESTO o EN USO, de qué color/variante es en esta imagen], GRANDE y nítido pero a su TAMAÑO REAL junto a las personas (para que se vea más, acerca la cámara; nunca lo agrandes).
 3) [Elemento gráfico de esta sección: tarjetas, chips con ícono, círculos de zoom, flechas…], sin tapar el producto.
-4) [${conPrecio ? "Banda de precio" : normal ? "Cierre visual de la imagen" : "Barra de confianza"}], encima del margen inferior.
+4) [${conPrecio ? "Banda de precio" : normal || !conBarra(p, seccion.tipo) ? "Cierre visual de la imagen" : "Barra de confianza"}], encima del margen inferior.
 (Un elemento por número; agrega 5), 6)… si hace falta.)
 TEXTOS (exactos):
 Titular: "[LÍNEA 1]" ([color]) / "[LÍNEA 2]" ([color])
-[Cada texto en su propia línea, entre comillas, con dónde va y su color: subtítulo, etiquetas${conPrecio ? ", precio" : ""}${normal ? "" : ", barra de confianza"}]
+[Cada texto en su propia línea, entre comillas, con dónde va y su color: subtítulo, etiquetas${conPrecio ? ", precio" : ""}${normal || !conBarra(p, seccion.tipo) ? "" : ", barra de confianza"}]
 No escribas ningún otro texto aparte de estos.
 Ningún texto tapa el producto.
 ZONA LIBRE: [si el dueño debe pegar algo después (GIF, logo, reseñas, transportadoras), di DÓNDE queda una zona lisa del mismo fondo, SIN dibujar recuadros, círculos ni marcos; si no aplica escribe "ninguna"]`}`}

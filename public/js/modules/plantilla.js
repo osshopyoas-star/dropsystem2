@@ -5,7 +5,7 @@
 // =============================================
 import { registrarRuta } from "./navegacion.js";
 import { escapeHTML } from "../core/utils.js";
-import { SECCIONES, FORMATOS, esFija, plantillaPorDefecto, normalizarPlantilla, CLAVES, claveDe, TIPOS_PRODUCTO, ACABADOS, MARGENES_ABAJO, MUESTRAS_COLORES } from "../core/plantilla.js";
+import { SECCIONES, FORMATOS, esFija, plantillaPorDefecto, normalizarPlantilla, CLAVES, claveDe, TIPOS_PRODUCTO, ACABADOS, MARGENES_ABAJO, MUESTRAS_COLORES, llevaBarra } from "../core/plantilla.js";
 import { ejemploDe } from "../core/ejemplos.js";
 
 const $ = (id) => document.getElementById(id);
@@ -158,6 +158,7 @@ function render() {
             return `
             <div class="pl-seccion ${x.visible || !p.usarOrden ? "" : "oculta"}" id="pl-sec-${x.tipo}">
               <h3>${esc(s.titulo)} ${x.visible || !p.usarOrden ? "" : `<small>(apagada)</small>`}</h3>
+              ${base() === "ban" && !["foto_real", "galeria"].includes(x.tipo) ? `<label class="pl-barra"><input type="checkbox" ${llevaBarra(x.tipo, p) ? "checked" : ""} onchange="plBarra('${x.tipo}', this.checked)"> Barra de confianza (envío, pago contra entrega, garantía)</label>` : ""}
               ${s.receta && base() === "ban" ? `<details class="pl-receta"><summary>Receta: qué lleva esta imagen</summary><ol>${s.receta.bloques.map(b => `<li>${esc(b)}</li>`).join("")}</ol><small>Escena: ${esc(s.receta.escena)}. Los diseños A, B, C… cambian solo la forma.</small></details>` : ""}
               <div class="pl-variantes">
                 <button class="pl-var ${actual ? "" : "elegida"}" onclick="plEstilo('${x.tipo}', '')">
@@ -320,6 +321,7 @@ window.plEstilo = (tipo, id) => {
   if (pantalla && bloque) pantalla.scrollTop = bloque.offsetTop - pantalla.offsetTop - 8;
 };
 window.plMargen = (m) => cambio(p => { p.margenAbajo = MARGENES_ABAJO.includes(Number(m)) ? Number(m) : 12; });
+window.plBarra = (tipo, v) => cambio(p => { p.barras = { ...(p.barras || {}), [tipo]: !!v }; });
 window.plMuestraColores = (k) => cambio(p => { p.muestraColores = MUESTRAS_COLORES[k] ? k : "circulos"; });
 window.plAcabado = (k) => cambio(p => { p.acabado = ACABADOS[k] ? k : "impacto"; });
 window.plModoColores = (modo) => cambio(p => { p.colores.modo = modo; });

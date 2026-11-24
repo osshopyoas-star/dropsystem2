@@ -499,8 +499,7 @@ export const RECETAS = {
   resenas: {
     bloques: [
       "Titular de prueba social + la calificación grande (solo si es real).",
-      "Carrusel de 4 tarjetas: foto del cliente, nombre, ciudad, estrellas, texto corto y foto del producto.",
-      "Barra de confianza."
+      "Carrusel de 4 tarjetas: foto del cliente, nombre, ciudad, estrellas, texto corto y foto del producto."
     ],
     escena: "solo las fotos reales que mandaron los clientes"
   },
@@ -636,6 +635,12 @@ export const ACABADOS = {
 
 // Margen de abajo libre (en % del alto) para que el botón fijo de compra (Releasit / Shopify) no tape nada
 export const MARGENES_ABAJO = [0, 8, 12, 15];
+// Barra de confianza (envío, pago contra entrega, garantía): solo donde toca. El botón de la tienda ya lo dice entre imagen e imagen
+export const BARRA_DEFECTO = new Set(["oferta", "moda_portada", "como_funciona", "por_que_aqui", "entrega", "oferta_cierre", "confianza", "pagas_al_recibir"]);
+export const llevaBarra = (tipo, plantilla) => {
+  const v = plantilla?.barras?.[tipo];
+  return typeof v === "boolean" ? v : BARRA_DEFECTO.has(tipo);
+};
 // Cómo se muestran los colores del producto en la portada y en la oferta de cierre (solo con 2 o más colores)
 export const MUESTRAS_COLORES = {
   circulos: { nombre: "Círculos grandes", desc: "Una fila \"ELIGE TU COLOR\" con un círculo por color (con foto si la subiste)." },
@@ -649,6 +654,7 @@ export function plantillaPorDefecto(clave) {
   return {
     margenAbajo: margenBase(f),   // % de abajo de cada imagen que va solo con fondo
     muestraColores: "circulos",   // circulos | casillas | ninguna
+    barras: {},                   // tipo → true/false (sin valor = lo de siempre: BARRA_DEFECTO)
     usarOrden: false,
     orden: ORDEN_BASE[f].map(([tipo, visible]) => ({ tipo, visible: !!visible })),
     estilos: {},                  // tipo → id de variante (sin valor = "Al azar")
@@ -699,7 +705,10 @@ export function normalizarPlantilla(clave, raw = {}) {
 
   const margenAbajo = MARGENES_ABAJO.includes(Number(r.margenAbajo)) ? Number(r.margenAbajo) : margenBase(f);
   const muestraColores = MUESTRAS_COLORES[r.muestraColores] ? r.muestraColores : "circulos";
-  return { usarOrden: !!r.usarOrden, orden, estilos, colores, acabado: ACABADOS[r.acabado] ? r.acabado : "impacto", margenAbajo, muestraColores };
+  const barras = {};
+  const rb = r.barras && typeof r.barras === "object" ? r.barras : {};
+  for (const tipo of validos) if (typeof rb[tipo] === "boolean" && rb[tipo] !== BARRA_DEFECTO.has(tipo)) barras[tipo] = rb[tipo];
+  return { usarOrden: !!r.usarOrden, orden, estilos, colores, acabado: ACABADOS[r.acabado] ? r.acabado : "impacto", margenAbajo, muestraColores, barras };
 }
 
 export const varianteDe = (tipo, id) => (SECCIONES[tipo]?.variantes || []).find(v => v.id === id) || null;
