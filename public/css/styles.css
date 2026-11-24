@@ -3656,6 +3656,29 @@ aside.collapsed .submenu .sidebar-item {
 .est-foto-real-lista button { padding: 0; border: 2px solid transparent; border-radius: 10px; overflow: hidden; cursor: pointer; background: none; width: 86px; height: 86px; }
 .est-foto-real-lista button:hover { border-color: #3b82f6; }
 .est-foto-real-lista img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pl-var-caja { display: flex; flex-direction: column; gap: 4px; }
+.pl-ej-acc { display: flex; justify-content: center; gap: 4px; min-height: 26px; }
+.pl-ej-acc button { border: 1px solid #cbd5e1; background: #fff; border-radius: 8px; padding: 3px 7px; font-size: 11px; color: #2563eb; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+.pl-ej-acc button svg { width: 13px; height: 13px; }
+.pl-ej-creando { font-size: 11px; color: #475569; display: inline-flex; align-items: center; gap: 4px; }
+.pl-ejemplo.mio { outline: 2px solid #3b82f6; outline-offset: -2px; }
+.pl-ej-todos { width: 100%; margin: 6px 0; justify-content: center; }
+.pl-boton-tienda { margin: 4px 6px 8px; padding: 7px 6px; border-radius: 8px; background: #111827; color: #fff; font-size: 9px; font-weight: 800; text-align: center; letter-spacing: .3px; }
+.pl-bloque.real img { width: 100%; height: auto; }
+.pl-modal-fondo { position: fixed; inset: 0; background: rgba(15,23,42,.55); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 16px; }
+.pl-modal { background: #fff; color: #0f172a; border-radius: 14px; padding: 18px; width: 100%; max-width: 440px; display: grid; gap: 10px; }
+.pl-modal h3 { margin: 0; }
+.pl-modal label { display: grid; gap: 4px; font-size: 13px; font-weight: 600; }
+.pl-modal input, .pl-modal select { padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; font-weight: 400; }
+.pl-modal-acc { display: flex; justify-content: flex-end; gap: 8px; }
+.pl-btn.ghost { background: #fff; color: #2563eb; border: 1px solid #cbd5e1; }
+.pl-ref-subir { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-bottom: 10px; }
+.pl-ref-subir label:first-child { display: grid; gap: 4px; font-size: 13px; }
+.pl-ref-subir select, .pl-ref select { padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; font-size: 12px; max-width: 100%; }
+.pl-refs { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+.pl-ref { display: grid; gap: 4px; font-size: 12px; }
+.pl-ref img { width: 100%; aspect-ratio: 9 / 16; object-fit: cover; border-radius: 8px; border: 1px solid #e2e8f0; }
+.pl-ref.apagada img { opacity: .4; }
 .pl-barra { display: flex; align-items: center; gap: 6px; font-size: 13px; margin: 2px 0 4px; color: #475569; cursor: pointer; }
 .pl-receta { margin: 4px 0 8px; font-size: 13px; }
 .pl-receta summary { cursor: pointer; color: #2563eb; font-weight: 600; }

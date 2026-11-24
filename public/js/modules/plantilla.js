@@ -20,6 +20,11 @@ let formato = "ban";     // clave: ban · normal · moda_ban · moda_normal
 const base = () => (formato.endsWith("normal") ? "normal" : "ban");
 const tipoProd = () => (formato.startsWith("moda_") ? "moda" : "producto");
 let recuperado = false;
+let misEjemplos = [];     // ejemplos reales que creaste (uno por sección y diseño)
+let misRefs = [];         // "Mis landings que venden"
+let gastoIA = null;
+let creando = null;       // { tipo, variante } o { todos: true, hechas, total }
+let refTipo = "oferta";   // a qué sección van las referencias que subes
 
 async function api(metodo, url, body) {
   const res = await fetch(url, {
@@ -164,11 +169,18 @@ function render() {
                 <button class="pl-var ${actual ? "" : "elegida"}" onclick="plEstilo('${x.tipo}', '')">
                   ${ICONO_AZAR}<span>Al azar</span><small>como hoy</small>
                 </button>
-                ${s.variantes.map((v, k) => `
+                ${s.variantes.map((v, k) => {
+                  const mio = ejemploMio(x.tipo, v.id);
+                  const ocupado = creando && ((creando.tipo === x.tipo && creando.variante === v.id) || creando.actual === `${x.tipo}:${v.id}`);
+                  return `<div class="pl-var-caja">
                   <button class="pl-var ${actual === v.id ? "elegida" : ""}" title="${esc(v.desc)}" onclick="plEstilo('${x.tipo}', '${v.id}')">
                     ${miniatura(x.tipo, v, azul, "pl-dibujo")}
                     <span>${String.fromCharCode(65 + k)} · ${esc(v.nombre)}</span>
-                  </button>`).join("")}
+                  </button>
+                  <div class="pl-ej-acc">${ocupado ? `<span class="pl-ej-creando"><span class="est-spin"></span> Creando…</span>`
+                    : mio ? `<button title="Rehacer el ejemplo (${esc(mio.producto)})" onclick="plEjemplo('${x.tipo}', '${v.id}')"><i data-lucide="refresh-cw"></i></button><button title="Borrar el ejemplo" onclick="plBorrarEjemplo('${mio._id}')"><i data-lucide="trash-2"></i></button>`
+                    : `<button class="pl-ej-crear" onclick="plEjemplo('${x.tipo}', '${v.id}')"><i data-lucide="sparkles"></i> Crear ejemplo</button>`}</div>
+                </div>`; }).join("")}
               </div>
             </div>`;
           }).join("")}
@@ -207,6 +219,8 @@ function render() {
               </button>`).join("")}
           </div>
         </section>
+
+        ${tarjetaReferencias(p)}
 
         <section class="pl-card">
           <div class="pl-card-head">
@@ -259,6 +273,8 @@ function render() {
 
       <div class="pl-preview">
         <h3>Vista previa del orden</h3>
+        <button class="pl-btn pl-ej-todos" ${creando ? "disabled" : ""} onclick="plEjemplosTodos()">${creando?.todos ? `<span class="est-spin"></span> Creando ${creando.hechas + 1} de ${creando.total}…` : `<i data-lucide="sparkles"></i> Crear ejemplos de toda la plantilla`}</button>
+        ${gastoIA ? `<p class="pl-nota">Ejemplos este mes: ${gastoIA.ejemplos || 0} (unos $${Number(gastoIA.usdEjemplos || 0).toFixed(2)} USD). Te quedan $${Number(gastoIA.queda || 0).toFixed(2)} de $${Number(gastoIA.limite || 0).toFixed(2)}.</p>` : ""}
         <div class="pl-telefono">
           <div class="pl-pantalla">
             ${vistaPrevia(p, azul)}
@@ -266,6 +282,7 @@ function render() {
         </div>
         <p class="pl-nota">${p.usarOrden
           ? "Así queda el orden de tus landings nuevas. Lo que dejes «Al azar» sale distinto en cada landing."
+          : base() === "ban" ? "El orden de las recetas. Las que no aplican a un producto (sin reseñas reales, sin paquetes…) se saltan solas. Entre imagen e imagen va el botón de tu tienda."
           : "Ejemplo con el orden de siempre: con «La IA elige», las secciones cambian según el producto. El diseño que fijes sí se respeta."}</p>
       </div>
     </div>
@@ -274,7 +291,12 @@ function render() {
 }
 
 // Imagen real de ejemplo (si ya existe) o el dibujo del diseño
+const ejemploMio = (tipo, variante) => misEjemplos.find(e => e.clave === formato && e.tipo === tipo && e.variante === variante);
+const ejemploDeTipo = (tipo, variante) => ejemploMio(tipo, variante) || misEjemplos.find(e => e.clave === formato && e.tipo === tipo);
+const srcMio = (e) => `/api/plantilla/ejemplos/${e._id}/img?v=${encodeURIComponent(e.creado || "")}`;
 function miniatura(tipo, v, azul, clase) {
+  const mio = ejemploMio(tipo, v.id);
+  if (mio) return `<img class="${clase} pl-ejemplo mio ${base() === "normal" ? "cuadrada" : ""}" src="${srcMio(mio)}" alt="Tu ejemplo: ${esc(v.nombre)}" loading="lazy" decoding="async">`;
   const src = ejemploDe(tipo, v.id, base(), tipoProd());
   return src
     ? `<img class="${clase} pl-ejemplo ${base() === "normal" ? "cuadrada" : ""}" src="${src}" alt="Ejemplo: ${esc(v.nombre)}" loading="lazy" decoding="async">`
@@ -282,17 +304,152 @@ function miniatura(tipo, v, azul, clase) {
 }
 
 function vistaPrevia(p, azul) {
+  const boton = base() === "ban" ? `<div class="pl-boton-tienda">ORDENA AHORA, PAGAS EN CASA</div>` : "";
   return p.orden.filter(x => x.visible).map(x => {
     const s = SECCIONES[x.tipo];
     const fija = s.variantes.find(v => v.id === p.estilos[x.tipo]);
     const v = fija || s.variantes[0];
+    const mio = ejemploDeTipo(x.tipo, v.id);
     return `
-      <div class="pl-bloque ${fija ? "" : "azar"}" data-tipo="${x.tipo}" onclick="document.getElementById('pl-sec-${x.tipo}')?.scrollIntoView({behavior:'smooth', block:'center'})">
-        ${miniatura(x.tipo, v, azul, "pl-dibujo-grande")}
+      <div class="pl-bloque ${fija ? "" : "azar"} ${mio ? "real" : ""}" data-tipo="${x.tipo}" onclick="document.getElementById('pl-sec-${x.tipo}')?.scrollIntoView({behavior:'smooth', block:'center'})">
+        ${mio ? `<img class="pl-dibujo-grande pl-ejemplo mio ${base() === "normal" ? "cuadrada" : ""}" src="${srcMio(mio)}" alt="Ejemplo de ${esc(s.titulo)}" loading="lazy">` : miniatura(x.tipo, v, azul, "pl-dibujo-grande")}
         <span>${esc(s.titulo)}${fija ? ` · ${esc(fija.nombre)}` : " · al azar"}</span>
-      </div>`;
+      </div>${boton}`;
   }).join("");
 }
+
+// ---------- Ejemplos reales: "¿Con qué producto?" ----------
+let proyectosCache = null;
+function recordar(k, v) { try { if (v === undefined) return localStorage.getItem(k) || ""; localStorage.setItem(k, v); } catch { return ""; } return ""; }
+async function pedirProducto(titulo) {
+  if (!proyectosCache) { try { proyectosCache = await api("GET", "/api/proyectos"); } catch { proyectosCache = []; } }
+  const costo = gastoIA ? gastoIA.precioImagen + gastoIA.precioReferencia : 0.05;
+  return new Promise((resolver) => {
+    const fondo = document.createElement("div");
+    fondo.className = "pl-modal-fondo";
+    fondo.innerHTML = `<div class="pl-modal" role="dialog" aria-label="${esc(titulo)}">
+      <h3>${esc(titulo)}</h3>
+      <label>¿Con qué producto?<input id="plEjProd" placeholder="Ej: camiseta de fútbol, masajeador de cuello" maxlength="120" value="${esc(recordar("pl_ej_producto"))}"></label>
+      <label>O usa uno de tus proyectos (con su Ficha y sus fotos)<select id="plEjProy"><option value="">— Ninguno —</option>${(proyectosCache || []).map(x => `<option value="${esc(x._id)}">${esc(x.nombre)}</option>`).join("")}</select></label>
+      <label>Foto del producto (opcional)<input id="plEjFoto" type="file" accept="image/png,image/jpeg,image/webp"></label>
+      <p class="pl-nota">Cada ejemplo cuesta unos $${costo.toFixed(2)} USD de tu saldo de xAI. No toca ningún proyecto.</p>
+      <div class="pl-modal-acc"><button class="pl-btn ghost" data-no>Cancelar</button><button class="pl-btn" data-si><i data-lucide="sparkles"></i> Crear</button></div>
+    </div>`;
+    document.body.appendChild(fondo);
+    iconos();
+    const cerrar = (v) => { fondo.remove(); resolver(v); };
+    fondo.querySelector("[data-no]").onclick = () => cerrar(null);
+    fondo.onclick = (e) => { if (e.target === fondo) cerrar(null); };
+    fondo.querySelector("[data-si]").onclick = async () => {
+      const producto = $("plEjProd").value.trim(), proyecto = $("plEjProy").value;
+      if (!producto && !proyecto) { avisar("Escribe un producto o elige un proyecto", "error"); return; }
+      const archivo = $("plEjFoto").files?.[0];
+      const foto = archivo ? await achicar(archivo, 1280) : "";
+      if (producto) recordar("pl_ej_producto", producto);
+      cerrar({ producto, proyecto, foto });
+    };
+    setTimeout(() => $("plEjProd")?.focus(), 50);
+  });
+}
+// Achica una imagen en el navegador (JPG, lado mayor máx)
+function achicar(archivo, max = 1600) {
+  return new Promise((ok, mal) => {
+    const img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement("canvas"); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(img.src);
+      ok(c.toDataURL("image/jpeg", 0.85));
+    };
+    img.onerror = () => mal(new Error("No se pudo leer la imagen"));
+    img.src = URL.createObjectURL(archivo);
+  });
+}
+async function crearUno(tipo, variante, datos) {
+  const { ejemplo, gasto } = await api("POST", "/api/plantilla/ejemplos", { clave: formato, tipo, variante, ...datos });
+  misEjemplos = [ejemplo, ...misEjemplos.filter(e => !(e.clave === ejemplo.clave && e.tipo === ejemplo.tipo && e.variante === ejemplo.variante))];
+  gastoIA = gasto || gastoIA;
+}
+window.plEjemplo = async (tipo, variante) => {
+  if (creando) return;
+  const datos = await pedirProducto(`Crear ejemplo: ${SECCIONES[tipo].titulo}`);
+  if (!datos) return;
+  creando = { tipo, variante };
+  render();
+  try { await crearUno(tipo, variante, datos); avisar("Ejemplo listo ✓"); }
+  catch (e) { avisar(e.message, "error"); }
+  creando = null;
+  render();
+};
+window.plEjemplosTodos = async () => {
+  if (creando) return;
+  const p = borrador[formato];
+  const lista = p.orden.filter(x => x.visible).map(x => ({ tipo: x.tipo, variante: p.estilos[x.tipo] || SECCIONES[x.tipo].variantes[0]?.id || "" }));
+  const datos = await pedirProducto(`Crear ejemplos de toda la plantilla (${lista.length} secciones)`);
+  if (!datos) return;
+  if (!confirm(`Se van a crear ${lista.length} imágenes, unos $${(lista.length * (gastoIA ? gastoIA.precioImagen + gastoIA.precioReferencia : 0.05)).toFixed(2)} USD. ¿Seguir?`)) return;
+  creando = { todos: true, hechas: 0, total: lista.length };
+  const fallas = [];
+  for (const it of lista) {
+    creando.actual = `${it.tipo}:${it.variante}`;
+    render();
+    try { await crearUno(it.tipo, it.variante, datos); }
+    catch (e) { fallas.push(`${SECCIONES[it.tipo].titulo}: ${e.message}`); if (/límite/i.test(e.message)) break; }
+    creando.hechas++;
+  }
+  creando = null;
+  render();
+  avisar(fallas.length ? `Listo, con ${fallas.length} sin hacer. ${fallas[0]}` : "Ejemplos listos ✓", fallas.length ? "error" : "ok");
+};
+window.plBorrarEjemplo = async (id) => {
+  if (!confirm("¿Borrar este ejemplo?")) return;
+  try { await api("DELETE", `/api/plantilla/ejemplos/${id}`); misEjemplos = misEjemplos.filter(e => e._id !== id); render(); }
+  catch (e) { avisar(e.message, "error"); }
+};
+
+// ---------- Mis landings que venden ----------
+function tarjetaReferencias(p) {
+  const tipos = p.orden.map(x => x.tipo);
+  const opciones = (sel) => tipos.map(t => `<option value="${t}" ${t === sel ? "selected" : ""}>${esc(SECCIONES[t].titulo)}</option>`).join("");
+  const mias = misRefs.filter(r => tipos.includes(r.tipo));
+  return `<section class="pl-card">
+    <div class="pl-card-head"><div>
+      <h2>Mis landings que venden</h2>
+      <p>Sube las imágenes de una landing tuya que funciona y dile a qué sección corresponde cada una. Al escribir los prompts y al generar esa sección, CoDropX la usa como guía de <b>composición, densidad y acabado</b>, sin copiar su producto, textos, logos ni colores. Cuesta un poco más por imagen (la referencia también se cobra).</p>
+    </div></div>
+    <div class="pl-ref-subir">
+      <label>Sección <select onchange="plRefTipo(this.value)">${opciones(tipos.includes(refTipo) ? refTipo : tipos[0])}</select></label>
+      <label class="pl-btn"><i data-lucide="upload"></i> Subir imágenes<input type="file" accept="image/png,image/jpeg,image/webp" multiple hidden onchange="plSubirRefs(this.files); this.value=''"></label>
+    </div>
+    ${mias.length ? `<div class="pl-refs">${mias.map(r => `<div class="pl-ref ${r.activa ? "" : "apagada"}">
+      <img src="/api/plantilla/referencias/${r._id}/img" alt="Referencia" loading="lazy">
+      <select onchange="plRefCambiar('${r._id}', {tipo: this.value})">${opciones(r.tipo)}</select>
+      <label><input type="checkbox" ${r.activa ? "checked" : ""} onchange="plRefCambiar('${r._id}', {activa: this.checked})"> Usarla</label>
+      <button class="est-link" onclick="plRefBorrar('${r._id}')">Borrar</button>
+    </div>`).join("")}</div>` : `<p class="pl-nota">Aún no tienes referencias. Si hay varias activas para una sección, se usa la más nueva.</p>`}
+  </section>`;
+}
+window.plRefTipo = (t) => { refTipo = t; };
+window.plSubirRefs = async (files) => {
+  const tipo = SECCIONES[refTipo] && borrador[formato].orden.some(x => x.tipo === refTipo) ? refTipo : borrador[formato].orden[0].tipo;
+  let n = 0;
+  for (const f of [...(files || [])].filter(f => /^image\//.test(f.type)).slice(0, 10)) {
+    try { const r = await api("POST", "/api/plantilla/referencias", { tipo, dataUrl: await achicar(f, 1600) }); misRefs = [r, ...misRefs]; n++; }
+    catch (e) { avisar(e.message, "error"); break; }
+  }
+  if (n) avisar(n === 1 ? "Referencia guardada ✓" : `${n} referencias guardadas ✓`);
+  render();
+};
+window.plRefCambiar = async (id, cambios) => {
+  try { const r = await api("PUT", `/api/plantilla/referencias/${id}`, cambios); misRefs = misRefs.map(x => (x._id === id ? r : x)); render(); }
+  catch (e) { avisar(e.message, "error"); }
+};
+window.plRefBorrar = async (id) => {
+  if (!confirm("¿Borrar esta referencia?")) return;
+  try { await api("DELETE", `/api/plantilla/referencias/${id}`); misRefs = misRefs.filter(x => x._id !== id); render(); }
+  catch (e) { avisar(e.message, "error"); }
+};
 
 function cambio(fn) {
   fn(borrador[formato]);
@@ -369,7 +526,13 @@ registrarRuta("plantilla", async (view) => {
   window.marcarMenuActivo?.("plantilla");
   view.innerHTML = `<div class="pl-page"><p class="est-muted">Cargando tu plantilla...</p></div>`;
   try {
-    const r = await api("GET", "/api/plantilla");
+    const [r, ej, refs, g] = await Promise.all([
+      api("GET", "/api/plantilla"),
+      api("GET", "/api/plantilla/ejemplos").catch(() => []),
+      api("GET", "/api/plantilla/referencias").catch(() => []),
+      api("GET", "/api/ia/gasto").catch(() => null)
+    ]);
+    misEjemplos = Array.isArray(ej) ? ej : []; misRefs = Array.isArray(refs) ? refs : []; gastoIA = g;
     guardada = Object.fromEntries(CLAVES.map(c => [c, r[c]]));
     borrador = copia(guardada);
     recuperado = false;

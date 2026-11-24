@@ -41,6 +41,7 @@ import {
   SIN_PROMPT
 } from "./prompts-landing.js";
 import { obtenerPlantilla } from "./rutas-plantilla.js";
+import { referenciaDe, AVISO_REFERENCIA } from "./modelo-referencias.js";
 import { ofertaDe } from "./public/js/core/oferta.js";
 import { ESTRUCTURAS_AD, FORMATOS_AD, MAX_ADS, compararAvatares, fatigaAnuncios } from "./public/js/core/anuncios.js";
 import { metricasAnuncios } from "./rutas-meta.js";
@@ -1027,9 +1028,11 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
         if (opciones.length) sec = { ...sec, titulares: sec.titulares?.length ? sec.titulares : opciones, titular: opciones[0] };
       }
       const otras = secs.filter(sx => sx.id !== sec.id);
+      const refDiseno = await referenciaDe(req.user.uid, sec.tipo);
       const reply = await llamarIA({
         system: SISTEMA_LANDING,
-        prompt: promptSeccion({ ...x.vista, bloqueEstilo: bloque }, sec, x.avatar, otras)
+        prompt: promptSeccion({ ...x.vista, bloqueEstilo: bloque }, sec, x.avatar, otras) + (refDiseno ? `\n\nIMAGEN ADJUNTA: una landing del dueño que SÍ vende, de esta misma sección. ${AVISO_REFERENCIA}` : ""),
+        ...(refDiseno ? { image: refDiseno } : {})
       });
       let crudo = String(reply || "").replace(/^```[a-z]*\n?|```$/gim, "").trim();
       if (!crudo) return res.status(502).json({ error: "La IA no devolvió el prompt" });

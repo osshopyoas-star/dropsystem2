@@ -9,6 +9,7 @@ import mongoose from "mongoose";
 import { limpiarFuentes } from "./public/js/core/fuentes.js";
 import { ImagenLanding, metaImagen, MAX_POR_SECCION, tipoDeBytes, medidasDeBytes } from "./modelo-imagenes.js";
 import zlib from "zlib";
+import { referenciaDe, AVISO_REFERENCIA } from "./modelo-referencias.js";
 import { cierreSeccion, textosPermitidos, promptRevisarImagen, problemasDeTextos } from "./prompts-landing.js";
 import { ofertaDe } from "./public/js/core/oferta.js";
 import { variantesDe, colorDeSeccion, PORTADAS_V } from "./public/js/core/variantes.js";
@@ -30,6 +31,8 @@ const gastoSchema = new mongoose.Schema({
   usd: { type: Number, default: 0 },
   imagenes: { type: Number, default: 0 },
   ticks: { type: Number, default: 0 },            // lo que reporta xAI (para comparar con el estimado)
+  ejemplos: { type: Number, default: 0 },         // imágenes de ejemplo de Mi plantilla (van dentro del mismo límite)
+  usdEjemplos: { type: Number, default: 0 },
   actualizado: { type: Date, default: Date.now }
 });
 gastoSchema.index({ owner: 1, mes: 1 }, { unique: true });
@@ -45,17 +48,17 @@ export const ConfigIA = mongoose.model("ConfigIA", configSchema);
 let http = (...a) => fetch(...a);
 export function usarFetchIA(fn) { http = fn; }
 
-const mesActual = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Bogota" }).slice(0, 7);
+export const mesActual = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Bogota" }).slice(0, 7);
 const redondear = (n) => Math.round(n * 1000) / 1000;
 
-async function estadoGasto(owner) {
+export async function estadoGasto(owner) {
   const [g, c] = await Promise.all([
     GastoIA.findOne({ owner, mes: mesActual() }).lean(),
     ConfigIA.findOne({ owner }).lean()
   ]);
   const limite = c?.limiteUsd ?? LIMITE_DEFECTO;
   const usd = redondear(g?.usd || 0);
-  return { mes: mesActual(), usd, imagenes: g?.imagenes || 0, limite, queda: redondear(Math.max(0, limite - usd)), precioImagen: PRECIO_IMAGEN, precioReferencia: PRECIO_REFERENCIA, autoRegenerar: !!c?.autoRegenerar };
+  return { mes: mesActual(), usd, imagenes: g?.imagenes || 0, ejemplos: g?.ejemplos || 0, usdEjemplos: redondear(g?.usdEjemplos || 0), limite, queda: redondear(Math.max(0, limite - usd)), precioImagen: PRECIO_IMAGEN, precioReferencia: PRECIO_REFERENCIA, autoRegenerar: !!c?.autoRegenerar };
 }
 
 export const aspectoDe = (formato) => {
@@ -107,8 +110,9 @@ const formaOk = (m, aspecto) => {
   return Math.abs(m.ancho / m.alto - a / b) / (a / b) < 0.06;
 };
 
-export async function pedirImagen({ prompt, fotos, aspecto, resolucion = null, _conLienzo = false }) {
-  const refs = fotos.slice(0, MAX_REFERENCIAS);
+// extra: imágenes que van después de las fotos (ej. la referencia de diseño de "Mis landings que venden")
+export async function pedirImagen({ prompt, fotos, aspecto, resolucion = null, extra = [], _conLienzo = false }) {
+  const refs = [...fotos.slice(0, MAX_REFERENCIAS), ...extra.slice(0, 1)];
   // Segundo intento con el lienzo de primera foto: las demás fotos corren un puesto (<IMAGE_0> → <IMAGE_1>)
   if (_conLienzo) {
     refs.unshift(lienzoPNG(aspecto));
@@ -155,7 +159,7 @@ export async function pedirImagen({ prompt, fotos, aspecto, resolucion = null, _
   if (!_conLienzo && !formaOk(medidas, aspecto)) {
     console.warn(`xAI devolvió ${medidas.ancho}x${medidas.alto} y se pidió ${aspecto}: se rehace con lienzo`);
     try {
-      const otra = await pedirImagen({ prompt, fotos, aspecto, resolucion, _conLienzo: true });
+      const otra = await pedirImagen({ prompt, fotos, aspecto, resolucion, extra, _conLienzo: true });
       return { ...otra, ticks: otra.ticks + (Number(j?.usage?.cost_in_usd_ticks) || 0), rehechaPorForma: true };
     } catch (e) { console.warn("No se pudo rehacer con lienzo:", e.message); }
   }
@@ -266,7 +270,9 @@ export function registrarRutasIAImagenes(app, { cargarRama, guardarRama, actuali
         const fr = oferta.regalos.filter(g => g.foto).map(g => g.foto).slice(0, MAX_REFERENCIAS - 1);
         if (fr.length) { fotos = [fotos[0], ...fr].slice(0, MAX_REFERENCIAS); regalos = fotos.length - 1; colorNombres = colorNombres.slice(0, 1); }
       }
-      const estimado = PRECIO_IMAGEN + PRECIO_REFERENCIA * fotos.length;
+      // Mis landings que venden: la referencia de diseño de esta receta (si está activa)
+      const refDiseno = await referenciaDe(req.user.uid, sec.tipo);
+      const estimado = PRECIO_IMAGEN + PRECIO_REFERENCIA * (fotos.length + (refDiseno ? 1 : 0));
       const g = await estadoGasto(req.user.uid);
       if (g.usd + estimado > g.limite + 1e-9) {
         return res.status(400).json({ error: `Llegaste al límite de gasto de este mes ($${g.usd.toFixed(2)} de $${g.limite.toFixed(2)} USD). Súbelo si quieres seguir.`, gasto: g });
@@ -292,7 +298,7 @@ export function registrarRutasIAImagenes(app, { cargarRama, guardarRama, actuali
         unidades: ["2x1", "xy"].includes(oferta.tipo) && ["oferta", "moda_portada", "paquetes", "oferta_cierre", "moda_precio_tallas"].includes(sec.tipo) ? oferta.unidades : 1,
         descripcion: String(x.p.revision?.descripcionFisica || "").slice(0, 600) + (x.p.ficha?.medidas ? ` Medidas: ${String(x.p.ficha.medidas).slice(0, 120)}.` : ""),
         noTiene: [...(Array.isArray(x.p.revision?.noTiene) ? x.p.revision.noTiene : []), x.p.ficha?.noTiene].filter(Boolean).join("; ").slice(0, 300)
-      }), fotos, aspecto: aspectoDe(sec.formato) });
+      }) + (refDiseno ? `\n\nREFERENCIA DE DISEÑO: <IMAGE_${fotos.length}> es una landing que sí vende. ${AVISO_REFERENCIA}` : ""), fotos, extra: refDiseno ? [refDiseno] : [], aspecto: aspectoDe(sec.formato) });
 
       await GastoIA.findOneAndUpdate(
         { owner: req.user.uid, mes: mesActual() },
