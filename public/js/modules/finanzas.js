@@ -28,7 +28,7 @@ const st = {
   dia: null,
   rango: { modo: "7d", desde: "", hasta: "", clave: "", porProducto: true, resultado: "", orden: null },   // orden: { k, dir: 1 | -1 }
   rep: { periodo: "todo", desde: "", hasta: "", clave: "", referencia: 70, rentOrden: "neta", mesCostos: "", guardado: null },
-  log: { periodo: "todo", desde: "", hasta: "", filtro: "activos", estatus: "", buscar: "", pagina: 1, porPagina: 25, ciudadesN: 5, ciudadesPag: 1, ciudadOrden: "total", priorizar: true, prodBuscar: "", ciudadTransp: "" },
+  log: { periodo: "todo", desde: "", hasta: "", filtro: "activos", estatus: "", buscar: "", pagina: 1, porPagina: 25, ciudadesN: 5, ciudadesPag: 1, ciudadOrden: "total", priorizar: true, prodBuscar: "", prodOrden: null, ciudadTransp: "" },
   pagina: null,
   // Control Diario: de dónde salen los pedidos del día (Excel de Dropi o Shopify en vivo)
   fuente: (() => { try { return localStorage.getItem("fz_fuente") || "dropi"; } catch { return "dropi"; } })(),
@@ -1997,12 +1997,16 @@ function tablaCiudades(r) {
 
 function tablaProductos(r) {
   const b = st.log.prodBuscar.trim().toLowerCase();
-  const lista = r.productos.filter(p => !b || p.nombre.toLowerCase().includes(b));
+  let lista = r.productos.filter(p => !b || p.nombre.toLowerCase().includes(b));
+  // Ordenar tocando el encabezado: 1er toque de mayor a menor, 2º de menor a mayor, 3º como venía
+  const o = st.log.prodOrden;
+  if (o?.k) lista = lista.slice().sort((x, y) => (o.k === "nombre" ? String(x.nombre).localeCompare(y.nombre, "es") : (Number(x[o.k]) || 0) - (Number(y[o.k]) || 0)) * o.dir);
+  const th = (k, tx, cls = "") => `<th class="${cls} fz-ord ${o?.k === k ? "on" : ""}" onclick="fzLogProdOrden('${k}')">${tx}${o?.k === k ? (o.dir > 0 ? " ▲" : " ▼") : ""}</th>`;
   return `<section class="fz-card">
-    <h3>Análisis de productos</h3><p class="fz-mini">${r.productos.length} productos · entrega, tránsito, novedad y devolución sobre pedidos con guía · cancelado sobre el total</p>
+    <h3>Análisis de productos</h3><p class="fz-mini">${r.productos.length} productos · entrega, tránsito, novedad y devolución sobre pedidos con guía · cancelado sobre el total · toca una columna para ordenar de mayor a menor o de menor a mayor${o?.k ? ` · <button class="fz-link" onclick="fzLogProdOrden('')">Quitar orden</button>` : ""}</p>
     <input class="fz-buscar" placeholder="Buscar producto..." value="${esc(st.log.prodBuscar)}" oninput="fzLogProdBuscar(this.value)" id="fzProdBuscar">
     <div class="fz-scroll"><table class="fz-tabla">
-      <thead><tr><th>Producto</th><th class="n">Pedidos</th><th class="n verde">Entrega</th><th class="n ambar">Tránsito</th><th class="n morado">Novedad</th><th class="n">Cancelado</th><th class="n rojo">Devolución</th><th class="n">Ganancia bruta</th></tr></thead>
+      <thead><tr>${th("nombre", "Producto")}${th("pedidos", "Pedidos", "n")}${th("entrega", "Entrega", "n verde")}${th("transito", "Tránsito", "n ambar")}${th("novedad", "Novedad", "n morado")}${th("cancelado", "Cancelado", "n")}${th("devolucion", "Devolución", "n rojo")}${th("gananciaBruta", "Ganancia bruta", "n")}</tr></thead>
       <tbody>${lista.map((p, i) => `<tr>
         <td><small class="gris">#${i + 1}</small> <b>${esc(p.nombre)}</b>
           <div class="fz-apilada mini">${[["entrega", "entregado"], ["transito", "transito"], ["novedad", "novedad"], ["devolucion", "devolucion"]].map(([k, c2]) => p[k] ? `<i style="flex:${p[k]};background:${COLOR[c2]}"></i>` : "").join("")}</div></td>
@@ -2082,6 +2086,11 @@ window.fzLogFiltro = (f, quieto) => {
 };
 window.fzLogBuscar = (v) => { st.log.buscar = v; st.log.pagina = 1; reLog("fzLogBuscar"); };
 window.fzLogProdBuscar = (v) => { st.log.prodBuscar = v; reLog("fzProdBuscar"); };
+window.fzLogProdOrden = (k) => {
+  const o = st.log.prodOrden;
+  st.log.prodOrden = !k ? null : o?.k !== k ? { k, dir: k === "nombre" ? 1 : -1 } : o.dir === (k === "nombre" ? 1 : -1) ? { k, dir: -o.dir } : null;
+  reLog();
+};
 window.fzLogPagina = (d) => { st.log.pagina += d; reLog(); };
 window.fzLogPorPagina = (n) => { st.log.porPagina = n; st.log.pagina = 1; reLog(); };
 window.fzCiudadOrden = (k) => { st.log.ciudadOrden = k; st.log.ciudadesPag = 1; reLog(); };
