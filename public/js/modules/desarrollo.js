@@ -2100,7 +2100,7 @@ function pasoAds() {
   return `
   <div class="est-card">
     <h3>Ads estáticos ${avTag()}</h3>
-    <p class="est-muted">Marca las estructuras que quieres probar (hasta ${Math.min(5, libres)} a la vez), elige el formato y CoDropX escribe el prompt de cada anuncio con el estilo de esta landing. Se hacen en Gemini igual que las secciones.</p>
+    <p class="est-muted">Marca las estructuras que quieres probar (hasta ${Math.min(5, libres)} a la vez), elige el formato y CoDropX <b>crea la imagen de cada anuncio con IA</b>, con el estilo de esta landing y tus fotos (unos $${costoIA().toFixed(2)} USD cada una). Si una no te gusta, dale "Otra versión".</p>
     ${!r.estilo ? `<div class="est-alert warn">Sin estilo elegido (paso 3) los anuncios no tendrán tus colores de marca.</div>` : ""}
     <div class="est-ad-grid">
       ${Object.entries(ESTRUCTURAS_AD).map(([k, e]) => `
@@ -2113,15 +2113,15 @@ function pasoAds() {
       <span class="est-muted">Formato:</span>
       ${Object.entries(FORMATOS_AD).map(([k, f]) => `<button class="est-chip-btn ${adFormato === k ? "activo" : ""}" onclick="estAdFormato('${k}')"><b>${k}</b> ${f.uso}</button>`).join("")}
       <label class="est-check"><input type="checkbox" ${adPrecio ? "checked" : ""} onchange="estAdPrecio(this.checked)"> Mostrar precio</label>
-      <button id="estBtnAds" class="est-btn primary" onclick="estCrearAds()" ${adSel.size && libres ? "" : "disabled"}><i data-lucide="sparkles"></i> Crear ${adSel.size || ""} anuncio${adSel.size === 1 ? "" : "s"}</button>
+      <button id="estBtnAds" class="est-btn primary" onclick="estCrearAds()" ${adSel.size && libres && !creandoAds ? "" : "disabled"}><i data-lucide="wand-sparkles"></i> Crear ${adSel.size || ""} anuncio${adSel.size === 1 ? "" : "s"} con imagen</button>
     </div>
     ${!libres ? `<p class="est-hint">Llegaste a ${MAX_ADS} anuncios: quita alguno para crear más.</p>` : ""}
   </div>
 
   ${ads.length ? `
     <div class="est-card-row" style="margin:4px 0">
-      <p class="est-muted">${conPrompt}/${ads.length} prompts · ${ads.filter(a => a.hecha).length} imágenes hechas</p>
-      ${ads.some(a => !a.prompt) ? `<button id="estBtnAdsFaltan" class="est-btn" onclick="estGenerarAdsFaltantes()"><i data-lucide="sparkles"></i> Escribir los que faltan</button>` : ""}
+      <p class="est-muted">${conPrompt}/${ads.length} prompts · ${ads.filter(a => imgsAd(a.id).length).length} con imagen</p>
+      ${ads.some(a => !imgsAd(a.id).length) ? `<button id="estBtnAdsFaltan" class="est-btn" onclick="estImagenesAdsFaltantes()" ${creandoAds ? "disabled" : ""}><i data-lucide="wand-sparkles"></i> Crear las imágenes que faltan</button>` : ""}
     </div>
     <div class="est-ads">
       ${ads.map((a, i) => tarjetaAd(a, i, acento)).join("")}
@@ -2141,11 +2141,19 @@ function tarjetaAd(a, i, acento) {
         <input class="est-input chico" value="${esc(a.nota)}" placeholder="Nota opcional (ej: usar la foto en la cocina)" onchange="estEditarAd(${i}, 'nota', this.value)">
       </div>
     </div>
-    ${a.prompt ? `<textarea class="est-code" rows="9" onchange="estEditarAd(${i}, 'prompt', this.value)">${esc(a.prompt)}</textarea>` : `<div class="est-empty">Sin prompt todavía.</div>`}
+    <div class="est-imgs est-ad-imgs">
+      ${[...imgsAd(a.id)].reverse().map(im => `<div class="est-img">
+        <a href="/api/imagenes/${esc(im._id)}" target="_blank" rel="noopener" title="Ver en grande"><img src="/api/imagenes/${esc(im._id)}" alt="Anuncio" loading="lazy"></a>
+        <a class="est-img-bajar" href="/api/imagenes/${esc(im._id)}" download="anuncio-${esc(a.estructura)}.jpg" title="Descargar">⬇</a>
+        <button title="Quitar imagen" onclick="estQuitarImagen('${esc(im._id)}')">✕</button>
+      </div>`).join("")}
+      ${adsCreando.has(a.id) ? `<div class="est-img add ia ocupado"><span class="est-spin"></span><span>Creando con IA... (hasta 1 min)</span></div>`
+        : `<button class="est-img add ia" id="adIA-${esc(a.id)}" onclick="estImagenAd('${esc(a.id)}')"><i data-lucide="${imgsAd(a.id).length ? "refresh-cw" : "wand-sparkles"}"></i><span>${imgsAd(a.id).length ? "Otra versión" : "Crear imagen"}</span><small>~$${costoIA().toFixed(2)} USD</small></button>`}
+    </div>
+    ${a.prompt ? `<details class="est-ad-prompt"><summary class="est-hint">Ver o editar el prompt</summary><textarea class="est-code" rows="9" onchange="estEditarAd(${i}, 'prompt', this.value)">${esc(a.prompt)}</textarea></details>` : ""}
     <div class="est-sec-actions">
-      <button class="est-btn ${a.prompt ? "" : "primary"}" id="btnAd-${esc(a.id)}" onclick="estGenerarAd('${esc(a.id)}')"><i data-lucide="sparkles"></i> ${a.prompt ? "Regenerar" : "Escribir prompt"}</button>
-      ${a.prompt ? `<button class="est-btn primary" onclick="estCopiarAd(${i})"><i data-lucide="copy"></i> Copiar estilo + prompt</button>
-      <label class="est-check"><input type="checkbox" ${a.hecha ? "checked" : ""} onchange="estEditarAd(${i}, 'hecha', this.checked, true)"> Imagen hecha</label>` : ""}
+      <button class="est-btn" id="btnAd-${esc(a.id)}" onclick="estGenerarAd('${esc(a.id)}')"><i data-lucide="sparkles"></i> ${a.prompt ? "Reescribir prompt" : "Solo escribir prompt"}</button>
+      ${a.prompt ? `<button class="est-btn" onclick="estCopiarAd(${i})"><i data-lucide="copy"></i> Copiar para Gemini</button>` : ""}
       <button class="est-btn ghost danger" title="Quitar anuncio" onclick="estQuitarAd(${i})"><i data-lucide="x"></i></button>
     </div>
   </article>`;
@@ -2181,6 +2189,45 @@ async function generarVarios(ids, botonId) {
   if (tab === 5) renderPaso();
 }
 
+// ---------- Imagen del anuncio con IA (cada vez sale una versión nueva) ----------
+const imgsAd = (id) => imagenes.filter(i => i.rama === av && i.seccion === `ad-${id}`);
+const adsCreando = new Set();
+let creandoAds = false;
+async function imagenAd(id) {
+  const avInicio = av;
+  adsCreando.add(id);
+  if (tab === 5 && subAnuncio === "ads") renderPaso();
+  try {
+    const { imagen, ad, gasto } = await api("POST", urlRama(`ia/ad/${id}/imagen`));
+    imagenes.push(imagen); gastoIA = gasto || gastoIA;
+    if (av === avInicio) { const r = R(); ponerRama({ ...r, ads: (r.ads || []).map(a => (a.id === id ? ad : a)) }); }
+  } finally {
+    adsCreando.delete(id);
+    if (tab === 5 && subAnuncio === "ads") renderPaso();
+  }
+}
+async function imagenesAds(ids) {
+  if (!ids.length) return;
+  try { gastoIA = await api("GET", "/api/ia/gasto"); } catch {}
+  const costo = ids.length * costoIA();
+  if (gastoIA?.queda !== undefined && costo > gastoIA.queda + 1e-9) return avisar(`No alcanza el límite del mes: ${ids.length} imágenes cuestan unos $${costo.toFixed(2)} USD y te quedan $${Number(gastoIA.queda).toFixed(2)}.`, "error");
+  if (!confirm(`Se van a crear ${ids.length} imagen${ids.length === 1 ? "" : "es"} de anuncio, unos $${costo.toFixed(2)} USD. ¿Seguir?`)) return;
+  creandoAds = true;
+  let ok = 0;
+  for (const id of ids) {
+    try { await imagenAd(id); ok++; }
+    catch (e) { avisar(e.message, "error"); if (/límite/i.test(e.message)) break; }
+  }
+  creandoAds = false;
+  if (ok) avisar(`${ok} anuncio${ok === 1 ? "" : "s"} con imagen ✓`);
+  if (tab === 5) renderPaso();
+}
+window.estImagenAd = async (id) => {
+  if (adsCreando.has(id)) return;
+  if (!confirm(`¿Crear ${imgsAd(id).length ? "otra versión de este anuncio" : "la imagen de este anuncio"}? Unos $${costoIA().toFixed(2)} USD.`)) return;
+  try { await imagenAd(id); } catch (e) { avisar(e.message, "error"); }
+};
+window.estImagenesAdsFaltantes = () => imagenesAds((R().ads || []).filter(a => !imgsAd(a.id).length).map(a => a.id));
 window.estCrearAds = async () => {
   const r = R();
   const libres = MAX_ADS - (r.ads || []).length;
@@ -2191,7 +2238,7 @@ window.estCrearAds = async () => {
   await guardarRama({ ads: [...(r.ads || []), ...nuevos] });
   adSel = new Set();
   renderPaso();
-  await generarVarios(nuevos.map(a => a.id), "estBtnAdsFaltan");
+  await imagenesAds(nuevos.map(a => a.id));
 };
 window.estGenerarAdsFaltantes = () => generarVarios((R().ads || []).filter(a => !a.prompt).map(a => a.id), "estBtnAdsFaltan");
 window.estGenerarAd = (id) => conCarga(`btnAd-${id}`, "Escribiendo...", async () => { await generarAd(id); renderPaso(); });

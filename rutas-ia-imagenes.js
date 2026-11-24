@@ -10,7 +10,8 @@ import { limpiarFuentes } from "./public/js/core/fuentes.js";
 import { ImagenLanding, metaImagen, MAX_POR_SECCION, tipoDeBytes, medidasDeBytes } from "./modelo-imagenes.js";
 import zlib from "zlib";
 import { referenciaDe, AVISO_REFERENCIA } from "./modelo-referencias.js";
-import { cierreSeccion, textosPermitidos, promptRevisarImagen, problemasDeTextos } from "./prompts-landing.js";
+import { cierreSeccion, textosPermitidos, promptRevisarImagen, problemasDeTextos, promptAd, bloqueProhibidos, construirBloqueEstilo, SISTEMA_LANDING } from "./prompts-landing.js";
+import { ESTRUCTURAS_AD, FORMATOS_AD } from "./public/js/core/anuncios.js";
 import { ofertaDe } from "./public/js/core/oferta.js";
 import { variantesDe, colorDeSeccion, PORTADAS_V } from "./public/js/core/variantes.js";
 
@@ -222,6 +223,68 @@ export function registrarRutasIAImagenes(app, { cargarRama, guardarRama, actuali
   });
 
   // Generar la imagen de una sección
+  // ---------- Ads estáticos: la imagen del anuncio de una vez (si no tiene prompt, primero lo escribe) ----------
+  // Cada vez que la pides sale una versión nueva (las anteriores quedan hasta que las quites)
+  const enProcesoAd = new Set();
+  app.post("/api/proyectos/:id/rama/:av/ia/ad/:adId/imagen", ...mw, async (req, res) => {
+    let llave = null;
+    try {
+      const x = await cargarRama(req, res); if (!x) return;
+      let ad = (x.r.ads || []).find(a => a.id === req.params.adId);
+      if (!ad) return res.status(404).json({ error: "Anuncio no encontrado" });
+      const seccion = `ad-${ad.id}`;
+      const ya = await ImagenLanding.countDocuments({ owner: req.user.uid, proyecto: x.p._id, rama: x.av, seccion });
+      if (ya >= MAX_POR_SECCION) return res.status(400).json({ error: `Máximo ${MAX_POR_SECCION} imágenes por anuncio. Quita alguna.` });
+      const todas = (x.p.fotos || []).filter(f => /^data:image\/(jpeg|png|webp);base64,/.test(f));
+      if (!todas.length) return res.status(400).json({ error: "Sube fotos del producto en la Ficha (paso 1). Sin fotos la IA inventa otro producto." });
+      const uso = Array.isArray(x.p.ficha?.usoFotos) ? x.p.ficha.usoFotos : [];
+      const limpias = todas.filter((_, i) => uso[i] !== "referencia");
+      const fotos = (limpias.length ? limpias : todas).slice(0, MAX_REFERENCIAS);
+      const fotosConTexto = !limpias.length || (x.p.revision?.textosEnFotos || []).length > 0;
+
+      const clave = `${x.p._id}:${x.av}:${seccion}`;
+      if (enProcesoAd.has(clave)) return res.status(409).json({ error: "Ya se está creando este anuncio" });
+      const estimado = PRECIO_IMAGEN + PRECIO_REFERENCIA * fotos.length;
+      const g = await estadoGasto(req.user.uid);
+      if (g.usd + estimado > g.limite + 1e-9) return res.status(400).json({ error: `Llegaste al límite de gasto de este mes ($${g.usd.toFixed(2)} de $${g.limite.toFixed(2)} USD). Súbelo si quieres seguir.`, gasto: g });
+      enProcesoAd.add(clave); llave = clave;
+
+      const bloque = x.r.bloqueEstilo || (x.r.estilo ? construirBloqueEstilo(x.vista) : "");
+      // Sin prompt: CoDropX lo escribe primero (igual que "Escribir prompt")
+      if (!ad.prompt) {
+        if (!llamarIA) return res.status(400).json({ error: "Primero escribe el prompt del anuncio" });
+        const reply = await llamarIA({ system: SISTEMA_LANDING, prompt: promptAd({ ...x.vista, bloqueEstilo: bloque }, ad, x.avatar, ESTRUCTURAS_AD[ad.estructura], FORMATOS_AD[ad.formato]) });
+        const crudo = String(reply || "").replace(/^```[a-z]*\n?|```$/gim, "").trim();
+        if (!crudo) return res.status(502).json({ error: "La IA no devolvió el prompt del anuncio" });
+        ad = { ...ad, prompt: crudo.slice(0, 6000) };
+      }
+      const r = await pedirImagen({
+        prompt: armarPrompt({
+          bloqueEstilo: bloque, prompt: `${ad.prompt}\n\n${bloqueProhibidos(x.vista)}`, referencias: fotos.length, fotosConTexto,
+          descripcion: String(x.p.revision?.descripcionFisica || "").slice(0, 600) + (x.p.ficha?.medidas ? ` Medidas: ${String(x.p.ficha.medidas).slice(0, 120)}.` : ""),
+          noTiene: [...(Array.isArray(x.p.revision?.noTiene) ? x.p.revision.noTiene : []), x.p.ficha?.noTiene].filter(Boolean).join("; ").slice(0, 300)
+        }),
+        fotos, aspecto: aspectoDe(ad.formato)
+      });
+      await GastoIA.findOneAndUpdate(
+        { owner: req.user.uid, mes: mesActual() },
+        { $inc: { usd: r.rehechaPorForma ? estimado * 2 + PRECIO_REFERENCIA : estimado, imagenes: 1, ticks: r.ticks }, $set: { actualizado: new Date() }, $setOnInsert: { owner: req.user.uid, mes: mesActual() } },
+        { upsert: true }
+      );
+      const nueva = await ImagenLanding.create({
+        owner: req.user.uid, proyecto: x.p._id, rama: x.av, seccion,
+        tipo: r.tipo, datos: r.datos, bytes: r.datos.length, origen: "ia", ancho: r.ancho || null, alto: r.alto || null
+      });
+      const rama = await actualizarRama(x.p, x.av, (actual) => ({
+        ...actual, ads: (actual.ads || []).map(a => (a.id === ad.id ? { ...a, prompt: a.prompt || ad.prompt, hecha: true } : a))
+      }));
+      res.json({ imagen: metaImagen(nueva), ad: (rama?.ads || []).find(a => a.id === ad.id) || { ...ad, hecha: true }, gasto: await estadoGasto(req.user.uid) });
+    } catch (err) {
+      console.error("Error creando imagen del anuncio:", err);
+      res.status(err.status || 500).json({ error: err.message || "No se pudo crear la imagen" });
+    } finally { if (llave) enProcesoAd.delete(llave); }
+  });
+
   app.post("/api/proyectos/:id/rama/:av/ia/imagen/:seccion", ...mw, async (req, res) => {
     let llave = null;
     try {
