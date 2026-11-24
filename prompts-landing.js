@@ -821,6 +821,58 @@ export function problemasDeTextos(textos, p, seccion = {}) {
   }
   return out;
 }
+// ---------- Titulares: la IA propone, el dueño elige; el elegido entra TAL CUAL al prompt ----------
+export const sinTitular = (tipo) => ["galeria", "antes_despues"].includes(tipo);
+export const cuantosTitulares = (tipo) => (PORTADAS.has(tipo) ? 5 : 3);
+const normalizarTxt = (t) => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9ñ ]+/g, " ").replace(/\s+/g, " ").trim();
+// El nombre interno del producto ("morral casual 1") nunca va de titular
+export function usaNombreProducto(titular, nombre) {
+  const n = normalizarTxt(String(nombre || "").replace(/\d+/g, ""));
+  if (!n) return false;
+  return normalizarTxt(`${titular?.l1 || ""} ${titular?.l2 || ""}`).includes(n);
+}
+export function limpiarTitular(t) {
+  const linea = (v) => String(v || "").replace(/[<>"“”]/g, "").replace(/\s+/g, " ").trim().toUpperCase().slice(0, 40);
+  const l1 = linea(Array.isArray(t) ? t[0] : t?.l1), l2 = linea(Array.isArray(t) ? t[1] : t?.l2);
+  return l1 ? { l1, l2 } : null;
+}
+export function promptTitulares(p, secciones, evitar = {}) {
+  const pais = PAISES[p.pais] || PAISES.CO;
+  const avatar = (p.avatares || [])[0];
+  return `${contextoProducto(p)}
+
+${avatar ? bloqueAvatar(avatar, "AVATAR AL QUE LE HABLAN LOS TITULARES") : ""}
+
+TAREA: Propón TITULARES para estas secciones de la landing (cada titular en 2 líneas: la línea 1 va en el color oscuro del estilo y la línea 2 en el color de acento; máximo 4 palabras por línea, en MAYÚSCULAS):
+${secciones.map(s => `- id "${s.id}" · ${SECCIONES[s.tipo]?.titulo || s.tipo}: ${s.proposito || SECCIONES[s.tipo]?.def || ""} → ${cuantosTitulares(s.tipo)} titulares${(evitar[s.id] || []).length ? `. NO repitas ni hagas parecidos a estos: ${evitar[s.id].map(t => `"${t.l1} / ${t.l2}"`).join(", ")}` : ""}`).join("\n")}
+
+REGLAS:
+- Hablan de lo que GANA el cliente (comodidad, estilo, tiempo, ahorro, tranquilidad, resultado), no del producto ni de su categoría.
+- NUNCA uses el nombre del producto ("${limpio(String(p.nombre || "").replace(/\d+/g, "").trim(), 80)}") ni la descripción del proveedor como titular.
+- Los ${cuantosTitulares("oferta")} de la portada usan ángulos DISTINTOS (comodidad, estilo, precio u oferta, uso diario, sorpresa), no la misma frase con otras palabras.
+- Sin promesas de salud ni de resultados que no se puedan cumplir. Sin preguntas sobre atributos personales ("¿Sufres de…?", "¿Eres…?"). Sin marcas de terceros.
+- Español de ${pais.nombre}, con tildes. Que se lea en 2 segundos.
+- Ejemplo del nivel (de OTRO producto, no lo copies): "ELEGANTE COMO CARTERA" / "CÓMODO COMO MORRAL"; "MANOS LIBRES" / "ESTILO TODO EL DÍA".
+
+Responde SOLO este JSON válido:
+{ "secciones": [ { "id": "", "titulares": [ ["LÍNEA 1", "LÍNEA 2"] ] } ] }`;
+}
+// El titular elegido reemplaza (o agrega) la línea "Titular:" de TEXTOS (exactos)
+export function conTitular(texto, seccion = {}) {
+  const t = limpiarTitular(seccion.titular);
+  if (!t || sinTitular(seccion.tipo)) return texto;
+  const lineas = String(texto || "").split("\n");
+  const i = lineas.findIndex(l => /^\s*-?\s*Titular[^:]{0,40}:/i.test(l));
+  const colores = i >= 0 ? [...lineas[i].matchAll(/[”"]\s*\(([^)]{1,60})\)/g)].map(m => m[1]) : [];
+  const nueva = `Titular: "${t.l1}" (${colores[0] || "color oscuro del estilo"})${t.l2 ? ` / "${t.l2}" (${colores[1] || "color de acento"})` : ""}`;
+  if (i >= 0) lineas[i] = nueva;
+  else {
+    const j = lineas.findIndex(l => /^TEXTOS( \(exactos\))?:/.test(l.trim()));
+    if (j < 0) return texto;
+    lineas.splice(j + 1, 0, nueva);
+  }
+  return lineas.join("\n");
+}
 export function bloqueProhibidos(p) {
   const t = textosProhibidos(p);
   return `TEXTOS QUE NO DEBEN SALIR (aunque aparezcan en las fotos de referencia): ${t.length ? t.map(x => `"${x}"`).join(", ") + ". " : ""}Tampoco copies referencias, códigos, cantidades por caja, precios de mayorista ni el nombre del proveedor que se vean en las fotos. No escribas ningún otro texto aparte de los que están entre comillas.`;
@@ -850,7 +902,7 @@ export function limpiarMontos(texto, p, seccion = {}) {
 export function cierreSeccion(texto, p, seccion = {}) {
   // El precio y los prohibidos los pega el código al final (se rehacen cada vez: si cambias el precio en la Ficha, quedan al día)
   const sinBloques = String(texto || "").replace(/\n+(VARIANTES EN ESTA SECCIÓN|OFERTA EN ESTA SECCIÓN|PRECIO \(cópialo EXACTO|PROHIBIDO EN ESTA IMAGEN|TEXTOS QUE NO DEBEN SALIR)[\s\S]*?(?=\n\n|$)/g, "");
-  const base = conCierreResenas(limpiarMontos(sinBloques, p, seccion), p, seccion.tipo, seccion.variante);
+  const base = conCierreResenas(conTitular(limpiarMontos(sinBloques, p, seccion), seccion), p, seccion.tipo, seccion.variante);
   const galeria = p?.formato === "normal" && seccion.tipo === "galeria";
   const oferta = bloqueOferta(p, seccion), variantes = bloqueVariantes(p, seccion);
   const conBloques = String(base).replace(/\n+MARGEN ABAJO[\s\S]*?(?=\n\n|$)/, "").trimEnd() + `${variantes ? `\n\n${variantes}` : ""}${oferta ? `\n\n${oferta}` : ""}\n\n${bloquePrecio(p, seccion)}\n\n${bloqueProhibidos(p)}`;
@@ -892,7 +944,9 @@ ${otras.map(o => `- ${o.titulo} (${o.composicion || "sin composición"})`).join(
 
 ${EJEMPLO_NIVEL}
 
-SECCIÓN A ESCRIBIR: ${seccion.titulo} [tipo: ${seccion.tipo}]
+SECCIÓN A ESCRIBIR: ${seccion.titulo} [tipo: ${seccion.tipo}]${limpiarTitular(seccion.titular) && !sinTitular(seccion.tipo) ? `
+TITULAR YA ELEGIDO POR EL DUEÑO (úsalo EXACTO en TEXTOS, línea 1 en el color oscuro y línea 2 en el de acento): "${limpiarTitular(seccion.titular).l1}" / "${limpiarTitular(seccion.titular).l2}"` : `
+El titular NUNCA es el nombre del producto: es un beneficio corto para el cliente.`}
 Qué debe tener: ${tipo?.def || seccion.proposito || ""}
 Propósito: ${seccion.proposito || ""}
 Composición asignada: ${seccion.composicion || "elige una que no se repita"}${diseno}${formato}${seccion.tipo === "resenas" ? bloqueResenas(p) : ""}${seccion.tipo === "moda_chats" ? bloqueChats(p) : ""}${seccion.tipo === "numeros_reales" ? bloqueNumeros(p) : ""}${seccion.tipo === "resumen_resenas" ? bloqueCalificacion(p) : ""}${seccion.tipo === "pagas_al_recibir" ? bloquePagasAlRecibir(p) : ""}${seccion.tipo === "causa" ? `

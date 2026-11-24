@@ -28,6 +28,11 @@ import {
   ETIQUETAS_ESTILO,
   ESTILO_AUTO,
   camposDeTexto,
+  promptTitulares,
+  limpiarTitular,
+  usaNombreProducto,
+  sinTitular,
+  cuantosTitulares,
   palabrasDeTextos,
   MAX_PALABRAS,
   TEXTO_LIBRE
@@ -965,6 +970,39 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
   });
 
   // ---------- IA: 4b. prompt de una sección ----------
+  // ---------- IA: titulares (5 portada, 3 por sección) para elegir antes de escribir los prompts ----------
+  const pedirTitulares = async (x, secs, evitar = {}) => {
+    const reply = await llamarIA({ system: SISTEMA_LANDING, prompt: promptTitulares(x.vista, secs, evitar) });
+    const j = parsearJSON(reply);
+    const out = {};
+    for (const s of Array.isArray(j.secciones) ? j.secciones : []) {
+      const sec = secs.find(x2 => x2.id === s?.id);
+      if (!sec) continue;
+      const vistos = new Set((evitar[sec.id] || []).map(t => `${t.l1}|${t.l2}`));
+      out[sec.id] = (Array.isArray(s.titulares) ? s.titulares : []).map(limpiarTitular).filter(Boolean)
+        .filter(t => !usaNombreProducto(t, x.p.nombre) && !vistos.has(`${t.l1}|${t.l2}`) && t.l1.split(" ").length <= 5 && t.l2.split(" ").length <= 5)
+        .slice(0, cuantosTitulares(sec.tipo));
+    }
+    return out;
+  };
+  // Todas las secciones que aún no tienen opciones (o una sola, con "Dame otras opciones")
+  app.post("/api/proyectos/:id/rama/:av/ia/titulares", iaLimiter, async (req, res) => {
+    try {
+      const x = await cargarRama(req, res); if (!x) return;
+      const id = String(req.body?.seccion || "");
+      const secs = (x.r.secciones || []).filter(s => !sinTitular(s.tipo) && (id ? s.id === id : !(s.titulares || []).length));
+      if (!secs.length) return res.json({ rama: x.r });
+      const evitar = id ? { [id]: secs[0].titulares || [] } : {};
+      const nuevos = await pedirTitulares(x, secs, evitar);
+      if (!Object.values(nuevos).some(v => v.length)) return res.status(502).json({ error: "La IA no devolvió titulares. Intenta de nuevo." });
+      const r = await actualizarRama(x.p, x.av, (actual) => ({
+        ...actual,
+        secciones: (actual.secciones || []).map(s => (nuevos[s.id]?.length ? { ...s, titulares: id ? [...nuevos[s.id], ...(s.titulares || [])].slice(0, 15) : nuevos[s.id] } : s))
+      }));
+      res.json({ rama: r });
+    } catch (err) { errorIA(res, err, "los titulares"); }
+  });
+
   app.post("/api/proyectos/:id/rama/:av/ia/seccion/:secId", iaLimiter, async (req, res) => {
     try {
       const x = await cargarRama(req, res); if (!x) return;
@@ -975,7 +1013,13 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
       if (conflicto) return res.status(400).json({ error: `${conflicto} Resuélvelo en la Ficha antes de escribir los prompts.` });
       const bloque = x.r.bloqueEstilo || construirBloqueEstilo(x.vista);
 
-      const sec = secs[idx];
+      let sec = secs[idx];
+      // Sin titular elegido: se usa la primera opción (y si no hay opciones, se piden primero) y queda marcada para cambiarla
+      if (!sinTitular(sec.tipo) && !limpiarTitular(sec.titular)) {
+        let opciones = (sec.titulares || []).filter(t => !usaNombreProducto(t, x.p.nombre));
+        if (!opciones.length) { try { opciones = (await pedirTitulares(x, [sec]))[sec.id] || []; } catch (e) { console.warn("Titulares:", e.message); } }
+        if (opciones.length) sec = { ...sec, titulares: sec.titulares?.length ? sec.titulares : opciones, titular: opciones[0] };
+      }
       const otras = secs.filter(sx => sx.id !== sec.id);
       const reply = await llamarIA({
         system: SISTEMA_LANDING,
@@ -999,7 +1043,7 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
         const i = (actual.secciones || []).findIndex(sx => sx.id === sec.id);
         if (i === -1) return null;   // la quitaron mientras se escribía
         lista = [...actual.secciones];
-        lista[i] = { ...lista[i], prompt: texto, hecha: false };
+        lista[i] = { ...lista[i], prompt: texto, hecha: false, ...(sec.titular ? { titular: sec.titular, titulares: sec.titulares } : {}) };
         return { ...actual, bloqueEstilo: actual.bloqueEstilo || bloque, secciones: lista };
       });
       if (!r) return res.status(409).json({ error: "Esa sección ya no existe (cambiaron las secciones mientras se escribía)" });

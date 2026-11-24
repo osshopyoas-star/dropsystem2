@@ -1371,6 +1371,7 @@ function pasoLanding() {
       </div>
       <div class="est-actions">
         <button id="estBtnSecciones" class="est-btn" onclick="estProponerSecciones()"><i data-lucide="layout-list"></i> ${secs.length ? "Volver a proponer" : "Proponer secciones"}</button>
+        ${secs.some(x => !SIN_TITULAR.has(x.tipo) && !(x.titulares || []).length) ? `<button id="estBtnTitulares" class="est-btn primary" onclick="estProponerTitulares()"><i data-lucide="type"></i> Proponer titulares</button>` : ""}
         ${secs.length ? `<button id="estBtnTodos" class="est-btn primary" onclick="estGenerarTodos()" ${generandoTodo ? "disabled" : ""}><i data-lucide="sparkles"></i> Generar prompts faltantes</button>` : ""}
         ${secs.length ? `<button id="estBtnImgsTodas" class="est-btn primary" onclick="estGenerarTodasImagenes()" ${generandoImgs ? "disabled" : ""}>${generandoImgs ? `<span class="est-spin"></span> Imagen ${generandoImgs.hechas + 1} de ${generandoImgs.total}...` : `<i data-lucide="images"></i> Generar todas las imágenes`}</button>` : ""}
         ${secs.some(x => imagenes.some(m => m.rama === av && m.seccion === x.id && !m.capa && !m.media)) ? `<button id="estBtnZip" class="est-btn" onclick="estDescargarZip()"><i data-lucide="download"></i> Descargar todas (ZIP)</button>` : ""}
@@ -1395,6 +1396,51 @@ function pasoLanding() {
   ` : ""}
   `;
 }
+
+// ---------- Titulares: elige uno (o escribe el tuyo) antes de escribir el prompt ----------
+const SIN_TITULAR = new Set(["galeria", "antes_despues"]);
+const mismoTitular = (a, b) => a && b && a.l1 === b.l1 && (a.l2 || "") === (b.l2 || "");
+function bloqueTitular(x, i) {
+  if (SIN_TITULAR.has(x.tipo)) return "";
+  const ops = x.titulares || [];
+  const t = x.titular;
+  return `<div class="est-titulares">
+    <div class="est-card-row"><b>Titular</b>${t ? `<span class="est-tit-elegido">"${esc(t.l1)}" / <span>"${esc(t.l2 || "")}"</span></span>` : `<span class="est-hint">${ops.length ? "elige uno (si no, se usa el primero)" : "aún sin opciones"}</span>`}</div>
+    ${ops.length ? `<div class="est-tit-opciones">${ops.map((o, k) => `<button class="est-tit ${mismoTitular(o, t) ? "on" : ""}" onclick="estElegirTitular(${i}, ${k})"><span>${esc(o.l1)}</span><span class="l2">${esc(o.l2 || "")}</span></button>`).join("")}</div>` : ""}
+    <div class="est-tit-propio">
+      <input id="tit1-${esc(x.id)}" placeholder="Línea 1 (ej: MANOS LIBRES)" maxlength="40" value="${esc(t?.l1 || "")}">
+      <input id="tit2-${esc(x.id)}" placeholder="Línea 2 (ej: ESTILO TODO EL DÍA)" maxlength="40" value="${esc(t?.l2 || "")}">
+      <button class="est-btn chico" onclick="estTitularPropio(${i})">Usar este</button>
+      <button class="est-btn chico" id="titOtras-${esc(x.id)}" onclick="estOtrosTitulares('${esc(x.id)}')"><i data-lucide="sparkles"></i> ${ops.length ? "Dame otras opciones" : "Proponer titulares"}</button>
+    </div>
+  </div>`;
+}
+// Al cambiar el titular, el prompt se pone al día solo (el servidor lo pega en TEXTOS exactos)
+async function recargarProyecto() {
+  try { proyecto = await api("GET", `/api/proyectos/${proyecto._id}`); } catch {}
+  renderPaso();
+}
+window.estElegirTitular = async (i, k) => {
+  await cambiarSecciones(secs => secs.map((x, j) => (j === i ? { ...x, titular: x.titulares[k] } : x)));
+  await recargarProyecto();
+};
+window.estTitularPropio = async (i) => {
+  const x = R().secciones[i];
+  const l1 = ($(`tit1-${x.id}`)?.value || "").trim().toUpperCase(), l2 = ($(`tit2-${x.id}`)?.value || "").trim().toUpperCase();
+  if (!l1) return avisar("Escribe al menos la línea 1", "error");
+  await cambiarSecciones(secs => secs.map((s, j) => (j === i ? { ...s, titular: { l1, l2 } } : s)));
+  await recargarProyecto();
+};
+window.estOtrosTitulares = (id) => conCarga(`titOtras-${id}`, "Pensando...", async () => {
+  const { rama } = await api("POST", urlRama("ia/titulares"), { seccion: id });
+  ponerRama(rama);
+  renderPaso();
+});
+window.estProponerTitulares = () => conCarga("estBtnTitulares", "Pensando titulares...", async () => {
+  const { rama } = await api("POST", urlRama("ia/titulares"));
+  ponerRama(rama);
+  renderPaso();
+});
 
 const editandoPrompt = new Set();
 window.estVerPrompt = (id, editar) => { if (editar) editandoPrompt.add(id); else editandoPrompt.delete(id); renderPaso(); };
@@ -1435,6 +1481,7 @@ function tarjetaSeccion(x, i, numero) {
       </div>
     </div>
 
+    ${bloqueTitular(x, i)}
     ${x.prompt ? (editandoPrompt.has(x.id) ? `
       <textarea class="est-code" rows="14" onchange="estEditarPrompt(${i}, this.value)">${esc(x.prompt)}</textarea>
       <button class="est-link" onclick="estVerPrompt('${esc(x.id)}', false)">Listo</button>
@@ -1781,6 +1828,10 @@ window.estGenerarTodos = async () => {
   const faltan = R().secciones.filter(x => !x.prompt).map(x => x.id);
   if (!faltan.length) return avisar("Todas las secciones ya tienen prompt", "ok");
   generandoTodo = true;
+  if (R().secciones.some(x => !SIN_TITULAR.has(x.tipo) && !(x.titulares || []).length)) {
+    const b = $("estBtnTodos"); if (b) { b.disabled = true; b.innerHTML = `<span class="est-spin"></span> Pensando titulares...`; }
+    try { const { rama } = await api("POST", urlRama("ia/titulares")); if (av === avInicio) ponerRama(rama); } catch (e) { avisar(e.message, "error"); }
+  }
   let hechos = 0, errores = 0;
   const boton = () => $("estBtnTodos");
   for (const id of faltan) {
