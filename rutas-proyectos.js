@@ -35,7 +35,10 @@ import {
   cuantosTitulares,
   palabrasDeTextos,
   MAX_PALABRAS,
-  TEXTO_LIBRE
+  TEXTO_LIBRE,
+  topePalabras,
+  saltaSeccion,
+  SIN_PROMPT
 } from "./prompts-landing.js";
 import { obtenerPlantilla } from "./rutas-plantilla.js";
 import { ofertaDe } from "./public/js/core/oferta.js";
@@ -939,7 +942,7 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
         });
       } else {
         // Tipos que no existen en este formato se descartan
-        base = propuestas.filter(sx => validos.includes(sx.tipo)).slice(0, 12);
+        base = propuestas.filter(sx => validos.includes(sx.tipo) && !saltaSeccion(x.vista, sx.tipo)).slice(0, 12);
         const primera = formato === "normal" ? "galeria" : (x.p.tipo === "moda" ? "moda_portada" : "oferta");
         if (!base.some(sx => sx.tipo === primera)) base.unshift({ tipo: primera });
         // Con variantes, la sección de colores/tallas va sí o sí
@@ -1013,6 +1016,7 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
       if (idx === -1) return res.status(404).json({ error: "Sección no encontrada" });
       const conflicto = ofertaDe(x.p.ficha || {}, x.p.pais === "EC" ? "EC" : "CO").conflicto;
       if (conflicto) return res.status(400).json({ error: `${conflicto} Resuélvelo en la Ficha antes de escribir los prompts.` });
+      if (SIN_PROMPT.has(secs[idx].tipo)) return res.status(400).json({ error: "Esta sección usa tu foto real: elígela de la Ficha o súbela, no lleva prompt." });
       const bloque = x.r.bloqueEstilo || construirBloqueEstilo(x.vista);
 
       let sec = secs[idx];
@@ -1031,9 +1035,10 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
       if (!crudo) return res.status(502).json({ error: "La IA no devolvió el prompt" });
       // Mucho texto sale ilegible: si se pasó del tope, se le pide UNA vez que recorte (solo los textos)
       const cuenta = palabrasDeTextos(crudo);
-      if (!TEXTO_LIBRE.has(sec.tipo) && (cuenta.palabras > MAX_PALABRAS + 5 || cuenta.textos > 7)) {
+      const tope = topePalabras(x.vista, sec.tipo);
+      if (!TEXTO_LIBRE.has(sec.tipo) && (cuenta.palabras > tope.palabras + 5 || cuenta.textos > tope.textos + 1)) {
         try {
-          const corto = await llamarIA({ system: SISTEMA_LANDING, prompt: `Este prompt de imagen tiene ${cuenta.palabras} palabras en ${cuenta.textos} textos y el máximo es ${MAX_PALABRAS} palabras en 6 textos (titular, subtítulo, hasta 3 etiquetas de 1 a 4 palabras y la barra de confianza). Devuélvelo IGUAL, con el mismo formato, cambiando SOLO la parte de TEXTOS: recorta o quita textos hasta quedar dentro del máximo. No cambies precios ni cifras.\n\n${crudo}` });
+          const corto = await llamarIA({ system: SISTEMA_LANDING, prompt: `Este prompt de imagen tiene ${cuenta.palabras} palabras en ${cuenta.textos} textos y el máximo es ${tope.palabras} palabras en ${tope.textos} textos (cada texto corto, de 2 a 8 palabras). Devuélvelo IGUAL, con el mismo formato, cambiando SOLO la parte de TEXTOS: recorta o quita textos hasta quedar dentro del máximo. No cambies precios ni cifras.\n\n${crudo}` });
           const c2 = String(corto || "").replace(/^```[a-z]*\n?|```$/gim, "").trim();
           if (c2 && palabrasDeTextos(c2).palabras < cuenta.palabras) crudo = c2;
         } catch (e) { console.warn("No se pudo recortar el texto del prompt:", e.message); }

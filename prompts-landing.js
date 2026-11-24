@@ -6,7 +6,7 @@ import { limpiarFuentes } from "./public/js/core/fuentes.js";
 // y todas las landings nuevas la tendrán en cuenta.
 // =============================================
 
-import { SECCIONES, FORMATOS, varianteDe, tiposDe, claveDe, ACABADOS, ETAPAS_AIDA, etapaDe } from "./public/js/core/plantilla.js";
+import { SECCIONES, FORMATOS, varianteDe, tiposDe, claveDe, ACABADOS, ETAPAS_AIDA, etapaDe, ORDEN_BASE } from "./public/js/core/plantilla.js";
 import { cifraPrueba } from "./public/js/core/finanzas.js";
 import { ofertaDe } from "./public/js/core/oferta.js";
 import { variantesDe, variantesTexto, colorDeSeccion, PORTADAS_V, SECCION_VARIANTES } from "./public/js/core/variantes.js";
@@ -630,18 +630,37 @@ export function construirBloqueEstilo(p) {
 
 // ---------- Paso 4: proponer secciones ----------
 // plantilla: Mi plantilla del formato (orden fijo si usarOrden)
+// Cuándo se salta una receta: sin reseñas reales, sin foto real, sin paquetes, sin paquete ni regalo
+export const SIN_PROMPT = new Set(["foto_real"]);
+export function fotosProducto(p) {
+  const uso = Array.isArray(p?.ficha?.usoFotos) ? p.ficha.usoFotos : [];
+  return (p?.fotos || []).map((f, i) => i).filter(i => uso[i] !== "referencia");
+}
+export function hayPaquetes(p) {
+  const o = ofertaDe(p?.ficha || {}, p?.pais === "EC" ? "EC" : "CO");
+  return (o.tipo === "paquetes" && o.paquetes.length > 0) || (o.tipo === "descuento" && montosPaquetes(p?.ficha?.paquetes, p?.pais === "EC" ? "EC" : "CO").length > 0);
+}
+export function saltaSeccion(p, tipo) {
+  const o = ofertaDe(p?.ficha || {}, p?.pais === "EC" ? "EC" : "CO");
+  if (["resenas", "moda_chats", "resumen_resenas"].includes(tipo)) return resenasReales(p).length < 2;
+  if (tipo === "foto_real") return !fotosProducto(p).length;
+  if (tipo === "paquetes") return !hayPaquetes(p);
+  if (tipo === "que_incluye") return o.tipo === "descuento" && !String(p?.ficha?.regalo || "").trim() && !hayPaquetes(p);
+  return false;
+}
+// Ban page: siempre el orden de Mi plantilla (o el de las recetas, si no lo has cambiado). Landing normal: la IA elige si no usas tu orden
 export function seccionesFijas(p, plantilla) {
-  if (!plantilla?.usarOrden) return null;
-  const tienePaquetes = !!String(p.ficha?.paquetes || "").trim() || ofertaDe(p.ficha || {}, p.pais === "EC" ? "EC" : "CO").tipo !== "descuento";
-  const tipos = plantilla.orden
-    .filter(x => x.visible && (x.tipo !== "paquetes" || tienePaquetes))
-    .map(x => x.tipo);
+  const normal = esNormal(p);
+  if (!plantilla?.usarOrden && normal) return null;
+  const orden = plantilla?.usarOrden && Array.isArray(plantilla.orden) ? plantilla.orden
+    : (ORDEN_BASE[claveDe(normal ? "normal" : "ban", p.tipo)] || []).map(([tipo, v]) => ({ tipo, visible: !!v }));
+  const tipos = orden.filter(x => x.visible && !saltaSeccion(p, x.tipo)).map(x => x.tipo);
   return conSeccionVariantes(p, tipos);
 }
 // Con 2 o más variantes, la sección de colores/tallas va aunque esté apagada (justo después de la portada)
 export function conSeccionVariantes(p, tipos) {
   const { colores, tallas } = variantesDe(p.ficha || {});
-  if (colores.length + tallas.length < 2) return tipos;
+  if (colores.length + tallas.length < 2 || tipos.includes("que_incluye")) return tipos;
   const validos = tiposDe(claveDe(esNormal(p) ? "normal" : "ban", p.tipo));
   const vt = [...SECCION_VARIANTES].find(t => validos.includes(t) && (p.tipo === "moda") === t.startsWith("moda_")) || [...SECCION_VARIANTES].find(t => validos.includes(t));
   if (!vt || tipos.includes(vt)) return tipos;
@@ -667,7 +686,7 @@ Para cada una escribe un título propio para este producto, su propósito y una 
 - Orden base recomendado: ${moda ? "galeria, moda_vistas, moda_material, moda_fuera_estudio, resenas, moda_guia_tallas, moda_por_que, moda_cambio_talla, numeros_reales, como_funciona" : "galeria, dolor, causa, funcion_estrella, resenas, antes_despues, como_se_usa, detalles, para_quien, numeros_reales, como_funciona, por_que_aqui"}. Ajústalo al producto.
 - Las preguntas frecuentes van como texto en Shopify: no las pongas como imagen salvo que aporten mucho.`
       : `TAREA: Arma la estructura de la landing de 8 a 9 secciones para este producto, eligiendo del catálogo.
-${moda ? `Es MODA. La primera SIEMPRE es "moda_portada". Orden base recomendado: moda_portada, moda_precio_tallas, moda_vistas, moda_material, moda_fuera_estudio, resenas, moda_guia_tallas, moda_por_que, moda_cambio_talla, numeros_reales, preguntas.` : `Orden base recomendado: oferta, dolor, causa (la verdadera causa), función estrella, reseñas, detalles o qué incluye, tamaño/variantes, cómo se usa, para quién es, números reales (entregas), por qué comprar aquí, preguntas frecuentes.`} Ajústalo al producto:
+${moda ? `Es MODA. La primera SIEMPRE es "moda_portada". Orden base recomendado: moda_portada, dolor, moda_material, resenas, foto_real, como_funciona, que_incluye, paquetes, por_que_aqui, entrega.` : `Orden base recomendado: oferta, dolor, detalles (calidad que se nota), resenas, foto_real, como_funciona, que_incluye, paquetes, por_que_aqui, entrega.`} Ajústalo al producto:
 - La última o penúltima es "preguntas".`;
 
   return `${contextoProducto(p)}
@@ -819,6 +838,9 @@ export function bloqueVariantes(p, seccion = {}) {
 }
 // Textos legibles: tope de palabras por imagen (reseñas, chats, preguntas y números llevan su propio texto)
 export const MAX_PALABRAS = 25;
+export const MAX_PALABRAS_RECETA = 55, MAX_TEXTOS_RECETA = 14;
+export const conReceta = (p, tipo) => !esNormal(p) && !!SECCIONES[tipo]?.receta;
+export const topePalabras = (p, tipo) => (conReceta(p, tipo) ? { palabras: MAX_PALABRAS_RECETA, textos: MAX_TEXTOS_RECETA } : { palabras: MAX_PALABRAS, textos: 6 });
 export const TEXTO_LIBRE = new Set(["resenas", "moda_chats", "resumen_resenas", "preguntas", "numeros_reales", "galeria", "antes_despues"]);
 export function palabrasDeTextos(prompt) {
   const bloque = String(prompt || "").split(/\nTEXTOS(?: \(exactos\))?:/)[1]?.split(/\n(ZONA LIBRE|TEXTO PARA SHOPIFY|VARIANTES EN|OFERTA EN|PRECIO \(|PROHIBIDO|TEXTOS QUE NO|MARGEN ABAJO)/)[0] || "";
@@ -871,7 +893,7 @@ export function problemasDeTextos(textos, p, seccion = {}) {
   return out;
 }
 // ---------- Titulares: la IA propone, el dueño elige; el elegido entra TAL CUAL al prompt ----------
-export const sinTitular = (tipo) => ["galeria", "antes_despues"].includes(tipo);
+export const sinTitular = (tipo) => ["galeria", "antes_despues", "foto_real"].includes(tipo);
 export const cuantosTitulares = (tipo) => (PORTADAS.has(tipo) ? 5 : 3);
 const normalizarTxt = (t) => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9ñ ]+/g, " ").replace(/\s+/g, " ").trim();
 // El nombre interno del producto ("morral casual 1") nunca va de titular
@@ -1006,7 +1028,17 @@ export function promptSeccion(p, seccion, avatar, otras = []) {
   const conPrecio = llevaPrecio(seccion.tipo, normal, precioEn);
   // Portada sin precio (la Ficha lo pide): si el diseño elegido es de los que llevan precio, se usa el F
   const variante = seccion.tipo === "oferta" && !conPrecio ? varianteDe("oferta", "sin_precio") : varianteDe(seccion.tipo, seccion.variante);
-  const diseno = variante ? `\nDISEÑO OBLIGATORIO DE ESTA SECCIÓN (Mi plantilla: "${variante.nombre}"): ${variante.desc}` : "";
+  const receta = conReceta(p, seccion.tipo) ? SECCIONES[seccion.tipo].receta : null;
+  const diseno = variante ? (receta
+    ? `\nVARIACIÓN VISUAL (Mi plantilla: "${variante.nombre}"): ${variante.desc} Úsala solo para la FORMA (dónde va cada cosa); los bloques son los de la RECETA.`
+    : `\nDISEÑO OBLIGATORIO DE ESTA SECCIÓN (Mi plantilla: "${variante.nombre}"): ${variante.desc}`) : "";
+  const local = p.pais === "EC" ? "en Ecuador: 'chévere', 'pana', 'full'" : "en Colombia: 'parce', 'bacano', 'una pinta', 'de una'";
+  const bloqueReceta = receta ? `
+RECETA OBLIGATORIA DE ESTA SECCIÓN (así son las landings que sí venden): respeta el orden y TODOS los bloques, un número de COMPOSICIÓN por bloque:
+${receta.bloques.map((b, k) => `${k + 1}) ${b}`).join("\n")}
+ESCENA PROPIA DE ESTA SECCIÓN (ninguna otra sección usa la misma foto ni la misma pose): ${receta.escena}.
+IMAGEN DENSA PERO ORDENADA, tipo infografía: titular grande (máximo 8 palabras en 2 o 3 líneas), 1 elemento visual principal y de 3 a 6 bloques pequeños; cada texto de bloque de 2 a 8 palabras. Se lee en segundos.
+LENGUAJE: como habla la gente ${local}, sin exagerar. Titulares de identidad, emoción o momento, nunca el nombre del producto.` : "";
   const galeria = normal && seccion.tipo === "galeria";
   const deslizador = normal && seccion.tipo === "antes_despues";
   return `${contextoProducto(p)}
@@ -1035,8 +1067,8 @@ TITULAR YA ELEGIDO POR EL DUEÑO (úsalo EXACTO en TEXTOS, línea 1 en el color 
 El titular NUNCA es el nombre del producto: es un beneficio corto para el cliente.`}
 Qué debe tener: ${tipo?.def || seccion.proposito || ""}
 Propósito: ${seccion.proposito || ""}
-Composición asignada: ${seccion.composicion || "elige una que no se repita"}${diseno}${formato}${seccion.tipo === "resenas" ? bloqueResenas(p) : ""}${seccion.tipo === "moda_chats" ? bloqueChats(p) : ""}${seccion.tipo === "numeros_reales" ? bloqueNumeros(p) : ""}${seccion.tipo === "resumen_resenas" ? bloqueCalificacion(p) : ""}${seccion.tipo === "pagas_al_recibir" ? bloquePagasAlRecibir(p) : ""}${seccion.tipo === "causa" ? `
-CÓMO HACER "LA VERDADERA CAUSA": foto real de la escena con un gráfico MUY simple encima (líneas tipo tiza, flecha, lupa o etiquetas tachadas). Titular tipo "No es X, es Y" o "El problema no es lo que crees". Máximo 3 textos cortos además del titular. Cierra con la frase puente al producto. Nada de anatomía detallada, nada médico.` : ""}${diseno ? `
+Composición asignada: ${receta ? "la de la RECETA" : seccion.composicion || "elige una que no se repita"}${bloqueReceta}${diseno}${formato}${seccion.tipo === "resenas" ? bloqueResenas(p) : ""}${seccion.tipo === "moda_chats" ? bloqueChats(p) : ""}${seccion.tipo === "numeros_reales" ? bloqueNumeros(p) : ""}${seccion.tipo === "resumen_resenas" ? bloqueCalificacion(p) : ""}${seccion.tipo === "pagas_al_recibir" ? bloquePagasAlRecibir(p) : ""}${seccion.tipo === "causa" ? `
+CÓMO HACER "LA VERDADERA CAUSA": foto real de la escena con un gráfico MUY simple encima (líneas tipo tiza, flecha, lupa o etiquetas tachadas). Titular tipo "No es X, es Y" o "El problema no es lo que crees". Máximo 3 textos cortos además del titular. Cierra con la frase puente al producto. Nada de anatomía detallada, nada médico.` : ""}${diseno && !receta ? `
 (El diseño de Mi plantilla define DÓNDE van los bloques; la imagen sigue siendo una escena de foto real con vida, no un catálogo plano.)` : ""}
 
 ${galeria ? `TAREA: Esta sección son las 4 FOTOS CUADRADAS 1:1 DE LA GALERÍA de Shopify (las primeras que ve el cliente). Escribe 4 prompts, uno por foto, cada uno con EXACTAMENTE este formato (texto plano, sin markdown, sin explicaciones):
@@ -1059,7 +1091,14 @@ COMPOSICIÓN: [...]
 TEXTOS: [una etiqueta "DESPUÉS" y como máximo una frase corta]` : `TAREA: Escribe el prompt de ESTA imagen con EXACTAMENTE este formato (texto plano, sin markdown, sin explicaciones antes ni después):
 
 FOTOGRAFÍA REAL (no dibujo, no animación).
-COMPOSICIÓN, de arriba hacia abajo:
+COMPOSICIÓN, de arriba hacia abajo:${receta ? `
+[Un número por cada bloque de la RECETA, en su orden, concreto para este producto: qué se ve, dónde va y de qué tamaño. En el bloque de la foto o escena: quién (edad, aspecto, ropa), pose o acción, lugar, ángulo, luz y emoción; el producto GRANDE y nítido pero a su TAMAÑO REAL.]
+TEXTOS (exactos):
+Titular: "[LÍNEA 1]" ([color]) / "[LÍNEA 2]" ([color])
+[Cada texto de los bloques en su propia línea, entre comillas, con dónde va y su color]
+No escribas ningún otro texto aparte de estos.
+Ningún texto tapa el producto.
+ZONA LIBRE: [zona lisa del mismo fondo si el dueño debe pegar algo después; si no aplica escribe "ninguna"]` : `
 1) TITULAR arriba.
 2) FOTO ([qué % de la imagen ocupa]): [ESCENA concreta y distinta a las otras secciones: quién (edad, aspecto, ropa), pose o acción exacta, lugar, ángulo de cámara, luz y emoción]. El producto [PUESTO o EN USO, de qué color/variante es en esta imagen], GRANDE y nítido pero a su TAMAÑO REAL junto a las personas (para que se vea más, acerca la cámara; nunca lo agrandes).
 3) [Elemento gráfico de esta sección: tarjetas, chips con ícono, círculos de zoom, flechas…], sin tapar el producto.
@@ -1070,7 +1109,7 @@ Titular: "[LÍNEA 1]" ([color]) / "[LÍNEA 2]" ([color])
 [Cada texto en su propia línea, entre comillas, con dónde va y su color: subtítulo, etiquetas${conPrecio ? ", precio" : ""}${normal ? "" : ", barra de confianza"}]
 No escribas ningún otro texto aparte de estos.
 Ningún texto tapa el producto.
-ZONA LIBRE: [si el dueño debe pegar algo después (GIF, logo, reseñas, transportadoras), di DÓNDE queda una zona lisa del mismo fondo, SIN dibujar recuadros, círculos ni marcos; si no aplica escribe "ninguna"]`}
+ZONA LIBRE: [si el dueño debe pegar algo después (GIF, logo, reseñas, transportadoras), di DÓNDE queda una zona lisa del mismo fondo, SIN dibujar recuadros, círculos ni marcos; si no aplica escribe "ninguna"]`}`}
 ${normal && !galeria ? `
 Al final agrega el texto que va AL LADO de la imagen en Shopify (sección "Imagen con texto"), con este formato:
 TEXTO PARA SHOPIFY
@@ -1079,7 +1118,7 @@ Texto: "[2 o 3 frases cortas, vendedoras, sin repetir lo que ya dice la imagen]"
 
 Reglas para esta imagen:
 - Titulares cortos (máximo 4 o 5 palabras por línea). Poco texto. El producto sin tapar y a su tamaño real.${TEXTO_LIBRE.has(seccion.tipo) ? "" : `
-- MÁXIMO ${MAX_PALABRAS} PALABRAS en total entre todos los textos de la imagen y máximo 6 textos: titular, subtítulo, hasta 3 etiquetas (de 1 a 4 palabras cada una) y la barra de confianza. Cuenta las palabras antes de responder y recorta si te pasas. Todos los textos van entre comillas en TEXTOS: no habrá ningún otro texto en la imagen.`}${conPrecio ? `
+${conReceta(p, seccion.tipo) ? `- MÁXIMO ${MAX_PALABRAS_RECETA} PALABRAS en total y máximo ${MAX_TEXTOS_RECETA} textos: los que pide la receta, cortos (de 2 a 8 palabras cada uno). Cuenta las palabras antes de responder y recorta si te pasas.` : `- MÁXIMO ${MAX_PALABRAS} PALABRAS en total entre todos los textos de la imagen y máximo 6 textos: titular, subtítulo, hasta 3 etiquetas (de 1 a 4 palabras cada una) y la barra de confianza. Cuenta las palabras antes de responder y recorta si te pasas.`} Todos los textos van entre comillas en TEXTOS: no habrá ningún otro texto en la imagen.`}${conPrecio ? `
 - Esta imagen SÍ lleva el precio, protagonista.` : `
 - Esta imagen NO lleva precio: nada de precio ni "antes" tachado (aunque el bloque de estilo hable de la caja del precio)${PORTADAS.has(seccion.tipo) && porcentajeDescuento(p.ficha?.precioAntes, p.ficha?.precio) ? `; SÍ puede llevar el sello "-${porcentajeDescuento(p.ficha.precioAntes, p.ficha.precio)}%"` : "; tampoco sello de descuento ni porcentaje"}. El precio solo va en ${dondeVaPrecio(normal, precioEn)}. La barra de confianza sí puede ir.${PORTADAS.has(seccion.tipo) ? `
 - VENTA POR IMPULSO SIN PRECIO: que dé ganas de pedirlo ya: beneficio enorme, producto en uso, "PAGAS AL RECIBIR" bien visible y una flecha hacia abajo con "PÍDELO AQUÍ ABAJO" (ahí está el formulario). Sin urgencia falsa.` : ""}`}

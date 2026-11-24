@@ -1407,7 +1407,28 @@ function pasoLanding() {
 }
 
 // ---------- Titulares: elige uno (o escribe el tuyo) antes de escribir el prompt ----------
-const SIN_TITULAR = new Set(["galeria", "antes_despues"]);
+const SIN_TITULAR = new Set(["galeria", "antes_despues", "foto_real"]);
+// Secciones sin prompt: usan tu foto real de la Ficha
+const SIN_PROMPT = new Set(["foto_real"]);
+function bloqueFotoReal(x) {
+  const uso = proyecto.ficha?.usoFotos || [];
+  const fotos = (proyecto.fotos || []).map((f, i) => ({ f, i })).filter(o => uso[o.i] !== "referencia");
+  return `<div class="est-foto-real">
+    <p class="est-muted">Esta sección no se genera con IA: va tu <b>foto real</b> del producto, a todo lo ancho. Toca la que quieres usar${varianteDe(x.tipo, x.variante)?.id === "cinta" ? " (la cinta de texto se la pones en Canva)" : ""}.</p>
+    ${fotos.length ? `<div class="est-foto-real-lista">${fotos.map(o => `<button title="Usar esta foto" onclick="estUsarFotoReal('${esc(x.id)}', ${o.i})"><img src="${o.f}" alt="Foto ${o.i + 1}"></button>`).join("")}</div>`
+      : `<div class="est-alert warn">No tienes fotos marcadas "Producto solo" en la Ficha.</div>`}
+  </div>`;
+}
+window.estUsarFotoReal = async (idSeccion, i) => {
+  const dataUrl = (proyecto.fotos || [])[i];
+  if (!dataUrl) return;
+  try {
+    const { imagen, rama } = await api("POST", `/api/proyectos/${proyecto._id}/rama/${av}/imagenes`, { seccion: idSeccion, dataUrl });
+    imagenes.push(imagen); ponerRama(rama);
+    avisar("Foto real puesta ✓");
+    renderPaso();
+  } catch (e) { avisar(e.message, "error"); }
+};
 const mismoTitular = (a, b) => a && b && a.l1 === b.l1 && (a.l2 || "") === (b.l2 || "");
 function bloqueTitular(x, i) {
   if (SIN_TITULAR.has(x.tipo)) return "";
@@ -1491,7 +1512,7 @@ function tarjetaSeccion(x, i, numero) {
     </div>
 
     ${bloqueTitular(x, i)}
-    ${x.prompt ? (editandoPrompt.has(x.id) ? `
+    ${SIN_PROMPT.has(x.tipo) ? bloqueFotoReal(x) : x.prompt ? (editandoPrompt.has(x.id) ? `
       <textarea class="est-code" rows="14" onchange="estEditarPrompt(${i}, this.value)">${esc(x.prompt)}</textarea>
       <button class="est-link" onclick="estVerPrompt('${esc(x.id)}', false)">Listo</button>
     ` : `
@@ -1501,9 +1522,9 @@ function tarjetaSeccion(x, i, numero) {
     ${tiraImagenes(x)}
 
     <div class="est-sec-actions">
-      <button class="est-btn ${x.prompt ? "" : "primary"}" id="btnSec-${esc(x.id)}" onclick="estGenerarSeccion('${esc(x.id)}')">
+      ${SIN_PROMPT.has(x.tipo) ? "" : `<button class="est-btn ${x.prompt ? "" : "primary"}" id="btnSec-${esc(x.id)}" onclick="estGenerarSeccion('${esc(x.id)}')">
         <i data-lucide="sparkles"></i> ${x.prompt ? "Regenerar" : "Generar prompt"}
-      </button>
+      </button>`}
       ${x.prompt ? `<button class="est-btn primary" onclick="estCopiarSeccion(${i})"><i data-lucide="copy"></i> Copiar estilo + prompt</button>` : ""}
       ${x.prompt ? `<label class="est-check"><input type="checkbox" ${x.hecha ? "checked" : ""} onchange="estMarcarHecha(${i}, this.checked)"> Imagen hecha</label>` : ""}
       <button class="est-btn ghost danger" title="Quitar sección" onclick="estQuitarSeccion(${i})"><i data-lucide="x"></i></button>
@@ -1717,7 +1738,7 @@ window.estGenerarTodasImagenes = async () => {
   if (generandoImgs || generandoTodo) return;
   if (!(proyecto.fotos || []).length) return avisar("Primero sube fotos reales del producto en la Ficha (paso 1).", "error");
   const avInicio = av;
-  const secs = R().secciones || [];
+  const secs = (R().secciones || []).filter(x => !SIN_PROMPT.has(x.tipo));
   let lista = secs.filter(x => !x.hecha);
   if (!lista.length) {
     if (!confirm("Todas las secciones ya tienen imagen. ¿Rehacer todas?")) return;
@@ -1834,7 +1855,7 @@ window.estDescargarZip = () => conCarga("estBtnZip", "Armando el ZIP...", async 
 window.estGenerarTodos = async () => {
   if (generandoTodo) return;
   const avInicio = av;
-  const faltan = R().secciones.filter(x => !x.prompt).map(x => x.id);
+  const faltan = R().secciones.filter(x => !x.prompt && !SIN_PROMPT.has(x.tipo)).map(x => x.id);
   if (!faltan.length) return avisar("Todas las secciones ya tienen prompt", "ok");
   generandoTodo = true;
   if (R().secciones.some(x => !SIN_TITULAR.has(x.tipo) && !(x.titulares || []).length)) {

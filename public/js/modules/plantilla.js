@@ -122,7 +122,9 @@ function render() {
             <span class="pl-switch-ui"></span>
             <span>${p.usarOrden
               ? `<b>Usar mi orden</b> en las landings nuevas (${visibles} secciones). "Paquetes" se salta solo si el producto no tiene paquetes.`
-              : `<b>La IA elige</b> las secciones según el producto (como hoy). Prende esto para usar tu orden.`}</span>
+              : base() === "ban"
+                ? `<b>Orden de las recetas</b> (las landings que sí venden): portada, dolor, calidad, reseñas, foto real, cómo funciona, lo que recibes, paquetes, por qué comprar aquí y entrega. Se saltan solas las que no aplican (sin reseñas reales, sin paquetes…). Prende esto para usar tu orden.`
+                : `<b>La IA elige</b> las secciones según el producto (como hoy). Prende esto para usar tu orden.`}</span>
           </label>
           <ol class="pl-orden ${p.usarOrden ? "" : "apagado"}">
             ${p.orden.map((x, i) => {
@@ -156,6 +158,7 @@ function render() {
             return `
             <div class="pl-seccion ${x.visible || !p.usarOrden ? "" : "oculta"}" id="pl-sec-${x.tipo}">
               <h3>${esc(s.titulo)} ${x.visible || !p.usarOrden ? "" : `<small>(apagada)</small>`}</h3>
+              ${s.receta && base() === "ban" ? `<details class="pl-receta"><summary>Receta: qué lleva esta imagen</summary><ol>${s.receta.bloques.map(b => `<li>${esc(b)}</li>`).join("")}</ol><small>Escena: ${esc(s.receta.escena)}. Los diseños A, B, C… cambian solo la forma.</small></details>` : ""}
               <div class="pl-variantes">
                 <button class="pl-var ${actual ? "" : "elegida"}" onclick="plEstilo('${x.tipo}', '')">
                   ${ICONO_AZAR}<span>Al azar</span><small>como hoy</small>

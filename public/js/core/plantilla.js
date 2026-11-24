@@ -119,7 +119,7 @@ export const SECCIONES = {
     ]
   },
   que_incluye: {
-    titulo: "¿Qué incluye?", formatos: ["ban", "normal"], tipos: ["producto"],
+    titulo: "¿Qué incluye?", formatos: ["ban", "normal"], tipos: ["producto", "moda"],
     def: "Todo lo que llega en el paquete, cada pieza señalada con su nombre.",
     variantes: [
       { id: "numerados", nombre: "Círculos numerados", desc: "El producto con círculos numerados señalando cada pieza que llega, y la lista numerada abajo.",
@@ -207,7 +207,7 @@ export const SECCIONES = {
     ]
   },
   por_que_aqui: {
-    titulo: "Tu producto vs otros (¿por qué aquí?)", formatos: ["ban", "normal"], tipos: ["producto"],
+    titulo: "Tu producto vs otros (¿por qué aquí?)", formatos: ["ban", "normal"], tipos: ["producto", "moda"],
     def: "Comparación 'Nuestra tienda' (✓ ventajas) vs 'Otras opciones' (✗ solo desventajas). Sin recuadros vacíos.",
     variantes: [
       { id: "tabla", nombre: "Tabla", desc: "Tabla de 5 filas con dos columnas: la nuestra resaltada con ✓ y la de otros con ✗.",
@@ -308,6 +308,26 @@ export const SECCIONES = {
         dibujo: [T(7), ["c", 10, 18, 2.5, "a"], T(18, 36, 15), ["c", 10, 26, 2.5, "a"], T(26, 36, 15), ["c", 10, 34, 2.5, "a"], T(34, 36, 15), ["c", 10, 42, 2.5, "a"], T(42, 36, 15), ["r", 8, 54, 44, 16, "a", 3], ["r", 14, 76, 32, 7, "d", 4]] },
       { id: "foto_franja", nombre: "Foto con franja", desc: "Foto a sangre del producto en uso con una franja inferior con el precio y la frase de cierre.",
         dibujo: [["r", 0, 0, 60, 60, "g"], ["r", 0, 60, 60, 30, "a"], ["t", 10, 66, 40, "w"], ["t", 14, 72, 32, "w"], ["r", 14, 78, 32, 7, "d", 4]] }
+    ]
+  },
+  foto_real: {
+    titulo: "Foto real del producto", formatos: ["ban", "normal"],
+    def: "Tu foto real del producto (la que subiste en la Ficha, sin generar con IA), a todo lo ancho. Da confianza: así es lo que llega.",
+    variantes: [
+      { id: "completa", nombre: "A todo lo ancho", desc: "La foto real ocupa toda la imagen, sin textos encima.",
+        dibujo: [["r", 0, 0, 60, 90, "g"], ["r", 12, 20, 36, 46, "m", 3]] },
+      { id: "cinta", nombre: "Con cinta", desc: "La foto real a todo lo ancho con una cinta de texto corta encima (ej. 'LLAVERO GRATIS'); la cinta la pones tú en Canva.",
+        dibujo: [["r", 0, 0, 60, 90, "g"], ["r", 12, 20, 36, 46, "m", 3], ["r", 0, 70, 60, 9, "a"]] }
+    ]
+  },
+  entrega: {
+    titulo: "Entrega rápida y segura", formatos: ["ban", "normal"],
+    def: "El domiciliario entregando la caja al cliente feliz, 4 íconos de compra segura, las transportadoras de la Ficha y una frase de cierre.",
+    variantes: [
+      { id: "domiciliario", nombre: "Domiciliario entregando", desc: "Foto grande del domiciliario entregando la caja en la puerta, debajo una fila de 4 íconos y las transportadoras en círculos.",
+        dibujo: [T(6), T(11, 30, 15, "a"), ["r", 6, 16, 48, 36, "g", 3], ["r", 6, 55, 48, 10, "w", 3], ["c", 14, 74, 5, "a"], ["c", 30, 74, 5, "a"], ["c", 46, 74, 5, "a"]] },
+      { id: "tarjeta", nombre: "Foto en tarjeta", desc: "La foto de la entrega dentro de una tarjeta redondeada, los 4 íconos en columna al lado y las transportadoras abajo.",
+        dibujo: [T(6), ["r", 4, 14, 34, 44, "g", 4], ["c", 48, 18, 4, "a"], ["c", 48, 29, 4, "a"], ["c", 48, 40, 4, "a"], ["c", 48, 51, 4, "a"], ["c", 14, 72, 5, "w"], ["c", 30, 72, 5, "w"], ["c", 46, 72, 5, "w"]] }
     ]
   },
   // ---------- Secciones de MODA (ropa, calzado, accesorios) ----------
@@ -426,6 +446,108 @@ export const SECCIONES = {
 };
 
 // =============================================
+// RECETAS: la composición fija de cada sección, sacada de las landings que sí venden (modelo: la de Nacional)
+// Los diseños A/B/C/D de cada sección son variaciones visuales de su receta, no recetas distintas.
+// =============================================
+const RECETA_PORTADA = {
+  bloques: [
+    "Titular grande (2 o 3 líneas) con la promo o el beneficio principal, que hable de emoción, identidad o momento.",
+    "1 o 2 personas EN ACCIÓN con el producto, cuerpo entero o 3/4 y emoción alta (si es 2x1 o promo: las unidades a la vista, de colores distintos).",
+    "Caja de precio grande: 'antes' tachado y 'ahora' grande, con el sello de la promo (si esta sección lleva precio).",
+    "Fila de 4 íconos de confianza pequeños con 2 o 3 palabras cada uno.",
+    "Calificación y número de clientes SOLO si la Ficha trae reseñas o números reales (si no, este bloque no va).",
+    "3 tarjetas pequeñas con foto de un detalle del producto y 2 a 4 palabras cada una.",
+    "Tallas o colores en casillas pequeñas (solo si el producto los tiene).",
+    "Frase de cierre emocional corta abajo."
+  ],
+  escena: "cuerpo entero en acción, celebrando o usando el producto en el lugar donde lo vive el avatar"
+};
+const RECETA_CALIDAD = {
+  bloques: [
+    "Titular de calidad con el contexto del nicho (ej. de otro producto: 'Calidad que se nota en la tribuna').",
+    "El producto SOLO, grande, de estudio, dentro de un aro de luz del color de acento.",
+    "2 detalles a los lados en círculos o recuadros: primer plano de la textura, la tela, el mecanismo o el acabado real.",
+    "3 tarjetas con ícono: material, acabados y tallas o tamaño (solo datos reales de la Ficha).",
+    "Frase emocional de cierre."
+  ],
+  escena: "producto solo de estudio, sin personas, más primeros planos de detalle"
+};
+const RECETA_POR_QUE = {
+  bloques: [
+    "Titular tipo '¿Por qué comprar aquí y no en otras?' con un subtítulo corto.",
+    "Tabla de 2 columnas: 'Nuestra tienda ✓' (resaltada) vs 'Otras tiendas ✗', 5 filas, cada una con ícono: garantía (SOLO si la Ficha la tiene; si no, 'Compra segura'), calidad, envío, atención y pago contra entrega. Solo cosas que son verdad.",
+    "El producto abajo, grande.",
+    "Frase de cierre corta."
+  ],
+  escena: "producto solo abajo, sin personas"
+};
+export const RECETAS = {
+  oferta: RECETA_PORTADA,
+  moda_portada: RECETA_PORTADA,
+  dolor: {
+    bloques: [
+      "Pregunta-titular emocional (2 o 3 líneas) con las palabras del avatar.",
+      "A un lado la persona con el problema (preocupada, mirando el celular o frustrada); al otro lado el producto solo, brillando con luz de acento.",
+      "Subtítulo corto de presión social o del momento (sin cifras inventadas).",
+      "Frase corta con palabras de la calle del país, en una cinta.",
+      "3 tarjetas numeradas '1.' '2.' '3.', cada una con un ícono y un dolor en una frase de máximo 8 palabras."
+    ],
+    escena: "medio plano con emoción: la persona preocupada, con luz más apagada que el producto"
+  },
+  detalles: RECETA_CALIDAD,
+  moda_material: RECETA_CALIDAD,
+  resenas: {
+    bloques: [
+      "Titular de prueba social + la calificación grande (solo si es real).",
+      "Carrusel de 4 tarjetas: foto del cliente, nombre, ciudad, estrellas, texto corto y foto del producto.",
+      "Barra de confianza."
+    ],
+    escena: "solo las fotos reales que mandaron los clientes"
+  },
+  como_funciona: {
+    bloques: [
+      "Titular tipo 'Pídelo fácil…' con un subtítulo corto.",
+      "El producto arriba (las unidades de la promo, si hay).",
+      "Paso 1 grande numerado con su propia foto: elige tu talla o color (manos con el celular).",
+      "Paso 2 grande numerado con su propia foto: llena el formulario (un celular con un formulario simple, sin datos reales).",
+      "Paso 3 grande numerado con su propia foto: recibe y paga (domiciliario entregando la caja al cliente).",
+      "Frase de cierre corta."
+    ],
+    escena: "3 fotos pequeñas distintas, una por paso"
+  },
+  que_incluye: {
+    bloques: [
+      "Titular tipo 'Tu 2x1 viene completo' (o lo que recibe: el paquete o el regalo).",
+      "Las unidades o los regalos en el centro, grandes.",
+      "Alrededor, 4 o 5 llamadas numeradas con ícono, unidas al producto con líneas finas: cada unidad o color con su nombre y una frase, empaque, tallas y garantía (solo si la Ficha la tiene).",
+      "Una foto pequeña real del producto con el sello de la promo."
+    ],
+    escena: "las unidades solas sobre el fondo, sin personas"
+  },
+  paquetes: {
+    bloques: [
+      "Titular corto.",
+      "3 columnas de precio (1, 2 y 3 unidades) con lo que ahorra; la del medio marcada 'MÁS VENDIDO'.",
+      "Fotos pequeñas del producto en uso debajo."
+    ],
+    escena: "fotos pequeñas de uso, distintas a las de las otras secciones"
+  },
+  por_que_aqui: RECETA_POR_QUE,
+  moda_por_que: RECETA_POR_QUE,
+  entrega: {
+    bloques: [
+      "Titular 'Entrega rápida y segura' con un subtítulo (ej. 'Recíbela en casa y paga al recibir').",
+      "Foto del domiciliario (ropa lisa, sin logos ni nombres de empresas) entregando la caja al cliente feliz, que ya usa el producto.",
+      "4 íconos de compra segura: envío, pago contra entrega, compra segura y empaque protegido.",
+      "'Enviamos con' y los nombres de las transportadoras de la Ficha en círculos (si no hay, deja esa zona lisa del mismo fondo).",
+      "Frase de cierre corta."
+    ],
+    escena: "escena de entrega en la puerta de una casa"
+  }
+};
+for (const [k, r] of Object.entries(RECETAS)) if (SECCIONES[k]) SECCIONES[k].receta = r;
+
+// =============================================
 // AIDA: en qué etapa trabaja cada sección
 //   A = Atención (que pare de deslizar) · I = Interés (entiende su problema y la causa real)
 //   D = Deseo (ve que esto sí lo resuelve) · C = aCción (compra sin miedo)
@@ -441,6 +563,7 @@ export const ETAPA_AIDA = {
   dolor: "I", causa: "I", identificacion: "I", para_quien: "I",
   funcion_estrella: "D", antes_despues: "D", como_se_usa: "D", detalles: "D", que_incluye: "D", tamano_variantes: "D", resenas: "D", resumen_resenas: "D",
   moda_vistas: "D", moda_material: "D", moda_ficha: "D", moda_fuera_estudio: "D", moda_tres_formas: "D", moda_chats: "D", moda_por_que: "D", moda_guia_tallas: "D",
+  foto_real: "D", entrega: "C",
   paquetes: "C", numeros_reales: "C", pagas_al_recibir: "C", como_funciona: "C", por_que_aqui: "C", preguntas: "C", confianza: "C", oferta_cierre: "C", moda_precio_tallas: "C", moda_cambio_talla: "C"
 };
 export const etapaDe = (tipo) => ETAPA_AIDA[tipo] || "D";
@@ -448,26 +571,27 @@ export const etapaDe = (tipo) => ETAPA_AIDA[tipo] || "D";
 // Orden de siempre (lo que se ve sin tocar nada) y qué va prendido de entrada
 export const ORDEN_BASE = {
   ban: [
-    ["oferta", 1], ["dolor", 1], ["causa", 1], ["identificacion", 0], ["funcion_estrella", 1], ["resenas", 1], ["detalles", 1], ["que_incluye", 1],
-    ["tamano_variantes", 1], ["como_se_usa", 1], ["para_quien", 1], ["antes_despues", 0], ["moda_chats", 0], ["resumen_resenas", 0], ["numeros_reales", 1], ["paquetes", 1],
-    ["como_funciona", 1], ["pagas_al_recibir", 0], ["por_que_aqui", 1], ["preguntas", 1], ["confianza", 0], ["oferta_cierre", 0]
+    ["oferta", 1], ["dolor", 1], ["detalles", 1], ["resenas", 1], ["foto_real", 1], ["como_funciona", 1], ["que_incluye", 1], ["paquetes", 1],
+    ["por_que_aqui", 1], ["entrega", 1], ["oferta_cierre", 0], ["preguntas", 0],
+    ["causa", 0], ["identificacion", 0], ["funcion_estrella", 0], ["tamano_variantes", 0], ["como_se_usa", 0], ["para_quien", 0], ["antes_despues", 0],
+    ["moda_chats", 0], ["resumen_resenas", 0], ["numeros_reales", 0], ["pagas_al_recibir", 0], ["confianza", 0]
   ],
   normal: [
     ["galeria", 1], ["dolor", 1], ["causa", 1], ["funcion_estrella", 1], ["resenas", 1], ["antes_despues", 1], ["como_se_usa", 1], ["detalles", 1],
     ["para_quien", 1], ["que_incluye", 0], ["tamano_variantes", 0], ["identificacion", 0], ["moda_chats", 0], ["resumen_resenas", 0], ["numeros_reales", 1], ["paquetes", 0],
-    ["como_funciona", 1], ["pagas_al_recibir", 0], ["por_que_aqui", 1], ["confianza", 0], ["preguntas", 0], ["oferta_cierre", 0]
+    ["como_funciona", 1], ["pagas_al_recibir", 0], ["por_que_aqui", 1], ["confianza", 0], ["preguntas", 0], ["oferta_cierre", 0], ["foto_real", 0], ["entrega", 0]
   ],
   moda_ban: [
-    ["moda_portada", 1], ["moda_precio_tallas", 1], ["moda_vistas", 1], ["moda_material", 1], ["moda_ficha", 0],
-    ["moda_fuera_estudio", 1], ["resenas", 1], ["moda_tres_formas", 0], ["moda_guia_tallas", 1], ["moda_chats", 0], ["moda_por_que", 1],
-    ["moda_cambio_talla", 1], ["dolor", 0], ["identificacion", 0], ["para_quien", 0], ["resumen_resenas", 0], ["numeros_reales", 1], ["paquetes", 0], ["como_funciona", 1],
-    ["pagas_al_recibir", 0], ["preguntas", 1], ["confianza", 0], ["oferta_cierre", 0]
+    ["moda_portada", 1], ["dolor", 1], ["moda_material", 1], ["resenas", 1], ["foto_real", 1], ["como_funciona", 1], ["que_incluye", 1], ["paquetes", 1],
+    ["por_que_aqui", 1], ["entrega", 1], ["oferta_cierre", 0], ["preguntas", 0],
+    ["moda_precio_tallas", 0], ["moda_vistas", 0], ["moda_ficha", 0], ["moda_fuera_estudio", 0], ["moda_tres_formas", 0], ["moda_guia_tallas", 0], ["moda_chats", 0],
+    ["moda_por_que", 0], ["moda_cambio_talla", 0], ["identificacion", 0], ["para_quien", 0], ["resumen_resenas", 0], ["numeros_reales", 0], ["pagas_al_recibir", 0], ["confianza", 0]
   ],
   moda_normal: [
     ["galeria", 1], ["moda_vistas", 1], ["moda_material", 1], ["moda_fuera_estudio", 1], ["resenas", 1], ["moda_guia_tallas", 1],
     ["moda_precio_tallas", 0], ["moda_ficha", 0], ["moda_tres_formas", 0], ["moda_chats", 0], ["moda_por_que", 1],
     ["moda_cambio_talla", 1], ["dolor", 0], ["identificacion", 0], ["para_quien", 0], ["resumen_resenas", 0], ["numeros_reales", 1], ["paquetes", 0], ["como_funciona", 1],
-    ["pagas_al_recibir", 0], ["preguntas", 0], ["confianza", 0], ["oferta_cierre", 0]
+    ["pagas_al_recibir", 0], ["preguntas", 0], ["confianza", 0], ["oferta_cierre", 0], ["que_incluye", 0], ["por_que_aqui", 0], ["foto_real", 0], ["entrega", 0]
   ]
 };
 
