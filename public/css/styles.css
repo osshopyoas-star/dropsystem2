@@ -3644,6 +3644,8 @@ aside.collapsed .submenu .sidebar-item {
 .est-oferta-fila input[type=number] { width: 110px; }
 .est-oferta-fila input[data-u], #fOfX, #fOfY { width: 70px !important; }
 .est-oferta-fila input[data-n] { flex: 1; min-width: 160px; }
+.est-var-tag { font-size: 11px; font-weight: 800; padding: 4px 8px; border-radius: 999px; background: rgba(59,130,246,.18); color: #93c5fd; }
+.est-oferta-fila input[type=color] { width: 38px; height: 34px; padding: 2px; border-radius: 8px; flex: none; }
 .est-oferta-foto { width: 46px; height: 46px; border-radius: 50%; object-fit: cover; flex: none; }
 .est-oferta-foto.vacia { display: grid; place-items: center; border: 1.5px dashed var(--est-line, #475569); cursor: pointer; font-size: 20px; color: #94a3b8; }
 .est-foto button.recortar { right: auto; left: 6px; font-size: 13px; }

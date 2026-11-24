@@ -23,7 +23,8 @@ import {
   promptVariaciones,
   cierreSeccion,
   promptAd,
-  seccionesFijas
+  seccionesFijas,
+  conSeccionVariantes
 } from "./prompts-landing.js";
 import { obtenerPlantilla } from "./rutas-plantilla.js";
 import { ofertaDe } from "./public/js/core/oferta.js";
@@ -905,6 +906,9 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
         base = propuestas.filter(sx => validos.includes(sx.tipo)).slice(0, 12);
         const primera = formato === "normal" ? "galeria" : (x.p.tipo === "moda" ? "moda_portada" : "oferta");
         if (!base.some(sx => sx.tipo === primera)) base.unshift({ tipo: primera });
+        // Con variantes, la sección de colores/tallas va sí o sí
+        const tipos = conSeccionVariantes(x.vista, base.map(sx => sx.tipo));
+        if (tipos.length !== base.length) { const resto = [...base]; base = tipos.map(t => (resto[0]?.tipo === t ? resto.shift() : { tipo: t })); }
       }
 
       const secciones = base.map(sx => {

@@ -9,6 +9,7 @@ import { limpiarFuentes } from "./public/js/core/fuentes.js";
 import { SECCIONES, FORMATOS, varianteDe, tiposDe, claveDe, ACABADOS, ETAPAS_AIDA, etapaDe } from "./public/js/core/plantilla.js";
 import { cifraPrueba } from "./public/js/core/finanzas.js";
 import { ofertaDe } from "./public/js/core/oferta.js";
+import { variantesDe, variantesTexto, colorDeSeccion, PORTADAS_V, SECCION_VARIANTES } from "./public/js/core/variantes.js";
 
 const limpio = (v, max = 3000) => String(v ?? "").slice(0, max).trim();
 
@@ -366,13 +367,13 @@ ${limpio(f.descripcion, 4000) || "(sin descripción)"}
 DESCRIPCIÓN FÍSICA VERIFICADA: ${limpio(r.descripcionFisica, 2000) || "(aún no verificada)"}
 TAMAÑO REAL: ${limpio(f.medidas || r.tamano, 300) || "(sin medidas: pídelas en las notas)"}
 LO QUE NO TIENE NI TRAE: ${limpio(listaNoTiene(f.noTiene, r.noTiene).join("; "), 800) || "(no indicado)"}
-VARIANTES / TALLAS / COLORES: ${limpio(f.variantes, 300) || "(una sola versión)"}
+VARIANTES / TALLAS / COLORES${variantesDe(f).colores.length || variantesDe(f).tallas.length ? " (nombres EXACTOS, escríbelos tal cual)" : ""}: ${limpio(variantesTexto(f), 400) || "(una sola versión)"}
 PRECIO: ${precio || "(sin precio)"}${antes ? ` · ANTES: ${antes}` : ""}${desc ? ` · DESCUENTO: ${desc}%` : ""}${f.precioEn === "releasit" ? " · DÓNDE VA: NO en la portada (va en el formulario de Releasit, paquetes y oferta de cierre)" : f.precioEn === "solo_releasit" ? " · DÓNDE VA: en NINGUNA imagen (solo en el formulario de Releasit)" : ""}
 ${(() => {
   const o = ofertaDe(f, p.pais === "EC" ? "EC" : "CO");
   if (o.tipo === "descuento") return `PAQUETES: ${limpio(f.paquetes, 500) || "(no hay paquetes)"}
 REGALO: ${limpio(f.regalo, 200) || "(no hay regalo)"}`;
-  return `OFERTA (la arma CoDropX; respétala tal cual en todos los textos, también en los de Shopify y Releasit): ${o.resumen}${o.textos.promo ? ` Texto de la promo: "${o.textos.promo}".` : ""}${["2x1", "xy"].includes(o.tipo) && limpio(f.variantes, 300) ? ` Hay variantes: el cliente puede escoger colores o tallas distintos en su promo (en preguntas frecuentes incluye "¿Puedo escoger colores diferentes?").` : ""}`;
+  return `OFERTA (la arma CoDropX; respétala tal cual en todos los textos, también en los de Shopify y Releasit): ${o.resumen}${o.textos.promo ? ` Texto de la promo: "${o.textos.promo}".` : ""}${["2x1", "xy"].includes(o.tipo) && variantesTexto(f) ? ` Hay variantes: el cliente puede escoger colores o tallas distintos en su promo (en preguntas frecuentes incluye "¿Puedo escoger colores diferentes?").` : ""}`;
 })()}
 PROMESAS QUE SÍ SON VERDAD (no inventes otras):
 ${lista(verdades)}
@@ -548,7 +549,7 @@ TIPO DE IMAGEN: FOTOGRAFÍA REAL ${e.mundo ? `como de ${limpio(e.mundo, 400)}` :
 DISEÑO GRÁFICO (encima de la foto): fondo ${fondo || "oscuro"}; titulares en ${limpiarFuentes(e.tipografia) || "letra sans extra gruesa"}, una línea en ${color1 || "blanco"} y otra en ${color2 || "color de acento"}; tarjetas ${tarjetas || "con bordes redondeados"}; íconos de línea en ${acento || "color de acento"}; ${normal ? `cuando la imagen lleve precio, va dentro de una caja ${caja || "de color de acento"}` : `cuando la imagen lleve precio (solo portada, paquetes y cierre), va grande dentro de una caja ${caja || "de color de acento"} con sello de descuento circular`}${e.recursos ? `; recursos que se repiten en todas las imágenes: ${limpio(e.recursos, 300)}` : ""}.
 ${acabadoTexto(p)}
 REGLA: el producto es el protagonista y se ve nítido y completo, pero SIEMPRE a su tamaño real junto a las personas y los objetos: nunca lo agrandes. Si quieres que se vea más, acerca la cámara o ponlo en primer plano. Ningún texto lo tapa. Estilo de venta directa, no editorial.
-PRODUCTO: usa EXACTAMENTE el producto de la foto adjunta: ${r.descripcionFisica || f.descripcion || p.nombre}.${e.producto_en_uso ? ` En uso: ${limpio(e.producto_en_uso, 500)}.` : ""}${f.variantes ? ` Variantes que existen: ${limpio(f.variantes, 200)}.` : ""}${noTiene ? ` NO tiene ni trae: ${noTiene}.` : ""} No agregues piezas, logos ni marcas. Cuando se está usando, lleva solo las piezas que van puestas (un solo accesorio a la vez); los repuestos sueltos van solo en la imagen de "qué incluye".
+PRODUCTO: usa EXACTAMENTE el producto de la foto adjunta: ${r.descripcionFisica || f.descripcion || p.nombre}.${e.producto_en_uso ? ` En uso: ${limpio(e.producto_en_uso, 500)}.` : ""}${variantesTexto(f) ? ` Variantes que existen: ${limpio(variantesTexto(f), 300)}.` : ""}${noTiene ? ` NO tiene ni trae: ${noTiene}.` : ""} No agregues piezas, logos ni marcas. Cuando se está usando, lleva solo las piezas que van puestas (un solo accesorio a la vez); los repuestos sueltos van solo en la imagen de "qué incluye".
 TAMAÑO REAL: ${f.medidas || r.tamano || "(indicar medidas)"}. ${referenciaTamano(f.medidas || r.tamano)} Respeta esa escala exacta junto a manos, personas y muebles.
 PERSONAS: ${e.personas || (PARA_QUIEN[paraQuienDe(p)].personas ? `${PARA_QUIEN[paraQuienDe(p)].personas}, de ${pais.nombre}, aspecto latino natural` : `adultos de ${pais.nombre}, aspecto latino natural`)}.${esMenor(p) ? " Los menores siempre con ropa normal y completa, en escenas cotidianas y familiares; nada sugestivo." : ""}
 TEXTO: escribe los textos exactamente como te los doy, con tildes y signos de español, sin errores ni texto extra, y cada uno UNA sola vez. Los nombres de letras, colores y estas instrucciones NO se escriben en la imagen.
@@ -559,10 +560,22 @@ NADA VACÍO: no dibujes recuadros, círculos ni marcos vacíos. Las tarjetas de 
 // plantilla: Mi plantilla del formato (orden fijo si usarOrden)
 export function seccionesFijas(p, plantilla) {
   if (!plantilla?.usarOrden) return null;
-  const tienePaquetes = !!String(p.ficha?.paquetes || "").trim();
-  return plantilla.orden
+  const tienePaquetes = !!String(p.ficha?.paquetes || "").trim() || ofertaDe(p.ficha || {}, p.pais === "EC" ? "EC" : "CO").tipo !== "descuento";
+  const tipos = plantilla.orden
     .filter(x => x.visible && (x.tipo !== "paquetes" || tienePaquetes))
     .map(x => x.tipo);
+  return conSeccionVariantes(p, tipos);
+}
+// Con 2 o más variantes, la sección de colores/tallas va aunque esté apagada (justo después de la portada)
+export function conSeccionVariantes(p, tipos) {
+  const { colores, tallas } = variantesDe(p.ficha || {});
+  if (colores.length + tallas.length < 2) return tipos;
+  const validos = tiposDe(claveDe(esNormal(p) ? "normal" : "ban", p.tipo));
+  const vt = [...SECCION_VARIANTES].find(t => validos.includes(t) && (p.tipo === "moda") === t.startsWith("moda_")) || [...SECCION_VARIANTES].find(t => validos.includes(t));
+  if (!vt || tipos.includes(vt)) return tipos;
+  const i = tipos.findIndex(t => PORTADAS_V.has(t) || t === "galeria");
+  const out = [...tipos]; out.splice(i >= 0 ? i + 1 : 0, 0, vt);
+  return out;
 }
 
 export function promptPropuestaSecciones(p, plantilla = null) {
@@ -684,7 +697,7 @@ export function bloqueOferta(p, seccion = {}) {
   if (o.tipo === "descuento") return "";
   const tipo = seccion.tipo, portada = PORTADAS.has(tipo) && tipo !== "galeria";
   const promo = ["2x1", "xy"].includes(o.tipo);
-  const variantes = String(f.variantes || "").trim();
+  const variantes = variantesTexto(f);
   let txt = "";
   if (promo) {
     const gratis = o.unidades - (o.tipo === "2x1" ? 1 : Number(String(t.sello).split("x")[1]) || 1);
@@ -700,6 +713,29 @@ export function bloqueOferta(p, seccion = {}) {
     txt = `una tarjeta por paquete, en este orden y con estos textos exactos: ${o.paquetes.map(x => `"${x.texto}"`).join("; ")}. Cada tarjeta muestra esa cantidad de unidades del producto.${o.paquetes.some(x => x.masVendido) ? ` Resalta la del "MÁS VENDIDO".` : ""}`;
   }
   return txt ? `OFERTA EN ESTA SECCIÓN (la arma CoDropX): ${txt}` : "";
+}
+export function bloqueVariantes(p, seccion = {}) {
+  const f = p?.ficha || {};
+  const { colores, tallas } = variantesDe(f);
+  if (!colores.length && !tallas.length) return "";
+  const tipo = seccion.tipo;
+  const muestra = (c) => `"${c.nombre}" (${c.foto ? "foto adjunta de ese color" : c.hex ? `muestra de color ${c.hex}` : "muestra de ese color"})`;
+  const lineas = [];
+  if (PORTADAS_V.has(tipo) && colores.length > 1) {
+    const o = ofertaDe(f, p?.pais === "EC" ? "EC" : "CO");
+    const n = ["2x1", "xy"].includes(o.tipo) ? o.unidades : 1;
+    lineas.push(`${n > 1 ? `Las ${n} unidades de la promo van de colores distintos: ${colores.slice(0, n).map(c => c.nombre.toUpperCase()).join(", ")}` : `Producto en color ${colores[0].nombre.toUpperCase()}`}${colores[0].foto ? " (usa la foto adjunta de ese color)" : ""}.`);
+    lineas.push(`Fila "${n > 1 ? `ELIGE TUS ${n} COLORES` : "ELIGE TU COLOR"}" con un círculo por variante y su nombre debajo: ${colores.map(muestra).join(", ")}. La fila no tapa el producto.`);
+  } else if (SECCION_VARIANTES.has(tipo)) {
+    if (colores.length) lineas.push(`Muestra TODOS los colores, cada uno con su nombre exacto: ${colores.map(muestra).join(", ")}.`);
+    if (tallas.length) lineas.push(`Tallas (solo estas, en este orden): ${tallas.map(t => `"${t.nombre}"${t.medidas ? ` (${t.medidas})` : ""}`).join(", ")}.`);
+  } else if (tipo === "moda_guia_tallas" && tallas.length) {
+    lineas.push(`Usa SOLO estas tallas y medidas, nunca inventes otras: ${tallas.map(t => `"${t.nombre}"${t.medidas ? `: ${t.medidas}` : ""}`).join("; ")}.`);
+  } else {
+    const c = colorDeSeccion(f, p?.secciones, seccion);
+    if (c && colores.length > 1) lineas.push(`Producto en color ${c.nombre.toUpperCase()}${c.foto ? " (usa la foto adjunta de ese color)" : c.hex ? ` (tono ${c.hex})` : ""}.`);
+  }
+  return lineas.length ? `VARIANTES EN ESTA SECCIÓN (las arma CoDropX): ${lineas.join(" ")}` : "";
 }
 export function bloqueProhibidos(p) {
   const t = textosProhibidos(p);
@@ -729,11 +765,11 @@ export function limpiarMontos(texto, p, seccion = {}) {
 
 export function cierreSeccion(texto, p, seccion = {}) {
   // El precio y los prohibidos los pega el código al final (se rehacen cada vez: si cambias el precio en la Ficha, quedan al día)
-  const sinBloques = String(texto || "").replace(/\n+(OFERTA EN ESTA SECCIÓN|PRECIO \(cópialo EXACTO|PROHIBIDO EN ESTA IMAGEN|TEXTOS QUE NO DEBEN SALIR)[\s\S]*?(?=\n\n|$)/g, "");
+  const sinBloques = String(texto || "").replace(/\n+(VARIANTES EN ESTA SECCIÓN|OFERTA EN ESTA SECCIÓN|PRECIO \(cópialo EXACTO|PROHIBIDO EN ESTA IMAGEN|TEXTOS QUE NO DEBEN SALIR)[\s\S]*?(?=\n\n|$)/g, "");
   const base = conCierreResenas(limpiarMontos(sinBloques, p, seccion), p, seccion.tipo, seccion.variante);
   const galeria = p?.formato === "normal" && seccion.tipo === "galeria";
-  const oferta = bloqueOferta(p, seccion);
-  const conBloques = String(base).replace(/\n+MARGEN ABAJO[\s\S]*?(?=\n\n|$)/, "").trimEnd() + `${oferta ? `\n\n${oferta}` : ""}\n\n${bloquePrecio(p, seccion)}\n\n${bloqueProhibidos(p)}`;
+  const oferta = bloqueOferta(p, seccion), variantes = bloqueVariantes(p, seccion);
+  const conBloques = String(base).replace(/\n+MARGEN ABAJO[\s\S]*?(?=\n\n|$)/, "").trimEnd() + `${variantes ? `\n\n${variantes}` : ""}${oferta ? `\n\n${oferta}` : ""}\n\n${bloquePrecio(p, seccion)}\n\n${bloqueProhibidos(p)}`;
   return galeria ? conBloques : conBloques + margenAbajo(p, seccion.formato || (p?.formato === "normal" ? "1:1" : "9:16"));
 }
 

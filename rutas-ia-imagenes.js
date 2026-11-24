@@ -10,6 +10,7 @@ import { limpiarFuentes } from "./public/js/core/fuentes.js";
 import { ImagenLanding, metaImagen, MAX_POR_SECCION, tipoDeBytes } from "./modelo-imagenes.js";
 import { cierreSeccion } from "./prompts-landing.js";
 import { ofertaDe } from "./public/js/core/oferta.js";
+import { variantesDe, colorDeSeccion, PORTADAS_V } from "./public/js/core/variantes.js";
 
 const MODELO = () => process.env.XAI_IMAGE_MODEL || "grok-imagine-image-2.0";
 const RESOLUCION = () => (["1k", "1.5k", "2k"].includes(process.env.XAI_IMAGE_RES) ? process.env.XAI_IMAGE_RES : "2k");
@@ -63,16 +64,17 @@ export const aspectoDe = (formato) => {
 };
 
 // El producto va primero y al final: la IA tiende a obedecer lo que más se repite
-export function armarPrompt({ bloqueEstilo, prompt, referencias, descripcion = "", noTiene = "", clientes = 0, regalos = 0, nombresRegalos = [], unidades = 1 }) {
+export function armarPrompt({ bloqueEstilo, prompt, referencias, descripcion = "", noTiene = "", clientes = 0, regalos = 0, nombresRegalos = [], unidades = 1, colorNombres = [] }) {
   bloqueEstilo = String(bloqueEstilo || "").replace("(salvo las tarjetas lisas de la sección de reseñas o chats).", "Las tarjetas de reseñas y chats van blancas y LLENAS con el texto de cada cliente.");
   // Las últimas "clientes" referencias son fotos reales de clientes (sección de reseñas), no del producto
   const total = referencias;
   referencias = Math.max(0, referencias - clientes - regalos);
   const etiquetas = total > 1 ? Array.from({ length: referencias }, (_, i) => `<IMAGE_${i}>`).join(", ") : "la foto de referencia";
+  const fotosColor = colorNombres.length ? `\nCOLORES: ${colorNombres.map((c, i) => `<IMAGE_${i}> muestra el producto en color ${c.toUpperCase()}`).join("; ")}. Copia ese color exacto donde la sección lo pide; las demás fotos son del mismo producto.` : "";
   const fotosRegalos = regalos > 0 ? `\nREGALOS: ${Array.from({ length: regalos }, (_, i) => `<IMAGE_${referencias + i}> es el regalo "${nombresRegalos[i] || `regalo ${i + 1}`}"`).join("; ")}. Cópialos idénticos dentro de sus círculos, más pequeños que el producto.` : "";
   const fotosClientes = clientes > 0 ? `\nFOTOS REALES DE CLIENTES: ${Array.from({ length: clientes }, (_, i) => `<IMAGE_${referencias + i}>`).join(", ")} son las fotos que mandaron los clientes, en el orden de las reseñas. Úsalas tal cual dentro de sus tarjetas (solo recórtalas): no cambies a las personas ni los lugares.` : "";
   const cabeza = referencias
-    ? `PRODUCTO REAL QUE SE VENDE: es el que aparece en ${etiquetas}. Cópialo IDÉNTICO: misma forma, tamaño relativo, colores, materiales, botones, piezas, logos y proporciones. NO inventes otro producto parecido, NO lo rediseñes, NO le agregues ni quites partes, ${unidades > 1 ? `Esta imagen es de una PROMO: muestra ${unidades} unidades del producto, cada una idéntica a la foto (puede cambiar solo el color si hay variantes); no dupliques piezas dentro de una misma unidad.` : "NO dupliques piezas (si se está usando, lleva un solo accesorio puesto)."} Solo cambia la escena, las personas, la luz y los textos alrededor.${descripcion ? `\nCómo es el producto: ${descripcion}` : ""}${noTiene ? `\nEl producto NO tiene: ${noTiene}` : ""}${fotosClientes}${fotosRegalos}\n\n`
+    ? `PRODUCTO REAL QUE SE VENDE: es el que aparece en ${etiquetas}. Cópialo IDÉNTICO: misma forma, tamaño relativo, colores, materiales, botones, piezas, logos y proporciones. NO inventes otro producto parecido, NO lo rediseñes, NO le agregues ni quites partes, ${unidades > 1 ? `Esta imagen es de una PROMO: muestra ${unidades} unidades del producto, cada una idéntica a la foto (puede cambiar solo el color si hay variantes); no dupliques piezas dentro de una misma unidad.` : "NO dupliques piezas (si se está usando, lleva un solo accesorio puesto)."} Solo cambia la escena, las personas, la luz y los textos alrededor.${descripcion ? `\nCómo es el producto: ${descripcion}` : ""}${noTiene ? `\nEl producto NO tiene: ${noTiene}` : ""}${fotosColor}${fotosClientes}${fotosRegalos}\n\n`
     : "";
   const cola = "\n\nTEXTOS: escribe SOLO los textos que están entre comillas, letra por letra y bien escritos. Si un texto pequeño no te queda legible, NO lo pongas: nunca letras inventadas ni palabras sin sentido. Los precios y porcentajes van EXACTOS como están escritos. De las fotos de referencia copia SOLO el producto: nunca sus textos, precios, referencias, códigos, logos del proveedor ni etiquetas."
     + (referencias ? `\n\nRECUERDA: el producto de la imagen debe verse exactamente igual al de ${etiquetas}.` : "");
@@ -176,10 +178,19 @@ export function registrarRutasIAImagenes(app, { cargarRama, guardarRama, actuali
       // Regalo con la compra: en la portada, paquetes y cierre van las fotos reales de los regalos
       const oferta = ofertaDe(x.p.ficha || {}, x.p.pais === "EC" ? "EC" : "CO");
       if (oferta.conflicto) return res.status(400).json({ error: `${oferta.conflicto} Resuélvelo en la Ficha.` });
+      // Variantes: la foto del color que le toca a esta sección va primero (en la portada, los colores de la promo)
+      const { colores } = variantesDe(x.p.ficha || {});
+      let colorNombres = [];
+      if (colores.length > 1 && sec.tipo !== "resenas") {
+        const n = PORTADAS_V.has(sec.tipo) ? (["2x1", "xy"].includes(oferta.tipo) ? Math.min(oferta.unidades, 2) : 1) : 1;
+        const toca = PORTADAS_V.has(sec.tipo) ? colores.slice(0, n) : [colorDeSeccion(x.p.ficha || {}, x.r.secciones, sec)].filter(Boolean);
+        const conFoto = toca.filter(c => c.foto);
+        if (conFoto.length) { fotos = [...conFoto.map(c => c.foto), ...fotos].slice(0, MAX_REFERENCIAS); colorNombres = conFoto.map(c => c.nombre); }
+      }
       let regalos = 0;
       if (oferta.tipo === "regalo" && ["oferta", "moda_portada", "paquetes", "oferta_cierre"].includes(sec.tipo)) {
         const fr = oferta.regalos.filter(g => g.foto).map(g => g.foto).slice(0, MAX_REFERENCIAS - 1);
-        if (fr.length) { fotos = [fotos[0], ...fr]; regalos = fr.length; }
+        if (fr.length) { fotos = [fotos[0], ...fr].slice(0, MAX_REFERENCIAS); regalos = fotos.length - 1; colorNombres = colorNombres.slice(0, 1); }
       }
       const estimado = PRECIO_IMAGEN + PRECIO_REFERENCIA * fotos.length;
       const g = await estadoGasto(req.user.uid);
@@ -194,7 +205,7 @@ export function registrarRutasIAImagenes(app, { cargarRama, guardarRama, actuali
       const bloque = x.r.bloqueEstilo || "";
       const r = await pedirImagen({ prompt: armarPrompt({
         bloqueEstilo: bloque, prompt: cierreSeccion(sec.prompt, x.vista, sec), referencias: fotos.length, clientes, regalos,
-        nombresRegalos: oferta.regalos.filter(g => g.foto).map(g => g.nombre),
+        nombresRegalos: oferta.regalos.filter(g => g.foto).map(g => g.nombre), colorNombres,
         unidades: ["2x1", "xy"].includes(oferta.tipo) && ["oferta", "moda_portada", "paquetes", "oferta_cierre", "moda_precio_tallas"].includes(sec.tipo) ? oferta.unidades : 1,
         descripcion: String(x.p.revision?.descripcionFisica || "").slice(0, 600) + (x.p.ficha?.medidas ? ` Medidas: ${String(x.p.ficha.medidas).slice(0, 120)}.` : ""),
         noTiene: [...(Array.isArray(x.p.revision?.noTiene) ? x.p.revision.noTiene : []), x.p.ficha?.noTiene].filter(Boolean).join("; ").slice(0, 300)

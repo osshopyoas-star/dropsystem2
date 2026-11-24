@@ -14,6 +14,7 @@ import { VERSION_SECCION } from "../core/seccion-shopify.js";
 import { limpiarFuentes } from "../core/fuentes.js";
 import { cifraPrueba } from "../core/finanzas.js";
 import { TIPOS_OFERTA, ofertaDe, paquetesDeTexto } from "../core/oferta.js";
+import { avisosVariantes } from "../core/variantes.js";
 
 const PASOS = [
   { n: 1, titulo: "Ficha", icono: "clipboard-list" },
@@ -580,8 +581,7 @@ function pasoFicha() {
         <input id="fMedidas" value="${esc(f.medidas)}" placeholder="Ej: 18 x 11 cm, 1.92 m de alto, 40 cm">
         <label>Lo que NO tiene (para que la IA no lo invente)</label>
         <input id="fNoTiene" value="${esc(f.noTiene)}" placeholder="Ej: no tiene cámara, no trae caja de marca">
-        <label>Tallas / colores / variantes</label>
-        <input id="fVariantes" value="${esc(f.variantes)}" placeholder="Ej: tallas 35 a 40; colores negro y blanco">
+        <div id="fVariantesCaja">${cajaVariantes()}</div>
         <div id="fOferta">${cajaOferta()}</div>
       </div>
     </div>
@@ -850,7 +850,8 @@ function leerFicha() {
     paraQuien: val("fParaQuien") || "adultos",
     precioEn: ["portada", "releasit", "solo_releasit"].includes(val("fPrecioEn")) ? val("fPrecioEn") : (proyecto.ficha?.precioEn || "portada"),
     noTiene: val("fNoTiene"),
-    variantes: val("fVariantes"),
+    variantes: $("fVariantes") ? val("fVariantes") : (proyecto.ficha?.variantes || ""),
+    variantesLista: leerVariantes(),
     regalo: $("fRegalo") ? val("fRegalo") : (proyecto.ficha?.regalo || ""),
     paquetes: $("fPaquetes") ? val("fPaquetes") : (proyecto.ficha?.paquetes || ""),
     oferta: leerOferta(),
@@ -920,6 +921,54 @@ window.estSubirFotos = async (input) => {
     await guardar({ ficha: leerFicha(), fotos: [...(proyecto.fotos || []), ...nuevas] });
     renderPaso();
   } catch (err) { avisar(err.message, "error"); }
+};
+
+// ---------- Variantes (colores y tallas): los nombres van tal cual a las imágenes ----------
+function cajaVariantes() {
+  const f = proyecto.ficha || {};
+  const lista = Array.isArray(f.variantesLista) ? f.variantesLista : [];
+  const avisos = avisosVariantes(f);
+  return `<label>Colores y tallas</label>
+    <div id="fVariantes2">${lista.map((v, i) => `<div class="est-oferta-fila" data-variante data-tipo="${v.tipo === "talla" ? "talla" : "color"}">
+      ${v.tipo === "talla"
+        ? `<span class="est-var-tag">Talla</span><input value="${esc(v.nombre || "")}" placeholder="Ej: M" maxlength="30" data-n style="max-width:90px"><input value="${esc(v.medidas || "")}" placeholder="Medidas (ej: pecho 96 cm, largo 70 cm)" maxlength="80" data-m style="flex:1">`
+        : `${v.foto ? `<img src="${v.foto}" alt="" class="est-oferta-foto" title="Foto de este color">` : `<label class="est-oferta-foto vacia" title="Sube una foto del producto en este color">＋<input type="file" accept="image/png,image/jpeg,image/webp" hidden onchange="estVarianteFoto(${i}, this)"></label>`}
+          <input type="color" value="${/^#[0-9a-f]{6}$/i.test(v.hex || "") ? v.hex : "#888888"}" data-h title="Muestra del color (si no hay foto)">
+          <input value="${esc(v.nombre || "")}" placeholder="Nombre del color (ej: Camel)" maxlength="30" data-n style="flex:1">`}
+      <button class="est-link" onclick="estVarianteQuitar(${i})">✕</button></div>`).join("")}</div>
+    <div class="est-actions" style="margin-top:4px"><button class="est-btn chico" onclick="estVarianteAgregar('color')"><i data-lucide="palette"></i> Agregar color</button><button class="est-btn chico" onclick="estVarianteAgregar('talla')"><i data-lucide="ruler"></i> Agregar talla</button></div>
+    ${avisos.length ? `<div class="est-alert warn">${avisos.map(esc).join("<br>")}</div>` : ""}
+    <span class="est-hint">Cada color sale en la portada ("ELIGE TU COLOR") y se reparte entre las imágenes. Con foto, la IA copia ese color exacto.</span>
+    ${lista.length ? `<details><summary class="est-hint">Texto libre (respaldo)</summary>` : ""}
+    <input id="fVariantes" value="${esc(f.variantes)}" placeholder="Ej: tallas 35 a 40; colores negro y blanco">
+    ${lista.length ? `</details>` : ""}`;
+}
+function leerVariantes() {
+  const actual = Array.isArray(proyecto.ficha?.variantesLista) ? proyecto.ficha.variantesLista : [];
+  if (!$("fVariantes2")) return actual;
+  return [...document.querySelectorAll("#fVariantes2 [data-variante]")].map((el, i) => el.dataset.tipo === "talla"
+    ? { tipo: "talla", nombre: el.querySelector("[data-n]").value.trim(), medidas: el.querySelector("[data-m]").value.trim() }
+    : { tipo: "color", nombre: el.querySelector("[data-n]").value.trim(), hex: el.querySelector("[data-h]").value, foto: actual[i]?.foto || "" });
+}
+window.estVarianteAgregar = async (tipo) => {
+  const ficha = leerFicha();
+  if ((ficha.variantesLista || []).length >= 12) return avisar("Máximo 12 variantes", "error");
+  await guardar({ ficha: { ...ficha, variantesLista: [...(ficha.variantesLista || []), tipo === "talla" ? { tipo, nombre: "", medidas: "" } : { tipo, nombre: "", hex: "#888888", foto: "" }] } });
+  renderPaso();
+};
+window.estVarianteQuitar = async (i) => {
+  const ficha = leerFicha();
+  const lista = [...(ficha.variantesLista || [])]; lista.splice(i, 1);
+  await guardar({ ficha: { ...ficha, variantesLista: lista } });
+  renderPaso();
+};
+window.estVarianteFoto = async (i, input) => {
+  const file = input.files?.[0]; if (!file) return;
+  const ficha = leerFicha();
+  const lista = [...(ficha.variantesLista || [])];
+  lista[i] = { ...lista[i], foto: await comprimirFoto(file) };
+  await guardar({ ficha: { ...ficha, variantesLista: lista } });
+  renderPaso();
 };
 
 // ---------- Tipo de oferta (2x1, lleva X paga Y, paquetes, regalo): los textos de precio los arma CoDropX ----------
