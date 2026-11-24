@@ -18,6 +18,7 @@ const imagenSchema = new mongoose.Schema({
   capa: { type: Boolean, default: false },         // GIF o botón que va ENCIMA de una imagen (no es una imagen de la landing)
   media: { type: Boolean, default: false },        // foto del producto para "Multimedia" de Shopify (no va en la landing)
   subidas: { type: mongoose.Schema.Types.Mixed, default: {} },   // { [tiendaId]: url en el CDN de Shopify }
+  revision: { type: mongoose.Schema.Types.Mixed, default: null }, // { ok, problemas: [{ tipo, texto }], textos, fecha } revisión automática de los textos
   creado: { type: Date, default: Date.now }
 });
 
@@ -60,5 +61,5 @@ export function tipoDeBytes(buf, conGif = false) {
 }
 
 export const metaImagen = (x) => ({
-  _id: String(x._id), rama: x.rama, seccion: x.seccion, origen: x.origen || "subida", capa: !!x.capa, media: !!x.media, tipo: x.tipo || "", ancho: x.ancho || null, alto: x.alto || null, bytes: x.bytes || 0, creado: x.creado
+  _id: String(x._id), rama: x.rama, seccion: x.seccion, origen: x.origen || "subida", capa: !!x.capa, media: !!x.media, revision: x.revision || null, tipo: x.tipo || "", ancho: x.ancho || null, alto: x.alto || null, bytes: x.bytes || 0, creado: x.creado
 });

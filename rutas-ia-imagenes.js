@@ -8,7 +8,7 @@
 import mongoose from "mongoose";
 import { limpiarFuentes } from "./public/js/core/fuentes.js";
 import { ImagenLanding, metaImagen, MAX_POR_SECCION, tipoDeBytes } from "./modelo-imagenes.js";
-import { cierreSeccion } from "./prompts-landing.js";
+import { cierreSeccion, textosPermitidos, promptRevisarImagen, problemasDeTextos } from "./prompts-landing.js";
 import { ofertaDe } from "./public/js/core/oferta.js";
 import { variantesDe, colorDeSeccion, PORTADAS_V } from "./public/js/core/variantes.js";
 
@@ -36,7 +36,8 @@ export const GastoIA = mongoose.model("GastoIA", gastoSchema);
 
 const configSchema = new mongoose.Schema({
   owner: { type: mongoose.Schema.Types.ObjectId, ref: "Usuario", index: true, unique: true },
-  limiteUsd: { type: Number, default: LIMITE_DEFECTO }
+  limiteUsd: { type: Number, default: LIMITE_DEFECTO },
+  autoRegenerar: { type: Boolean, default: false }   // si la revisión automática encuentra un error, rehace la imagen 1 vez
 });
 export const ConfigIA = mongoose.model("ConfigIA", configSchema);
 
@@ -53,7 +54,7 @@ async function estadoGasto(owner) {
   ]);
   const limite = c?.limiteUsd ?? LIMITE_DEFECTO;
   const usd = redondear(g?.usd || 0);
-  return { mes: mesActual(), usd, imagenes: g?.imagenes || 0, limite, queda: redondear(Math.max(0, limite - usd)), precioImagen: PRECIO_IMAGEN, precioReferencia: PRECIO_REFERENCIA };
+  return { mes: mesActual(), usd, imagenes: g?.imagenes || 0, limite, queda: redondear(Math.max(0, limite - usd)), precioImagen: PRECIO_IMAGEN, precioReferencia: PRECIO_REFERENCIA, autoRegenerar: !!c?.autoRegenerar };
 }
 
 export const aspectoDe = (formato) => {
@@ -130,7 +131,22 @@ export async function pedirImagen({ prompt, fotos, aspecto, resolucion = null })
 
 const enProceso = new Set();
 
-export function registrarRutasIAImagenes(app, { cargarRama, guardarRama, actualizarRama, limiter }) {
+// Revisión automática: la IA lee los textos de la imagen; el código revisa precios y prohibidos, y la IA marca palabras raras
+async function revisarImagen(llamarIA, { datos, tipo }, vista, sec, prompt) {
+  if (!llamarIA) return null;
+  try {
+    const permitidos = textosPermitidos(prompt);
+    const reply = await llamarIA({ system: "Lees textos de imágenes con mucho cuidado y respondes solo JSON.", prompt: promptRevisarImagen(permitidos), image: `data:${tipo || "image/jpeg"};base64,${Buffer.from(datos).toString("base64")}` });
+    const limpio = String(reply || "").replace(/^```[a-z]*\n?|```$/gim, "").trim();
+    const j = JSON.parse(limpio.slice(limpio.indexOf("{"), limpio.lastIndexOf("}") + 1));
+    const textos = (Array.isArray(j.textos) ? j.textos : []).map(t => String(t).slice(0, 160)).slice(0, 40);
+    const raros = (Array.isArray(j.raros) ? j.raros : []).map(t => String(t).slice(0, 160)).slice(0, 10);
+    const problemas = [...problemasDeTextos(textos, vista, sec), ...raros.map(t => ({ tipo: "raro", texto: `Texto raro: "${t}"` }))];
+    return { ok: !problemas.length, problemas: problemas.slice(0, 12), textos, fecha: new Date() };
+  } catch (e) { console.warn("No se pudo revisar la imagen:", e.message); return null; }
+}
+
+export function registrarRutasIAImagenes(app, { cargarRama, guardarRama, actualizarRama, limiter, llamarIA }) {
   const mw = limiter ? [limiter] : [];
 
   app.get("/api/ia/gasto", async (req, res) => {
@@ -140,11 +156,32 @@ export function registrarRutasIAImagenes(app, { cargarRama, guardarRama, actuali
 
   app.put("/api/ia/gasto", async (req, res) => {
     try {
-      const n = Number(req.body?.limite);
-      if (!Number.isFinite(n) || n < 0 || n > 200) return res.status(400).json({ error: "El límite debe estar entre $0 y $200 USD" });
-      await ConfigIA.findOneAndUpdate({ owner: req.user.uid }, { $set: { limiteUsd: Math.round(n * 100) / 100 }, $setOnInsert: { owner: req.user.uid } }, { upsert: true, new: true });
+      const cambios = {};
+      if (req.body?.limite !== undefined) {
+        const n = Number(req.body.limite);
+        if (!Number.isFinite(n) || n < 0 || n > 200) return res.status(400).json({ error: "El límite debe estar entre $0 y $200 USD" });
+        cambios.limiteUsd = Math.round(n * 100) / 100;
+      }
+      if (req.body?.autoRegenerar !== undefined) cambios.autoRegenerar = !!req.body.autoRegenerar;
+      await ConfigIA.findOneAndUpdate({ owner: req.user.uid }, { $set: cambios, $setOnInsert: { owner: req.user.uid } }, { upsert: true, new: true });
       res.json(await estadoGasto(req.user.uid));
     } catch (err) { console.error("Error guardando límite IA:", err); res.status(500).json({ error: "No se pudo guardar el límite" }); }
+  });
+
+  // Revisar los textos de una imagen ya hecha (también las subidas de Gemini)
+  app.post("/api/proyectos/:id/rama/:av/imagenes/:img/revisar", ...mw, async (req, res) => {
+    try {
+      const x = await cargarRama(req, res); if (!x) return;
+      if (!mongoose.isValidObjectId(req.params.img)) return res.status(400).json({ error: "Imagen inválida" });
+      const im = await ImagenLanding.findOne({ _id: req.params.img, owner: req.user.uid, proyecto: x.p._id });
+      if (!im) return res.status(404).json({ error: "Imagen no encontrada" });
+      const sec = (x.r.secciones || []).find(s => s.id === im.seccion);
+      if (!sec?.prompt) return res.status(400).json({ error: "Esa sección no tiene prompt para comparar" });
+      const revision = await revisarImagen(llamarIA, im, x.vista, sec, cierreSeccion(sec.prompt, x.vista, sec));
+      if (!revision) return res.status(502).json({ error: "No se pudo revisar la imagen. Intenta de nuevo." });
+      im.revision = revision; im.markModified("revision"); await im.save();
+      res.json({ imagen: metaImagen(im) });
+    } catch (err) { console.error("Error revisando imagen:", err.message); res.status(500).json({ error: "No se pudo revisar la imagen" }); }
   });
 
   // Generar la imagen de una sección
@@ -203,8 +240,17 @@ export function registrarRutasIAImagenes(app, { cargarRama, guardarRama, actuali
       enProceso.add(clave); llave = clave;
 
       const bloque = x.r.bloqueEstilo || "";
+      const promptFinal = cierreSeccion(sec.prompt, x.vista, sec);
+      const intentos = g.autoRegenerar ? 2 : 1;
+      let nueva = null, revision = null, rehecha = false;
+      for (let intento = 0; intento < intentos; intento++) {
+      try {
+      if (intento > 0) {
+        const g2 = await estadoGasto(req.user.uid);
+        if (g2.usd + estimado > g2.limite + 1e-9) break;   // sin saldo para rehacerla: se queda la que hay
+      }
       const r = await pedirImagen({ prompt: armarPrompt({
-        bloqueEstilo: bloque, prompt: cierreSeccion(sec.prompt, x.vista, sec), referencias: fotos.length, clientes, regalos,
+        bloqueEstilo: bloque, prompt: promptFinal, referencias: fotos.length, clientes, regalos,
         nombresRegalos: oferta.regalos.filter(g => g.foto).map(g => g.nombre), colorNombres,
         unidades: ["2x1", "xy"].includes(oferta.tipo) && ["oferta", "moda_portada", "paquetes", "oferta_cierre", "moda_precio_tallas"].includes(sec.tipo) ? oferta.unidades : 1,
         descripcion: String(x.p.revision?.descripcionFisica || "").slice(0, 600) + (x.p.ficha?.medidas ? ` Medidas: ${String(x.p.ficha.medidas).slice(0, 120)}.` : ""),
@@ -217,14 +263,24 @@ export function registrarRutasIAImagenes(app, { cargarRama, guardarRama, actuali
         { upsert: true, new: true }
       );
 
-      const nueva = await ImagenLanding.create({
+      const rev = await revisarImagen(llamarIA, r, x.vista, sec, promptFinal);
+      if (nueva) await ImagenLanding.deleteOne({ _id: nueva._id, owner: req.user.uid });   // la primera falló la revisión: se cambia por la nueva
+      nueva = await ImagenLanding.create({
         owner: req.user.uid, proyecto: x.p._id, rama: x.av, seccion: sec.id,
-        tipo: r.tipo, datos: r.datos, bytes: r.datos.length, origen: "ia"
+        tipo: r.tipo, datos: r.datos, bytes: r.datos.length, origen: "ia", revision: rev
       });
+      revision = rev; rehecha = intento > 0;
+      if (!rev || rev.ok) break;
+      } catch (e) {
+        if (!nueva) throw e;   // si falla el segundo intento, se queda la primera imagen
+        console.warn("Landing IA: no se pudo rehacer la imagen:", e.message);
+        break;
+      }
+      }
       const rama = (await actualizarRama(x.p, x.av, (actual) => ({
         ...actual, secciones: (actual.secciones || []).map(s => s.id === sec.id ? { ...s, hecha: true } : s)
       }))) || x.r;
-      res.json({ imagen: metaImagen(nueva), rama, gasto: await estadoGasto(req.user.uid) });
+      res.json({ imagen: metaImagen(nueva), rama, gasto: await estadoGasto(req.user.uid), revision, rehecha });
     } catch (err) {
       console.error("Error generando imagen IA:", err.message);
       res.status(err.status || 500).json({ error: err.message || "No se pudo generar la imagen" });

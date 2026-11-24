@@ -1408,11 +1408,19 @@ function tiraImagenes(x) {
   return `
   <div class="est-imgs" ondragover="event.preventDefault(); this.classList.add('soltar')" ondragleave="this.classList.remove('soltar')" ondrop="estSoltarImagen(event, '${esc(x.id)}')">
     ${imgs.map(im => `
-      <div class="est-img">
+      <div class="est-img ${im.revision && !im.revision.ok ? "mala" : ""}">
         <a href="/api/imagenes/${esc(im._id)}" target="_blank" rel="noopener" title="Ver en grande"><img src="/api/imagenes/${esc(im._id)}" alt="Imagen de ${esc(x.titulo)}" loading="lazy"></a>
         ${im.origen === "ia" ? `<span class="est-img-ia">IA</span>` : ""}
         <button title="Quitar imagen" onclick="estQuitarImagen('${esc(im._id)}')">✕</button>
+        ${im.revision ? (im.revision.ok
+          ? `<span class="est-img-rev ok" title="La revisión no encontró precios raros, textos prohibidos ni palabras sin sentido">✓ Textos OK</span>`
+          : `<span class="est-img-rev mal" title="${esc(im.revision.problemas.map(p => p.texto).join("\n"))}">⚠ Revisar</span>`)
+          : `<button class="est-img-rev nada" id="rev-${esc(im._id)}" onclick="estRevisarImagen('${esc(im._id)}')" title="La IA lee los textos de la imagen y los compara con la Ficha">🔍 Revisar</button>`}
       </div>`).join("")}
+    ${(() => {
+      const mala = [...imgs].reverse().find(im => im.revision && !im.revision.ok);
+      return mala ? `<div class="est-alert warn est-rev-lista"><b>⚠ La revisión encontró:</b><ul>${mala.revision.problemas.map(p => `<li>${esc(p.texto)}</li>`).join("")}</ul>${x.prompt ? `<button class="est-btn chico" onclick="estGenerarImagenIA('${esc(x.id)}')"><i data-lucide="refresh-cw"></i> Regenerar</button>` : ""}</div>` : "";
+    })()}
     ${imgs.length < MAX_IMGS_SECCION ? `
       <label class="est-img add" id="imgAdd-${esc(x.id)}">
         <input type="file" accept="image/png,image/jpeg,image/webp" multiple hidden onchange="estSubirImagen('${esc(x.id)}', this.files); this.value=''">
@@ -1504,6 +1512,7 @@ function lineaGastoIA() {
     <span class="est-gasto-barra"><i style="width:${pct.toFixed(0)}%"></i></span>
     <button class="est-link" onclick="estLimiteIA()">Cambiar límite</button>
   </div>
+  <label class="est-check est-hint" style="display:flex;gap:6px;align-items:center;margin-top:4px"><input type="checkbox" ${gastoIA.autoRegenerar ? "checked" : ""} onchange="estAutoRegenerar(this.checked)"> Cada imagen se revisa sola (precios, textos prohibidos y palabras raras). Rehacerla 1 vez si la revisión encuentra un error (cuesta otra imagen).</label>
   ${(proyecto.fotos || []).length ? `
   <div class="est-refs-ia">
     <span>Fotos que la IA copia (toca para elegir, máx 3). Funcionan mejor las del producto solo, nítido y con fondo limpio:</span>
@@ -1528,11 +1537,12 @@ window.estGenerarImagenIA = async (idSeccion) => {
   generandoIA.add(idSeccion);
   renderPaso();
   try {
-    const { imagen, rama, gasto } = await api("POST", `/api/proyectos/${proyecto._id}/rama/${avInicio}/ia/imagen/${idSeccion}`, { refs: refsIA() });
+    const { imagen, rama, gasto, revision, rehecha } = await api("POST", `/api/proyectos/${proyecto._id}/rama/${avInicio}/ia/imagen/${idSeccion}`, { refs: refsIA() });
     imagenes.push(imagen);
     if (av === avInicio) ponerRama(rama);
     gastoIA = gasto;
-    avisar("Imagen creada ✓ Revísala: si no te gusta, quítala y genera otra.");
+    if (revision && !revision.ok) avisar(`Imagen creada${rehecha ? " (se rehízo 1 vez)" : ""}, pero la revisión encontró ${revision.problemas.length} problema(s): míralo debajo de la imagen.`, "error");
+    else avisar(`Imagen creada ✓${revision ? " Textos revisados" : ""}${rehecha ? " (se rehízo 1 vez)" : ""}. Si no te gusta, quítala y genera otra.`);
   } catch (err) {
     avisar(err.message, "error");
     api("GET", "/api/ia/gasto").then(g => { gastoIA = g; }).catch(() => {});
@@ -1540,6 +1550,17 @@ window.estGenerarImagenIA = async (idSeccion) => {
     generandoIA.delete(idSeccion);
     if (tab === 4) renderPaso();
   }
+};
+
+window.estRevisarImagen = (id) => conCarga(`rev-${id}`, "Revisando...", async () => {
+  const { imagen } = await api("POST", `/api/proyectos/${proyecto._id}/rama/${av}/imagenes/${id}/revisar`);
+  imagenes = imagenes.map(i => (i._id === id ? imagen : i));
+  avisar(imagen.revision?.ok ? "Textos OK ✓" : `La revisión encontró ${imagen.revision?.problemas?.length || 0} problema(s)`, imagen.revision?.ok ? "ok" : "error");
+  renderPaso();
+});
+window.estAutoRegenerar = async (v) => {
+  try { gastoIA = await api("PUT", "/api/ia/gasto", { autoRegenerar: v }); avisar(v ? "Se rehará 1 vez si la revisión encuentra un error" : "Ya no se rehace sola"); }
+  catch (e) { avisar(e.message, "error"); }
 };
 
 window.estSoltarImagen = (e, idSeccion) => {
@@ -1596,7 +1617,7 @@ window.estGenerarTodasImagenes = async () => {
   if (g.queda !== undefined && costo > g.queda + 1e-9) return avisar(`No alcanza el límite del mes: ${lista.length} imágenes cuestan unos $${costo.toFixed(2)} USD y te quedan $${Number(g.queda).toFixed(2)}. Súbelo o genera menos.`, "error");
   if (!confirm(`Se van a crear ${lista.length} imágenes, unos $${costo.toFixed(2)} USD.\nTe quedan $${Number(g.queda ?? 0).toFixed(2)} de $${Number(g.limite ?? 0).toFixed(2)} este mes.\n\n¿Empezar?`)) return;
   generandoImgs = { hechas: 0, total: lista.length };
-  let ok = 0;
+  let ok = 0, conAviso = 0;
   if (tab === 4) renderPaso();
   for (const sec of lista) {
     if (av !== avInicio) break;
@@ -1606,8 +1627,9 @@ window.estGenerarTodasImagenes = async () => {
       let ultimo = null;
       for (let intento = 0; intento < 3; intento++) {
         try {
-          const { imagen, rama, gasto } = await api("POST", `/api/proyectos/${proyecto._id}/rama/${avInicio}/ia/imagen/${sec.id}`, { refs: refsIA() });
+          const { imagen, rama, gasto, revision } = await api("POST", `/api/proyectos/${proyecto._id}/rama/${avInicio}/ia/imagen/${sec.id}`, { refs: refsIA() });
           imagenes.push(imagen); if (av === avInicio) ponerRama(rama); gastoIA = gasto;
+          if (revision && !revision.ok) conAviso++;
           ultimo = null; break;
         } catch (e) {
           ultimo = e;
@@ -1627,7 +1649,8 @@ window.estGenerarTodasImagenes = async () => {
   generandoImgs = null;
   if (tab === 4) renderPaso();
   const malas = lista.filter(x => fallidasIA.has(x.id)).length;
-  avisar(malas ? `${ok} imágenes listas; ${malas} no salieron (marcadas con ⚠). Dales "Generar con IA" otra vez.` : `${ok} imágenes listas ✓ Ya puedes descargarlas en ZIP.`, malas ? "error" : "ok");
+  const revisar = conAviso ? ` ${conAviso} quedaron con ⚠ en la revisión de textos: míralas y regenéralas.` : "";
+  avisar(malas ? `${ok} imágenes listas; ${malas} no salieron (marcadas con ⚠). Dales "Generar con IA" otra vez.${revisar}` : `${ok} imágenes listas ✓${revisar || " Ya puedes descargarlas en ZIP."}`, malas || conAviso ? "error" : "ok");
 };
 
 // ---------- ZIP con las imágenes numeradas en el orden de la landing (sin librerías: ZIP "guardado", sin compresión) ----------

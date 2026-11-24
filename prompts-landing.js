@@ -745,6 +745,43 @@ export function palabrasDeTextos(prompt) {
   const citas = [...bloque.matchAll(/[“"]([^“"”]+)[”"]/g)].map(m => m[1]);
   return { textos: citas.length, palabras: citas.join(" ").split(/\s+/).filter(w => /[A-Za-zÁÉÍÓÚÑáéíóúñ0-9]/.test(w)).length };
 }
+// ---------- Revisión automática de una imagen: qué textos puede tener y qué está mal ----------
+// Textos permitidos = los que van entre comillas en el prompt (sin la lista de prohibidos)
+export function textosPermitidos(prompt) {
+  const sinProhibidos = String(prompt || "").replace(/\n+TEXTOS QUE NO DEBEN SALIR[\s\S]*?(?=\n\n|$)/g, "");
+  return [...new Set([...sinProhibidos.matchAll(/[“"]([^“"”\n]{1,120})[”"]/g)].map(m => m[1].trim()).filter(Boolean))].slice(0, 80);
+}
+export function promptRevisarImagen(permitidos) {
+  return `Mira esta imagen de una landing de ventas en español.
+1. Lee TODOS los textos que aparecen en la imagen, exactamente como están escritos (aunque estén mal escritos o no tengan sentido), uno por elemento.
+2. Compáralos con los TEXTOS PERMITIDOS de abajo. Marca como "raro" cualquier texto con palabras que no existen en español, letras sin sentido (ej. "Cazal na ari"), errores de ortografía, o que no se parezca a ninguno de los permitidos. Los nombres de marcas de transportadoras, los íconos y los números de la barra de confianza no son raros.
+
+TEXTOS PERMITIDOS:
+${permitidos.map(t => `- "${t}"`).join("\n") || "(ninguno)"}
+
+Responde SOLO este JSON válido:
+{ "textos": [], "raros": [] }`;
+}
+// Lo que se puede comprobar sin IA: precios, porcentajes y textos prohibidos
+export function problemasDeTextos(textos, p, seccion = {}) {
+  const o = ofertaSeccion(p, seccion);
+  const okMontos = new Set(o.montos.map(soloDigitos)), okSellos = new Set(o.sellos.map(soloDigitos));
+  const prohibidos = textosProhibidos(p).map(x => x.toLowerCase());
+  const out = [];
+  for (const t of textos || []) {
+    const txt = String(t || "");
+    for (const m of txt.match(/\$\s?\d[\d.,]*\d|\$\s?\d/g) || []) {
+      if (!o.conPrecio) out.push({ tipo: "precio", texto: `Sale el precio ${m} en una sección que no lleva precio` });
+      else if (!okMontos.has(soloDigitos(m))) out.push({ tipo: "precio", texto: `Sale ${m}, que no es un precio de la Ficha` });
+    }
+    for (const m of txt.match(/[-–]?\s?\d{1,2}\s?%/g) || []) {
+      if (/^\s*\d{1,2}\s?%/.test(m) && !/(off|dcto|descuento)/i.test(txt) && !/^[-–]/.test(m)) continue;   // "100% algodón" no es descuento
+      if (!okSellos.has(soloDigitos(m))) out.push({ tipo: "precio", texto: `Sale el porcentaje ${m.trim()}, que no es de la Ficha` });
+    }
+    for (const x of prohibidos) if (x && txt.toLowerCase().includes(x)) out.push({ tipo: "prohibido", texto: `Sale "${x}", que está en "Textos que NO deben salir"` });
+  }
+  return out;
+}
 export function bloqueProhibidos(p) {
   const t = textosProhibidos(p);
   return `TEXTOS QUE NO DEBEN SALIR (aunque aparezcan en las fotos de referencia): ${t.length ? t.map(x => `"${x}"`).join(", ") + ". " : ""}Tampoco copies referencias, códigos, cantidades por caja, precios de mayorista ni el nombre del proveedor que se vean en las fotos. No escribas ningún otro texto aparte de los que están entre comillas.`;

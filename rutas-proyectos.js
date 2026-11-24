@@ -1101,5 +1101,5 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
     } catch (err) { errorIA(res, err, "las notas"); }
   });
 
-  return { cargar, cargarRama, guardarRama, actualizarRama };
+  return { cargar, cargarRama, guardarRama, actualizarRama, llamarIA };
 }
