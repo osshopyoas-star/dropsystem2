@@ -512,12 +512,19 @@ export const ACABADOS = {
 
 // Margen de abajo libre (en % del alto) para que el botón fijo de compra (Releasit / Shopify) no tape nada
 export const MARGENES_ABAJO = [0, 8, 12, 15];
+// Cómo se muestran los colores del producto en la portada y en la oferta de cierre (solo con 2 o más colores)
+export const MUESTRAS_COLORES = {
+  circulos: { nombre: "Círculos grandes", desc: "Una fila \"ELIGE TU COLOR\" con un círculo por color (con foto si la subiste)." },
+  casillas: { nombre: "Casillas pequeñas", desc: "Un recuadro pequeño en la esquina de abajo con los colores. Deja más espacio al producto." },
+  ninguna: { nombre: "No mostrar", desc: "La portada no muestra los colores (igual salen en la sección de variantes)." }
+};
 const margenBase = (clave) => (formatoValido(clave) === "ban" ? 12 : 0);
 
 export function plantillaPorDefecto(clave) {
   const f = claveValida(clave);
   return {
     margenAbajo: margenBase(f),   // % de abajo de cada imagen que va solo con fondo
+    muestraColores: "circulos",   // circulos | casillas | ninguna
     usarOrden: false,
     orden: ORDEN_BASE[f].map(([tipo, visible]) => ({ tipo, visible: !!visible })),
     estilos: {},                  // tipo → id de variante (sin valor = "Al azar")
@@ -567,7 +574,8 @@ export function normalizarPlantilla(clave, raw = {}) {
   };
 
   const margenAbajo = MARGENES_ABAJO.includes(Number(r.margenAbajo)) ? Number(r.margenAbajo) : margenBase(f);
-  return { usarOrden: !!r.usarOrden, orden, estilos, colores, acabado: ACABADOS[r.acabado] ? r.acabado : "impacto", margenAbajo };
+  const muestraColores = MUESTRAS_COLORES[r.muestraColores] ? r.muestraColores : "circulos";
+  return { usarOrden: !!r.usarOrden, orden, estilos, colores, acabado: ACABADOS[r.acabado] ? r.acabado : "impacto", margenAbajo, muestraColores };
 }
 
 export const varianteDe = (tipo, id) => (SECCIONES[tipo]?.variantes || []).find(v => v.id === id) || null;

@@ -753,6 +753,11 @@ export function bloqueOferta(p, seccion = {}) {
   }
   return txt ? `OFERTA EN ESTA SECCIÓN (la arma CoDropX): ${txt}` : "";
 }
+// Muestra de colores: la de la Ficha del proyecto manda; si no, la de Mi plantilla
+export const muestraColoresDe = (p) => {
+  const v = p?.ficha?.muestraColores || p?.plantilla?.muestraColores;
+  return ["circulos", "casillas", "ninguna"].includes(v) ? v : "circulos";
+};
 export function bloqueVariantes(p, seccion = {}) {
   const f = p?.ficha || {};
   const { colores, tallas } = variantesDe(f);
@@ -760,11 +765,14 @@ export function bloqueVariantes(p, seccion = {}) {
   const tipo = seccion.tipo;
   const muestra = (c) => `"${c.nombre}" (${c.foto ? "foto adjunta de ese color" : c.hex ? `muestra de color ${c.hex}` : "muestra de ese color"})`;
   const lineas = [];
-  if (PORTADAS_V.has(tipo) && colores.length > 1) {
+  const modo = muestraColoresDe(p);
+  if ((PORTADAS_V.has(tipo) || (tipo === "oferta_cierre" && modo !== "ninguna")) && colores.length > 1) {
     const o = ofertaDe(f, p?.pais === "EC" ? "EC" : "CO");
     const n = ["2x1", "xy"].includes(o.tipo) ? o.unidades : 1;
-    lineas.push(`${n > 1 ? `Las ${n} unidades de la promo van de colores distintos: ${colores.slice(0, n).map(c => c.nombre.toUpperCase()).join(", ")}` : `Producto en color ${colores[0].nombre.toUpperCase()}`}${colores[0].foto ? " (usa la foto adjunta de ese color)" : ""}.`);
-    lineas.push(`Fila "${n > 1 ? `ELIGE TUS ${n} COLORES` : "ELIGE TU COLOR"}" con un círculo por variante y su nombre debajo: ${colores.map(muestra).join(", ")}. La fila no tapa el producto.`);
+    if (PORTADAS_V.has(tipo)) lineas.push(`${n > 1 ? `Las ${n} unidades de la promo van de colores distintos: ${colores.slice(0, n).map(c => c.nombre.toUpperCase()).join(", ")}` : `Producto en color ${colores[0].nombre.toUpperCase()}`}${colores[0].foto ? " (usa la foto adjunta de ese color)" : ""}.`);
+    const titulo = n > 1 ? `Elige tus ${n} colores` : "Colores";
+    if (modo === "circulos") lineas.push(`Fila "${n > 1 ? `ELIGE TUS ${n} COLORES` : "ELIGE TU COLOR"}" con un círculo por variante y su nombre debajo: ${colores.map(muestra).join(", ")}. La fila no tapa el producto.`);
+    else if (modo === "casillas") lineas.push(`MUESTRA DE COLORES: en la esquina inferior derecha (encima del margen de abajo), un recuadro blanco redondeado con borde fino del color de acento y el título "${titulo}"; adentro, una casilla pequeña por color con su nombre al lado: ${colores.map(muestra).join(", ")}. Máximo 25% del ancho de la imagen. NO tapa el producto.`);
   } else if (SECCION_VARIANTES.has(tipo)) {
     if (colores.length) lineas.push(`Muestra TODOS los colores, cada uno con su nombre exacto: ${colores.map(muestra).join(", ")}.`);
     if (tallas.length) lineas.push(`Tallas (solo estas, en este orden): ${tallas.map(t => `"${t.nombre}"${t.medidas ? ` (${t.medidas})` : ""}`).join(", ")}.`);

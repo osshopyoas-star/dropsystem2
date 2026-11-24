@@ -5,7 +5,7 @@
 // =============================================
 import { registrarRuta } from "./navegacion.js";
 import { escapeHTML } from "../core/utils.js";
-import { SECCIONES, FORMATOS, esFija, plantillaPorDefecto, normalizarPlantilla, CLAVES, claveDe, TIPOS_PRODUCTO, ACABADOS, MARGENES_ABAJO } from "../core/plantilla.js";
+import { SECCIONES, FORMATOS, esFija, plantillaPorDefecto, normalizarPlantilla, CLAVES, claveDe, TIPOS_PRODUCTO, ACABADOS, MARGENES_ABAJO, MUESTRAS_COLORES } from "../core/plantilla.js";
 import { ejemploDe } from "../core/ejemplos.js";
 
 const $ = (id) => document.getElementById(id);
@@ -207,6 +207,22 @@ function render() {
         <section class="pl-card">
           <div class="pl-card-head">
             <div>
+              <h2>Muestra de colores en la portada</h2>
+              <p>Cuando el producto tiene 2 o más colores, así se muestran en la portada y en la oferta de cierre. En cada proyecto lo puedes cambiar desde la Ficha.</p>
+            </div>
+          </div>
+          <div class="pl-acabados">
+            ${Object.entries(MUESTRAS_COLORES).map(([k, a]) => `
+              <button class="pl-acabado ${(p.muestraColores || "circulos") === k ? "elegido" : ""}" onclick="plMuestraColores('${k}')">
+                <strong>${esc(a.nombre)}</strong>
+                <small>${esc(a.desc)}</small>
+              </button>`).join("")}
+          </div>
+        </section>
+
+        <section class="pl-card">
+          <div class="pl-card-head">
+            <div>
               <h2>Colores</h2>
               <p>Si los fijas, todas tus landings nuevas de ${esc(FORMATOS[base()].nombre)} usan estos colores (por ejemplo, los de tu marca). Si no, salen del estilo que elijas para cada producto, como hasta ahora.</p>
             </div>
@@ -301,6 +317,7 @@ window.plEstilo = (tipo, id) => {
   if (pantalla && bloque) pantalla.scrollTop = bloque.offsetTop - pantalla.offsetTop - 8;
 };
 window.plMargen = (m) => cambio(p => { p.margenAbajo = MARGENES_ABAJO.includes(Number(m)) ? Number(m) : 12; });
+window.plMuestraColores = (k) => cambio(p => { p.muestraColores = MUESTRAS_COLORES[k] ? k : "circulos"; });
 window.plAcabado = (k) => cambio(p => { p.acabado = ACABADOS[k] ? k : "impacto"; });
 window.plModoColores = (modo) => cambio(p => { p.colores.modo = modo; });
 

@@ -854,6 +854,7 @@ function leerFicha() {
     noTiene: val("fNoTiene"),
     variantes: $("fVariantes") ? val("fVariantes") : (proyecto.ficha?.variantes || ""),
     variantesLista: leerVariantes(),
+    muestraColores: $("fMuestraColores") ? (["circulos", "casillas", "ninguna"].includes(val("fMuestraColores")) ? val("fMuestraColores") : "") : (proyecto.ficha?.muestraColores || ""),
     regalo: $("fRegalo") ? val("fRegalo") : (proyecto.ficha?.regalo || ""),
     paquetes: $("fPaquetes") ? val("fPaquetes") : (proyecto.ficha?.paquetes || ""),
     oferta: leerOferta(),
@@ -941,6 +942,14 @@ function cajaVariantes() {
     <div class="est-actions" style="margin-top:4px"><button class="est-btn chico" onclick="estVarianteAgregar('color')"><i data-lucide="palette"></i> Agregar color</button><button class="est-btn chico" onclick="estVarianteAgregar('talla')"><i data-lucide="ruler"></i> Agregar talla</button></div>
     ${avisos.length ? `<div class="est-alert warn">${avisos.map(esc).join("<br>")}</div>` : ""}
     <span class="est-hint">Cada color sale en la portada ("ELIGE TU COLOR") y se reparte entre las imágenes. Con foto, la IA copia ese color exacto.</span>
+    ${lista.filter(v => v.tipo !== "talla").length > 1 || f.muestraColores ? `<label for="fMuestraColores" style="margin-top:8px">Muestra de colores en la portada</label>
+    <select id="fMuestraColores">
+      <option value="" ${!f.muestraColores ? "selected" : ""}>Como en Mi plantilla</option>
+      <option value="circulos" ${f.muestraColores === "circulos" ? "selected" : ""}>Círculos grandes ("ELIGE TU COLOR")</option>
+      <option value="casillas" ${f.muestraColores === "casillas" ? "selected" : ""}>Casillas pequeñas en la esquina</option>
+      <option value="ninguna" ${f.muestraColores === "ninguna" ? "selected" : ""}>No mostrar en la portada</option>
+    </select>
+    <span class="est-hint">La IA solo recibe 3 fotos por imagen: si tienes más colores, los demás van con su muestra de color.</span>` : ""}
     ${lista.length ? `<details><summary class="est-hint">Texto libre (respaldo)</summary>` : ""}
     <input id="fVariantes" value="${esc(f.variantes)}" placeholder="Ej: tallas 35 a 40; colores negro y blanco">
     ${lista.length ? `</details>` : ""}`;
