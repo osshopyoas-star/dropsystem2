@@ -47,6 +47,8 @@ const generandoIA = new Set();
 let tab = 1;           // paso que se está viendo
 let av = null;         // avatar con el que se está trabajando (A o B)
 let generandoTodo = false;
+let generandoImgs = null;          // { hechas, total } mientras corre "Generar todas las imágenes"
+const fallidasIA = new Map();      // idSeccion → error de la última vez que se intentó generar
 let cacheProductos = [];
 let cacheProyectos = [];
 
@@ -1333,6 +1335,8 @@ function pasoLanding() {
       <div class="est-actions">
         <button id="estBtnSecciones" class="est-btn" onclick="estProponerSecciones()"><i data-lucide="layout-list"></i> ${secs.length ? "Volver a proponer" : "Proponer secciones"}</button>
         ${secs.length ? `<button id="estBtnTodos" class="est-btn primary" onclick="estGenerarTodos()" ${generandoTodo ? "disabled" : ""}><i data-lucide="sparkles"></i> Generar prompts faltantes</button>` : ""}
+        ${secs.length ? `<button id="estBtnImgsTodas" class="est-btn primary" onclick="estGenerarTodasImagenes()" ${generandoImgs ? "disabled" : ""}>${generandoImgs ? `<span class="est-spin"></span> Imagen ${generandoImgs.hechas + 1} de ${generandoImgs.total}...` : `<i data-lucide="images"></i> Generar todas las imágenes`}</button>` : ""}
+        ${secs.some(x => imagenes.some(m => m.rama === av && m.seccion === x.id && !m.capa && !m.media)) ? `<button id="estBtnZip" class="est-btn" onclick="estDescargarZip()"><i data-lucide="download"></i> Descargar todas (ZIP)</button>` : ""}
       </div>
     </div>
   </div>
@@ -1361,7 +1365,7 @@ function tarjetaSeccion(x, i, numero) {
     <div class="est-sec-head">
       <span class="est-sec-n">${numero}</span>
       <div class="est-sec-info">
-        <strong>${esc(x.titulo)}</strong>
+        <strong>${esc(x.titulo)}</strong>${fallidasIA.has(x.id) ? ` <span class="est-chip est-chip-error" title="${esc(fallidasIA.get(x.id))}">⚠ No salió la imagen</span>` : ""}
         <div class="est-sec-tags">
           <span class="est-chip est-aida ${etapaDe(x.tipo)}" title="AIDA: ${esc(ETAPAS_AIDA[etapaDe(x.tipo)].meta)}">${ETAPAS_AIDA[etapaDe(x.tipo)].nombre}</span>
           <span class="est-chip">${esc(x.formato || "9:16")}</span>
@@ -1572,6 +1576,124 @@ window.estGenerarSeccion = (id) => conCarga(`btnSec-${id}`, "Escribiendo...", as
   await generarSeccion(id);
   renderPaso();
   $(`sec-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+});
+
+// ---------- Generar todas las imágenes (una por una, sin historial: cada una es una petición nueva) ----------
+const espera = (ms) => new Promise(r => setTimeout(r, ms));
+window.estGenerarTodasImagenes = async () => {
+  if (generandoImgs || generandoTodo) return;
+  if (!(proyecto.fotos || []).length) return avisar("Primero sube fotos reales del producto en la Ficha (paso 1).", "error");
+  const avInicio = av;
+  const secs = R().secciones || [];
+  let lista = secs.filter(x => !x.hecha);
+  if (!lista.length) {
+    if (!confirm("Todas las secciones ya tienen imagen. ¿Rehacer todas?")) return;
+    lista = [...secs];
+  } else if (lista.length < secs.length && confirm(`${secs.length - lista.length} sección(es) ya tienen imagen y se saltan. ¿Prefieres rehacer TODAS?`)) lista = [...secs];
+  try { gastoIA = await api("GET", "/api/ia/gasto"); } catch {}
+  const g = gastoIA || { precioImagen: 0.04, precioReferencia: 0.01, queda: 0 };
+  const costo = lista.length * (g.precioImagen + g.precioReferencia * Math.min(3, Math.max(1, refsIA().length || (proyecto.fotos || []).length)));
+  if (g.queda !== undefined && costo > g.queda + 1e-9) return avisar(`No alcanza el límite del mes: ${lista.length} imágenes cuestan unos $${costo.toFixed(2)} USD y te quedan $${Number(g.queda).toFixed(2)}. Súbelo o genera menos.`, "error");
+  if (!confirm(`Se van a crear ${lista.length} imágenes, unos $${costo.toFixed(2)} USD.\nTe quedan $${Number(g.queda ?? 0).toFixed(2)} de $${Number(g.limite ?? 0).toFixed(2)} este mes.\n\n¿Empezar?`)) return;
+  generandoImgs = { hechas: 0, total: lista.length };
+  let ok = 0;
+  if (tab === 4) renderPaso();
+  for (const sec of lista) {
+    if (av !== avInicio) break;
+    fallidasIA.delete(sec.id);
+    try {
+      if (!R().secciones.find(x => x.id === sec.id)?.prompt) await generarSeccion(sec.id);   // sin prompt: primero se escribe
+      let ultimo = null;
+      for (let intento = 0; intento < 3; intento++) {
+        try {
+          const { imagen, rama, gasto } = await api("POST", `/api/proyectos/${proyecto._id}/rama/${avInicio}/ia/imagen/${sec.id}`, { refs: refsIA() });
+          imagenes.push(imagen); if (av === avInicio) ponerRama(rama); gastoIA = gasto;
+          ultimo = null; break;
+        } catch (e) {
+          ultimo = e;
+          if (/límite|Ficha|Máximo|no coinciden|Referencia/i.test(e.message)) break;   // no se arregla reintentando
+          await espera(intento === 0 ? 3000 : 8000);
+        }
+      }
+      if (ultimo) throw ultimo;
+      ok++;
+    } catch (e) {
+      fallidasIA.set(sec.id, e.message);
+      if (/límite/i.test(e.message)) { avisar(e.message, "error"); break; }
+    }
+    generandoImgs.hechas++;
+    if (tab === 4) renderPaso();
+  }
+  generandoImgs = null;
+  if (tab === 4) renderPaso();
+  const malas = lista.filter(x => fallidasIA.has(x.id)).length;
+  avisar(malas ? `${ok} imágenes listas; ${malas} no salieron (marcadas con ⚠). Dales "Generar con IA" otra vez.` : `${ok} imágenes listas ✓ Ya puedes descargarlas en ZIP.`, malas ? "error" : "ok");
+};
+
+// ---------- ZIP con las imágenes numeradas en el orden de la landing (sin librerías: ZIP "guardado", sin compresión) ----------
+const TABLA_CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+const crc32 = (b) => { let c = 0xffffffff; for (let i = 0; i < b.length; i++) c = TABLA_CRC[(c ^ b[i]) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+export function armarZip(archivos) {
+  const enc = new TextEncoder(), partes = [], central = [];
+  let pos = 0;
+  for (const { nombre, datos } of archivos) {
+    const n = enc.encode(nombre), crc = crc32(datos);
+    const h = new DataView(new ArrayBuffer(30));
+    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(8, 0, true);
+    h.setUint32(14, crc, true); h.setUint32(18, datos.length, true); h.setUint32(22, datos.length, true); h.setUint16(26, n.length, true);
+    partes.push(new Uint8Array(h.buffer), n, datos);
+    const c = new DataView(new ArrayBuffer(46));
+    c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true);
+    c.setUint32(16, crc, true); c.setUint32(20, datos.length, true); c.setUint32(24, datos.length, true); c.setUint16(28, n.length, true); c.setUint32(42, pos, true);
+    central.push(new Uint8Array(c.buffer), n);
+    pos += 30 + n.length + datos.length;
+  }
+  const tamCentral = central.reduce((s, x) => s + x.length, 0);
+  const fin = new DataView(new ArrayBuffer(22));
+  fin.setUint32(0, 0x06054b50, true); fin.setUint16(8, archivos.length, true); fin.setUint16(10, archivos.length, true);
+  fin.setUint32(12, tamCentral, true); fin.setUint32(16, pos, true);
+  return new Blob([...partes, ...central, new Uint8Array(fin.buffer)], { type: "application/zip" });
+}
+const MEDIDAS = { "9:16": [1080, 1920], "1:1": [1080, 1080], "4:5": [1080, 1350], "16:9": [1920, 1080] };
+// Lleva la imagen al tamaño exacto del formato sin deformarla (llena y recorta lo que sobra, centrado)
+function aTamano(blob, ancho, alto) {
+  return new Promise((ok, mal) => {
+    const url = URL.createObjectURL(blob), img = new Image();
+    img.onload = () => {
+      const cv = document.createElement("canvas"); cv.width = ancho; cv.height = alto;
+      const k = Math.max(ancho / img.width, alto / img.height);
+      const w = img.width * k, h = img.height * k;
+      cv.getContext("2d").drawImage(img, (ancho - w) / 2, (alto - h) / 2, w, h);
+      URL.revokeObjectURL(url);
+      cv.toBlob(b => (b ? ok(b) : mal(new Error("No se pudo preparar la imagen"))), "image/jpeg", 0.92);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); mal(new Error("No se pudo leer una imagen")); };
+    img.src = url;
+  });
+}
+const nombreArchivo = (s) => String(s || "seccion").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "seccion";
+window.estDescargarZip = () => conCarga("estBtnZip", "Armando el ZIP...", async () => {
+  const secs = R().secciones || [];
+  const base = formatoDe(proyecto) === "normal" ? "1:1" : "9:16";
+  const archivos = [];
+  for (const [k, x] of secs.entries()) {
+    const n = k + 1;   // el número es la posición en la landing (si falta una, se nota el hueco)
+    const delaSec = imagenes.filter(m => m.rama === av && m.seccion === x.id && !m.capa && !m.media);
+    const img = delaSec[delaSec.length - 1];   // la más reciente de la sección
+    if (!img) continue;
+    const res = await fetch(`/api/imagenes/${img._id}`, { credentials: "include" });
+    if (!res.ok) throw new Error(`No se pudo bajar la imagen de "${x.titulo}"`);
+    const [w, h] = MEDIDAS[x.formato || base] || MEDIDAS[base];
+    const lista = await aTamano(await res.blob(), w, h);
+    archivos.push({ nombre: `${String(n).padStart(2, "0")}-${nombreArchivo(x.titulo || x.tipo)}.jpg`, datos: new Uint8Array(await lista.arrayBuffer()) });
+  }
+  if (!archivos.length) return avisar("Todavía no hay imágenes en las secciones", "error");
+  const enlace = document.createElement("a");
+  enlace.href = URL.createObjectURL(armarZip(archivos));
+  enlace.download = `${nombreArchivo(proyecto.nombre)}-avatar-${av}.zip`;
+  document.body.appendChild(enlace); enlace.click(); document.body.removeChild(enlace);
+  setTimeout(() => URL.revokeObjectURL(enlace.href), 5000);
+  avisar(`ZIP con ${archivos.length} imágenes ✓`);
 });
 
 window.estGenerarTodos = async () => {

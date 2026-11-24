@@ -24,7 +24,10 @@ import {
   cierreSeccion,
   promptAd,
   seccionesFijas,
-  conSeccionVariantes
+  conSeccionVariantes,
+  palabrasDeTextos,
+  MAX_PALABRAS,
+  TEXTO_LIBRE
 } from "./prompts-landing.js";
 import { obtenerPlantilla } from "./rutas-plantilla.js";
 import { ofertaDe } from "./public/js/core/oferta.js";
@@ -952,8 +955,17 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
         system: SISTEMA_LANDING,
         prompt: promptSeccion({ ...x.vista, bloqueEstilo: bloque }, sec, x.avatar, otras)
       });
-      const crudo = String(reply || "").replace(/^```[a-z]*\n?|```$/gim, "").trim();
+      let crudo = String(reply || "").replace(/^```[a-z]*\n?|```$/gim, "").trim();
       if (!crudo) return res.status(502).json({ error: "La IA no devolvió el prompt" });
+      // Mucho texto sale ilegible: si se pasó del tope, se le pide UNA vez que recorte (solo los textos)
+      const cuenta = palabrasDeTextos(crudo);
+      if (!TEXTO_LIBRE.has(sec.tipo) && (cuenta.palabras > MAX_PALABRAS + 5 || cuenta.textos > 7)) {
+        try {
+          const corto = await llamarIA({ system: SISTEMA_LANDING, prompt: `Este prompt de imagen tiene ${cuenta.palabras} palabras en ${cuenta.textos} textos y el máximo es ${MAX_PALABRAS} palabras en 6 textos (titular, subtítulo, hasta 3 etiquetas de 1 a 4 palabras y la barra de confianza). Devuélvelo IGUAL, con el mismo formato, cambiando SOLO la parte de TEXTOS: recorta o quita textos hasta quedar dentro del máximo. No cambies precios ni cifras.\n\n${crudo}` });
+          const c2 = String(corto || "").replace(/^```[a-z]*\n?|```$/gim, "").trim();
+          if (c2 && palabrasDeTextos(c2).palabras < cuenta.palabras) crudo = c2;
+        } catch (e) { console.warn("No se pudo recortar el texto del prompt:", e.message); }
+      }
       const texto = cierreSeccion(crudo, x.vista, sec);   // reglas fijas al final: reseñas, chats y margen de abajo
 
       let lista = null;

@@ -737,9 +737,17 @@ export function bloqueVariantes(p, seccion = {}) {
   }
   return lineas.length ? `VARIANTES EN ESTA SECCIÓN (las arma CoDropX): ${lineas.join(" ")}` : "";
 }
+// Textos legibles: tope de palabras por imagen (reseñas, chats, preguntas y números llevan su propio texto)
+export const MAX_PALABRAS = 25;
+export const TEXTO_LIBRE = new Set(["resenas", "moda_chats", "resumen_resenas", "preguntas", "numeros_reales", "galeria", "antes_despues"]);
+export function palabrasDeTextos(prompt) {
+  const bloque = String(prompt || "").split(/\nTEXTOS:/)[1]?.split(/\n(ZONA LIBRE|TEXTO PARA SHOPIFY|VARIANTES EN|OFERTA EN|PRECIO \(|PROHIBIDO|TEXTOS QUE NO|MARGEN ABAJO)/)[0] || "";
+  const citas = [...bloque.matchAll(/[“"]([^“"”]+)[”"]/g)].map(m => m[1]);
+  return { textos: citas.length, palabras: citas.join(" ").split(/\s+/).filter(w => /[A-Za-zÁÉÍÓÚÑáéíóúñ0-9]/.test(w)).length };
+}
 export function bloqueProhibidos(p) {
   const t = textosProhibidos(p);
-  return `TEXTOS QUE NO DEBEN SALIR (aunque aparezcan en las fotos de referencia): ${t.length ? t.map(x => `"${x}"`).join(", ") + ". " : ""}Tampoco copies referencias, códigos, cantidades por caja, precios de mayorista ni el nombre del proveedor que se vean en las fotos.`;
+  return `TEXTOS QUE NO DEBEN SALIR (aunque aparezcan en las fotos de referencia): ${t.length ? t.map(x => `"${x}"`).join(", ") + ". " : ""}Tampoco copies referencias, códigos, cantidades por caja, precios de mayorista ni el nombre del proveedor que se vean en las fotos. No escribas ningún otro texto aparte de los que están entre comillas.`;
 }
 // Quita del texto que escribió la IA los montos y porcentajes que no son de la Ficha, y los textos prohibidos
 export function limpiarMontos(texto, p, seccion = {}) {
@@ -846,7 +854,8 @@ Título: "[máximo 8 palabras]"
 Texto: "[2 o 3 frases cortas, vendedoras, sin repetir lo que ya dice la imagen]"` : ""}
 
 Reglas para esta imagen:
-- Titulares cortos (máximo 4 o 5 palabras por línea). Poco texto. El producto sin tapar y a su tamaño real.${conPrecio ? `
+- Titulares cortos (máximo 4 o 5 palabras por línea). Poco texto. El producto sin tapar y a su tamaño real.${TEXTO_LIBRE.has(seccion.tipo) ? "" : `
+- MÁXIMO ${MAX_PALABRAS} PALABRAS en total entre todos los textos de la imagen y máximo 6 textos: titular, subtítulo, hasta 3 etiquetas (de 1 a 4 palabras cada una) y la barra de confianza. Cuenta las palabras antes de responder y recorta si te pasas. Todos los textos van entre comillas en TEXTOS: no habrá ningún otro texto en la imagen.`}${conPrecio ? `
 - Esta imagen SÍ lleva el precio, protagonista.` : `
 - Esta imagen NO lleva precio: nada de precio ni "antes" tachado (aunque el bloque de estilo hable de la caja del precio)${PORTADAS.has(seccion.tipo) && porcentajeDescuento(p.ficha?.precioAntes, p.ficha?.precio) ? `; SÍ puede llevar el sello "-${porcentajeDescuento(p.ficha.precioAntes, p.ficha.precio)}%"` : "; tampoco sello de descuento ni porcentaje"}. El precio solo va en ${dondeVaPrecio(normal, precioEn)}. La barra de confianza sí puede ir.${PORTADAS.has(seccion.tipo) ? `
 - VENTA POR IMPULSO SIN PRECIO: que dé ganas de pedirlo ya: beneficio enorme, producto en uso, "PAGAS AL RECIBIR" bien visible y una flecha hacia abajo con "PÍDELO AQUÍ ABAJO" (ahí está el formulario). Sin urgencia falsa.` : ""}`}
