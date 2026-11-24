@@ -527,7 +527,31 @@ export function listaNoTiene(texto, lista = []) {
   const vistos = new Set();
   return items.filter(x => { const k = x.toLowerCase(); if (vistos.has(k)) return false; vistos.add(k); return true; });
 }
-export function construirBloqueEstilo(p) {
+// ---------- Bloque de estilo: SOLO lo que se repite en todas las imágenes, por etiquetas y en orden fijo ----------
+// (la escena, la persona y la pose de cada imagen van en el prompt de esa imagen)
+export const ETIQUETAS_ESTILO = [
+  ["tipo", "TIPO DE IMAGEN"], ["diseno", "DISEÑO GRÁFICO"], ["precio", "PRECIO"], ["regla", "REGLA"],
+  ["producto", "PRODUCTO"], ["tamano", "TAMAÑO REAL"], ["noAgregues", "NO agregues"], ["personas", "PERSONAS"], ["texto", "TEXTO"]
+];
+// Se llenan solos desde la Ficha (si la corriges, se actualizan aquí)
+export const ESTILO_AUTO = new Set(["producto", "tamano", "noAgregues"]);
+const prefijoEtiqueta = (k, t) => (k === "noAgregues" ? "NO agregues " : k === "diseno" ? "DISEÑO GRÁFICO (encima de la foto): " : `${t}: `);
+
+// Bloques de antes (texto corrido con etiquetas): se separan por etiqueta para no perder lo corregido a mano
+export function camposDeTexto(texto) {
+  const out = {};
+  for (const linea of String(texto || "").split("\n")) {
+    for (const [k, t] of ETIQUETAS_ESTILO) {
+      const pre = prefijoEtiqueta(k, t);
+      const alt = k === "diseno" ? "DISEÑO GRÁFICO: " : null;
+      if (linea.startsWith(pre)) out[k] = linea.slice(pre.length).trim();
+      else if (alt && linea.startsWith(alt)) out[k] = linea.slice(alt.length).trim();
+    }
+  }
+  return out;
+}
+
+export function camposEstilo(p) {
   const e = p.estilo || {};
   const f = p.ficha || {};
   const r = p.revision || {};
@@ -540,20 +564,35 @@ export function construirBloqueEstilo(p) {
   const color1 = cf ? cf.color1 : e.color1;
   const color2 = cf ? cf.color2 : e.color2;
   const acento = cf ? cf.acento : (e.acento || e.color2);
-  const normal = esNormal(p);
+  const prohibidos = textosProhibidos(p);
+  const base = {
+    tipo: `FOTOGRAFÍA REAL de ${e.tipo_foto || (p.tipo === "moda" ? "moda" : "producto y estilo de vida")}, como de campaña publicitaria de una marca grande: personas reales, piel con textura real, luz con intención (no plana). PROHIBIDO: dibujo, ilustración, caricatura, animación o 3D.`,
+    diseno: `estilo ${limpio(e.nombre, 60) || "propio"}, de COMPRA POR IMPULSO: mucho contraste, todo se lee en 2 segundos. Fondos en ${fondo || "un color oscuro"}; titulares en ${limpiarFuentes(e.tipografia) || "letra sans extra gruesa"}, una línea en ${color1 || "blanco"} y otra en ${color2 || "el color de acento"}; tarjetas ${tarjetas || "con bordes redondeados"}; íconos de línea en ${acento || "el color de acento"}${e.recursos ? `; recursos que se repiten en todas las imágenes: ${limpio(e.recursos, 300)}` : ""}. ${acabadoTexto(p)}`,
+    precio: `NO pongas precio, descuento ni sello de oferta, A MENOS QUE el prompt lo pida explícitamente${caja ? `; cuando lo pida, va grande dentro de una caja ${caja}` : ""}. NO dejes círculos vacíos ni espacios en blanco.`,
+    regla: "el producto es el protagonista, grande y bien visible, pero SIEMPRE a su tamaño real junto a las personas y los objetos: nunca lo agrandes (si quieres que se vea más, acerca la cámara). Ningún texto lo tapa. Estilo de venta directa, no editorial.",
+    producto: `usa EXACTAMENTE el producto de las fotos adjuntas: ${r.descripcionFisica || f.descripcion || "(sin descripción)"}.${e.producto_en_uso ? ` En uso: ${limpio(e.producto_en_uso, 500)}.` : ""}${variantesTexto(f) ? ` Variantes que existen: ${limpio(variantesTexto(f), 300)}.` : ""}${noTiene ? ` NO tiene: ${noTiene}.` : ""} Cuando se está usando, lleva solo las piezas que van puestas (un solo accesorio a la vez).`,
+    tamano: `${f.medidas || r.tamano || "(indicar medidas)"}. ${referenciaTamano(f.medidas || r.tamano)} Respeta esa escala exacta junto a manos, personas y muebles.`,
+    noAgregues: `letras, marcas, referencias ni logos que no estén en la foto.${prohibidos.length ? ` Textos prohibidos: ${prohibidos.map(x => `"${x}"`).join(", ")}.` : ""}`,
+    personas: `${e.personas || (PARA_QUIEN[paraQuienDe(p)].personas ? `${PARA_QUIEN[paraQuienDe(p)].personas}, de ${pais.nombre}, aspecto latino natural` : `adultos de ${pais.nombre}, aspecto latino natural`)}.${esMenor(p) ? " Los menores siempre con ropa normal y completa, en escenas cotidianas y familiares; nada sugestivo." : ""}`,
+    texto: "escribe los textos exactamente como te los doy, con tildes y signos de español, sin errores ni texto extra, y cada uno UNA sola vez. Los nombres de letras, colores y estas instrucciones NO se escriben en la imagen. Las tarjetas de reseñas y chats van blancas y LLENAS con el texto de cada cliente."
+  };
+  // Lo que corregiste a mano (salvo lo que sale de la Ficha)
+  const propios = p.estiloCampos && typeof p.estiloCampos === "object" ? p.estiloCampos : {};
+  for (const [k] of ETIQUETAS_ESTILO) if (!ESTILO_AUTO.has(k) && typeof propios[k] === "string" && propios[k].trim()) base[k] = limpio(propios[k], 2000);
+  return base;
+}
 
-  return limpiarFuentes(`${normal
+export function cabeceraEstilo(p) {
+  const pais = PAISES[p.pais] || PAISES.CO;
+  return esNormal(p)
     ? `Crea una imagen cuadrada 1:1 (1080x1080) para la página de producto de una tienda Shopify en ${pais.nombre}, en español. Poco texto dentro de la imagen: titular corto y etiquetas; el texto largo va al lado, en Shopify.`
-    : `Crea una imagen vertical 9:16 (1080x1920) para una landing page de ecommerce en ${pais.nombre}, en español.`}
-TIPO DE IMAGEN: FOTOGRAFÍA REAL ${e.mundo ? `como de ${limpio(e.mundo, 400)}` : `de ${e.tipo_foto || "producto y estilo de vida"}, como de campaña publicitaria de una marca grande`}: personas reales, piel con textura real, luz con intención (no plana). PROHIBIDO: dibujo, ilustración, caricatura, animación o 3D.
-DISEÑO GRÁFICO (encima de la foto): fondo ${fondo || "oscuro"}; titulares en ${limpiarFuentes(e.tipografia) || "letra sans extra gruesa"}, una línea en ${color1 || "blanco"} y otra en ${color2 || "color de acento"}; tarjetas ${tarjetas || "con bordes redondeados"}; íconos de línea en ${acento || "color de acento"}; ${normal ? `cuando la imagen lleve precio, va dentro de una caja ${caja || "de color de acento"}` : `cuando la imagen lleve precio (solo portada, paquetes y cierre), va grande dentro de una caja ${caja || "de color de acento"} con sello de descuento circular`}${e.recursos ? `; recursos que se repiten en todas las imágenes: ${limpio(e.recursos, 300)}` : ""}.
-${acabadoTexto(p)}
-REGLA: el producto es el protagonista y se ve nítido y completo, pero SIEMPRE a su tamaño real junto a las personas y los objetos: nunca lo agrandes. Si quieres que se vea más, acerca la cámara o ponlo en primer plano. Ningún texto lo tapa. Estilo de venta directa, no editorial.
-PRODUCTO: usa EXACTAMENTE el producto de la foto adjunta: ${r.descripcionFisica || f.descripcion || p.nombre}.${e.producto_en_uso ? ` En uso: ${limpio(e.producto_en_uso, 500)}.` : ""}${variantesTexto(f) ? ` Variantes que existen: ${limpio(variantesTexto(f), 300)}.` : ""}${noTiene ? ` NO tiene ni trae: ${noTiene}.` : ""} No agregues piezas, logos ni marcas. Cuando se está usando, lleva solo las piezas que van puestas (un solo accesorio a la vez); los repuestos sueltos van solo en la imagen de "qué incluye".
-TAMAÑO REAL: ${f.medidas || r.tamano || "(indicar medidas)"}. ${referenciaTamano(f.medidas || r.tamano)} Respeta esa escala exacta junto a manos, personas y muebles.
-PERSONAS: ${e.personas || (PARA_QUIEN[paraQuienDe(p)].personas ? `${PARA_QUIEN[paraQuienDe(p)].personas}, de ${pais.nombre}, aspecto latino natural` : `adultos de ${pais.nombre}, aspecto latino natural`)}.${esMenor(p) ? " Los menores siempre con ropa normal y completa, en escenas cotidianas y familiares; nada sugestivo." : ""}
-TEXTO: escribe los textos exactamente como te los doy, con tildes y signos de español, sin errores ni texto extra, y cada uno UNA sola vez. Los nombres de letras, colores y estas instrucciones NO se escriben en la imagen.
-NADA VACÍO: no dibujes recuadros, círculos ni marcos vacíos. Las tarjetas de reseñas y chats van blancas y LLENAS con el texto de cada cliente.`);
+    : `Crea una imagen vertical 9:16 (1080x1920) para una landing page de ecommerce en ${pais.nombre}, en español.`;
+}
+
+export function construirBloqueEstilo(p) {
+  const c = camposEstilo(p);
+  // limpiarFuentes cambia los #hex por el nombre del color: "negro #111111" quedaría "negro negro"
+  return limpiarFuentes([cabeceraEstilo(p), ...ETIQUETAS_ESTILO.map(([k, t]) => prefijoEtiqueta(k, t) + c[k])].join("\n")).replace(/\b([\p{L}]+) \1\b/giu, "$1");
 }
 
 // ---------- Paso 4: proponer secciones ----------
@@ -741,7 +780,7 @@ export function bloqueVariantes(p, seccion = {}) {
 export const MAX_PALABRAS = 25;
 export const TEXTO_LIBRE = new Set(["resenas", "moda_chats", "resumen_resenas", "preguntas", "numeros_reales", "galeria", "antes_despues"]);
 export function palabrasDeTextos(prompt) {
-  const bloque = String(prompt || "").split(/\nTEXTOS:/)[1]?.split(/\n(ZONA LIBRE|TEXTO PARA SHOPIFY|VARIANTES EN|OFERTA EN|PRECIO \(|PROHIBIDO|TEXTOS QUE NO|MARGEN ABAJO)/)[0] || "";
+  const bloque = String(prompt || "").split(/\nTEXTOS(?: \(exactos\))?:/)[1]?.split(/\n(ZONA LIBRE|TEXTO PARA SHOPIFY|VARIANTES EN|OFERTA EN|PRECIO \(|PROHIBIDO|TEXTOS QUE NO|MARGEN ABAJO)/)[0] || "";
   const citas = [...bloque.matchAll(/[“"]([^“"”]+)[”"]/g)].map(m => m[1]);
   return { textos: citas.length, palabras: citas.join(" ").split(/\s+/).filter(w => /[A-Za-zÁÉÍÓÚÑáéíóúñ0-9]/.test(w)).length };
 }
@@ -803,7 +842,7 @@ export function limpiarMontos(texto, p, seccion = {}) {
     for (const re of prohibidos) l = l.replace(re, () => ((quito = true), ""));
     if (!quito) return linea;
     l = l.replace(/[“"]\s*[”"]/g, "").replace(/\(\s*\)/g, "").replace(/\s{2,}/g, " ").trimEnd();
-    if (/^\s*-\s/.test(linea) && !/[“"][^“"”]*[A-Za-zÁÉÍÓÚÑáéíóúñ0-9][^“"”]*[”"]/.test(l)) return null;   // texto de la lista que quedó vacío
+    if (/[“"]/.test(linea) && !/[“"][^“"”]*[A-Za-zÁÉÍÓÚÑáéíóúñ0-9][^“"”]*[”"]/.test(l)) return null;   // texto de la lista que quedó vacío
     return l;
   }).filter(l => l !== null).join("\n");
 }
@@ -845,6 +884,8 @@ Usa las MISMAS palabras del cliente y el mismo mensaje de la causa real que el r
 
 BLOQUE DE ESTILO (el dueño lo pega antes de tu prompt; NO lo repitas):
 ${p.bloqueEstilo || construirBloqueEstilo(p)}
+${p.estilo?.mundo ? `
+ESCENA SUGERIDA POR EL ESTILO (solo una idea de ambiente: CAMBIA el lugar, la hora y el ángulo en cada imagen para que no se repitan): ${limpio(p.estilo.mundo, 300)}` : ""}
 
 OTRAS SECCIONES DE ESTA LANDING (no repitas sus titulares ni su composición):
 ${otras.map(o => `- ${o.titulo} (${o.composicion || "sin composición"})`).join("\n") || "(ninguna)"}
@@ -877,12 +918,18 @@ FOTOGRAFÍA REAL (no dibujo, no animación). Imagen cuadrada 1:1, mismo encuadre
 COMPOSICIÓN: [...]
 TEXTOS: [una etiqueta "DESPUÉS" y como máximo una frase corta]` : `TAREA: Escribe el prompt de ESTA imagen con EXACTAMENTE este formato (texto plano, sin markdown, sin explicaciones antes ni después):
 
-IDEA: [una frase: el momento o la historia que cuenta esta imagen]
 FOTOGRAFÍA REAL (no dibujo, no animación).
-COMPOSICIÓN: [una ESCENA concreta: quién (edad, aspecto, ropa), haciendo qué acción exacta, en qué lugar, desde qué ángulo de cámara, con qué luz y qué emoción. El producto PUESTO o EN USO, bien visible y a su TAMAÑO REAL comparado con las personas (para que se vea más, acerca la cámara; nunca lo agrandes ni lo compares con algo más grande que él), y di de qué color/variante es en esta imagen. Luego los elementos gráficos y dónde va cada uno (arriba, a la izquierda, abajo…)]
-TEXTOS:
-- Titular: "[línea 1]" (color, tamaño) / "[línea 2]" (color, tamaño: di cuál es lo más grande de la imagen)
-- [subtítulo, tarjetas o chips con ícono, etiquetas${conPrecio ? ", precio (con 'antes' tachado y, si es pack, el precio por unidad), sello de descuento" : ""}${normal ? "" : ", barra de confianza (encima del margen de abajo, si lo hay)"}: cada texto entre comillas, con su color, tamaño y posición]
+COMPOSICIÓN, de arriba hacia abajo:
+1) TITULAR arriba.
+2) FOTO ([qué % de la imagen ocupa]): [ESCENA concreta y distinta a las otras secciones: quién (edad, aspecto, ropa), pose o acción exacta, lugar, ángulo de cámara, luz y emoción]. El producto [PUESTO o EN USO, de qué color/variante es en esta imagen], GRANDE y nítido pero a su TAMAÑO REAL junto a las personas (para que se vea más, acerca la cámara; nunca lo agrandes).
+3) [Elemento gráfico de esta sección: tarjetas, chips con ícono, círculos de zoom, flechas…], sin tapar el producto.
+4) [${conPrecio ? "Banda de precio" : normal ? "Cierre visual de la imagen" : "Barra de confianza"}], encima del margen inferior.
+(Un elemento por número; agrega 5), 6)… si hace falta.)
+TEXTOS (exactos):
+Titular: "[LÍNEA 1]" ([color]) / "[LÍNEA 2]" ([color])
+[Cada texto en su propia línea, entre comillas, con dónde va y su color: subtítulo, etiquetas${conPrecio ? ", precio" : ""}${normal ? "" : ", barra de confianza"}]
+No escribas ningún otro texto aparte de estos.
+Ningún texto tapa el producto.
 ZONA LIBRE: [si el dueño debe pegar algo después (GIF, logo, reseñas, transportadoras), di DÓNDE queda una zona lisa del mismo fondo, SIN dibujar recuadros, círculos ni marcos; si no aplica escribe "ninguna"]`}
 ${normal && !galeria ? `
 Al final agrega el texto que va AL LADO de la imagen en Shopify (sección "Imagen con texto"), con este formato:
@@ -903,16 +950,24 @@ ${conPrecio ? `- Usa los precios exactamente así: ${formatoPrecio(p.ficha?.prec
 
 // Ejemplo real de un prompt que funcionó (cinta de kinesiología). Le muestra a la IA el NIVEL de detalle.
 const EJEMPLO_NIVEL = `EJEMPLO DEL NIVEL QUE QUIERO (es de OTRO producto: copia el nivel de detalle y de escena, NO su contenido, colores ni textos):
-IDEA: un corredor en pleno salto, visto desde abajo, con la cinta en la rodilla bien visible.
 FOTOGRAFÍA REAL (no dibujo, no animación).
-COMPOSICIÓN: un deportista latino corriendo en una pista de atletismo de noche bajo reflectores, captado en pleno salto desde un ángulo bajo, con la pierna adelantada flexionada. En su rodilla lleva el parche en T color AZUL, grande y bien visible en el centro de la imagen. Sudor y luz dramática. Líneas diagonales cian de velocidad detrás de él. A la izquierda, tres chips negros con borde cian e ícono. Abajo a la izquierda, el precio; junto al precio, un abanico de 10 parches reales en sus 4 colores con un círculo cian que diga "x10".
-TEXTOS:
-- Titular inclinado en tres líneas: "PACK" (blanco, pequeño) / "10 PARCHES" (cian, muy grande, lo más grande de la imagen) / "PARA TU RODILLA" (blanco)
-- Subtítulo: "Cinta de kinesiología precortada para rodilla. Lista para pegar."
-- Chips: "Soporte y estabilidad" · "Resiste sudor y agua" · "Sin tijeras"
-- Precio: "ANTES $152.990" (gris tachado con línea roja) / "LOS 10 POR SOLO" (blanco pequeño) / "$99.990" (muy grande, negro dentro de caja cian) / "Sale a $9.999 cada parche" (blanco)
-- Sello circular blanco: "-35%"
-- Barra inferior negra: "Envío a toda Colombia · Pago contra entrega · Compra segura"`;
+COMPOSICIÓN, de arriba hacia abajo:
+1) TITULAR arriba, inclinado.
+2) FOTO (60% de la imagen): un deportista latino de 28 años corriendo en una pista de atletismo de noche bajo reflectores, en pleno salto, visto desde un ángulo bajo, con sudor y luz dramática. En su rodilla lleva el parche en T color AZUL, GRANDE y nítido en el centro, a su tamaño real. Líneas diagonales cian de velocidad detrás de él.
+3) A la izquierda, tres chips negros con borde cian e ícono de línea, sin tapar la rodilla.
+4) Banda de precio abajo a la izquierda, con un abanico de 10 parches reales en sus 4 colores y un círculo cian, encima del margen inferior.
+5) Barra de confianza negra encima del margen inferior.
+TEXTOS (exactos):
+Titular: "10 PARCHES" (cian, lo más grande de la imagen) / "PARA TU RODILLA" (blanco)
+Chip 1: "Soporte y estabilidad" (blanco)
+Chip 2: "Resiste sudor y agua" (blanco)
+Chip 3: "Sin tijeras" (blanco)
+Precio: "$99.990" (negro, muy grande, dentro de la caja cian)
+Antes: "$152.990" (gris, tachado en rojo)
+Círculo: "x10" (negro)
+Barra: "Pago contra entrega · Envío a toda Colombia" (blanco)
+No escribas ningún otro texto aparte de estos.
+Ningún texto tapa el producto.`;
 
 // ---------- Landing normal: textos del bloque de compra de Shopify ----------
 export function promptTextosShopify(p, avatar) {

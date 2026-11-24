@@ -25,6 +25,9 @@ import {
   promptAd,
   seccionesFijas,
   conSeccionVariantes,
+  ETIQUETAS_ESTILO,
+  ESTILO_AUTO,
+  camposDeTexto,
   palabrasDeTextos,
   MAX_PALABRAS,
   TEXTO_LIBRE
@@ -77,7 +80,7 @@ const proyectoSchema = new mongoose.Schema({
 export const Proyecto = mongoose.model("Proyecto", proyectoSchema);
 
 const CAMPOS_EDITABLES = ["nombre", "pais", "formato", "tipo", "numAvatares", "paso", "ficha", "fotos", "revision", "avatares"];
-const CAMPOS_RAMA = ["paso", "estilosPropuestos", "estilo", "bloqueEstilo", "secciones", "guiones", "notas", "vendio", "textos", "copys", "ads"];
+const CAMPOS_RAMA = ["paso", "estilosPropuestos", "estilo", "bloqueEstilo", "estiloCampos", "secciones", "guiones", "notas", "vendio", "textos", "copys", "ads"];
 const AVATARES_VALIDOS = ["A", "B"];
 
 const MAX_FOTOS = 6;
@@ -228,6 +231,10 @@ function limpiarRama(body = {}, av) {
   }
   if (out.estilosPropuestos !== undefined && !Array.isArray(out.estilosPropuestos)) delete out.estilosPropuestos;
   if (out.bloqueEstilo !== undefined) out.bloqueEstilo = String(out.bloqueEstilo).slice(0, 8000);
+  if (out.estiloCampos !== undefined) {
+    const c = out.estiloCampos && typeof out.estiloCampos === "object" ? out.estiloCampos : {};
+    out.estiloCampos = Object.fromEntries(ETIQUETAS_ESTILO.filter(([k]) => !ESTILO_AUTO.has(k) && typeof c[k] === "string").map(([k]) => [k, c[k].slice(0, 2000)]));
+  }
   if (out.vendio !== undefined) out.vendio = !!out.vendio;
   if (out.textos !== undefined) out.textos = limpiarTextos(out.textos);
   if (out.copys !== undefined) out.copys = limpiarCopys(out.copys);
@@ -281,6 +288,17 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
     return p;
   };
 
+  // Bloque de estilo de antes → campos por etiqueta (se conserva el diseño y las personas que tenía; la escena sale del bloque)
+  const estiloAlDia = (base, r) => {
+    if (!r?.estilo || (r.estiloCampos && typeof r.estiloCampos === "object")) return r;
+    const viejo = camposDeTexto(r.bloqueEstilo);
+    const estiloCampos = {};
+    if (viejo.diseno) estiloCampos.diseno = viejo.diseno;
+    if (viejo.personas) estiloCampos.personas = viejo.personas.replace(/\.$/, "") + ".";
+    const nuevo = { ...r, estiloCampos };
+    return { ...nuevo, bloqueEstilo: construirBloqueEstilo({ ...base, ...nuevo }) };
+  };
+
   // Rama (trabajo de un avatar). Exige que el avatar exista.
   const cargarRama = async (req, res) => {
     const p = await cargar(req, res); if (!p) return null;
@@ -291,8 +309,8 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
       return null;
     }
     const ramas = p.ramas || {};
-    const r = { ...ramaVacia(), ...(ramas[av] || {}) };
     const plantilla = await obtenerPlantilla(req.user.uid, p.formato, p.tipo);
+    const r = estiloAlDia({ ...plano(p), numAvatares: 1, avatares: [avatar], plantilla }, { ...ramaVacia(), ...(ramas[av] || {}) });
     // "vista": lo que ven los prompts = proyecto + trabajo de este avatar, como una sola landing
     const vista = { ...plano(p), ...r, numAvatares: 1, avatares: [avatar], plantilla };
     return { p, av, avatar, r, vista, plantilla };
@@ -399,7 +417,10 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
     try {
       const o = plano(p);
       const plantilla = await obtenerPlantilla(uid, p.formato, p.tipo);
-      for (const [av, r] of Object.entries(o.ramas || {})) {
+      for (const [av, r0] of Object.entries(o.ramas || {})) {
+        const avatar = (o.avatares || []).find(a => a.id === av);
+        const r = avatar ? estiloAlDia({ ...o, numAvatares: 1, avatares: [avatar], plantilla }, r0) : r0;
+        o.ramas[av] = r;
         if (!Array.isArray(r?.secciones)) continue;
         const vista = { ...o, ...r, plantilla };
         o.ramas[av] = { ...r, secciones: r.secciones.map(s => (s?.prompt ? { ...s, prompt: cierreSeccion(s.prompt, vista, s) } : s)) };
@@ -752,12 +773,16 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
         const bloques = {};
         for (const [av, r] of Object.entries(p.ramas || {})) {
           const avatar = (p.avatares || []).find(a => a.id === av);
-          if (r?.estilo && avatar) bloques[`ramas.${av}.bloqueEstilo`] = construirBloqueEstilo({ ...plano(p), ...r, avatares: [avatar], plantilla });
+          if (r?.estilo && avatar) {
+            const rr = estiloAlDia({ ...plano(p), avatares: [avatar], plantilla }, r);
+            bloques[`ramas.${av}.bloqueEstilo`] = construirBloqueEstilo({ ...plano(p), ...rr, avatares: [avatar], plantilla });
+            if (!r.estiloCampos) bloques[`ramas.${av}.estiloCampos`] = rr.estiloCampos || {};
+          }
         }
         await p.save();
         if (Object.keys(bloques).length) {
           await Proyecto.updateOne({ _id: p._id }, { $set: bloques });
-          for (const [k, v] of Object.entries(bloques)) { const av = k.split(".")[1]; p.ramas = { ...p.ramas, [av]: { ...p.ramas[av], bloqueEstilo: v } }; }
+          for (const [k, v] of Object.entries(bloques)) { const [, av, campo] = k.split("."); p.ramas = { ...p.ramas, [av]: { ...p.ramas[av], [campo]: v } }; }
         }
       } else {
         await p.save();
@@ -830,6 +855,7 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
     try {
       const x = await cargarRama(req, res); if (!x) return;
       const r = { ...x.r, ...limpiarRama(req.body, x.av) };
+      if (req.body?.estiloCampos !== undefined && r.estilo) r.bloqueEstilo = construirBloqueEstilo({ ...x.vista, ...r });
       await guardarRama(x.p, x.av, r);
       res.json({ rama: r });
     } catch (err) {
@@ -869,8 +895,8 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
       const x = await cargarRama(req, res); if (!x) return;
       const e = req.body?.estilo;
       if (!e || typeof e !== "object") return res.status(400).json({ error: "Falta el estilo" });
-      const r = { ...x.r, estilo: e };
-      r.bloqueEstilo = construirBloqueEstilo({ ...x.vista, estilo: e });
+      const r = { ...x.r, estilo: e, estiloCampos: {} };
+      r.bloqueEstilo = construirBloqueEstilo({ ...x.vista, estilo: e, estiloCampos: {} });
       if (r.paso < 4) r.paso = 4;
       await guardarRama(x.p, x.av, r);
       res.json({ rama: r });

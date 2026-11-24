@@ -1279,11 +1279,11 @@ function pasoEstilo() {
       <div class="est-card-row">
         <div>
           <h3>Bloque de estilo: ${esc(elegido.nombre)}</h3>
-          <p class="est-muted">Va primero en cada chat de Gemini. Puedes corregirlo.</p>
+          <p class="est-muted">Va primero en cada imagen. Solo lleva lo que se repite en TODAS: la escena de cada imagen va en su prompt. Corrige cualquier campo y se guarda solo.</p>
         </div>
         <button class="est-btn" onclick="estCopiarBloque()"><i data-lucide="copy"></i> Copiar</button>
       </div>
-      <textarea id="estBloque" class="est-code" rows="12" onchange="estGuardarBloque(this.value)">${esc(r.bloqueEstilo)}</textarea>
+      ${camposEstiloHTML(r, elegido)}
     </div>
     ${siguiente(4, "Seguir con la landing")}
   ` : ""}
@@ -1303,8 +1303,45 @@ window.estElegirEstilo = (i, boton) => conCarga(boton, "Armando bloque...", asyn
   renderProyecto();
 });
 
-window.estGuardarBloque = (v) => guardarRama({ bloqueEstilo: v });
-window.estCopiarBloque = () => copiar(limpiarFuentes($("estBloque")?.value || R().bloqueEstilo || ""));
+// ---------- Bloque de estilo por etiquetas (TIPO DE IMAGEN, DISEÑO GRÁFICO, PRECIO…) ----------
+const ETIQUETAS_ESTILO = [
+  ["tipo", "TIPO DE IMAGEN"], ["diseno", "DISEÑO GRÁFICO"], ["precio", "PRECIO"], ["regla", "REGLA"],
+  ["producto", "PRODUCTO"], ["tamano", "TAMAÑO REAL"], ["noAgregues", "NO agregues"], ["personas", "PERSONAS"], ["texto", "TEXTO"]
+];
+const ESTILO_AUTO = new Set(["producto", "tamano", "noAgregues"]);
+const prefijoEtiqueta = (k, t) => (k === "noAgregues" ? "NO agregues " : k === "diseno" ? "DISEÑO GRÁFICO (encima de la foto): " : `${t}: `);
+function camposDeBloque(texto) {
+  const out = {};
+  for (const linea of String(texto || "").split("\n")) {
+    for (const [k, t] of ETIQUETAS_ESTILO) {
+      const pre = prefijoEtiqueta(k, t);
+      if (linea.startsWith(pre)) out[k] = linea.slice(pre.length).trim();
+      else if (k === "diseno" && linea.startsWith("DISEÑO GRÁFICO: ")) out[k] = linea.slice(16).trim();
+    }
+  }
+  return out;
+}
+function camposEstiloHTML(r, e) {
+  const c = camposDeBloque(r.bloqueEstilo);
+  const colores = [e.fondo, e.color1, e.color2, e.acento].map(v => String(v || "")).filter(Boolean)
+    .map(v => ({ txt: v.replace(/#[0-9a-f]{6}\b/i, "").trim(), hex: (v.match(/#[0-9a-f]{6}\b/i) || [])[0] || "" }))
+    .filter((x, i, a) => a.findIndex(y => y.txt === x.txt && y.hex === x.hex) === i);
+  return `<div class="est-estilo-campos">
+    ${ETIQUETAS_ESTILO.map(([k, t]) => `<div class="est-estilo-campo">
+      <label><b>${t}</b>${ESTILO_AUTO.has(k) ? ` <span class="est-hint">· se llena solo desde la Ficha</span>` : ""}</label>
+      ${k === "diseno" && colores.length ? `<div class="est-paleta">${colores.map(x => `<span title="${esc(x.txt)}"><i style="background:${x.hex || "transparent"}"></i>${esc(x.txt || x.hex)}</span>`).join("")}</div>` : ""}
+      ${ESTILO_AUTO.has(k)
+        ? `<div class="est-estilo-auto">${esc(c[k] || "")}</div>`
+        : `<textarea class="est-code" rows="${k === "diseno" ? 6 : 2}" data-campo="${k}" onchange="estGuardarCampoEstilo()">${esc(c[k] || "")}</textarea>`}
+    </div>`).join("")}
+  </div>`;
+}
+window.estGuardarCampoEstilo = async () => {
+  const campos = {};
+  document.querySelectorAll(".est-estilo-campos textarea[data-campo]").forEach(t => { campos[t.dataset.campo] = t.value.trim(); });
+  await guardarRama({ estiloCampos: campos });
+};
+window.estCopiarBloque = () => copiar(limpiarFuentes(R().bloqueEstilo || ""));
 
 // =============================================
 // PASO 4: LANDING (del avatar elegido)
@@ -1359,6 +1396,21 @@ function pasoLanding() {
   `;
 }
 
+const editandoPrompt = new Set();
+window.estVerPrompt = (id, editar) => { if (editar) editandoPrompt.add(id); else editandoPrompt.delete(id); renderPaso(); };
+// Etiquetas del prompt en negrita (FOTOGRAFÍA REAL, COMPOSICIÓN, TEXTOS (exactos), PRECIO…) y números de la composición resaltados
+const ETIQUETAS_PROMPT = /^(FOTOGRAFÍA REAL|COMPOSICIÓN[^:\n]*:|TEXTOS \(exactos\):|TEXTOS:|IDEA:|ZONA LIBRE:|MARGEN ABAJO|PRECIO \(cópialo EXACTO[^)]*\):|PROHIBIDO EN ESTA IMAGEN:|TEXTOS QUE NO DEBEN SALIR[^:]*:|VARIANTES EN ESTA SECCIÓN[^:]*:|OFERTA EN ESTA SECCIÓN[^:]*:|TEXTO PARA SHOPIFY|FOTO \d+[^\n]*|IMAGEN (ANTES|DESPUÉS)|Titular:|No escribas ningún otro texto[^\n]*|Ningún texto tapa[^\n]*)/;
+function promptFormateado(texto) {
+  return String(texto || "").split("\n").map(l => {
+    const e = esc(l);
+    const m = l.match(ETIQUETAS_PROMPT);
+    if (m) return `<div><b>${esc(m[0])}</b>${esc(l.slice(m[0].length))}</div>`;
+    const n = l.match(/^(\d+\))\s/);
+    if (n) return `<div class="num"><b>${esc(n[1])}</b>${esc(l.slice(n[1].length))}</div>`;
+    return e ? `<div>${e}</div>` : `<div class="vacio"></div>`;
+  }).join("");
+}
+
 function tarjetaSeccion(x, i, numero) {
   return `
   <article class="est-sec ${x.hecha ? "hecha" : ""}" id="sec-${esc(x.id)}">
@@ -1383,9 +1435,13 @@ function tarjetaSeccion(x, i, numero) {
       </div>
     </div>
 
-    ${x.prompt ? `
-      <textarea class="est-code" rows="10" onchange="estEditarPrompt(${i}, this.value)">${esc(x.prompt)}</textarea>
-    ` : `<div class="est-empty">Sin prompt todavía.</div>`}
+    ${x.prompt ? (editandoPrompt.has(x.id) ? `
+      <textarea class="est-code" rows="14" onchange="estEditarPrompt(${i}, this.value)">${esc(x.prompt)}</textarea>
+      <button class="est-link" onclick="estVerPrompt('${esc(x.id)}', false)">Listo</button>
+    ` : `
+      <div class="est-prompt-vista">${promptFormateado(x.prompt)}</div>
+      <button class="est-link" onclick="estVerPrompt('${esc(x.id)}', true)"><i data-lucide="pencil"></i> Editar</button>
+    `) : `<div class="est-empty">Sin prompt todavía.</div>`}
     ${tiraImagenes(x)}
 
     <div class="est-sec-actions">
