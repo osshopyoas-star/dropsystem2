@@ -13,6 +13,7 @@ import { construirLanding, numerarCapas } from "../core/landing-html.js";
 import { VERSION_SECCION } from "../core/seccion-shopify.js";
 import { limpiarFuentes } from "../core/fuentes.js";
 import { cifraPrueba } from "../core/finanzas.js";
+import { TIPOS_OFERTA, ofertaDe, paquetesDeTexto } from "../core/oferta.js";
 
 const PASOS = [
   { n: 1, titulo: "Ficha", icono: "clipboard-list" },
@@ -581,10 +582,7 @@ function pasoFicha() {
         <input id="fNoTiene" value="${esc(f.noTiene)}" placeholder="Ej: no tiene cámara, no trae caja de marca">
         <label>Tallas / colores / variantes</label>
         <input id="fVariantes" value="${esc(f.variantes)}" placeholder="Ej: tallas 35 a 40; colores negro y blanco">
-        <label>Regalo</label>
-        <input id="fRegalo" value="${esc(f.regalo)}" placeholder="Ej: llavero de regalo">
-        <label>Paquetes</label>
-        <input id="fPaquetes" value="${esc(f.paquetes)}" placeholder="Ej: 1 unidad $199.990; 2 unidades $339.990; 3 unidades $449.990">
+        <div id="fOferta">${cajaOferta()}</div>
       </div>
     </div>
 
@@ -853,8 +851,9 @@ function leerFicha() {
     precioEn: ["portada", "releasit", "solo_releasit"].includes(val("fPrecioEn")) ? val("fPrecioEn") : (proyecto.ficha?.precioEn || "portada"),
     noTiene: val("fNoTiene"),
     variantes: val("fVariantes"),
-    regalo: val("fRegalo"),
-    paquetes: val("fPaquetes"),
+    regalo: $("fRegalo") ? val("fRegalo") : (proyecto.ficha?.regalo || ""),
+    paquetes: $("fPaquetes") ? val("fPaquetes") : (proyecto.ficha?.paquetes || ""),
+    oferta: leerOferta(),
     estiloPreferido: val("fEstiloPref"),
     notas: val("fNotas"),
     textosProhibidos: $("fTextosProhibidos") ? val("fTextosProhibidos").slice(0, 1500) : (proyecto.ficha?.textosProhibidos || ""),
@@ -921,6 +920,91 @@ window.estSubirFotos = async (input) => {
     await guardar({ ficha: leerFicha(), fotos: [...(proyecto.fotos || []), ...nuevas] });
     renderPaso();
   } catch (err) { avisar(err.message, "error"); }
+};
+
+// ---------- Tipo de oferta (2x1, lleva X paga Y, paquetes, regalo): los textos de precio los arma CoDropX ----------
+function cajaOferta() {
+  const f = proyecto.ficha || {};
+  const o = f.oferta || {};
+  const tipo = o.tipo || "descuento";
+  const filas = Array.isArray(o.paquetes) ? o.paquetes : [];
+  const regalos = Array.isArray(o.regalos) ? o.regalos : [];
+  const campos = tipo === "2x1" ? `<p class="est-hint">El <b>precio</b> de arriba es lo que paga por las 2 unidades; el <b>antes</b> es el precio normal de 1 unidad.</p>`
+    : tipo === "xy" ? `<div class="est-oferta-fila">Lleva <input id="fOfX" type="number" min="2" max="10" value="${o.x || 3}" oninput="estOfertaVista()"> y paga <input id="fOfY" type="number" min="1" max="9" value="${o.y || 2}" oninput="estOfertaVista()"></div><p class="est-hint">El <b>precio</b> de arriba es el de 1 unidad.</p>`
+    : tipo === "paquetes" ? `<div id="fOfPaquetes">${filas.map((x, i) => `<div class="est-oferta-fila" data-paquete>
+        <input type="number" min="1" max="20" value="${x.unidades || ""}" placeholder="Unidades" data-u oninput="estOfertaVista()"> unidades por
+        <input type="number" min="0" value="${x.precio || ""}" placeholder="Precio" data-p oninput="estOfertaVista()">
+        <label class="est-check"><input type="radio" name="fOfMas" ${x.masVendido ? "checked" : ""} onchange="estOfertaVista()"> Más vendido</label>
+        <button class="est-link" onclick="estOfertaQuitar('paquetes', ${i})">✕</button></div>`).join("")}</div>
+        <button class="est-btn chico" onclick="estOfertaAgregar('paquetes')"><i data-lucide="plus"></i> Agregar paquete</button>`
+    : tipo === "regalo" ? `<div id="fOfRegalos">${regalos.map((x, i) => `<div class="est-oferta-fila" data-regalo>
+        ${x.foto ? `<img src="${x.foto}" alt="" class="est-oferta-foto">` : `<label class="est-oferta-foto vacia" title="Sube la foto real del regalo">＋<input type="file" accept="image/png,image/jpeg,image/webp" hidden onchange="estOfertaFotoRegalo(${i}, this)"></label>`}
+        <input value="${esc(x.nombre || "")}" placeholder="Nombre del regalo (ej: llavero)" maxlength="40" data-n oninput="estOfertaVista()">
+        <button class="est-link" onclick="estOfertaQuitar('regalos', ${i})">✕</button></div>`).join("")}</div>
+        ${regalos.length < 4 ? `<button class="est-btn chico" onclick="estOfertaAgregar('regalos')"><i data-lucide="plus"></i> Agregar regalo</button>` : ""}
+        <p class="est-hint">Sube la foto real de cada regalo: sale en un círculo con su nombre en la portada.</p>`
+    : `<label>Regalo</label>
+        <input id="fRegalo" value="${esc(f.regalo)}" placeholder="Ej: llavero de regalo">
+        <label>Paquetes</label>
+        <input id="fPaquetes" value="${esc(f.paquetes)}" placeholder="Ej: 1 unidad $199.990; 2 unidades $339.990; 3 unidades $449.990">`;
+  return `<label>Tipo de oferta</label>
+    <select id="fOfertaTipo" onchange="estOfertaTipo(this.value)">${TIPOS_OFERTA.map(([k, t]) => `<option value="${k}" ${tipo === k ? "selected" : ""}>${t}</option>`).join("")}</select>
+    ${campos}
+    <div id="fOfertaVista">${vistaOferta(f)}</div>`;
+}
+function vistaOferta(f) {
+  const o = ofertaDe(f, proyecto.pais === "EC" ? "EC" : "CO");
+  const t = o.textos;
+  const lineas = o.tipo === "paquetes" ? o.paquetes.map(x => x.texto) : [t.promo, t.precio, t.cadaUno, t.antes, t.sello].filter(Boolean);
+  return `${o.conflicto ? `<div class="est-alert error"><b>${esc(o.conflicto)}</b> Tienes paquetes escritos antes: "${esc(f.paquetes)}".
+      <div class="est-actions"><button class="est-btn chico" onclick="estOfertaConflicto('oferta')">Usar la oferta (borro esos paquetes)</button><button class="est-btn chico" onclick="estOfertaConflicto('paquetes')">Usar los paquetes</button></div></div>` : ""}
+    ${lineas.length ? `<p class="est-hint">Así saldrá en las imágenes: ${lineas.map(x => `<b>"${esc(x)}"</b>`).join(" · ")}</p>` : ""}`;
+}
+function leerOferta() {
+  const actual = proyecto.ficha?.oferta || {};
+  const tipo = $("fOfertaTipo")?.value || actual.tipo || "descuento";
+  const o = { ...actual, tipo };
+  if ($("fOfX")) { o.x = Number($("fOfX").value) || 3; o.y = Number($("fOfY").value) || 2; }
+  if ($("fOfPaquetes")) o.paquetes = [...document.querySelectorAll("#fOfPaquetes [data-paquete]")].map(el => ({ unidades: Number(el.querySelector("[data-u]").value) || 0, precio: Number(el.querySelector("[data-p]").value) || 0, masVendido: !!el.querySelector("input[type=radio]")?.checked }));
+  if ($("fOfRegalos")) o.regalos = [...document.querySelectorAll("#fOfRegalos [data-regalo]")].map((el, i) => ({ nombre: el.querySelector("[data-n]").value.trim(), foto: (actual.regalos || [])[i]?.foto || "" }));
+  return o;
+}
+window.estOfertaVista = () => { const el = $("fOfertaVista"); if (el) el.innerHTML = vistaOferta(leerFicha()); };
+window.estOfertaTipo = async (tipo) => {
+  const ficha = leerFicha();
+  const o = { ...ficha.oferta, tipo };
+  // Al pasar a Paquetes, se llenan con los que tenías escritos (o 1 unidad al precio de la Ficha)
+  if (tipo === "paquetes" && !(o.paquetes || []).length) o.paquetes = paquetesDeTexto(ficha.paquetes, proyecto.pais).length ? paquetesDeTexto(ficha.paquetes, proyecto.pais) : [{ unidades: 1, precio: ficha.precio || 0 }, { unidades: 2, precio: 0, masVendido: true }];
+  if (tipo === "regalo" && !(o.regalos || []).length) o.regalos = [{ nombre: ficha.regalo || "", foto: "" }];
+  await guardar({ ficha: { ...ficha, oferta: o } });
+  renderPaso();
+};
+window.estOfertaAgregar = async (k) => {
+  const ficha = leerFicha();
+  const lista = [...(ficha.oferta[k] || []), k === "paquetes" ? { unidades: ((ficha.oferta.paquetes || []).at(-1)?.unidades || 0) + 1, precio: 0 } : { nombre: "", foto: "" }];
+  await guardar({ ficha: { ...ficha, oferta: { ...ficha.oferta, [k]: lista } } });
+  renderPaso();
+};
+window.estOfertaQuitar = async (k, i) => {
+  const ficha = leerFicha();
+  const lista = [...(ficha.oferta[k] || [])]; lista.splice(i, 1);
+  await guardar({ ficha: { ...ficha, oferta: { ...ficha.oferta, [k]: lista } } });
+  renderPaso();
+};
+window.estOfertaFotoRegalo = async (i, input) => {
+  const file = input.files?.[0]; if (!file) return;
+  const ficha = leerFicha();
+  const regalos = [...(ficha.oferta.regalos || [])];
+  regalos[i] = { ...regalos[i], foto: await comprimirFoto(file) };
+  await guardar({ ficha: { ...ficha, oferta: { ...ficha.oferta, regalos } } });
+  renderPaso();
+};
+// La oferta nueva choca con los paquetes que estaban escritos antes
+window.estOfertaConflicto = async (cual) => {
+  const ficha = leerFicha();
+  if (cual === "oferta") await guardar({ ficha: { ...ficha, paquetes: "" } });
+  else await guardar({ ficha: { ...ficha, paquetes: "", oferta: { ...ficha.oferta, tipo: "paquetes", paquetes: paquetesDeTexto(ficha.paquetes, proyecto.pais) } } });
+  renderPaso();
 };
 
 window.estQuitarFoto = async (i) => {

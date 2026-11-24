@@ -3640,6 +3640,12 @@ aside.collapsed .submenu .sidebar-item {
   border: 0; background: rgba(0,0,0,.65); color: #fff; cursor: pointer;
 }
 .est-foto.ref img { opacity: .45; }
+.est-oferta-fila { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 6px 0; }
+.est-oferta-fila input[type=number] { width: 110px; }
+.est-oferta-fila input[data-u], #fOfX, #fOfY { width: 70px !important; }
+.est-oferta-fila input[data-n] { flex: 1; min-width: 160px; }
+.est-oferta-foto { width: 46px; height: 46px; border-radius: 50%; object-fit: cover; flex: none; }
+.est-oferta-foto.vacia { display: grid; place-items: center; border: 1.5px dashed var(--est-line, #475569); cursor: pointer; font-size: 20px; color: #94a3b8; }
 .est-foto button.recortar { right: auto; left: 6px; font-size: 13px; }
 .est-foto button.uso { top: auto; bottom: 6px; left: 6px; right: 6px; width: auto; height: auto; border-radius: 999px; padding: 4px 8px; font-size: 11px; font-weight: 700; background: rgba(22,163,74,.9); }
 .est-foto.ref button.uso { background: rgba(217,119,6,.95); }

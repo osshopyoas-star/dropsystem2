@@ -636,11 +636,16 @@ window.calPasarADesarrollo = () => conBoton("calBtnDesarrollo", "Pasando a Desar
 
   // "antes" calculado desde el precio que publicas, para que el % de descuento cuadre
   const precioAntes = redondear(r.redondeado / (1 - (Number($("calDescuento")?.value) || 0) / 100), p);
+  // Los paquetes van armados en la oferta (los textos de precio los arma CoDropX); si la Ficha ya tiene otra oferta (2x1, regalo…), se respeta
+  const ofActual = actual.ficha?.oferta || {};
+  const filas = r.paquetes.length ? [{ unidades: 1, precio: r.redondeado }, ...r.paquetes.map((x, i) => ({ unidades: x.unidades, precio: x.precio, masVendido: i === 0 }))] : [];
+  const oferta = filas.length ? { ...ofActual, tipo: ["2x1", "xy", "regalo"].includes(ofActual.tipo) ? ofActual.tipo : "paquetes", paquetes: filas } : ofActual;
   const ficha = {
     ...(actual.ficha || {}),
     precio: r.redondeado,
     precioAntes,
-    paquetes: textoPaquetes(r, p, precioAntes),
+    paquetes: filas.length ? "" : textoPaquetes(r, p, precioAntes),
+    oferta,
     costeoId: c._id
   };
   await api("PUT", `/api/proyectos/${proyecto._id}`, { ficha, pais: p });

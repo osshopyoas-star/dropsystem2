@@ -8,6 +8,7 @@ import { limpiarFuentes } from "./public/js/core/fuentes.js";
 
 import { SECCIONES, FORMATOS, varianteDe, tiposDe, claveDe, ACABADOS, ETAPAS_AIDA, etapaDe } from "./public/js/core/plantilla.js";
 import { cifraPrueba } from "./public/js/core/finanzas.js";
+import { ofertaDe } from "./public/js/core/oferta.js";
 
 const limpio = (v, max = 3000) => String(v ?? "").slice(0, max).trim();
 
@@ -367,8 +368,12 @@ TAMAÑO REAL: ${limpio(f.medidas || r.tamano, 300) || "(sin medidas: pídelas en
 LO QUE NO TIENE NI TRAE: ${limpio(listaNoTiene(f.noTiene, r.noTiene).join("; "), 800) || "(no indicado)"}
 VARIANTES / TALLAS / COLORES: ${limpio(f.variantes, 300) || "(una sola versión)"}
 PRECIO: ${precio || "(sin precio)"}${antes ? ` · ANTES: ${antes}` : ""}${desc ? ` · DESCUENTO: ${desc}%` : ""}${f.precioEn === "releasit" ? " · DÓNDE VA: NO en la portada (va en el formulario de Releasit, paquetes y oferta de cierre)" : f.precioEn === "solo_releasit" ? " · DÓNDE VA: en NINGUNA imagen (solo en el formulario de Releasit)" : ""}
-PAQUETES: ${limpio(f.paquetes, 500) || "(no hay paquetes)"}
-REGALO: ${limpio(f.regalo, 200) || "(no hay regalo)"}
+${(() => {
+  const o = ofertaDe(f, p.pais === "EC" ? "EC" : "CO");
+  if (o.tipo === "descuento") return `PAQUETES: ${limpio(f.paquetes, 500) || "(no hay paquetes)"}
+REGALO: ${limpio(f.regalo, 200) || "(no hay regalo)"}`;
+  return `OFERTA (la arma CoDropX; respétala tal cual en todos los textos, también en los de Shopify y Releasit): ${o.resumen}${o.textos.promo ? ` Texto de la promo: "${o.textos.promo}".` : ""}${["2x1", "xy"].includes(o.tipo) && limpio(f.variantes, 300) ? ` Hay variantes: el cliente puede escoger colores o tallas distintos en su promo (en preguntas frecuentes incluye "¿Puedo escoger colores diferentes?").` : ""}`;
+})()}
 PROMESAS QUE SÍ SON VERDAD (no inventes otras):
 ${lista(verdades)}
 PRUEBA SOCIAL REAL (solo estas cifras, exactas; se pueden usar en la barra de confianza):
@@ -646,25 +651,55 @@ export function ofertaSeccion(p, seccion = {}) {
   const pais = p?.pais === "EC" ? "EC" : "CO";
   const normal = esNormal(p);
   const conPrecio = llevaPrecio(seccion.tipo, normal, f.precioEn || "portada");
+  const of = ofertaDe(f, pais);
   const precio = formatoPrecio(f.precio, pais), antes = formatoPrecio(f.precioAntes, pais);
   const desc = porcentajeDescuento(f.precioAntes, f.precio);
-  const sello = desc ? `-${desc}%` : "";
-  const paquetes = conPrecio && ["paquetes", "oferta_cierre", "moda_precio_tallas"].includes(seccion.tipo) ? montosPaquetes(f.paquetes, pais) : [];
+  const sello = of.tipo === "descuento" || of.tipo === "regalo" || of.tipo === "paquetes" ? (desc ? `-${desc}%` : "") : "";
+  const paquetes = conPrecio && of.tipo === "descuento" && ["paquetes", "oferta_cierre", "moda_precio_tallas"].includes(seccion.tipo) ? montosPaquetes(f.paquetes, pais) : [];
   // Portada sin precio (la Ficha lo pide): solo puede llevar el sello de descuento
   const selloSinPrecio = !conPrecio && PORTADAS.has(seccion.tipo) && sello ? sello : "";
-  return { conPrecio, precio, antes, sello, paquetes, selloSinPrecio,
-    montos: conPrecio ? [precio, antes, ...paquetes].filter(Boolean) : [],
+  return { conPrecio, precio, antes, sello, paquetes, selloSinPrecio, oferta: of,
+    montos: conPrecio ? [...new Set([...of.montos, ...paquetes])].filter(Boolean) : [],
     sellos: conPrecio ? [sello].filter(Boolean) : [selloSinPrecio].filter(Boolean) };
 }
 export function bloquePrecio(p, seccion = {}) {
   const o = ofertaSeccion(p, seccion);
+  const of = o.oferta, t = of.textos;
   if (o.conPrecio && o.precio) {
+    const lineas = ["2x1", "xy"].includes(of.tipo)
+      ? [["Promo", t.promo], ["Precio", t.precio], ["Cada uno", t.cadaUno], ["Antes (tachado)", t.antes], ["Sello", t.sello]]
+      : of.tipo === "paquetes" && ["paquetes", "oferta_cierre", "moda_precio_tallas"].includes(seccion.tipo) && of.paquetes.length
+        ? of.paquetes.map((x, i) => [`Paquete ${i + 1}`, x.texto])
+        : [["Precio", o.precio], ["Antes (tachado)", o.antes], ["Sello", o.sello], ...(of.tipo === "regalo" && t.promo ? [["Regalo", t.promo]] : [])];
     return `PRECIO (cópialo EXACTO, carácter por carácter; no lo cambies ni lo redondees):
-- Precio: "${o.precio}"${o.antes ? `\n- Antes (tachado): "${o.antes}"` : ""}${o.sello ? `\n- Sello: "${o.sello}"` : ""}${o.paquetes.length ? `\n- Precios de los paquetes (solo estos): ${o.paquetes.map(x => `"${x}"`).join(", ")}` : ""}
+${lineas.filter(([, v]) => v).map(([k, v]) => `- ${k}: "${v}"`).join("\n")}${o.paquetes.length ? `\n- Precios de los paquetes (solo estos): ${o.paquetes.map(x => `"${x}"`).join(", ")}` : ""}
 NO escribas ningún otro valor de dinero, porcentaje ni número de precio en la imagen.`;
   }
   if (o.conPrecio) return `PROHIBIDO EN ESTA IMAGEN: la Ficha aún no tiene precio, así que no escribas precios, signos de dinero ($), porcentajes ni sellos de oferta.`;
   return `PROHIBIDO EN ESTA IMAGEN: precios, signos de dinero ($), "antes" tachado, cajas de precio${o.selloSinPrecio ? `. El único porcentaje permitido es el sello "${o.selloSinPrecio}"` : ", porcentajes, descuentos ni sellos de oferta"}.`;
+}
+export function bloqueOferta(p, seccion = {}) {
+  const f = p?.ficha || {};
+  const o = ofertaDe(f, p?.pais === "EC" ? "EC" : "CO"), t = o.textos;
+  if (o.tipo === "descuento") return "";
+  const tipo = seccion.tipo, portada = PORTADAS.has(tipo) && tipo !== "galeria";
+  const promo = ["2x1", "xy"].includes(o.tipo);
+  const variantes = String(f.variantes || "").trim();
+  let txt = "";
+  if (promo) {
+    const gratis = o.unidades - (o.tipo === "2x1" ? 1 : Number(String(t.sello).split("x")[1]) || 1);
+    if (portada) txt = `muestra ${o.unidades} unidades del producto juntas${variantes ? " (de colores o variantes distintas)" : ""} y un sticker grande "${t.sello}" con "${t.promo}".`;
+    else if (tipo === "paquetes") txt = `esta sección se convierte en "Así funciona tu ${t.sello}": ${o.unidades} unidades en fila; la${gratis > 1 ? `s últimas ${gratis}` : " última"} con una cinta "¡GRATIS!". Texto principal: "${t.promo}".`;
+    else if (tipo === "oferta_cierre" || tipo === "moda_precio_tallas") txt = `repite la promo con las ${o.unidades} unidades a la vista: "${t.promo}".`;
+    else if (tipo === "preguntas" && variantes) txt = `incluye la pregunta "¿Puedo escoger colores diferentes?" con respuesta "Sí, escoge los que quieras en tu pedido".`;
+  } else if (o.tipo === "regalo" && o.regalos.length) {
+    const nombres = o.regalos.map(x => `"${x.nombre}"`).join(", ");
+    if (portada) txt = `una cinta "${t.promo}" con una flecha hacia una fila de círculos, uno por regalo, con la foto real de cada regalo (adjunta) y su nombre debajo: ${nombres}. Los círculos no tapan el producto.`;
+    else if (tipo === "paquetes" || tipo === "oferta_cierre") txt = `muestra el producto junto a sus regalos (${nombres}) con la cinta "${t.promo}".`;
+  } else if (o.tipo === "paquetes" && o.paquetes.length && tipo === "paquetes") {
+    txt = `una tarjeta por paquete, en este orden y con estos textos exactos: ${o.paquetes.map(x => `"${x.texto}"`).join("; ")}. Cada tarjeta muestra esa cantidad de unidades del producto.${o.paquetes.some(x => x.masVendido) ? ` Resalta la del "MÁS VENDIDO".` : ""}`;
+  }
+  return txt ? `OFERTA EN ESTA SECCIÓN (la arma CoDropX): ${txt}` : "";
 }
 export function bloqueProhibidos(p) {
   const t = textosProhibidos(p);
@@ -694,10 +729,11 @@ export function limpiarMontos(texto, p, seccion = {}) {
 
 export function cierreSeccion(texto, p, seccion = {}) {
   // El precio y los prohibidos los pega el código al final (se rehacen cada vez: si cambias el precio en la Ficha, quedan al día)
-  const sinBloques = String(texto || "").replace(/\n+(PRECIO \(cópialo EXACTO|PROHIBIDO EN ESTA IMAGEN|TEXTOS QUE NO DEBEN SALIR)[\s\S]*?(?=\n\n|$)/g, "");
+  const sinBloques = String(texto || "").replace(/\n+(OFERTA EN ESTA SECCIÓN|PRECIO \(cópialo EXACTO|PROHIBIDO EN ESTA IMAGEN|TEXTOS QUE NO DEBEN SALIR)[\s\S]*?(?=\n\n|$)/g, "");
   const base = conCierreResenas(limpiarMontos(sinBloques, p, seccion), p, seccion.tipo, seccion.variante);
   const galeria = p?.formato === "normal" && seccion.tipo === "galeria";
-  const conBloques = String(base).replace(/\n+MARGEN ABAJO[\s\S]*?(?=\n\n|$)/, "").trimEnd() + `\n\n${bloquePrecio(p, seccion)}\n\n${bloqueProhibidos(p)}`;
+  const oferta = bloqueOferta(p, seccion);
+  const conBloques = String(base).replace(/\n+MARGEN ABAJO[\s\S]*?(?=\n\n|$)/, "").trimEnd() + `${oferta ? `\n\n${oferta}` : ""}\n\n${bloquePrecio(p, seccion)}\n\n${bloqueProhibidos(p)}`;
   return galeria ? conBloques : conBloques + margenAbajo(p, seccion.formato || (p?.formato === "normal" ? "1:1" : "9:16"));
 }
 

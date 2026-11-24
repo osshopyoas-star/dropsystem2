@@ -26,6 +26,7 @@ import {
   seccionesFijas
 } from "./prompts-landing.js";
 import { obtenerPlantilla } from "./rutas-plantilla.js";
+import { ofertaDe } from "./public/js/core/oferta.js";
 import { ESTRUCTURAS_AD, FORMATOS_AD, MAX_ADS, compararAvatares, fatigaAnuncios } from "./public/js/core/anuncios.js";
 import { metricasAnuncios } from "./rutas-meta.js";
 import { FinanzasConfig, DropiLinea, trmHoy } from "./rutas-finanzas.js";
@@ -880,6 +881,8 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
     try {
       const x = await cargarRama(req, res); if (!x) return;
       if (!x.r.estilo) return res.status(400).json({ error: "Primero elige un estilo" });
+      const conflicto = ofertaDe(x.p.ficha || {}, x.p.pais === "EC" ? "EC" : "CO").conflicto;
+      if (conflicto) return res.status(400).json({ error: `${conflicto} Resuélvelo en la Ficha antes de escribir los prompts.` });
 
       const reply = await llamarIA({ system: SISTEMA_LANDING, prompt: promptPropuestaSecciones(x.vista, x.plantilla) });
       const j = parsearJSON(reply);
@@ -935,6 +938,8 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
       const secs = x.r.secciones || [];
       const idx = secs.findIndex(sx => sx.id === req.params.secId);
       if (idx === -1) return res.status(404).json({ error: "Sección no encontrada" });
+      const conflicto = ofertaDe(x.p.ficha || {}, x.p.pais === "EC" ? "EC" : "CO").conflicto;
+      if (conflicto) return res.status(400).json({ error: `${conflicto} Resuélvelo en la Ficha antes de escribir los prompts.` });
       const bloque = x.r.bloqueEstilo || construirBloqueEstilo(x.vista);
 
       const sec = secs[idx];
