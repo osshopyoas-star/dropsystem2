@@ -749,7 +749,14 @@ export function montosPaquetes(texto, pais = "CO") {
   return [...new Set(out)].filter(Boolean);
 }
 // Textos que NO deben salir: los que escribiste en la Ficha (uno por línea)
-export const textosProhibidos = (p) => String(p?.ficha?.textosProhibidos || "").split("\n").map(x => x.trim().replace(/[<>]/g, "")).filter(x => x.length >= 2).slice(0, 30);
+export const textosProhibidos = (p) => {
+  const propios = String(p?.ficha?.textosProhibidos || "").split("\n").map(x => x.trim().replace(/[<>]/g, "")).filter(x => x.length >= 2);
+  // Textos que la revisión vio en las fotos del proveedor (frases del flyer); los cortos o de colores no, para no borrar textos buenos
+  const colores = new Set(variantesDe(p?.ficha || {}).colores.map(c => c.nombre.toLowerCase()));
+  const deFotos = (Array.isArray(p?.revision?.textosEnFotos) ? p.revision.textosEnFotos : []).map(x => String(x).trim().replace(/[<>"“”]/g, ""))
+    .filter(x => x.length >= 6 && /\s/.test(x) && !colores.has(x.toLowerCase()));
+  return [...new Set([...propios, ...deFotos])].slice(0, 30);
+};
 
 // La oferta de esta sección: qué precios y sellos puede llevar (nada más)
 export function ofertaSeccion(p, seccion = {}) {

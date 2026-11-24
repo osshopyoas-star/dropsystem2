@@ -69,7 +69,7 @@ export const aspectoDe = (formato) => {
 };
 
 // El producto va primero y al final: la IA tiende a obedecer lo que más se repite
-export function armarPrompt({ bloqueEstilo, prompt, referencias, descripcion = "", noTiene = "", clientes = 0, regalos = 0, nombresRegalos = [], unidades = 1, colorNombres = [] }) {
+export function armarPrompt({ bloqueEstilo, prompt, referencias, descripcion = "", noTiene = "", clientes = 0, regalos = 0, nombresRegalos = [], unidades = 1, colorNombres = [], fotosConTexto = false }) {
   bloqueEstilo = String(bloqueEstilo || "").replace("(salvo las tarjetas lisas de la sección de reseñas o chats).", "Las tarjetas de reseñas y chats van blancas y LLENAS con el texto de cada cliente.");
   // Las últimas "clientes" referencias son fotos reales de clientes (sección de reseñas), no del producto
   const total = referencias;
@@ -79,7 +79,7 @@ export function armarPrompt({ bloqueEstilo, prompt, referencias, descripcion = "
   const fotosRegalos = regalos > 0 ? `\nREGALOS: ${Array.from({ length: regalos }, (_, i) => `<IMAGE_${referencias + i}> es el regalo "${nombresRegalos[i] || `regalo ${i + 1}`}"`).join("; ")}. Cópialos idénticos dentro de sus círculos, más pequeños que el producto.` : "";
   const fotosClientes = clientes > 0 ? `\nFOTOS REALES DE CLIENTES: ${Array.from({ length: clientes }, (_, i) => `<IMAGE_${referencias + i}>`).join(", ")} son las fotos que mandaron los clientes, en el orden de las reseñas. Úsalas tal cual dentro de sus tarjetas (solo recórtalas): no cambies a las personas ni los lugares.` : "";
   const cabeza = referencias
-    ? `PRODUCTO REAL QUE SE VENDE: es el que aparece en ${etiquetas}. Cópialo IDÉNTICO: misma forma, tamaño relativo, colores, materiales, botones, piezas, logos y proporciones. NO inventes otro producto parecido, NO lo rediseñes, NO le agregues ni quites partes, ${unidades > 1 ? `Esta imagen es de una PROMO: muestra ${unidades} unidades del producto, cada una idéntica a la foto (puede cambiar solo el color si hay variantes); no dupliques piezas dentro de una misma unidad.` : "NO dupliques piezas (si se está usando, lleva un solo accesorio puesto)."} Solo cambia la escena, las personas, la luz y los textos alrededor.${descripcion ? `\nCómo es el producto: ${descripcion}` : ""}${noTiene ? `\nEl producto NO tiene: ${noTiene}` : ""}${fotosColor}${fotosClientes}${fotosRegalos}\n\n`
+    ? `PRODUCTO REAL QUE SE VENDE: es el que aparece en ${etiquetas}. Cópialo IDÉNTICO: misma forma, tamaño relativo, colores, materiales, botones, piezas, logos y proporciones. NO inventes otro producto parecido, NO lo rediseñes, NO le agregues ni quites partes, ${unidades > 1 ? `Esta imagen es de una PROMO: muestra ${unidades} unidades del producto, cada una idéntica a la foto (puede cambiar solo el color si hay variantes); no dupliques piezas dentro de una misma unidad.` : "NO dupliques piezas (si se está usando, lleva un solo accesorio puesto)."} Solo cambia la escena, las personas, la luz y los textos alrededor.${fotosConTexto ? `\nOJO: ${etiquetas} son fotos del PROVEEDOR (tipo catálogo o flyer) y traen textos, precios, flechas, logos, fondos y diseño de catálogo. Úsalas SOLO para saber cómo es el producto: recorta mentalmente el producto y pégalo en una escena NUEVA. NO copies ningún texto, número, logo, flecha, sello, fondo ni la composición de esas fotos.` : ""}${descripcion ? `\nCómo es el producto: ${descripcion}` : ""}${noTiene ? `\nEl producto NO tiene: ${noTiene}` : ""}${fotosColor}${fotosClientes}${fotosRegalos}\n\n`
     : "";
   const cola = "\n\nTEXTOS: escribe SOLO los textos que están entre comillas, letra por letra y bien escritos. Si un texto pequeño no te queda legible, NO lo pongas: nunca letras inventadas ni palabras sin sentido. Los precios y porcentajes van EXACTOS como están escritos. De las fotos de referencia copia SOLO el producto: nunca sus textos, precios, referencias, códigos, logos del proveedor ni etiquetas."
     + (referencias ? `\n\nRECUERDA: el producto de la imagen debe verse exactamente igual al de ${etiquetas}.` : "");
@@ -237,16 +237,17 @@ export function registrarRutasIAImagenes(app, { cargarRama, guardarRama, actuali
 
       const todas = (x.p.fotos || []).filter(f => /^data:image\/(jpeg|png|webp);base64,/.test(f));
       if (!todas.length) return res.status(400).json({ error: "Sube fotos reales del producto en la Ficha (paso 1). Sin fotos la IA inventa otro producto." });
-      // Solo se mandan las fotos marcadas "Producto solo": las de referencia (flyers, catálogos con precios) la IA las copia
+      // Primero las fotos "Producto solo". Si solo hay fotos del proveedor con textos (flyers), se usan igual:
+      // la IA las toma SOLO para saber cómo es el producto y tiene prohibido copiar sus textos, precios y diseño
       const uso = Array.isArray(x.p.ficha?.usoFotos) ? x.p.ficha.usoFotos : [];
-      const sirven = todas.map((_, i) => i).filter(i => uso[i] !== "referencia");
-      if (!sirven.length) return res.status(400).json({ error: "Todas tus fotos están marcadas como 'Referencia'. Marca al menos una como 'Producto solo' en la Ficha." });
-      // Si la revisión vio textos del proveedor en TODAS las fotos que van y el dueño no las ha tocado: no se genera (la IA copia el flyer)
       const revFotos = Array.isArray(x.p.revision?.fotos) ? x.p.revision.fotos : [];
-      const conTexto = (i) => uso[i] === undefined && revFotos.some(f => Number(f.n) === i + 1 && f.tipo === "referencia");
-      if (sirven.every(conTexto)) return res.status(400).json({ error: "Tu foto tiene textos del proveedor; la IA los va a copiar. Recórtala o sube una foto limpia (en la Ficha). Si estás seguro de que sirve, márcala como 'Producto solo'." });
+      const limpias = todas.map((_, i) => i).filter(i => uso[i] !== "referencia");
+      const sirven = limpias.length ? limpias : todas.map((_, i) => i);
+      const conTexto = (i) => uso[i] === "referencia" || revFotos.some(f => Number(f.n) === i + 1 && (f.tipo === "referencia" || f.problema));
       const pedidas = Array.isArray(req.body?.refs) ? [...new Set(req.body.refs.map(Number))].filter(i => sirven.includes(i)) : [];
-      let fotos = (pedidas.length ? pedidas : sirven).map(i => todas[i]).slice(0, MAX_REFERENCIAS);
+      const elegidas = (pedidas.length ? pedidas : sirven).slice(0, MAX_REFERENCIAS);
+      const fotosConTexto = elegidas.some(conTexto) || (x.p.revision?.textosEnFotos || []).length > 0;
+      let fotos = elegidas.map(i => todas[i]);
       // Reseñas: 1 foto del producto + las fotos reales que mandaron los clientes (en el orden de las reseñas)
       let clientes = 0;
       if (sec.tipo === "resenas") {
@@ -293,7 +294,7 @@ export function registrarRutasIAImagenes(app, { cargarRama, guardarRama, actuali
         if (g2.usd + estimado > g2.limite + 1e-9) break;   // sin saldo para rehacerla: se queda la que hay
       }
       const r = await pedirImagen({ prompt: armarPrompt({
-        bloqueEstilo: bloque, prompt: promptFinal, referencias: fotos.length, clientes, regalos,
+        bloqueEstilo: bloque, prompt: promptFinal, referencias: fotos.length, clientes, regalos, fotosConTexto,
         nombresRegalos: oferta.regalos.filter(g => g.foto).map(g => g.nombre), colorNombres,
         unidades: ["2x1", "xy"].includes(oferta.tipo) && ["oferta", "moda_portada", "paquetes", "oferta_cierre", "moda_precio_tallas"].includes(sec.tipo) ? oferta.unidades : 1,
         descripcion: String(x.p.revision?.descripcionFisica || "").slice(0, 600) + (x.p.ficha?.medidas ? ` Medidas: ${String(x.p.ficha.medidas).slice(0, 120)}.` : ""),

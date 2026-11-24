@@ -100,7 +100,10 @@ export function registrarRutasEjemplos(app, { llamarIA, limiter, Proyecto }) {
         revision: {}, fotos: []
       };
       if (!p.estilo) p.estilo = { nombre: "Ejemplo", fondo: `fondo ${c.fondo || "#111111"}`, color1: `color principal ${c.color1 || "#ffffff"}`, color2: `color secundario ${c.color2 || "#22d3ee"}`, acento: `acento ${c.acento || "#22d3ee"}` };
-      const fotos = [...(foto ? [comoDataUrl(foto)] : []), ...(p.fotos || []).filter((f, i) => /^data:image\//.test(f) && (p.ficha?.usoFotos || [])[i] !== "referencia")].slice(0, 3);
+      const delProyecto = (p.fotos || []).filter(f => /^data:image\//.test(f));
+      const limpias = delProyecto.filter((f, i) => (p.ficha?.usoFotos || [])[i] !== "referencia");
+      const fotos = [...(foto ? [comoDataUrl(foto)] : []), ...(limpias.length ? limpias : delProyecto)].slice(0, 3);
+      const fotosConTexto = !foto && (!limpias.length || (p.revision?.textosEnFotos || []).length > 0) && fotos.length > 0;
 
       // Foto real: no se genera; el ejemplo es tu foto
       if (SIN_PROMPT.has(tipo)) {
@@ -128,7 +131,7 @@ export function registrarRutasEjemplos(app, { llamarIA, limiter, Proyecto }) {
       if (!crudo) return res.status(502).json({ error: "La IA no devolvió el prompt" });
       const promptFinal = cierreSeccion(crudo, vista, seccion);
       const r = await pedirImagen({
-        prompt: armarPrompt({ bloqueEstilo: bloque, prompt: promptFinal, referencias: fotos.length, descripcion: String(p.revision?.descripcionFisica || "").slice(0, 600) }) + (ref ? `\n\nREFERENCIA DE DISEÑO: <IMAGE_${fotos.length}> es una landing que sí vende. ${AVISO_REFERENCIA}` : ""),
+        prompt: armarPrompt({ bloqueEstilo: bloque, prompt: promptFinal, referencias: fotos.length, fotosConTexto, descripcion: String(p.revision?.descripcionFisica || "").slice(0, 600) }) + (ref ? `\n\nREFERENCIA DE DISEÑO: <IMAGE_${fotos.length}> es una landing que sí vende. ${AVISO_REFERENCIA}` : ""),
         fotos, extra: ref ? [ref] : [], aspecto: aspectoDe(seccion.formato)
       });
       await GastoIA.findOneAndUpdate(
