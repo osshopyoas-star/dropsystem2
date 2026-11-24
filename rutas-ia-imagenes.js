@@ -7,7 +7,8 @@
 // =============================================
 import mongoose from "mongoose";
 import { limpiarFuentes } from "./public/js/core/fuentes.js";
-import { ImagenLanding, metaImagen, MAX_POR_SECCION, tipoDeBytes } from "./modelo-imagenes.js";
+import { ImagenLanding, metaImagen, MAX_POR_SECCION, tipoDeBytes, medidasDeBytes } from "./modelo-imagenes.js";
+import zlib from "zlib";
 import { cierreSeccion, textosPermitidos, promptRevisarImagen, problemasDeTextos } from "./prompts-landing.js";
 import { ofertaDe } from "./public/js/core/oferta.js";
 import { variantesDe, colorDeSeccion, PORTADAS_V } from "./public/js/core/variantes.js";
@@ -88,8 +89,31 @@ export function armarPrompt({ bloqueEstilo, prompt, referencias, descripcion = "
   return limpiarFuentes(cabeza + cuerpo.slice(0, Math.max(500, espacio)) + fijos + cola);
 }
 
-export async function pedirImagen({ prompt, fotos, aspecto, resolucion = null }) {
+// Lienzo liso del tamaño pedido (PNG hecho a mano): si la IA devuelve otra forma, va de primera foto
+// y la imagen sale con su forma (xAI toma la forma de la primera foto)
+export function lienzoPNG(aspecto) {
+  const [a, b] = String(aspecto || "9:16").split(":").map(Number);
+  const ancho = 270, alto = Math.max(1, Math.round(ancho * (b || 16) / (a || 9)));
+  const crc = (buf) => { let c = ~0; for (const x of buf) { c ^= x; for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xedb88320 & -(c & 1)); } return (~c) >>> 0; };
+  const trozo = (tipo, datos) => { const t = Buffer.from(tipo, "ascii"); const l = Buffer.alloc(4); l.writeUInt32BE(datos.length); const c = Buffer.alloc(4); c.writeUInt32BE(crc(Buffer.concat([t, datos]))); return Buffer.concat([l, t, datos, c]); };
+  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(ancho, 0); ihdr.writeUInt32BE(alto, 4); ihdr[8] = 8; ihdr[9] = 2;
+  const fila = Buffer.concat([Buffer.from([0]), Buffer.alloc(ancho * 3, 0xee)]);
+  const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), trozo("IHDR", ihdr), trozo("IDAT", zlib.deflateSync(Buffer.concat(Array(alto).fill(fila)))), trozo("IEND", Buffer.alloc(0))]);
+  return `data:image/png;base64,${png.toString("base64")}`;
+}
+const formaOk = (m, aspecto) => {
+  if (!m?.ancho || !m?.alto || !aspecto || !aspecto.includes(":")) return true;
+  const [a, b] = aspecto.split(":").map(Number);
+  return Math.abs(m.ancho / m.alto - a / b) / (a / b) < 0.06;
+};
+
+export async function pedirImagen({ prompt, fotos, aspecto, resolucion = null, _conLienzo = false }) {
   const refs = fotos.slice(0, MAX_REFERENCIAS);
+  // Segundo intento con el lienzo de primera foto: las demás fotos corren un puesto (<IMAGE_0> → <IMAGE_1>)
+  if (_conLienzo) {
+    refs.unshift(lienzoPNG(aspecto));
+    prompt = `<IMAGE_0> es solo un lienzo liso que marca el tamaño de la imagen (${aspecto}, vertical): NO copies nada de él.\n\n` + String(prompt).replace(/<IMAGE_(\d+)>/g, (_, n) => `<IMAGE_${Number(n) + 1}>`).replace(/la foto de referencia/g, "<IMAGE_1>");
+  }
   const base = { model: MODELO(), prompt, n: 1, response_format: "b64_json", aspect_ratio: aspecto, resolution: ["1k", "1.5k", "2k"].includes(resolucion) ? resolucion : RESOLUCION() };
   const body = refs.length === 0 ? base
     : refs.length === 1 ? { ...base, image: { url: refs[0] } }
@@ -126,7 +150,16 @@ export async function pedirImagen({ prompt, fotos, aspecto, resolucion = null })
   const datos = Buffer.from(b64, "base64");
   const tipo = tipoDeBytes(datos);
   if (!tipo) throw Object.assign(new Error("La IA devolvió un archivo que no es imagen"), { status: 502 });
-  return { datos, tipo, ticks: Number(j?.usage?.cost_in_usd_ticks) || 0, referencias: refs.length };
+  const medidas = medidasDeBytes(datos);
+  // Salió con otra forma (ej. cuadrada en vez de 9:16): se rehace una vez con el lienzo de primera foto
+  if (!_conLienzo && !formaOk(medidas, aspecto)) {
+    console.warn(`xAI devolvió ${medidas.ancho}x${medidas.alto} y se pidió ${aspecto}: se rehace con lienzo`);
+    try {
+      const otra = await pedirImagen({ prompt, fotos, aspecto, resolucion, _conLienzo: true });
+      return { ...otra, ticks: otra.ticks + (Number(j?.usage?.cost_in_usd_ticks) || 0), rehechaPorForma: true };
+    } catch (e) { console.warn("No se pudo rehacer con lienzo:", e.message); }
+  }
+  return { datos, tipo, ticks: Number(j?.usage?.cost_in_usd_ticks) || 0, referencias: refs.length, ...(medidas || {}) };
 }
 
 const enProceso = new Set();
@@ -259,7 +292,7 @@ export function registrarRutasIAImagenes(app, { cargarRama, guardarRama, actuali
 
       await GastoIA.findOneAndUpdate(
         { owner: req.user.uid, mes: mesActual() },
-        { $inc: { usd: estimado, imagenes: 1, ticks: r.ticks }, $set: { actualizado: new Date() }, $setOnInsert: { owner: req.user.uid, mes: mesActual() } },
+        { $inc: { usd: r.rehechaPorForma ? estimado * 2 + PRECIO_REFERENCIA : estimado, imagenes: r.rehechaPorForma ? 2 : 1, ticks: r.ticks }, $set: { actualizado: new Date() }, $setOnInsert: { owner: req.user.uid, mes: mesActual() } },
         { upsert: true, new: true }
       );
 
@@ -267,7 +300,7 @@ export function registrarRutasIAImagenes(app, { cargarRama, guardarRama, actuali
       if (nueva) await ImagenLanding.deleteOne({ _id: nueva._id, owner: req.user.uid });   // la primera falló la revisión: se cambia por la nueva
       nueva = await ImagenLanding.create({
         owner: req.user.uid, proyecto: x.p._id, rama: x.av, seccion: sec.id,
-        tipo: r.tipo, datos: r.datos, bytes: r.datos.length, origen: "ia", revision: rev
+        tipo: r.tipo, datos: r.datos, bytes: r.datos.length, origen: "ia", revision: rev, ancho: r.ancho || null, alto: r.alto || null
       });
       revision = rev; rehecha = intento > 0;
       if (!rev || rev.ok) break;

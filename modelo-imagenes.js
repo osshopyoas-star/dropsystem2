@@ -60,6 +60,32 @@ export function tipoDeBytes(buf, conGif = false) {
   return null;
 }
 
+// Ancho y alto leyendo la cabecera del archivo (PNG, JPEG o WebP), sin librerías
+export function medidasDeBytes(buf) {
+  try {
+    if (!buf || buf.length < 30) return null;
+    if (buf[0] === 0x89 && buf.slice(1, 4).toString("ascii") === "PNG") return { ancho: buf.readUInt32BE(16), alto: buf.readUInt32BE(20) };
+    if (buf.slice(0, 4).toString("ascii") === "RIFF" && buf.slice(8, 12).toString("ascii") === "WEBP") {
+      const f = buf.slice(12, 16).toString("ascii");
+      if (f === "VP8X") return { ancho: 1 + buf.readUIntLE(24, 3), alto: 1 + buf.readUIntLE(27, 3) };
+      if (f === "VP8 ") return { ancho: buf.readUInt16LE(26) & 0x3fff, alto: buf.readUInt16LE(28) & 0x3fff };
+      if (f === "VP8L") { const b = buf.readUInt32LE(21); return { ancho: (b & 0x3fff) + 1, alto: ((b >> 14) & 0x3fff) + 1 }; }
+      return null;
+    }
+    if (buf[0] === 0xff && buf[1] === 0xd8) {
+      let i = 2;
+      while (i + 9 < buf.length) {
+        if (buf[i] !== 0xff) { i++; continue; }
+        const m = buf[i + 1];
+        if (m >= 0xc0 && m <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(m)) return { alto: buf.readUInt16BE(i + 5), ancho: buf.readUInt16BE(i + 7) };
+        if (m === 0xd8 || m === 0x01 || (m >= 0xd0 && m <= 0xd7)) { i += 2; continue; }
+        i += 2 + buf.readUInt16BE(i + 2);
+      }
+    }
+  } catch {}
+  return null;
+}
+
 export const metaImagen = (x) => ({
   _id: String(x._id), rama: x.rama, seccion: x.seccion, origen: x.origen || "subida", capa: !!x.capa, media: !!x.media, revision: x.revision || null, tipo: x.tipo || "", ancho: x.ancho || null, alto: x.alto || null, bytes: x.bytes || 0, creado: x.creado
 });

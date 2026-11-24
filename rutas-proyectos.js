@@ -316,6 +316,7 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
     const ramas = p.ramas || {};
     const plantilla = await obtenerPlantilla(req.user.uid, p.formato, p.tipo);
     const r = estiloAlDia({ ...plano(p), numAvatares: 1, avatares: [avatar], plantilla }, { ...ramaVacia(), ...(ramas[av] || {}) });
+    if (p.formato !== "normal" && Array.isArray(r.secciones)) r.secciones = r.secciones.map(s => (s && s.formato !== "9:16" ? { ...s, formato: "9:16" } : s));
     // "vista": lo que ven los prompts = proyecto + trabajo de este avatar, como una sola landing
     const vista = { ...plano(p), ...r, numAvatares: 1, avatares: [avatar], plantilla };
     return { p, av, avatar, r, vista, plantilla };
@@ -427,8 +428,9 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
         const r = avatar ? estiloAlDia({ ...o, numAvatares: 1, avatares: [avatar], plantilla }, r0) : r0;
         o.ramas[av] = r;
         if (!Array.isArray(r?.secciones)) continue;
-        const vista = { ...o, ...r, plantilla };
-        o.ramas[av] = { ...r, secciones: r.secciones.map(s => (s?.prompt ? { ...s, prompt: cierreSeccion(s.prompt, vista, s) } : s)) };
+        const secs = o.formato === "normal" ? r.secciones : r.secciones.map(s => (s && s.formato !== "9:16" ? { ...s, formato: "9:16" } : s));
+        const vista = { ...o, ...r, secciones: secs, plantilla };
+        o.ramas[av] = { ...r, secciones: secs.map(s => (s?.prompt ? { ...s, prompt: cierreSeccion(s.prompt, vista, s) } : s)) };
       }
       return o;
     } catch (e) { console.warn("Proyecto: no se pudieron rehacer los bloques de los prompts:", e.message); return p; }
@@ -955,7 +957,7 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
           grupo: x.av,
           formato: formato === "normal"
             ? formatoImagen(tipo, formato)
-            : (["9:16", "1:1", "16:9"].includes(sx.formato) ? sx.formato : "9:16"),
+            : "9:16",
           variante,
           composicion: varianteDe(tipo, variante)?.nombre || String(sx.composicion || ""),
           proposito: String(sx.proposito || ""),
