@@ -8,6 +8,7 @@
 import mongoose from "mongoose";
 import { limpiarFuentes } from "./public/js/core/fuentes.js";
 import { ImagenLanding, metaImagen, MAX_POR_SECCION, tipoDeBytes } from "./modelo-imagenes.js";
+import { cierreSeccion } from "./prompts-landing.js";
 
 const MODELO = () => process.env.XAI_IMAGE_MODEL || "grok-imagine-image-2.0";
 const RESOLUCION = () => (["1k", "1.5k", "2k"].includes(process.env.XAI_IMAGE_RES) ? process.env.XAI_IMAGE_RES : "2k");
@@ -71,11 +72,15 @@ export function armarPrompt({ bloqueEstilo, prompt, referencias, descripcion = "
   const cabeza = referencias
     ? `PRODUCTO REAL QUE SE VENDE: es el que aparece en ${etiquetas}. Cópialo IDÉNTICO: misma forma, tamaño relativo, colores, materiales, botones, piezas, logos y proporciones. NO inventes otro producto parecido, NO lo rediseñes, NO le agregues ni quites partes, NO dupliques piezas (si se está usando, lleva un solo accesorio puesto). Solo cambia la escena, las personas, la luz y los textos alrededor.${descripcion ? `\nCómo es el producto: ${descripcion}` : ""}${noTiene ? `\nEl producto NO tiene: ${noTiene}` : ""}${fotosClientes}\n\n`
     : "";
-  const cola = "\n\nTEXTOS: escribe SOLO los textos que están entre comillas, letra por letra y bien escritos. Si un texto pequeño no te queda legible, NO lo pongas: nunca letras inventadas ni palabras sin sentido. Los precios y porcentajes van EXACTOS como están escritos."
+  const cola = "\n\nTEXTOS: escribe SOLO los textos que están entre comillas, letra por letra y bien escritos. Si un texto pequeño no te queda legible, NO lo pongas: nunca letras inventadas ni palabras sin sentido. Los precios y porcentajes van EXACTOS como están escritos. De las fotos de referencia copia SOLO el producto: nunca sus textos, precios, referencias, códigos, logos del proveedor ni etiquetas."
     + (referencias ? `\n\nRECUERDA: el producto de la imagen debe verse exactamente igual al de ${etiquetas}.` : "");
-  const cuerpo = `${String(bloqueEstilo || "").trim()}\n\n${String(prompt || "").trim()}`.trim();
-  const espacio = MAX_PROMPT - cabeza.length - cola.length;
-  return limpiarFuentes(cabeza + cuerpo.slice(0, Math.max(500, espacio)) + cola);
+  // Los bloques fijos del final (precio, textos prohibidos, margen) nunca se recortan
+  const txt = String(prompt || "").trim();
+  const corte = txt.search(/\n\n(PRECIO \(cópialo EXACTO|PROHIBIDO EN ESTA IMAGEN)/);
+  const fijos = corte >= 0 ? "\n\n" + txt.slice(corte).trim() : "";
+  const cuerpo = `${String(bloqueEstilo || "").trim()}\n\n${corte >= 0 ? txt.slice(0, corte).trim() : txt}`.trim();
+  const espacio = MAX_PROMPT - cabeza.length - cola.length - fijos.length;
+  return limpiarFuentes(cabeza + cuerpo.slice(0, Math.max(500, espacio)) + fijos + cola);
 }
 
 export async function pedirImagen({ prompt, fotos, aspecto, resolucion = null }) {
@@ -154,8 +159,12 @@ export function registrarRutasIAImagenes(app, { cargarRama, guardarRama, actuali
 
       const todas = (x.p.fotos || []).filter(f => /^data:image\/(jpeg|png|webp);base64,/.test(f));
       if (!todas.length) return res.status(400).json({ error: "Sube fotos reales del producto en la Ficha (paso 1). Sin fotos la IA inventa otro producto." });
-      const pedidas = Array.isArray(req.body?.refs) ? [...new Set(req.body.refs.map(Number))].filter(i => Number.isInteger(i) && i >= 0 && i < todas.length) : [];
-      let fotos = (pedidas.length ? pedidas.map(i => todas[i]) : todas).slice(0, MAX_REFERENCIAS);
+      // Solo se mandan las fotos marcadas "Producto solo": las de referencia (flyers, catálogos con precios) la IA las copia
+      const uso = Array.isArray(x.p.ficha?.usoFotos) ? x.p.ficha.usoFotos : [];
+      const sirven = todas.map((_, i) => i).filter(i => uso[i] !== "referencia");
+      if (!sirven.length) return res.status(400).json({ error: "Todas tus fotos están marcadas como 'Referencia'. Marca al menos una como 'Producto solo' en la Ficha." });
+      const pedidas = Array.isArray(req.body?.refs) ? [...new Set(req.body.refs.map(Number))].filter(i => sirven.includes(i)) : [];
+      let fotos = (pedidas.length ? pedidas : sirven).map(i => todas[i]).slice(0, MAX_REFERENCIAS);
       // Reseñas: 1 foto del producto + las fotos reales que mandaron los clientes (en el orden de las reseñas)
       let clientes = 0;
       if (sec.tipo === "resenas") {
@@ -174,7 +183,7 @@ export function registrarRutasIAImagenes(app, { cargarRama, guardarRama, actuali
 
       const bloque = x.r.bloqueEstilo || "";
       const r = await pedirImagen({ prompt: armarPrompt({
-        bloqueEstilo: bloque, prompt: sec.prompt, referencias: fotos.length, clientes,
+        bloqueEstilo: bloque, prompt: cierreSeccion(sec.prompt, x.vista, sec), referencias: fotos.length, clientes,
         descripcion: String(x.p.revision?.descripcionFisica || "").slice(0, 600) + (x.p.ficha?.medidas ? ` Medidas: ${String(x.p.ficha.medidas).slice(0, 120)}.` : ""),
         noTiene: [...(Array.isArray(x.p.revision?.noTiene) ? x.p.revision.noTiene : []), x.p.ficha?.noTiene].filter(Boolean).join("; ").slice(0, 300)
       }), fotos, aspecto: aspectoDe(sec.formato) });

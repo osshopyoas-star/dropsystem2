@@ -3639,6 +3639,19 @@ aside.collapsed .submenu .sidebar-item {
   position: absolute; top: 6px; right: 6px; width: 26px; height: 26px; border-radius: 50%;
   border: 0; background: rgba(0,0,0,.65); color: #fff; cursor: pointer;
 }
+.est-foto.ref img { opacity: .45; }
+.est-foto button.recortar { right: auto; left: 6px; font-size: 13px; }
+.est-foto button.uso { top: auto; bottom: 6px; left: 6px; right: 6px; width: auto; height: auto; border-radius: 999px; padding: 4px 8px; font-size: 11px; font-weight: 700; background: rgba(22,163,74,.9); }
+.est-foto.ref button.uso { background: rgba(217,119,6,.95); }
+.est-foto-aviso { position: absolute; top: 6px; left: 50%; transform: translateX(-50%); background: #f59e0b; color: #111; border-radius: 999px; width: 22px; height: 22px; display: grid; place-items: center; font-size: 13px; font-weight: 800; }
+.est-recorte-fondo { position: fixed; inset: 0; z-index: 3000; background: rgba(2,6,23,.75); display: grid; place-items: center; padding: 16px; }
+.est-recorte-caja { background: #0f172a; color: #e5e7eb; border-radius: 16px; padding: 18px; max-width: 720px; width: 100%; max-height: 94vh; overflow: auto; border: 1px solid var(--est-line, #334155); }
+.est-recorte-zona { position: relative; display: inline-block; max-width: 100%; margin: 10px 0; touch-action: none; user-select: none; }
+.est-recorte-zona img { display: block; max-width: 100%; max-height: 62vh; }
+.est-rec { position: absolute; border: 2px solid #3b82f6; box-shadow: 0 0 0 9999px rgba(0,0,0,.55); cursor: move; }
+.est-rec i { position: absolute; width: 18px; height: 18px; background: #fff; border: 2px solid #3b82f6; border-radius: 4px; }
+.est-rec i[data-h="nw"] { left: -9px; top: -9px; cursor: nwse-resize; } .est-rec i[data-h="ne"] { right: -9px; top: -9px; cursor: nesw-resize; }
+.est-rec i[data-h="sw"] { left: -9px; bottom: -9px; cursor: nesw-resize; } .est-rec i[data-h="se"] { right: -9px; bottom: -9px; cursor: nwse-resize; }
 .est-foto.add {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
   border-style: dashed; color: var(--est-muted); cursor: pointer; font-size: 13px;

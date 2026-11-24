@@ -532,11 +532,20 @@ function pasoFicha() {
   <div class="est-cols">
     <div class="est-card">
       <h3>Fotos reales del producto</h3>
-      <p class="est-muted">Máximo 6. Son las que adjuntarás en Gemini y las que la IA revisa.</p>
+      <p class="est-muted">Máximo 6. Son las que adjuntarás en Gemini y las que la IA revisa. Marca como <b>Referencia</b> las que tengan precios, textos o logos del proveedor (flyers, catálogos): esas no se mandan a la IA de imágenes, porque los copia.</p>
       <div class="est-fotos">
-        ${fotos.map((src, i) => `
-          <div class="est-foto"><img src="${src}" alt="Foto ${i + 1}"><button onclick="estQuitarFoto(${i})" title="Quitar">✕</button></div>
-        `).join("")}
+        ${fotos.map((src, i) => {
+          const ref = (f.usoFotos || [])[i] === "referencia";
+          const aviso = (r.fotos || []).find(x => x.n === i + 1 && x.problema);
+          return `
+          <div class="est-foto ${ref ? "ref" : ""}">
+            <img src="${src}" alt="Foto ${i + 1}">
+            <button onclick="estQuitarFoto(${i})" title="Quitar">✕</button>
+            <button class="recortar" onclick="estRecortarFoto(${i})" title="Recortar (deja solo el producto)">✂</button>
+            ${aviso ? `<span class="est-foto-aviso" title="${esc(aviso.problema)}">⚠</span>` : ""}
+            <button class="uso" onclick="estUsoFoto(${i})" title="Toca para cambiar">${ref ? "Referencia" : "Producto solo"}</button>
+          </div>`;
+        }).join("")}
         ${fotos.length < 6 ? `
           <label class="est-foto add">
             <input type="file" accept="image/png,image/jpeg,image/webp" multiple onchange="estSubirFotos(this)" hidden>
@@ -597,6 +606,10 @@ function pasoFicha() {
         <input id="fEstiloPref" value="${esc(f.estiloPreferido)}" placeholder="Ej: estilo gym, algo femenino y elegante...">
         <label>Notas para la IA (opcional)</label>
         <textarea id="fNotas" rows="3" placeholder="Cualquier cosa importante del producto o del cliente">${esc(f.notas)}</textarea>
+        <span class="est-hint">Son contexto para escribir los prompts: las referencias, códigos o precios de mayorista que pongas aquí nunca salen en las imágenes.</span>
+        <label>Textos que NO deben salir en la imagen (uno por línea)</label>
+        <textarea id="fTextosProhibidos" rows="3" placeholder="Ej: Ref: WBG 05-28&#10;Caja x 100&#10;$24.000&#10;nombre del proveedor">${esc(f.textosProhibidos)}</textarea>
+        <span class="est-hint">Van como prohibidos en todos los prompts y se borran si la IA los escribe. La Revisión de la IA te propone los que ve en tus fotos.</span>
       </div>
 
       <div class="est-resenas">
@@ -618,6 +631,12 @@ function pasoFicha() {
           ${r.coincide === false ? `<div class="est-alert error">⚠️ Las fotos no parecen coincidir con la descripción. Revisa antes de seguir.</div>` : ""}
           ${(r.marcas || []).length ? `<div class="est-alert error"><strong>Marcas o logos de terceros:</strong> ${r.marcas.map(esc).join(", ")}. Riesgo en anuncios de Meta.</div>` : ""}
           ${(r.dudas || []).length ? `<div class="est-alert warn"><strong>Dudas:</strong><ul>${r.dudas.map(d => `<li>${esc(d)}</li>`).join("")}</ul></div>` : ""}
+          ${(r.fotos || []).some(x => x.problema) ? `<div class="est-alert warn"><strong>Fotos que la IA puede copiar mal:</strong><ul>${r.fotos.filter(x => x.problema).map(x => `<li>Foto ${x.n}: ${esc(x.problema)} ${(f.usoFotos || [])[x.n - 1] === "referencia" ? "<b>(ya está como Referencia)</b>" : `<button class="est-link" onclick="estUsoFoto(${x.n - 1}, 'referencia')">Marcarla como Referencia</button> · <button class="est-link" onclick="estRecortarFoto(${x.n - 1})">Recortarla</button>`}</li>`).join("")}</ul></div>` : ""}
+          ${(() => {
+            const ya = String(f.textosProhibidos || "").toLowerCase();
+            const nuevos = (r.textosEnFotos || []).filter(t => !ya.includes(t.toLowerCase()));
+            return nuevos.length ? `<div class="est-alert warn"><strong>Textos que se ven en tus fotos:</strong> ${nuevos.map(t => `"${esc(t)}"`).join(", ")}. <button class="est-link" onclick="estAgregarProhibidos()">Agregarlos a "Textos que NO deben salir"</button></div>` : "";
+          })()}
           <div class="est-form">
             <label>Descripción física (se usa en cada prompt, corrígela si algo está mal)</label>
             <textarea id="rDescripcion" rows="5">${esc(r.descripcionFisica)}</textarea>
@@ -838,6 +857,7 @@ function leerFicha() {
     paquetes: val("fPaquetes"),
     estiloPreferido: val("fEstiloPref"),
     notas: val("fNotas"),
+    textosProhibidos: $("fTextosProhibidos") ? val("fTextosProhibidos").slice(0, 1500) : (proyecto.ficha?.textosProhibidos || ""),
     promesas: {
       envioGratis: !!$("fEnvioGratis")?.checked,
       original: !!$("fOriginal")?.checked,
@@ -906,8 +926,88 @@ window.estSubirFotos = async (input) => {
 window.estQuitarFoto = async (i) => {
   const fotos = [...(proyecto.fotos || [])];
   fotos.splice(i, 1);
-  await guardar({ ficha: leerFicha(), fotos });
+  const ficha = leerFicha();
+  const uso = [...(ficha.usoFotos || [])]; uso.splice(i, 1);
+  await guardar({ ficha: { ...ficha, usoFotos: uso }, fotos });
   renderPaso();
+};
+
+// "Producto solo" (se manda a la IA de imágenes) o "Referencia" (no se manda)
+window.estUsoFoto = async (i, valor = null) => {
+  const ficha = leerFicha();
+  const uso = Array.from({ length: (proyecto.fotos || []).length }, (_, k) => (ficha.usoFotos || [])[k] === "referencia" ? "referencia" : "producto");
+  uso[i] = valor || (uso[i] === "referencia" ? "producto" : "referencia");
+  await guardar({ ficha: { ...ficha, usoFotos: uso } });
+  renderPaso();
+};
+
+window.estAgregarProhibidos = async () => {
+  const ficha = leerFicha();
+  const ya = String(ficha.textosProhibidos || "").split("\n").map(x => x.trim()).filter(Boolean);
+  const nuevos = (proyecto.revision?.textosEnFotos || []).filter(t => !ya.some(y => y.toLowerCase() === t.toLowerCase()));
+  await guardar({ ficha: { ...ficha, textosProhibidos: [...ya, ...nuevos].join("\n") } });
+  renderPaso();
+};
+
+// ---------- Recortar una foto de la Ficha (arrastrando las esquinas o la caja) ----------
+let recorte = null;
+window.estRecortarFoto = (i) => {
+  const src = (proyecto.fotos || [])[i];
+  if (!src) return;
+  recorte = { i, x: 0.05, y: 0.05, w: 0.9, h: 0.9 };
+  const fondo = document.createElement("div");
+  fondo.className = "est-recorte-fondo"; fondo.id = "estRecorte";
+  fondo.innerHTML = `<div class="est-recorte-caja">
+    <h3>Recortar foto ${i + 1}</h3><p class="est-hint">Arrastra las esquinas para dejar solo el producto (sin precios, textos ni logos del proveedor).</p>
+    <div class="est-recorte-zona" id="estRecZona"><img src="${src}" alt="" draggable="false"><div class="est-rec" id="estRec"><i data-h="nw"></i><i data-h="ne"></i><i data-h="sw"></i><i data-h="se"></i></div></div>
+    <div class="est-actions"><button class="est-btn" onclick="estRecorteCerrar()">Cancelar</button><button class="est-btn primary" onclick="estRecorteGuardar()"><i data-lucide="crop"></i> Guardar recorte</button></div>
+  </div>`;
+  document.body.appendChild(fondo);
+  pintarRec();
+  if (window.lucide) lucide.createIcons();
+};
+const pintarRec = () => { const el = $("estRec"); if (el && recorte) el.style.cssText = `left:${recorte.x * 100}%;top:${recorte.y * 100}%;width:${recorte.w * 100}%;height:${recorte.h * 100}%`; };
+window.estRecorteCerrar = () => { $("estRecorte")?.remove(); recorte = null; };
+let arrastreRec = null;
+document.addEventListener("pointerdown", (e) => {
+  const caja = e.target.closest?.("#estRec");
+  if (!caja || !recorte) return;
+  e.preventDefault();
+  arrastreRec = { h: e.target.dataset?.h || "mover", x0: e.clientX, y0: e.clientY, zona: $("estRecZona").getBoundingClientRect(), ini: { ...recorte } };
+  caja.setPointerCapture?.(e.pointerId);
+});
+document.addEventListener("pointermove", (e) => {
+  if (!arrastreRec || !recorte) return;
+  const a = arrastreRec, i = a.ini, r = recorte;
+  const dx = (e.clientX - a.x0) / a.zona.width, dy = (e.clientY - a.y0) / a.zona.height;
+  const min = 0.08, lim = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+  if (a.h === "mover") { r.x = lim(i.x + dx, 0, 1 - i.w); r.y = lim(i.y + dy, 0, 1 - i.h); }
+  else {
+    let x1 = i.x, y1 = i.y, x2 = i.x + i.w, y2 = i.y + i.h;
+    if (a.h.includes("w")) x1 = lim(i.x + dx, 0, x2 - min);
+    if (a.h.includes("e")) x2 = lim(i.x + i.w + dx, x1 + min, 1);
+    if (a.h.includes("n")) y1 = lim(i.y + dy, 0, y2 - min);
+    if (a.h.includes("s")) y2 = lim(i.y + i.h + dy, y1 + min, 1);
+    r.x = x1; r.y = y1; r.w = x2 - x1; r.h = y2 - y1;
+  }
+  pintarRec();
+});
+document.addEventListener("pointerup", () => { arrastreRec = null; });
+window.estRecorteGuardar = () => {
+  const r = recorte; if (!r) return;
+  const img = new Image();
+  img.onload = async () => {
+    const sx = Math.round(r.x * img.naturalWidth), sy = Math.round(r.y * img.naturalHeight);
+    const sw = Math.max(10, Math.round(r.w * img.naturalWidth)), sh = Math.max(10, Math.round(r.h * img.naturalHeight));
+    const cv = document.createElement("canvas"); cv.width = sw; cv.height = sh;
+    cv.getContext("2d").drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+    const fotos = [...(proyecto.fotos || [])];
+    fotos[r.i] = cv.toDataURL("image/jpeg", 0.9);
+    estRecorteCerrar();
+    await guardar({ ficha: leerFicha(), fotos });
+    renderPaso();
+  };
+  img.src = (proyecto.fotos || [])[r.i];
 };
 
 // =============================================

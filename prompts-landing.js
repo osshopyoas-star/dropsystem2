@@ -376,7 +376,7 @@ ${textoPruebaSocial(p)}
 FORMATO DE LA LANDING: ${textoFormato(p)}
 ${bloqueParaQuien(p) ? bloqueParaQuien(p) + "\n" : ""}${p.tipo === "moda" ? `TIPO DE PRODUCTO: MODA (ropa, calzado o accesorio). Las fotos muestran la pieza PUESTA en ${esMenor(p) ? `${({ bebes: "un bebé de 0 a 2 años", ninos: "un niño o niña de 3 a 12 años", adolescentes: "un adolescente de 13 a 17 años" })[paraQuienDe(p)]} real, natural y contento, en una escena cotidiana` : "una persona adulta real, natural, sin poses sugestivas"}; la talla, el color y el corte deben ser EXACTAMENTE los de la foto adjunta. Lista de tallas y colores siempre completa y en orden. No inventes medidas.
 ` : ""}PREFERENCIA DE ESTILO DEL DUEÑO: ${limpio(f.estiloPreferido, 300) || "(ninguna)"}
-NOTAS DEL DUEÑO: ${limpio(f.notas, 1000) || "(ninguna)"}
+NOTAS DEL DUEÑO (contexto para ti: NUNCA copies a los textos de la imagen referencias, códigos, cantidades por caja ni precios de mayorista que aparezcan aquí): ${limpio(f.notas, 1000) || "(ninguna)"}
 `.trim();
 }
 
@@ -406,6 +406,8 @@ TAREA: Revisa las fotos adjuntas (son las fotos reales que entregó el proveedor
 3. Estima el tamaño real comparado con una persona, si las medidas no están.
 4. Marca DUDAS: si las fotos no coinciden con la descripción, si parecen de otra marca o modelo, si faltan datos (medidas, colores, qué incluye), o si algo es confuso.
 5. Lista MARCAS O LOGOS DE TERCEROS que aparezcan en el producto o las fotos (riesgo para anuncios).
+6. Revisa CADA foto (en el orden en que vienen, la primera es la 1) y di si es "producto" (solo el producto, sin textos encima) o "referencia" (tiene precios, referencias, códigos, logos del proveedor, varios productos o es un flyer/catálogo). Si tiene algo que la IA de imágenes podría copiar, dilo en "problema".
+7. Lista los TEXTOS QUE SE VEN EN LAS FOTOS y que NO son parte del producto (precios, "Ref: …", códigos, "Caja x 100", nombre del proveedor, marcas de agua), escritos tal cual.
 
 Responde SOLO este JSON válido:
 {
@@ -414,7 +416,9 @@ Responde SOLO este JSON válido:
   "tamano": "",
   "coincide": true,
   "dudas": [],
-  "marcas": []
+  "marcas": [],
+  "fotos": [{ "n": 1, "tipo": "producto", "problema": "" }],
+  "textos_en_fotos": []
 }`;
 }
 
@@ -621,10 +625,80 @@ export function margenAbajo(p, formato = "9:16") {
   const alto = formato === "1:1" ? 1080 : formato === "16:9" ? 1080 : formato === "4:5" ? 1350 : 1920;
   return `\n\nMARGEN ABAJO (el botón de compra de la tienda tapa esa parte): el ${m}% de abajo de la imagen (unos ${Math.round(alto * m / 100)} px de ${alto}) va SOLO con el fondo de la escena, continuo y sin nada encima: sin textos, íconos, barra de confianza, precio, botones ni producto. La barra de confianza va justo ENCIMA de ese margen, nunca pegada al borde de abajo.`;
 }
+// ---------- Precios y textos prohibidos: los arma el código (la IA nunca escribe ni cambia un número) ----------
+const soloDigitos = (s) => String(s || "").replace(/\D/g, "");
+// Montos que aparecen en el texto libre de paquetes ("2 unidades $199.900", "3 x 259900", "35,99")
+export function montosPaquetes(texto, pais = "CO") {
+  const out = [];
+  for (const m of String(texto || "").matchAll(/\$?\s?(\d{1,3}(?:[.,]\d{3})+|\d{4,7}|\d{1,3},\d{2})(?![\d%])/g)) {
+    const crudo = m[1];
+    const n = pais === "EC" && /^\d{1,3},\d{2}$/.test(crudo) ? Number(crudo.replace(",", ".")) : Number(crudo.replace(/[.,]/g, ""));
+    if (pais === "EC" ? n > 0 && n < 10000 : n >= 1000) out.push(formatoPrecio(n, pais));
+  }
+  return [...new Set(out)].filter(Boolean);
+}
+// Textos que NO deben salir: los que escribiste en la Ficha (uno por línea)
+export const textosProhibidos = (p) => String(p?.ficha?.textosProhibidos || "").split("\n").map(x => x.trim().replace(/[<>]/g, "")).filter(x => x.length >= 2).slice(0, 30);
+
+// La oferta de esta sección: qué precios y sellos puede llevar (nada más)
+export function ofertaSeccion(p, seccion = {}) {
+  const f = p?.ficha || {};
+  const pais = p?.pais === "EC" ? "EC" : "CO";
+  const normal = esNormal(p);
+  const conPrecio = llevaPrecio(seccion.tipo, normal, f.precioEn || "portada");
+  const precio = formatoPrecio(f.precio, pais), antes = formatoPrecio(f.precioAntes, pais);
+  const desc = porcentajeDescuento(f.precioAntes, f.precio);
+  const sello = desc ? `-${desc}%` : "";
+  const paquetes = conPrecio && ["paquetes", "oferta_cierre", "moda_precio_tallas"].includes(seccion.tipo) ? montosPaquetes(f.paquetes, pais) : [];
+  // Portada sin precio (la Ficha lo pide): solo puede llevar el sello de descuento
+  const selloSinPrecio = !conPrecio && PORTADAS.has(seccion.tipo) && sello ? sello : "";
+  return { conPrecio, precio, antes, sello, paquetes, selloSinPrecio,
+    montos: conPrecio ? [precio, antes, ...paquetes].filter(Boolean) : [],
+    sellos: conPrecio ? [sello].filter(Boolean) : [selloSinPrecio].filter(Boolean) };
+}
+export function bloquePrecio(p, seccion = {}) {
+  const o = ofertaSeccion(p, seccion);
+  if (o.conPrecio && o.precio) {
+    return `PRECIO (cópialo EXACTO, carácter por carácter; no lo cambies ni lo redondees):
+- Precio: "${o.precio}"${o.antes ? `\n- Antes (tachado): "${o.antes}"` : ""}${o.sello ? `\n- Sello: "${o.sello}"` : ""}${o.paquetes.length ? `\n- Precios de los paquetes (solo estos): ${o.paquetes.map(x => `"${x}"`).join(", ")}` : ""}
+NO escribas ningún otro valor de dinero, porcentaje ni número de precio en la imagen.`;
+  }
+  if (o.conPrecio) return `PROHIBIDO EN ESTA IMAGEN: la Ficha aún no tiene precio, así que no escribas precios, signos de dinero ($), porcentajes ni sellos de oferta.`;
+  return `PROHIBIDO EN ESTA IMAGEN: precios, signos de dinero ($), "antes" tachado, cajas de precio${o.selloSinPrecio ? `. El único porcentaje permitido es el sello "${o.selloSinPrecio}"` : ", porcentajes, descuentos ni sellos de oferta"}.`;
+}
+export function bloqueProhibidos(p) {
+  const t = textosProhibidos(p);
+  return `TEXTOS QUE NO DEBEN SALIR (aunque aparezcan en las fotos de referencia): ${t.length ? t.map(x => `"${x}"`).join(", ") + ". " : ""}Tampoco copies referencias, códigos, cantidades por caja, precios de mayorista ni el nombre del proveedor que se vean en las fotos.`;
+}
+// Quita del texto que escribió la IA los montos y porcentajes que no son de la Ficha, y los textos prohibidos
+export function limpiarMontos(texto, p, seccion = {}) {
+  const o = ofertaSeccion(p, seccion);
+  const okMontos = new Set(o.montos.map(soloDigitos));
+  const okSellos = new Set(o.sellos.map(soloDigitos));
+  const prohibidos = textosProhibidos(p).map(x => new RegExp(x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"));
+  // Línea por línea: si a un texto entre comillas se le quitó todo, se quita ese texto (o la línea entera si no le queda nada)
+  return String(texto || "").split("\n").map((linea) => {
+    let quito = false;
+    const fuera = (ok) => (m) => (ok(m) ? m : ((quito = true), ""));
+    let l = linea
+      .replace(/\$\s?\d[\d.,]*\d|\$\s?\d/g, fuera((m) => okMontos.has(soloDigitos(m))))
+      .replace(/[-–]\s?\d{1,2}\s?%/g, fuera((m) => okSellos.has(soloDigitos(m))))
+      .replace(/\d{1,2}\s?%\s?(OFF|DCTO|de descuento|descuento)/gi, fuera((m) => okSellos.has(soloDigitos(m))));
+    for (const re of prohibidos) l = l.replace(re, () => ((quito = true), ""));
+    if (!quito) return linea;
+    l = l.replace(/[“"]\s*[”"]/g, "").replace(/\(\s*\)/g, "").replace(/\s{2,}/g, " ").trimEnd();
+    if (/^\s*-\s/.test(linea) && !/[“"][^“"”]*[A-Za-zÁÉÍÓÚÑáéíóúñ0-9][^“"”]*[”"]/.test(l)) return null;   // texto de la lista que quedó vacío
+    return l;
+  }).filter(l => l !== null).join("\n");
+}
+
 export function cierreSeccion(texto, p, seccion = {}) {
-  const base = conCierreResenas(texto, p, seccion.tipo, seccion.variante);
+  // El precio y los prohibidos los pega el código al final (se rehacen cada vez: si cambias el precio en la Ficha, quedan al día)
+  const sinBloques = String(texto || "").replace(/\n+(PRECIO \(cópialo EXACTO|PROHIBIDO EN ESTA IMAGEN|TEXTOS QUE NO DEBEN SALIR)[\s\S]*?(?=\n\n|$)/g, "");
+  const base = conCierreResenas(limpiarMontos(sinBloques, p, seccion), p, seccion.tipo, seccion.variante);
   const galeria = p?.formato === "normal" && seccion.tipo === "galeria";
-  return galeria ? base : String(base).replace(/\n+MARGEN ABAJO[\s\S]*?(?=\n\n|$)/, "").trimEnd() + margenAbajo(p, seccion.formato || (p?.formato === "normal" ? "1:1" : "9:16"));
+  const conBloques = String(base).replace(/\n+MARGEN ABAJO[\s\S]*?(?=\n\n|$)/, "").trimEnd() + `\n\n${bloquePrecio(p, seccion)}\n\n${bloqueProhibidos(p)}`;
+  return galeria ? conBloques : conBloques + margenAbajo(p, seccion.formato || (p?.formato === "normal" ? "1:1" : "9:16"));
 }
 
 export function promptSeccion(p, seccion, avatar, otras = []) {

@@ -388,9 +388,23 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
     }
   });
 
+  // Los bloques de precio, textos prohibidos y margen los arma el código: se rehacen con la Ficha de hoy
+  // (así "Copiar estilo + prompt" siempre lleva el precio correcto aunque lo cambies después)
+  const conBloques = async (p, uid) => {
+    try {
+      const o = plano(p);
+      const plantilla = await obtenerPlantilla(uid, p.formato, p.tipo);
+      for (const [av, r] of Object.entries(o.ramas || {})) {
+        if (!Array.isArray(r?.secciones)) continue;
+        const vista = { ...o, ...r, plantilla };
+        o.ramas[av] = { ...r, secciones: r.secciones.map(s => (s?.prompt ? { ...s, prompt: cierreSeccion(s.prompt, vista, s) } : s)) };
+      }
+      return o;
+    } catch (e) { console.warn("Proyecto: no se pudieron rehacer los bloques de los prompts:", e.message); return p; }
+  };
   app.get("/api/proyectos/:id", async (req, res) => {
     const p = await cargar(req, res); if (!p) return;
-    res.json(p);
+    res.json(await conBloques(p, req.user.uid));
   });
 
   // ---------- Terminado → "Listo para testear" ----------
@@ -743,7 +757,7 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
       } else {
         await p.save();
       }
-      res.json(p);
+      res.json(await conBloques(p, req.user.uid));
     } catch (err) {
       console.error("Error guardando proyecto:", err);
       res.status(500).json({ error: "No se pudo guardar" });
@@ -773,7 +787,9 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
         tamano: String(j.tamano || ""),
         coincide: j.coincide !== false,
         dudas: Array.isArray(j.dudas) ? j.dudas.map(String) : [],
-        marcas: Array.isArray(j.marcas) ? j.marcas.map(String) : []
+        marcas: Array.isArray(j.marcas) ? j.marcas.map(String) : [],
+        fotos: Array.isArray(j.fotos) ? j.fotos.slice(0, 6).map((x, i) => ({ n: Number(x?.n) || i + 1, tipo: x?.tipo === "referencia" ? "referencia" : "producto", problema: String(x?.problema || "").slice(0, 200) })) : [],
+        textosEnFotos: Array.isArray(j.textos_en_fotos) ? [...new Set(j.textos_en_fotos.map(t => String(t).trim()).filter(t => t.length >= 2 && t.length <= 80))].slice(0, 15) : []
       };
       p.markModified("revision");
       p.actualizado = new Date();
@@ -1038,7 +1054,7 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
       });
       const crudo = String(reply || "").replace(/^```[a-z]*\n?|```$/gim, "").trim();
       if (!crudo) return res.status(502).json({ error: "La IA no devolvió el prompt" });
-      const texto = conCierreResenas(crudo, x.vista, sec.tipo, sec.variante);   // reseñas y chats: reglas fijas al final para Gemini
+      const texto = crudo;
       const nuevos = [...ads];
       nuevos[idx] = { ...ad, prompt: texto.slice(0, 6000), hecha: false };
       const r = { ...x.r, ads: nuevos };
