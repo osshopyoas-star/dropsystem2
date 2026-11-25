@@ -48,7 +48,7 @@ export const RECETAS_AD = {
     dibujo: [T(6), ["r", 2, 12, 27, 60, "m", 2], ["r", 31, 12, 27, 60, "g", 2], ["r", 12, 74, 36, 8, "a", 4]] }),
   e8: E({ cod: "E8", carpeta: "E8-nuestro-vs-generico", nombre: "Nuestro vs genérico", persona: "no", precio: "no", tono: "elegante", familia: "dolor",
     desc: "Dos mitades de fondo distinto: nuestro producto con su ventaja vs un producto genérico sin marca.",
-    bloques: ["Titular arriba centrado tipo 'Compara…'.", "Imagen dividida en 2 mitades de FONDO DISTINTO (ej. madera y gris liso).", "Mitad 1: NUESTRO producto, con su nombre corto y su ventaja real en 1 línea.", "Mitad 2: un producto GENÉRICO parecido, liso, SIN marca ni logo, con 1 línea neutra (ej. 'Mira lo que trae')."],
+    bloques: ["Titular arriba centrado tipo 'Compara…'.", "Imagen dividida en 2 mitades de FONDO DISTINTO (ej. madera y gris liso).", "Mitad 1: NUESTRO producto, con el rótulo \"El nuestro\" (nunca una marca) y su ventaja real en 1 línea.", "Mitad 2: un producto GENÉRICO parecido, liso, SIN marca ni logo, con 1 línea neutra (ej. 'Mira lo que trae')."],
     dibujo: [["r", 0, 0, 30, 90, "g"], ["r", 30, 0, 30, 90, "m"], T(14, 44), ["r", 6, 30, 18, 26, "d", 3], ["r", 38, 30, 14, 26, "w", 3], T(64, 20, 5), T(64, 20, 35)] }),
   e9: E({ cod: "E9", carpeta: "E9-oferta-tipografica-2x1", nombre: "Oferta tipográfica 2x1", persona: "opcional", precio: "si", tono: "comercial",
     desc: "'2X1' o 'PAGA 1 LLEVA 2' gigante, las 2 unidades bien visibles, 1 frase de beneficio y una barra corta abajo.",
@@ -104,8 +104,9 @@ export function maxConPrecio(n, conPrecio) {
   const pedido = conPrecio === "mitad" ? Math.floor(n / 2) : Number(conPrecio) || 0;
   return Math.max(0, Math.min(tope, pedido));
 }
-export function mezclarAds({ n = 5, conPrecio = 1, fecha = "", hayDolor = true, azar = Math.random } = {}) {
-  const claves = Object.keys(RECETAS_AD).filter(k => !RECETAS_AD[k].conFecha || fecha);
+// hayPaquetes: la tabla de packs (E10) solo sirve si la oferta es de paquetes 1, 2, 3
+export function mezclarAds({ n = 5, conPrecio = 1, fecha = "", hayDolor = true, hayPaquetes = false, azar = Math.random } = {}) {
+  const claves = Object.keys(RECETAS_AD).filter(k => (!RECETAS_AD[k].conFecha || fecha) && (k !== "e10" || hayPaquetes));
   const barajar = (arr) => arr.map(x => [azar(), x]).sort((a, b) => a[0] - b[0]).map(x => x[1]);
   n = Math.max(1, Math.min(n, claves.length));
   const kPrecio = maxConPrecio(n, conPrecio);

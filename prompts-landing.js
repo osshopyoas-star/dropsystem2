@@ -1446,7 +1446,7 @@ export function repartoAd(p, ad = {}, ads = []) {
   if (r.persona === "no") return `PERSONA Y ESCENA: SIN PERSONAS (ni manos ni siluetas): solo el producto.`;
   if (r.persona === "parcial") return `PERSONA Y ESCENA: solo una parte de la persona (manos, piernas o pies) usando el producto, SIN cara. ${quien}. Lugar: ${lugar}. Ropa: ${OUTFITS[k % 3]}.`;
   const pose = ad.estructura === "e17" ? "de frente MIRANDO A LA CÁMARA, sosteniendo el producto con las dos manos cerca de la cara"
-    : ad.estructura === "e7" ? "la MISMA persona en las dos mitades: en el problema con cara de molestia y en la solución con cara de alivio"
+    : ad.estructura === "e7" ? "la MISMA persona en las dos mitades, las dos de FRENTE o 3/4 mirando a la cámara: en el problema con cara de molestia y en la solución con cara de alivio y el producto bien visible de frente (si es morral, colgado de UN hombro por delante, nunca de espaldas)"
     : ad.estructura === "e3" ? (k % 2 ? "de perfil caminando con el producto puesto" : "de frente usando el producto, medio plano")
     : /morral|mochila/i.test(categoriaProducto(p).join(" ")) && k % 2 === 0 ? "de FRENTE con el morral colgado de UN solo hombro, mirando a la cámara"
     : POSES[k % POSES.length];
@@ -1461,7 +1461,7 @@ export function estiloAd(p) {
   const colores = [["fondo", "fondo"], ["color1", "titular línea 1"], ["color2", "titular línea 2"], ["acento", "acento"]].map(([k, t]) => (c(k) ? `${t}: ${c(k)}` : "")).filter(Boolean).join("; ");
   return `ESTILO VISUAL (solo colores y letra; la composición es la de la ESTRUCTURA): ${colores || "colores del producto"}${e.tipografia ? `; letra ${limpiarFuentes(e.tipografia)}` : ""}. FOTOGRAFÍA REAL (no dibujo ni 3D). Ignora cualquier diseño fijo de tarjetas o íconos: cada anuncio se arma distinto según su estructura.`;
 }
-const RE_RELLENO_AD = /pago seguro|compra\s+(?:100\s?%\s*)?segura|calidad premium|material(?:\s+\w+)?\s+premium|env[ií]o (?:seguro|r[aá]pido)|garantizad|alta calidad|premium/i;
+const RE_RELLENO_AD = /hoy o nunca|solo (?:por )?hoy|[úu]ltimas unidades|quedan pocas|por tiempo limitado|gran evento|pago seguro|compra\s+(?:100\s?%\s*)?segura|calidad premium|material(?:\s+\w+)?\s+premium|env[ií]o (?:seguro|r[aá]pido)|garantizad|alta calidad|premium/i;
 const CATEGORIAS = [["morral", "mochila", "bolso", "cartera", "maleta", "bolsa"], ["zapato", "tenis", "zapatilla", "calzado"], ["camiseta", "camisa", "blusa"], ["reloj"], ["almohada", "cojin"]];
 function categoriaProducto(p) {
   const txt = normalizarTxt(`${descripcionObjeto(p)} ${p?.ficha?.descripcion || ""} ${p?.nombre || ""}`).split(" ").slice(0, 25);
@@ -1469,13 +1469,18 @@ function categoriaProducto(p) {
   return g || [];
 }
 const BARRA_AD = new Set(["e4", "e9", "e12", "e15"]);
+// Marcas que salen en los anuncios de referencia: nunca se copian
+export const MARCAS_REF = ["forge", "kiper", "funddaishu", "velez", "vélez", "nike", "adidas", "alpinestars", "nubly", "menta", "linfovit", "microingredients", "urakn", "yesnap", "rakuten", "kendlee", "campus", "luxury"];
+const RE_MARCAS_REF = new RegExp(`\\b(${MARCAS_REF.join("|")})\\b`, "i");
 // Bloque fijo: tipo de anuncio + su composición numerada (la IA no la puede cambiar)
-export function bloqueEstructuraAd(ad = {}) {
+export function bloqueEstructuraAd(ad = {}, p = null) {
   const r = ESTRUCTURAS_AD[ad.estructura];
   if (!r) return "";
+  const pr = p?.ficha?.promesas || {};
+  const barra = BARRA_AD.has(ad.estructura) ? `\nLA BARRA DE CONFIANZA lleva SOLO estos textos: "Pago contra entrega"${pr.envioGratis ? ', "Envío gratis"' : ', "Envío a todo el país"'}${pr.garantia ? `, "Garantía ${limpio(pr.garantia, 40)}"` : ""}. Nada más (ni "pago seguro" ni "atención al cliente").` : "";
   return `TIPO DE ANUNCIO: ${r.cod ? `${r.cod} · ` : ""}${r.nombre}. ${TONOS_AD[r.tono] || ""}
 ESTRUCTURA OBLIGATORIA, de arriba hacia abajo (respeta TODOS los bloques y su orden; no la conviertas en "persona + caja de precio + 3 íconos"):
-${(r.bloques || [r.desc]).map((b, i) => `${i + 1}) ${b}`).join("\n")}`;
+${(r.bloques || [r.desc]).map((b, i) => `${i + 1}) ${b}`).join("\n")}${barra}`;
 }
 function bloqueProductoAd(p, ad, ads) {
   const f = p?.ficha || {};
@@ -1498,8 +1503,8 @@ export function cierreAd(texto, p, ad = {}, ads = []) {
   base = base.split("\n").map(l => {
     if (!/[“"]/.test(l)) return l;
     let out = l.replace(/[“"]([^“"”]*)[”"](\s*\([^)]{0,60}\))?/g, (m, t) => {
-      if (estilo && normalizarTxt(t).includes(normalizarTxt(estilo))) return "";
-      if (RE_RELLENO_AD.test(t)) return "";
+      if (estilo && normalizarTxt(estilo).length >= 5 && ` ${normalizarTxt(t)} `.includes(` ${normalizarTxt(estilo)} `)) return "";
+      if (RE_RELLENO_AD.test(t) || RE_MARCAS_REF.test(t)) return "";
       if (/^\s*-?\s*(Titular|Gancho)/i.test(l) && cat.some(w => normalizarTxt(t).split(" ").some(x => x.startsWith(w)))) return "";
       if (usaNombreProducto({ l1: t }, p?.nombre) && /^\s*-?\s*(Titular|Gancho)/i.test(l)) return "";
       if (!conPromo && !/^\s*-?\s*\[?PRECIO/i.test(t) && RE_PROMO.test(t) && !ad.precio) return "";
@@ -1526,7 +1531,7 @@ export function cierreAd(texto, p, ad = {}, ads = []) {
   const extra = [
     estilo ? `el nombre del estilo ("${estilo}")` : "",
     !conFecha ? "fechas o temporadas (Black Friday, Navidad, Diciembre…)" : "",
-    "marcas, logos o nombres de otras tiendas (aunque salgan en la referencia de diseño)",
+    `marcas, logos o nombres de otras tiendas (aunque salgan en la referencia de diseño; por ejemplo ${MARCAS_REF.slice(0, 8).map(m => `"${m.toUpperCase()}"`).join(", ")})`,
     `el nombre o tipo del producto como titular${cat.length ? ` (${cat.map(w => `"${w}"`).join(", ")})` : ""}`,
     '"pago seguro", "compra segura", "calidad premium", "envío seguro" y cualquier sello que la Ficha no respalde',
     BARRA_AD.has(ad.estructura) ? "" : "barra de confianza o fila de íconos abajo (esta estructura no la lleva)",
@@ -1534,7 +1539,7 @@ export function cierreAd(texto, p, ad = {}, ads = []) {
   ].filter(Boolean);
   return [
     LINEA_SOLO_TEXTOS,
-    bloqueEstructuraAd(ad) + (conFecha ? `\nFECHA DE ESTE ANUNCIO: "${FECHAS_TXT[ad.fecha] || ad.fecha}" (va en el titular).` : ""),
+    bloqueEstructuraAd(ad, p) + (conFecha ? `\nFECHA DE ESTE ANUNCIO: "${FECHAS_TXT[ad.fecha] || ad.fecha}" (va en el titular).` : ""),
     estiloAd(p),
     repartoAd(p, ad, ads),
     bloqueProductoAd(p, ad, ads),
@@ -1556,7 +1561,7 @@ ${estiloAd(p)}
 (NO escribas el nombre del estilo en la imagen.)
 
 ANUNCIO A CREAR: imagen estática para Meta Ads, formato ${formatoInfo.nombre} (${formatoInfo.tamano}).
-${bloqueEstructuraAd(ad)}
+${bloqueEstructuraAd(ad, p)}
 ${repartoAd(p, ad, ads)}
 ${tit ? `TITULAR YA ELEGIDO (úsalo EXACTO): "${tit.l1}"${tit.l2 ? ` / "${tit.l2}"` : ""}` : "El titular es de beneficio, emoción, identidad o situación; nunca el nombre del producto ni del estilo."}
 ${ad.precio ? "Este anuncio LLEVA precio: deja su espacio según la estructura, pero NO escribas números ni porcentajes (los pega CoDropX)." : "Este anuncio NO lleva precio, ni porcentajes, ni 2x1, ni sellos de oferta."}

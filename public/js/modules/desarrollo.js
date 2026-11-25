@@ -2119,7 +2119,7 @@ function pasoAds() {
     </div>
     <div class="est-ad-grid est-ad-grid-18">
       ${Object.entries(RECETAS_AD).map(([k, e]) => `
-        <button class="est-ad-op ${adSel.has(k) ? "sel" : ""} ${e.conFecha && !adFecha ? "apagado" : ""}" title="${esc(e.desc)}" onclick="estAdSel('${k}')">
+        <button class="est-ad-op ${adSel.has(k) ? "sel" : ""} ${(e.conFecha && !adFecha) || (k === "e10" && !adHayPaquetes()) ? "apagado" : ""}" title="${esc(e.desc)}" onclick="estAdSel('${k}')">
           <span class="est-ad-mini-img"><img src="/api/anuncios/referencia/${k}" alt="" loading="lazy" onerror="this.replaceWith(document.createRange().createContextualFragment(this.dataset.dib))" data-dib="${esc(dibujar(e.dibujo, acento, "est-ad-dib"))}"></span>
           <span><b>${e.cod}</b> ${esc(e.nombre)}</span>
           <span class="est-ad-tags">${TAGS_AD(e).map(t => `<em>${t}</em>`).join("")}${adSel.has(k) && plan[k] ? `<em class="precio">$ en este</em>` : ""}</span>
@@ -2197,8 +2197,10 @@ function tarjetaAd(a, i, acento) {
   </article>`;
 }
 
+const adHayPaquetes = () => (proyecto?.ficha?.oferta?.tipo === "paquetes" && (proyecto.ficha.oferta.paquetes || []).length > 1) || /\d\s*unidades?/i.test(String(proyecto?.ficha?.paquetes || ""));
 window.estAdSel = (k) => {
   const e = RECETAS_AD[k];
+  if (k === "e10" && !adHayPaquetes() && !adSel.has(k)) return avisar("La tabla de packs necesita paquetes de 1, 2 y 3 unidades en la Ficha (con 2x1 usa E9)", "error");
   if (e?.conFecha && !adFecha && !adSel.has(k)) return avisar("Elige primero una fecha especial (Black Friday, Navidad…)", "error");
   if (adSel.has(k)) adSel.delete(k);
   else if (adSel.size < 10) adSel.add(k);
@@ -2211,7 +2213,7 @@ window.estAdConPrecio = (k) => { adConPrecio = k; adPreciosMezcla = null; render
 window.estAdFecha = (v) => { adFecha = FECHAS_AD[v] !== undefined ? v : ""; if (!adFecha) adSel.delete("e12"); renderPaso(); };
 window.estAdFormato = (f) => { adFormato = FORMATOS_AD[f] ? f : "4:5"; renderPaso(); };
 window.estAdMezcla = () => {
-  const mezcla = mezclarAds({ n: adCuantos, conPrecio: adConPrecio, fecha: adFecha, hayDolor: !!(avatarActual()?.problema || avatarActual()?.palabras) });
+  const mezcla = mezclarAds({ n: adCuantos, conPrecio: adConPrecio, fecha: adFecha, hayDolor: !!(avatarActual()?.problema || avatarActual()?.palabras), hayPaquetes: adHayPaquetes() });
   adSel = new Set(mezcla.map(x => x.estructura));
   adPreciosMezcla = Object.fromEntries(mezcla.map(x => [x.estructura, x.precio]));
   renderPaso();
