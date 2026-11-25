@@ -29,6 +29,7 @@ import {
   ESTILO_AUTO,
   camposDeTexto,
   promptTitulares,
+  soloObjeto,
   cierreAd,
   limpiarTitular,
   usaNombreProducto,
@@ -300,7 +301,8 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
 
   // Bloque de estilo de antes → campos por etiqueta (se conserva el diseño y las personas que tenía; la escena sale del bloque)
   const estiloAlDia = (base, r) => {
-    if (!r?.estilo || (r.estiloCampos && typeof r.estiloCampos === "object")) return r;
+    if (!r?.estilo) return r;
+    if (r.estiloCampos && typeof r.estiloCampos === "object") return { ...r, bloqueEstilo: construirBloqueEstilo({ ...base, ...r }) };
     const viejo = camposDeTexto(r.bloqueEstilo);
     const estiloCampos = {};
     if (viejo.diseno) estiloCampos.diseno = viejo.diseno;
@@ -824,13 +826,13 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
       const reply = await llamarIA({ system: SISTEMA_LANDING, prompt: promptRevisarFicha(p), images: p.fotos });
       const j = parsearJSON(reply);
       p.revision = {
-        descripcionFisica: String(j.descripcion_fisica || ""),
+        descripcionFisica: soloObjeto(String(j.descripcion_fisica || ""), p.tipo),
         noTiene: Array.isArray(j.no_tiene) ? j.no_tiene.map(String) : [],
         tamano: String(j.tamano || ""),
         coincide: j.coincide !== false,
         dudas: Array.isArray(j.dudas) ? j.dudas.map(String) : [],
         marcas: Array.isArray(j.marcas) ? j.marcas.map(String) : [],
-        fotos: Array.isArray(j.fotos) ? j.fotos.slice(0, 6).map((x, i) => ({ n: Number(x?.n) || i + 1, tipo: x?.tipo === "referencia" ? "referencia" : "producto", problema: String(x?.problema || "").slice(0, 200) })) : [],
+        fotos: Array.isArray(j.fotos) ? j.fotos.slice(0, 6).map((x, i) => ({ n: Number(x?.n) || i + 1, tipo: ["referencia", "persona"].includes(x?.tipo) ? x.tipo : "producto", problema: String(x?.problema || "").slice(0, 200) })) : [],
         textosEnFotos: Array.isArray(j.textos_en_fotos) ? [...new Set(j.textos_en_fotos.map(t => String(t).trim()).filter(t => t.length >= 2 && t.length <= 80))].slice(0, 15) : []
       };
       p.markModified("revision");

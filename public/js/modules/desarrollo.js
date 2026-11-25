@@ -536,10 +536,11 @@ function pasoFicha() {
   <div class="est-cols">
     <div class="est-card">
       <h3>Fotos reales del producto</h3>
-      <p class="est-muted">Máximo 6. Son las que adjuntarás en Gemini y las que la IA revisa. Marca como <b>Referencia</b> las que tengan precios, textos o logos del proveedor (flyers, catálogos): esas no se mandan a la IA de imágenes, porque los copia.</p>
+      <p class="est-muted">Máximo 6. Toca la etiqueta de cada foto para marcarla: <b>Producto solo</b> (se manda primero a la IA), <b>Puesto en persona</b> (se manda, pero la IA solo copia el producto, no la pose ni la ropa) o <b>Referencia</b> (flyers con precios o textos: solo se usan si no hay otras).</p>
       <div class="est-fotos">
         ${fotos.map((src, i) => {
-          const ref = (f.usoFotos || [])[i] === "referencia";
+          const usoF = (f.usoFotos || [])[i] || (r.fotos || []).find(x => x.n === i + 1)?.tipo || "producto";
+          const ref = usoF === "referencia";
           const aviso = (r.fotos || []).find(x => x.n === i + 1 && x.problema);
           return `
           <div class="est-foto ${ref ? "ref" : ""}">
@@ -547,7 +548,7 @@ function pasoFicha() {
             <button onclick="estQuitarFoto(${i})" title="Quitar">✕</button>
             <button class="recortar" onclick="estRecortarFoto(${i})" title="Recortar (deja solo el producto)">✂</button>
             ${aviso ? `<span class="est-foto-aviso" title="${esc(aviso.problema)}">⚠</span>` : ""}
-            <button class="uso" onclick="estUsoFoto(${i})" title="Toca para cambiar">${ref ? "Referencia" : "Producto solo"}</button>
+            <button class="uso ${usoF === "persona" ? "persona" : ""}" onclick="estUsoFoto(${i})" title="Toca para cambiar">${ref ? "Referencia" : usoF === "persona" ? "Puesto en persona" : "Producto solo"}</button>
           </div>`;
         }).join("")}
         ${fotos.length < 6 ? `
@@ -1077,10 +1078,16 @@ window.estQuitarFoto = async (i) => {
 };
 
 // "Producto solo" (se manda a la IA de imágenes) o "Referencia" (no se manda)
+// Producto solo → Puesto en persona → Referencia → Producto solo
 window.estUsoFoto = async (i, valor = null) => {
   const ficha = leerFicha();
-  const uso = Array.from({ length: (proyecto.fotos || []).length }, (_, k) => (ficha.usoFotos || [])[k] === "referencia" ? "referencia" : "producto");
-  uso[i] = valor || (uso[i] === "referencia" ? "producto" : "referencia");
+  const rev = proyecto.revision?.fotos || [];
+  const uso = Array.from({ length: (proyecto.fotos || []).length }, (_, k) => {
+    const v = (ficha.usoFotos || [])[k] || rev.find(x => x.n === k + 1)?.tipo;
+    return ["referencia", "persona"].includes(v) ? v : "producto";
+  });
+  const sig = { producto: "persona", persona: "referencia", referencia: "producto" };
+  uso[i] = valor || sig[uso[i]] || "producto";
   await guardar({ ficha: { ...ficha, usoFotos: uso } });
   renderPaso();
 };

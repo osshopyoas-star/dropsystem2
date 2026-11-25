@@ -339,6 +339,17 @@ function textoFormato(p) {
 
 const lista = (arr) => arr.map(x => `- ${x}`).join("\n");
 
+// La descripción física es SOLO del objeto: se quitan las frases con personas, ropa, poses, fondos o escenas
+// (si no, la misma pose y la misma ropa salen en todas las imágenes)
+const RE_PERSONA = /\b(mujer|hombre|modelo|persona|chica|chico|señora|señor|joven|ella|[ée]l lleva|lleva(?:da)? puest[oa]|parad[oa]|sentad[oa]|de lado|de espaldas|de perfil|de frente|posa|pose|posando|mirando|sonr[ií]e|cabello|pelo|maquillaje|piel|rostro|cara|sobre la espalda|en la espalda|a la espalda|colgad[oa] (?:del|en el) hombro|fondo (?:blanco|gris|negro|liso|neutro|claro|oscuro|rosa|beige|de)|escena|pared|habitaci[oó]n|calle|exterior|interior de (?:una|un) (?:casa|sala|tienda))\b/i;
+const RE_ROPA = /\b(blusa|camisa|jeans?|pantal[oó]n|vestido|falda|ropa|outfit|atuendo|su[ée]ter|chaqueta|top)\b/i;
+export function soloObjeto(texto, tipo = "producto") {
+  const partes = String(texto || "").split(/(?<=[.;])\s+|\n+/).map(x => x.trim()).filter(Boolean);
+  return partes.filter(x => !RE_PERSONA.test(x) && (tipo === "moda" || !RE_ROPA.test(x)))
+    .map(x => x.replace(/,?\s*(?:usad[oa]|puest[oa]|lleva(?:d[oa])?)\s+por\s+(?:una?|la|el)\s+\w+[^,.;]*/gi, "")).join(" ").replace(/\s{2,}/g, " ").trim();
+}
+export const descripcionObjeto = (p) => soloObjeto(p?.revision?.descripcionFisica, p?.tipo);
+
 // Transportadoras: siempre bien escritas (Interrreapidisimo → Interrapidísimo)
 const TRANSPORTADORAS = [[/inter\s*-?\s*r+[a-z]{0,3}?p+i+d+[ií]s+i+m+o/i, "Interrapidísimo"], [/servi\s*-?\s*entr?ega/i, "Servientrega"], [/^env[ií]a$/i, "Envía"], [/coordi?nadora/i, "Coordinadora"], [/^t\.?c\.?c\.?$/i, "TCC"], [/depris+a/i, "Deprisa"]];
 export function normalizarTransportadoras(txt) {
@@ -400,7 +411,7 @@ PAÍS: ${pais.nombre} (moneda ${pais.moneda})
 DESCRIPCIÓN DEL PROVEEDOR:
 ${limpio(f.descripcion, 4000) || "(sin descripción)"}
 
-DESCRIPCIÓN FÍSICA VERIFICADA: ${limpio(r.descripcionFisica, 2000) || "(aún no verificada)"}
+DESCRIPCIÓN FÍSICA VERIFICADA (solo el objeto): ${limpio(descripcionObjeto(p), 2000) || "(aún no verificada)"}
 TAMAÑO REAL: ${limpio(f.medidas || r.tamano, 300) || "(sin medidas: pídelas en las notas)"}${f.medidas ? " (si las escribes en la imagen, cópialas EXACTAS: no las redondees)" : ""}
 LO QUE NO TIENE NI TRAE: ${limpio(listaNoTiene(f.noTiene, r.noTiene).join("; "), 800) || "(no indicado)"}
 VARIANTES / TALLAS / COLORES${variantesDe(f).colores.length || variantesDe(f).tallas.length ? " (nombres EXACTOS, escríbelos tal cual)" : ""}: ${limpio(variantesTexto(f), 400) || "(una sola versión)"}
@@ -443,12 +454,12 @@ export function promptRevisarFicha(p) {
   return `${contextoProducto(p)}
 
 TAREA: Revisa las fotos adjuntas (son las fotos reales que entregó el proveedor) contra la descripción.
-1. Escribe una DESCRIPCIÓN FÍSICA muy detallada del producto tal como se ve en las fotos: forma, partes, cómo están unidas, materiales, colores exactos, acabados, textos o logos que tenga. Esta descripción se usará para que Gemini no invente nada.
+1. Escribe una DESCRIPCIÓN FÍSICA muy detallada del producto (SOLO EL OBJETO) tal como se ve en las fotos: forma, partes, cómo están unidas, materiales, colores exactos, acabados, medidas, textos o logos que tenga. Esta descripción se usará para que la IA no invente nada. PROHIBIDO describir personas, ropa, poses, fondos o escenas: si en una foto hay una persona usando el producto, ignórala y describe solo el producto.
 2. Lista lo que el producto NO tiene y que una IA podría inventarle (por ejemplo: "no tiene cámara", "no tiene pantalla", "no trae caja de marca").
 3. Estima el tamaño real comparado con una persona, si las medidas no están.
 4. Marca DUDAS: si las fotos no coinciden con la descripción, si parecen de otra marca o modelo, si faltan datos (medidas, colores, qué incluye), o si algo es confuso.
 5. Lista MARCAS O LOGOS DE TERCEROS que aparezcan en el producto o las fotos (riesgo para anuncios).
-6. Revisa CADA foto (en el orden en que vienen, la primera es la 1) y di si es "producto" (solo el producto, sin textos encima) o "referencia" (tiene precios, referencias, códigos, logos del proveedor, varios productos o es un flyer/catálogo). Si tiene algo que la IA de imágenes podría copiar, dilo en "problema".
+6. Revisa CADA foto (en el orden en que vienen, la primera es la 1) y di si es "producto" (solo el producto, sin personas ni textos encima), "persona" (el producto puesto o usado por una persona) o "referencia" (tiene precios, referencias, códigos, logos del proveedor, varios productos o es un flyer/catálogo). Si tiene algo que la IA de imágenes podría copiar, dilo en "problema".
 7. Lista los TEXTOS QUE SE VEN EN LAS FOTOS y que NO son parte del producto (precios, "Ref: …", códigos, "Caja x 100", nombre del proveedor, marcas de agua), escritos tal cual.
 
 Responde SOLO este JSON válido:
@@ -608,7 +619,7 @@ export function camposEstilo(p) {
     diseno: `estilo ${limpio(e.nombre, 60) || "propio"}, de COMPRA POR IMPULSO: mucho contraste, todo se lee en 2 segundos. Fondos en ${fondo || "un color oscuro"}; titulares en ${limpiarFuentes(e.tipografia) || "letra sans extra gruesa"}, una línea en ${color1 || "blanco"} y otra en ${color2 || "el color de acento"}; tarjetas ${tarjetas || "con bordes redondeados"}; íconos de línea en ${acento || "el color de acento"}${e.recursos ? `; recursos que se repiten en todas las imágenes: ${limpio(e.recursos, 300)}` : ""}. ${acabadoTexto(p)}`,
     precio: `NO pongas precio, descuento ni sello de oferta, A MENOS QUE el prompt lo pida explícitamente${caja ? `; cuando lo pida, va grande dentro de una caja ${caja}` : ""}. NO dejes círculos vacíos ni espacios en blanco.`,
     regla: "el producto es el protagonista, grande y bien visible, pero SIEMPRE a su tamaño real junto a las personas y los objetos: nunca lo agrandes (si quieres que se vea más, acerca la cámara). Ningún texto lo tapa. Estilo de venta directa, no editorial.",
-    producto: `usa EXACTAMENTE el producto de las fotos adjuntas: ${r.descripcionFisica || f.descripcion || "(sin descripción)"}.${e.producto_en_uso ? ` En uso: ${limpio(e.producto_en_uso, 500)}.` : ""}${variantesTexto(f) ? ` Variantes que existen: ${limpio(variantesTexto(f), 300)}.` : ""}${noTiene ? ` NO tiene: ${noTiene}.` : ""} Cuando se está usando, lleva solo las piezas que van puestas (un solo accesorio a la vez).`,
+    producto: `usa EXACTAMENTE el producto de las fotos adjuntas (solo el objeto; la persona, la pose, la ropa y la escena las dice cada imagen): ${String(descripcionObjeto(p) || limpio(f.descripcion, 1500) || "(sin descripción)").replace(/\.+$/, "")}.${soloObjeto(e.producto_en_uso, p.tipo) ? ` En uso: ${limpio(soloObjeto(e.producto_en_uso, p.tipo), 500).replace(/\.+$/, "")}.` : ""}${variantesTexto(f) ? ` Variantes que existen: ${limpio(variantesTexto(f), 300)}.` : ""}${noTiene ? ` NO tiene: ${noTiene}.` : ""} Cuando se está usando, lleva solo las piezas que van puestas (un solo accesorio a la vez).`,
     tamano: `${f.medidas || r.tamano || "(indicar medidas)"}. ${referenciaTamano(f.medidas || r.tamano)} Respeta esa escala exacta junto a manos, personas y muebles.`,
     noAgregues: `letras, marcas, referencias ni logos que no estén en la foto.${prohibidos.length ? ` Textos prohibidos: ${prohibidos.map(x => `"${x}"`).join(", ")}.` : ""}`,
     personas: `${e.personas || (PARA_QUIEN[paraQuienDe(p)].personas ? `${PARA_QUIEN[paraQuienDe(p)].personas}, de ${pais.nombre}, aspecto latino natural` : `adultos de ${pais.nombre}, aspecto latino natural`)}.${esMenor(p) ? " Los menores siempre con ropa normal y completa, en escenas cotidianas y familiares; nada sugestivo." : ""}`,
@@ -1006,7 +1017,23 @@ export function limpiarMontos(texto, p, seccion = {}) {
 
 // ---------- 2.3 Reparto de la landing: personas que rotan y un plano distinto por sección ----------
 const SIN_PERSONAS = new Set(["detalles", "moda_material", "moda_ficha", "por_que_aqui", "moda_por_que", "que_incluye", "foto_real", "resenas", "moda_chats", "resumen_resenas", "numeros_reales", "preguntas", "confianza", "tamano_variantes", "moda_guia_tallas", "galeria"]);
-const PLANOS = ["cuerpo entero en acción", "medio plano con emoción", "primer plano de las manos usando el producto", "plano general del lugar con la persona pequeña al fondo", "plano 3/4 de lado, caminando"];
+const PLANOS = ["cuerpo entero en acción", "medio plano con emoción", "primer plano de las manos usando el producto", "plano general del lugar con la persona pequeña al fondo", "plano 3/4 caminando"];
+// Poses que se reparten entre las secciones con persona (ninguna se repite; nunca de espaldas)
+const POSES = [
+  "de FRENTE caminando hacia la cámara, cuerpo entero",
+  "SENTADA (en un café, una banca o un escalón), relajada, de frente o 3/4",
+  "primer plano de las MANOS abriendo o usando el producto (sin cara)",
+  "de PERFIL caminando por la calle, el producto bien visible",
+  "de frente, medio plano, SONRIENDO a la cámara",
+  "3/4 de frente en movimiento (subiendo una escalera, bajando de un bus, cruzando la calle)",
+  "de pie en una mesa o mostrador, sacando algo del producto"
+];
+const OUTFITS = [
+  "OUTFIT 1: camiseta de color liso (no blanca) y pantalón de tela beige",
+  "OUTFIT 2: chaqueta de jean o blazer de color sobre una prenda lisa, pantalón oscuro",
+  "OUTFIT 3: suéter tejido de color cálido (mostaza, verde oliva o vinotinto) y pantalón negro",
+  "OUTFIT 4: ropa deportiva de color (sudadera y tenis)"
+];
 export function repartoDe(p, seccion = {}) {
   if (SIN_PERSONAS.has(seccion.tipo)) return "";
   const secs = (Array.isArray(p?.secciones) ? p.secciones : []).filter(s => !SIN_PERSONAS.has(s.tipo));
@@ -1018,9 +1045,14 @@ export function repartoDe(p, seccion = {}) {
     : seccion.tipo === "como_funciona" ? `${quien} en los pasos 1 y 2, y en el paso 3 un domiciliario entregándole la caja` : quien;
   const receta = conReceta(p, seccion.tipo) ? SECCIONES[seccion.tipo].receta : null;
   const plano = receta?.escena || PLANOS[k % PLANOS.length];
+  const pose = seccion.tipo === "entrega" ? "el domiciliario de frente entregando la caja; el cliente de frente o 3/4, sonriendo"
+    : seccion.tipo === "como_funciona" ? "paso 1: manos con el celular; paso 2: de frente llenando el formulario; paso 3: recibiendo la caja de frente"
+    : seccion.tipo === "dolor" ? "medio plano de frente o 3/4, preocupada, con la mano en la frente o mirando el celular"
+    : POSES[k % POSES.length];
   return `
 PERSONAS DE ESTA LANDING (reparto fijo): PERSONA 1 = el avatar. PERSONA 2 = otra persona del mismo público pero DISTINTA (otra cara, otro peinado, otra ropa; puede ser su amigo, amiga o pareja). De apoyo: domiciliario y cliente recibiendo.
-EN ESTA IMAGEN: ${extra}. Plano: ${plano}. Nunca la misma pose de otra sección y NUNCA "de espaldas mirando por encima del hombro".`;
+EN ESTA IMAGEN: ${extra}. Plano: ${plano}. POSE OBLIGATORIA: ${pose}. ROPA OBLIGATORIA: ${OUTFITS[k % 3]}.
+NUNCA de espaldas ni de lado mirando por encima del hombro. NO copies la pose ni la ropa de las fotos adjuntas (si en la foto hay una persona con blusa blanca y jean, aquí va otra ropa).`;
 }
 
 // ---------- 2.2 Barra de confianza solo donde toca (Mi plantilla decide por sección) ----------

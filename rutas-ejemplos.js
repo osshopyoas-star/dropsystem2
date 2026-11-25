@@ -9,7 +9,7 @@
 // =============================================
 import mongoose from "mongoose";
 import { SECCIONES, tiposDe, claveDe, varianteDe, CLAVES } from "./public/js/core/plantilla.js";
-import { promptSeccion, cierreSeccion, construirBloqueEstilo, SISTEMA_LANDING, resenasReales, SIN_PROMPT } from "./prompts-landing.js";
+import { descripcionObjeto, promptSeccion, cierreSeccion, construirBloqueEstilo, SISTEMA_LANDING, resenasReales, SIN_PROMPT } from "./prompts-landing.js";
 import { obtenerPlantilla } from "./rutas-plantilla.js";
 import { pedirImagen, armarPrompt, GastoIA, estadoGasto, PRECIO_IMAGEN, PRECIO_REFERENCIA, aspectoDe, mesActual } from "./rutas-ia-imagenes.js";
 import { tipoDeBytes } from "./modelo-imagenes.js";
@@ -131,7 +131,7 @@ export function registrarRutasEjemplos(app, { llamarIA, limiter, Proyecto }) {
       if (!crudo) return res.status(502).json({ error: "La IA no devolvió el prompt" });
       const promptFinal = cierreSeccion(crudo, vista, seccion);
       const r = await pedirImagen({
-        prompt: armarPrompt({ bloqueEstilo: bloque, prompt: promptFinal, referencias: fotos.length, fotosConTexto, descripcion: String(p.revision?.descripcionFisica || "").slice(0, 600) }) + (ref ? `\n\nREFERENCIA DE DISEÑO: <IMAGE_${fotos.length}> es una landing que sí vende. ${AVISO_REFERENCIA}` : ""),
+        prompt: armarPrompt({ bloqueEstilo: bloque, prompt: promptFinal, referencias: fotos.length, fotosConTexto, descripcion: descripcionObjeto(p).slice(0, 600) }) + (ref ? `\n\nREFERENCIA DE DISEÑO: <IMAGE_${fotos.length}> es una landing que sí vende. ${AVISO_REFERENCIA}` : ""),
         fotos, extra: ref ? [ref] : [], aspecto: aspectoDe(seccion.formato)
       });
       await GastoIA.findOneAndUpdate(
