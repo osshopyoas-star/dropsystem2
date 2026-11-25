@@ -363,6 +363,9 @@ export const PROMESAS_RIESGO = [
   { nombre: "garantía", re: /garant[ií]a/i, ok: (_, p) => !!p?.ficha?.promesas?.garantia },
   { nombre: "entrega hoy o el mismo día", re: /(?:entrega|rec[ií]belo|recibe tu pedido|llega|te llega)[a-z ]{0,12}(?:hoy|el mismo d[ií]a|en 24 ?h)|mismo d[ií]a|entrega inmediata/i, ok: (_, p) => /hoy|mismo d[ií]a|24 ?h/i.test(String(p?.ficha?.promesas?.entrega || "")) },
   { nombre: "número de clientes o vendidos", re: /\+?\s?\d[\d.]*\s*(?:mil\s*)?(?:clientes|vendid|compradores|pedidos|personas felices|hinchas|usuarios)/i, ok: (_, p) => !!numerosPrueba(p) },
+  { nombre: "envío gratis", re: /env[ií]o\s+gratis/i, ok: (_, p) => !!p?.ficha?.promesas?.envioGratis },
+  { nombre: "compra 100% segura o garantizada", re: /100\s?%\s*(?:segur|garantiz)/i, ok: () => false },
+  { nombre: "promesas de salud (sin dolor, alivia, cura)", re: /sin dolor|alivia(?:r)? el dolor|\bcura\b|adi[oó]s al dolor/i, ok: () => false },
   { nombre: "calificación inventada", re: /\b[34][.,]\d\s*(?:\/\s*5|estrellas|★|de 5)|calificaci[oó]n/i, ok: (_, p) => resenasReales(p).length >= 2 }
 ];
 export function promesasFalsas(p) {
@@ -1378,10 +1381,32 @@ Responde SOLO este JSON válido:
 }
 
 // ---------- Anuncios: prompt de un ad estático ----------
+// El anuncio se comporta como la portada: misma oferta (2x1, paquetes, regalo), mismos precios armados por el código
+const tipoAd = (p) => (p?.tipo === "moda" ? "moda_portada" : "oferta");
+export function cierreAd(texto, p, ad = {}) {
+  const sec = { id: `ad-${ad.id || ""}`, tipo: ad.precio === false ? "ad_sin_precio" : tipoAd(p) };
+  const base = String(texto || "").replace(/\n+(VARIANTES EN ESTA SECCIÓN|OFERTA EN ESTA SECCIÓN|PRECIO \(cópialo EXACTO|PROHIBIDO EN ESTA IMAGEN|SIN BARRA DE CONFIANZA|TEXTOS QUE NO DEBEN SALIR)[\s\S]*?(?=\n\n|$)/g, "");
+  // El gancho nunca es el nombre del producto: se cambia por el titular de la portada (o se quita)
+  const nombre = { l1: String(p?.nombre || "") };
+  const portadaSec = (p?.secciones || []).find(s => PORTADAS.has(s.tipo));
+  const tit = limpiarTitular(portadaSec?.titular) || limpiarTitular((portadaSec?.titulares || [])[0]);
+  const sinNombre = base.split("\n").map(l => {
+    const m = l.match(/^(\s*-?\s*(?:Gancho|Titular)[^:]{0,30}:\s*)[“"]([^“"”]+)[”"](.*)$/i);
+    if (!m || !usaNombreProducto({ l1: m[2] }, nombre.l1)) return l;
+    return tit ? `${m[1]}"${tit.l1}${tit.l2 ? ` ${tit.l2}` : ""}"${m[3]}` : null;
+  }).filter(l => l !== null).join("\n");
+  const limpio = limpiarMontos(sinNombre, p, sec).trimEnd();
+  const portada = { id: sec.id, tipo: tipoAd(p) };
+  const o = ofertaDe(p?.ficha || {}, p?.pais === "EC" ? "EC" : "CO");
+  const oferta = bloqueOferta(p, portada), variantes = bloqueVariantes(p, portada);
+  const precio = ad.precio === false
+    ? `PROHIBIDO EN ESTA IMAGEN: precios, signos de dinero ($), "antes" tachado y cajas de precio${o.tipo !== "descuento" && o.textos.sello ? `. El único sello permitido es "${o.textos.sello}"` : ", porcentajes y sellos de descuento"}.`
+    : bloquePrecio(p, portada);
+  return `${limpio}${variantes ? `\n\n${variantes}` : ""}${oferta ? `\n\n${oferta}` : ""}\n\n${precio}\n\n${bloqueProhibidos(p)}`;
+}
 export function promptAd(p, ad, avatar, estructura, formatoInfo) {
-  const precio = formatoPrecio(p.ficha?.precio, p.pais);
-  const antes = formatoPrecio(p.ficha?.precioAntes, p.pais);
-  const desc = porcentajeDescuento(p.ficha?.precioAntes, p.ficha?.precio);
+  const o = ofertaDe(p.ficha || {}, p.pais === "EC" ? "EC" : "CO");
+  const promo = ["2x1", "xy"].includes(o.tipo);
   return `${contextoProducto(p)}
 
 ${bloqueAvatar(avatar, "ESTE ANUNCIO LE HABLA AL AVATAR")}
@@ -1395,7 +1420,9 @@ ${p.bloqueEstilo || construirBloqueEstilo(p)}
 ANUNCIO A CREAR: imagen estática para Meta Ads / TikTok.
 - Estructura: "${estructura.nombre}": ${estructura.desc}
 - Formato: ${formatoInfo.nombre} (${formatoInfo.tamano}, ${formatoInfo.uso}). Escríbelo al inicio del prompt.
-- ${ad.precio && precio ? `Muestra el precio exactamente así: ${precio}${antes ? ` (antes ${antes} tachado)` : ""}${desc ? ` y un sello de -${desc}%` : ""}.` : "NO muestres el precio."}
+- OFERTA: ${o.resumen || "precio normal"}${promo ? ` Este anuncio VENDE LA PROMO: muestra las ${o.unidades} unidades juntas${variantesTexto(p.ficha || {}) ? " (de colores distintos)" : ""} y el sticker "${o.textos.sello}" bien visible.` : ""}
+- ${ad.precio ? "Lleva el precio: pon una caja de precio y escribe en TEXTOS solo \"[PRECIO]\" (los valores exactos los pega CoDropX al final; NUNCA escribas números de precio ni porcentajes tú)." : "NO muestres el precio."}
+- El gancho NUNCA es el nombre del producto ("${limpio(String(p.nombre || "").replace(/\d+/g, "").trim(), 80)}") ni frases del proveedor: es lo que GANA el cliente.
 ${ad.nota ? `- Nota del dueño: ${limpio(ad.nota, 300)}` : ""}
 
 TAREA: Escribe el prompt para Gemini con EXACTAMENTE este formato (texto plano, sin markdown, sin explicaciones):
@@ -1410,6 +1437,7 @@ ESPACIO SEGURO: [en 9:16 deja libre el 14% de arriba y el 20% de abajo para los 
 Reglas:
 - El producto grande, protagonista y sin tapar. Poco texto: Meta muestra menos los anuncios con mucho texto.
 - Sin cifras inventadas (clientes, estrellas, reseñas, "+15.000 vendidos"), sin urgencia falsa, sin antes/después corporales exagerados, sin marcas ajenas.
+- Solo promesas que dice la Ficha ("envío gratis", "garantía", "compra 100% segura" solo si son verdad). Sin promesas de salud ("sin dolor de espalda").
 - No le hables a la persona de una condición personal ("¿tienes…?"); habla de la situación.`;
 }
 

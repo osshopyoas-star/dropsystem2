@@ -29,6 +29,7 @@ import {
   ESTILO_AUTO,
   camposDeTexto,
   promptTitulares,
+  cierreAd,
   limpiarTitular,
   usaNombreProducto,
   sinTitular,
@@ -1155,7 +1156,7 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
       });
       const crudo = String(reply || "").replace(/^```[a-z]*\n?|```$/gim, "").trim();
       if (!crudo) return res.status(502).json({ error: "La IA no devolvió el prompt" });
-      const texto = crudo;
+      const texto = cierreAd(crudo, x.vista, ad);
       const nuevos = [...ads];
       nuevos[idx] = { ...ad, prompt: texto.slice(0, 6000), hecha: false };
       const r = { ...x.r, ads: nuevos };

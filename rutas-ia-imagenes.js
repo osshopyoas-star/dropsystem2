@@ -10,7 +10,7 @@ import { limpiarFuentes } from "./public/js/core/fuentes.js";
 import { ImagenLanding, metaImagen, MAX_POR_SECCION, tipoDeBytes, medidasDeBytes } from "./modelo-imagenes.js";
 import zlib from "zlib";
 import { referenciaDe, AVISO_REFERENCIA } from "./modelo-referencias.js";
-import { cierreSeccion, textosPermitidos, promptRevisarImagen, problemasDeTextos, promptAd, bloqueProhibidos, construirBloqueEstilo, SISTEMA_LANDING } from "./prompts-landing.js";
+import { cierreSeccion, textosPermitidos, promptRevisarImagen, problemasDeTextos, promptAd, cierreAd, construirBloqueEstilo, SISTEMA_LANDING } from "./prompts-landing.js";
 import { ESTRUCTURAS_AD, FORMATOS_AD } from "./public/js/core/anuncios.js";
 import { ofertaDe } from "./public/js/core/oferta.js";
 import { variantesDe, colorDeSeccion, PORTADAS_V } from "./public/js/core/variantes.js";
@@ -258,9 +258,13 @@ export function registrarRutasIAImagenes(app, { cargarRama, guardarRama, actuali
         if (!crudo) return res.status(502).json({ error: "La IA no devolvió el prompt del anuncio" });
         ad = { ...ad, prompt: crudo.slice(0, 6000) };
       }
+      // Precio, promo y prohibidos al día con la Ficha (aunque el prompt sea viejo o lo hayas editado)
+      ad = { ...ad, prompt: cierreAd(ad.prompt, x.vista, ad).slice(0, 7000) };
+      const o = ofertaDe(x.p.ficha || {}, x.p.pais === "EC" ? "EC" : "CO");
+      const unidades = ["2x1", "xy"].includes(o.tipo) ? o.unidades : 1;
       const r = await pedirImagen({
         prompt: armarPrompt({
-          bloqueEstilo: bloque, prompt: `${ad.prompt}\n\n${bloqueProhibidos(x.vista)}`, referencias: fotos.length, fotosConTexto,
+          bloqueEstilo: bloque, prompt: ad.prompt, referencias: fotos.length, fotosConTexto, unidades,
           descripcion: String(x.p.revision?.descripcionFisica || "").slice(0, 600) + (x.p.ficha?.medidas ? ` Medidas: ${String(x.p.ficha.medidas).slice(0, 120)}.` : ""),
           noTiene: [...(Array.isArray(x.p.revision?.noTiene) ? x.p.revision.noTiene : []), x.p.ficha?.noTiene].filter(Boolean).join("; ").slice(0, 300)
         }),
@@ -276,7 +280,7 @@ export function registrarRutasIAImagenes(app, { cargarRama, guardarRama, actuali
         tipo: r.tipo, datos: r.datos, bytes: r.datos.length, origen: "ia", ancho: r.ancho || null, alto: r.alto || null
       });
       const rama = await actualizarRama(x.p, x.av, (actual) => ({
-        ...actual, ads: (actual.ads || []).map(a => (a.id === ad.id ? { ...a, prompt: a.prompt || ad.prompt, hecha: true } : a))
+        ...actual, ads: (actual.ads || []).map(a => (a.id === ad.id ? { ...a, prompt: ad.prompt, hecha: true } : a))
       }));
       res.json({ imagen: metaImagen(nueva), ad: (rama?.ads || []).find(a => a.id === ad.id) || { ...ad, hecha: true }, gasto: await estadoGasto(req.user.uid) });
     } catch (err) {
