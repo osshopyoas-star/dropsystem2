@@ -1469,9 +1469,11 @@ export const PALETAS_AD = [
   "fondo amarillo fuerte, titulares negros, acentos rojos",
   "foto a sangre con degradado oscuro abajo, titulares blancos enormes y un acento neón"
 ];
-// Llamado a la acción: un botón DIBUJADO en cada anuncio (menos E13, que es solo una frase)
+// Llamado a la acción: botón DIBUJADO solo en las estructuras de venta directa (más o menos la mitad);
+// las de foto, editorial, comparación o pregunta van sin botón para que la tanda no se vea igual
 export const CTAS_AD = ["PÍDELO HOY", "QUIERO EL MÍO", "PAGA AL RECIBIR", "COMPRA AQUÍ", "PÍDELO YA", "LO QUIERO"];
-const ctaDe = (ad) => (ad.estructura === "e13" ? "" : CTAS_AD[((Number(ad.paleta) || 0) % CTAS_AD.length + CTAS_AD.length) % CTAS_AD.length]);
+export const CON_BOTON_AD = new Set(["e3", "e4", "e9", "e10", "e11", "e12", "e15", "e16", "e17"]);
+const ctaDe = (ad) => (!CON_BOTON_AD.has(ad.estructura) ? "" : CTAS_AD[((Number(ad.paleta) || 0) % CTAS_AD.length + CTAS_AD.length) % CTAS_AD.length]);
 export function estiloAd(p, ad = null) {
   if (ad && Number.isInteger(ad.paleta)) {
     return `ESTILO VISUAL DE ESTE ANUNCIO (propio, NO el de la landing): ${PALETAS_AD[((ad.paleta % PALETAS_AD.length) + PALETAS_AD.length) % PALETAS_AD.length]}. COMPRA POR IMPULSO: mucho contraste, titulares gruesos enormes con efecto (sombra, borde o brillo), se entiende en 1 segundo. FOTOGRAFÍA REAL (no dibujo ni 3D). El PRODUCTO conserva sus colores reales de las fotos (la paleta es solo fondo, letras y sellos). La composición es la de la ESTRUCTURA.`;
