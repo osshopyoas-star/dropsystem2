@@ -1448,9 +1448,27 @@ export function repartoAd(p, ad = {}, ads = []) {
   const pose = ad.estructura === "e17" ? "de frente MIRANDO A LA CÁMARA, sosteniendo el producto con las dos manos cerca de la cara"
     : ad.estructura === "e7" ? "la MISMA persona en las dos mitades: en el problema con cara de molestia y en la solución con cara de alivio"
     : ad.estructura === "e3" ? (k % 2 ? "de perfil caminando con el producto puesto" : "de frente usando el producto, medio plano")
+    : /morral|mochila/i.test(categoriaProducto(p).join(" ")) && k % 2 === 0 ? "de FRENTE con el morral colgado de UN solo hombro, mirando a la cámara"
     : POSES[k % POSES.length];
   return `PERSONA Y ESCENA: ${quien}. Pose: ${pose}. Lugar: ${lugar}. Ropa: ${OUTFITS[k % 3]}. NUNCA de espaldas ni mirando por encima del hombro. NO copies la persona, la pose ni la ropa de las fotos adjuntas.`;
 }
+// Estilo para anuncios: SOLO paleta y letra. La composición la manda la estructura (el bloque de la landing
+// trae "tarjetas, íconos y recursos que se repiten en todas las imágenes" y hacía todos los anuncios iguales)
+export function estiloAd(p) {
+  const e = p?.estilo || {};
+  const cf = coloresFijos(p);
+  const c = (k) => limpiarFuentes(String((cf ? cf[k] : e[k]) || "")).trim();
+  const colores = [["fondo", "fondo"], ["color1", "titular línea 1"], ["color2", "titular línea 2"], ["acento", "acento"]].map(([k, t]) => (c(k) ? `${t}: ${c(k)}` : "")).filter(Boolean).join("; ");
+  return `ESTILO VISUAL (solo colores y letra; la composición es la de la ESTRUCTURA): ${colores || "colores del producto"}${e.tipografia ? `; letra ${limpiarFuentes(e.tipografia)}` : ""}. FOTOGRAFÍA REAL (no dibujo ni 3D). Ignora cualquier diseño fijo de tarjetas o íconos: cada anuncio se arma distinto según su estructura.`;
+}
+const RE_RELLENO_AD = /pago seguro|compra\s+(?:100\s?%\s*)?segura|calidad premium|material(?:\s+\w+)?\s+premium|env[ií]o (?:seguro|r[aá]pido)|garantizad|alta calidad|premium/i;
+const CATEGORIAS = [["morral", "mochila", "bolso", "cartera", "maleta", "bolsa"], ["zapato", "tenis", "zapatilla", "calzado"], ["camiseta", "camisa", "blusa"], ["reloj"], ["almohada", "cojin"]];
+function categoriaProducto(p) {
+  const txt = normalizarTxt(`${descripcionObjeto(p)} ${p?.ficha?.descripcion || ""} ${p?.nombre || ""}`).split(" ").slice(0, 25);
+  const g = CATEGORIAS.find(gr => gr.some(w => txt.some(t => t.startsWith(w))));
+  return g || [];
+}
+const BARRA_AD = new Set(["e4", "e9", "e12", "e15"]);
 // Bloque fijo: tipo de anuncio + su composición numerada (la IA no la puede cambiar)
 export function bloqueEstructuraAd(ad = {}) {
   const r = ESTRUCTURAS_AD[ad.estructura];
@@ -1471,22 +1489,27 @@ export function cierreAd(texto, p, ad = {}, ads = []) {
   const sec = { id: `ad-${ad.id || ""}`, tipo: ad.precio ? tipoAd(p) : "ad_sin_precio" };
   // Lo que pega el código se rehace siempre
   let base = String(texto || "").split("\n").filter(l => l.trim() !== LINEA_SOLO_TEXTOS && !/^Los únicos textos/.test(l.trim())).join("\n")
-    .replace(/(^|\n+)(TIPO DE ANUNCIO|PERSONA Y ESCENA|PRODUCTO:|VARIANTES EN ESTA SECCIÓN|OFERTA EN ESTA SECCIÓN|PRECIO \(cópialo EXACTO|PROHIBIDO EN ESTA IMAGEN|PROHIBIDO:|SIN BARRA DE CONFIANZA|TEXTOS QUE NO DEBEN SALIR|MARGEN ABAJO)[\s\S]*?(?=\n\n|$)/g, "").trim();
+    .replace(/(^|\n+)(TIPO DE ANUNCIO|ESTILO VISUAL|PERSONA Y ESCENA|PRODUCTO:|VARIANTES EN ESTA SECCIÓN|OFERTA EN ESTA SECCIÓN|PRECIO \(cópialo EXACTO|PROHIBIDO EN ESTA IMAGEN|PROHIBIDO:|SIN BARRA DE CONFIANZA|TEXTOS QUE NO DEBEN SALIR|MARGEN ABAJO)[\s\S]*?(?=\n\n|$)/g, "").trim();
   // Textos: el titular elegido (nunca el nombre del producto, del estilo ni la promo salvo E9/E11)
   const estilo = String(p?.estilo?.nombre || "").trim();
   const conPromo = ad.precio && ["e9", "e11", "e10"].includes(ad.estructura);
   const conFecha = ad.estructura === "e12" && ad.fecha;
+  const cat = categoriaProducto(p);
   base = base.split("\n").map(l => {
     if (!/[“"]/.test(l)) return l;
     let out = l.replace(/[“"]([^“"”]*)[”"](\s*\([^)]{0,60}\))?/g, (m, t) => {
       if (estilo && normalizarTxt(t).includes(normalizarTxt(estilo))) return "";
+      if (RE_RELLENO_AD.test(t)) return "";
+      if (/^\s*-?\s*(Titular|Gancho)/i.test(l) && cat.some(w => normalizarTxt(t).split(" ").some(x => x.startsWith(w)))) return "";
       if (usaNombreProducto({ l1: t }, p?.nombre) && /^\s*-?\s*(Titular|Gancho)/i.test(l)) return "";
       if (!conPromo && !/^\s*-?\s*\[?PRECIO/i.test(t) && RE_PROMO.test(t) && !ad.precio) return "";
       if (!ad.precio && /\$|\d\s?%|cada uno|c\/u|ahorra|antes\b|\bpor solo\b|\ba solo\b/i.test(t)) return "";
       if (!conFecha && RE_FECHAS.test(t)) return "";
       return m;
     }).replace(/:\s*(?:[·/,]\s*)+/g, ": ").replace(/\s*[·/,]\s*$/, "").trimEnd();
-    return /[“"][^“"”]*[A-Za-zÁÉÍÓÚÑáéíóúñ0-9][^“"”]*[”"]/.test(out) ? out : (/^\s*-?\s*(Titular|Gancho)/i.test(l) ? null : null);
+    // Si al titular le quitaron una de sus líneas, se va completo (no queda "CASUAL" solo)
+    if (/^\s*-?\s*(Titular|Gancho)/i.test(l) && (out.match(/[“"]/g) || []).length < (l.match(/[“"]/g) || []).length) return null;
+    return /[“"][^“"”]*[A-Za-zÁÉÍÓÚÑáéíóúñ0-9][^“"”]*[”"]/.test(out) ? out : null;
   }).filter(l => l !== null).join("\n");
   base = base.replace(/^(\s*-?\s*)Gancho(\s*:)/im, "$1Titular$2");
   base = conTitular(limpiarMontos(base, p, sec), { tipo: "ad", titular: ad.titular });
@@ -1504,11 +1527,15 @@ export function cierreAd(texto, p, ad = {}, ads = []) {
     estilo ? `el nombre del estilo ("${estilo}")` : "",
     !conFecha ? "fechas o temporadas (Black Friday, Navidad, Diciembre…)" : "",
     "marcas, logos o nombres de otras tiendas (aunque salgan en la referencia de diseño)",
+    `el nombre o tipo del producto como titular${cat.length ? ` (${cat.map(w => `"${w}"`).join(", ")})` : ""}`,
+    '"pago seguro", "compra segura", "calidad premium", "envío seguro" y cualquier sello que la Ficha no respalde',
+    BARRA_AD.has(ad.estructura) ? "" : "barra de confianza o fila de íconos abajo (esta estructura no la lleva)",
     "palabras inventadas o sin sentido"
   ].filter(Boolean);
   return [
     LINEA_SOLO_TEXTOS,
     bloqueEstructuraAd(ad) + (conFecha ? `\nFECHA DE ESTE ANUNCIO: "${FECHAS_TXT[ad.fecha] || ad.fecha}" (va en el titular).` : ""),
+    estiloAd(p),
     repartoAd(p, ad, ads),
     bloqueProductoAd(p, ad, ads),
     detalles,
@@ -1525,8 +1552,8 @@ export function promptAd(p, ad, avatar, estructura, formatoInfo, ads = []) {
 
 ${bloqueAvatar(avatar, "ESTE ANUNCIO LE HABLA AL AVATAR")}
 
-ESTILO DE LA MARCA (va aparte; NO lo repitas ni escribas su nombre en la imagen):
-${p.bloqueEstilo || construirBloqueEstilo(p)}
+${estiloAd(p)}
+(NO escribas el nombre del estilo en la imagen.)
 
 ANUNCIO A CREAR: imagen estática para Meta Ads, formato ${formatoInfo.nombre} (${formatoInfo.tamano}).
 ${bloqueEstructuraAd(ad)}

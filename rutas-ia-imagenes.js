@@ -283,7 +283,7 @@ export function registrarRutasIAImagenes(app, { cargarRama, guardarRama, actuali
       const unidades = ["2x1", "xy"].includes(o.tipo) ? o.unidades : 1;
       const r = await pedirImagen({
         prompt: armarPrompt({
-          bloqueEstilo: bloque, prompt: ad.prompt, referencias: fotos.length, fotosConTexto, fotosConPersona, unidades,
+          bloqueEstilo: "", prompt: ad.prompt, referencias: fotos.length, fotosConTexto, fotosConPersona, unidades,
           descripcion: descripcionObjeto(x.p).slice(0, 600) + (x.p.ficha?.medidas ? ` Medidas: ${String(x.p.ficha.medidas).slice(0, 120)}.` : ""),
           noTiene: [...(Array.isArray(x.p.revision?.noTiene) ? x.p.revision.noTiene : []), x.p.ficha?.noTiene].filter(Boolean).join("; ").slice(0, 300)
         }) + (ref ? `\n\nREFERENCIA DE DISEÑO: <IMAGE_${fotos.length}> es un anuncio ganador de otra tienda. ${AVISO_REF_AD}` : ""),

@@ -199,9 +199,10 @@ function limpiarCopys(c) {
 }
 
 // Ads estáticos: { id, estructura, formato, precio, nota, prompt, hecha }
+const AD_VIEJO_A_NUEVO = { informativo: "e5", antes_despues_columnas: "e7", antes_despues_franjas: "e7", hero_premium: "e1", caracteristicas: "e5", triple_producto: "e10", antes_vs_con: "e7", causa_real: "e14", problemas_solucion: "e8", anotado: "e5", chat_preguntas: "e14" };
 function limpiarAds(lista) {
   if (!Array.isArray(lista)) return [];
-  return lista.slice(0, MAX_ADS).filter(a => a && ESTRUCTURAS_AD[a.estructura]).map(a => ({
+  return lista.slice(0, MAX_ADS).map(a => (a && AD_VIEJO_A_NUEVO[a.estructura] ? { ...a, estructura: AD_VIEJO_A_NUEVO[a.estructura], prompt: "" } : a)).filter(a => a && ESTRUCTURAS_AD[a.estructura]).map(a => ({
     id: String(a.id || nuevoId()).slice(0, 20),
     estructura: a.estructura,
     formato: FORMATOS_AD[a.formato] ? a.formato : "4:5",
@@ -327,6 +328,7 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
     const ramas = p.ramas || {};
     const plantilla = await obtenerPlantilla(req.user.uid, p.formato, p.tipo);
     const r = estiloAlDia({ ...plano(p), numAvatares: 1, avatares: [avatar], plantilla }, { ...ramaVacia(), ...(ramas[av] || {}) });
+    if (Array.isArray(r.ads)) r.ads = limpiarAds(r.ads);
     if (p.formato !== "normal" && Array.isArray(r.secciones)) r.secciones = r.secciones.map(s => (s && s.formato !== "9:16" ? { ...s, formato: "9:16" } : s));
     // "vista": lo que ven los prompts = proyecto + trabajo de este avatar, como una sola landing
     const vista = { ...plano(p), ...r, numAvatares: 1, avatares: [avatar], plantilla };
@@ -441,7 +443,7 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
         if (!Array.isArray(r?.secciones)) continue;
         const secs = o.formato === "normal" ? r.secciones : r.secciones.map(s => (s && s.formato !== "9:16" ? { ...s, formato: "9:16" } : s));
         const vista = { ...o, ...r, secciones: secs, plantilla };
-        o.ramas[av] = { ...r, secciones: secs.map(s => (s?.prompt ? { ...s, prompt: cierreSeccion(s.prompt, vista, s) } : s)) };
+        o.ramas[av] = { ...r, ads: Array.isArray(r.ads) ? limpiarAds(r.ads) : r.ads, secciones: secs.map(s => (s?.prompt ? { ...s, prompt: cierreSeccion(s.prompt, vista, s) } : s)) };
       }
       return o;
     } catch (e) { console.warn("Proyecto: no se pudieron rehacer los bloques de los prompts:", e.message); return p; }
