@@ -46,6 +46,7 @@ export function renderSidebar() {
 
       ${seccion("Crear")}
       ${item("desarrollo", "sparkles", "Desarrollo")}
+      ${item("anuncios", "image", "Anuncios rápidos")}
       ${item("plantilla", "layout-template", "Mi plantilla")}
 
       ${seccion("Finanzas")}

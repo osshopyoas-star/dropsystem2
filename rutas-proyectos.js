@@ -61,7 +61,8 @@ const Mixed = mongoose.Schema.Types.Mixed;
 const proyectoSchema = new mongoose.Schema({
   owner: { type: mongoose.Schema.Types.ObjectId, ref: "Usuario", index: true },
   productoId: { type: mongoose.Schema.Types.ObjectId, ref: "Producto", index: true },
-  origen: { type: String, default: "" },        // dropi / importacion / laboratorio (copiado del producto)
+  origen: { type: String, default: "" },
+  soloAnuncios: { type: Boolean, default: false },   // creado desde "Anuncios rápidos" (producto para testear sin landing)        // dropi / importacion / laboratorio (copiado del producto)
   dropiId: { type: String, default: "" },
   nombre: { type: String, default: "" },
   pais: { type: String, enum: ["CO", "EC"], default: "CO" },
@@ -370,7 +371,7 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
       const filtro = { owner: req.user.uid };
       if (req.query.productoId && idValido(req.query.productoId)) filtro.productoId = req.query.productoId;
       const lista = await Proyecto.find(filtro)
-        .select("nombre pais formato tipo paso pasosRamas productoId origen dropiId vendio listo estilo.nombre actualizado creado")
+        .select("nombre pais formato tipo paso pasosRamas productoId origen dropiId vendio listo estilo.nombre actualizado creado soloAnuncios")
         .sort({ actualizado: -1 })
         .limit(100);
       res.json(lista);
@@ -421,7 +422,8 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
         pais: paisFinal,
         formato,
         tipo,
-        ficha
+        ficha,
+        soloAnuncios: !!req.body?.soloAnuncios
       });
       res.json(p);
     } catch (err) {

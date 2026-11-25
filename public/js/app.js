@@ -13,6 +13,7 @@ import "./modules/productos.js";
 import "./modules/desarrollo.js";
 import "./modules/calculadora.js";
 import "./modules/plantilla.js";
+import "./modules/anuncios-rapidos.js";
 import "./modules/integraciones.js";
 import "./modules/testeos.js";
 import "./modules/finanzas.js";
