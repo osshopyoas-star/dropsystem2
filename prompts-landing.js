@@ -1469,6 +1469,9 @@ export const PALETAS_AD = [
   "fondo amarillo fuerte, titulares negros, acentos rojos",
   "foto a sangre con degradado oscuro abajo, titulares blancos enormes y un acento neón"
 ];
+// Llamado a la acción: un botón DIBUJADO en cada anuncio (menos E13, que es solo una frase)
+export const CTAS_AD = ["PÍDELO HOY", "QUIERO EL MÍO", "PAGA AL RECIBIR", "COMPRA AQUÍ", "PÍDELO YA", "LO QUIERO"];
+const ctaDe = (ad) => (ad.estructura === "e13" ? "" : CTAS_AD[((Number(ad.paleta) || 0) % CTAS_AD.length + CTAS_AD.length) % CTAS_AD.length]);
 export function estiloAd(p, ad = null) {
   if (ad && Number.isInteger(ad.paleta)) {
     return `ESTILO VISUAL DE ESTE ANUNCIO (propio, NO el de la landing): ${PALETAS_AD[((ad.paleta % PALETAS_AD.length) + PALETAS_AD.length) % PALETAS_AD.length]}. COMPRA POR IMPULSO: mucho contraste, titulares gruesos enormes con efecto (sombra, borde o brillo), se entiende en 1 segundo. FOTOGRAFÍA REAL (no dibujo ni 3D). El PRODUCTO conserva sus colores reales de las fotos (la paleta es solo fondo, letras y sellos). La composición es la de la ESTRUCTURA.`;
@@ -1534,12 +1537,21 @@ export function cierreAd(texto, p, ad = {}, ads = []) {
     if (/^\s*-?\s*(Titular|Gancho)/i.test(l) && (out.match(/[“"]/g) || []).length < (l.match(/[“"]/g) || []).length) return null;
     return /[“"][^“"”]*[A-Za-zÁÉÍÓÚÑáéíóúñ0-9][^“"”]*[”"]/.test(out) ? out : null;
   }).filter(l => l !== null).join("\n");
+  base = base.split("\n").filter(l => !/^\s*-?\s*(Bot[oó]n|CTA)\s*[:(]/i.test(l)).join("\n");
   base = base.replace(/^(\s*-?\s*)Gancho(\s*:)/im, "$1Titular$2");
   base = conTitular(limpiarMontos(base, p, sec), { tipo: "ad", titular: ad.titular });
   // TEXTOS va al final del cuerpo
   const t = textosAlFinal(base);
   const detalles = typeof t === "string" ? t : t.cuerpo;
-  const textos = typeof t === "string" ? "" : t.bloque;
+  const adP = { ...ad, paleta: Number.isInteger(ad.paleta) ? ad.paleta : Math.max(0, (ads || []).findIndex(a => a.id === ad.id)) };
+  const cta = ctaDe(adP);
+  const lineaCta = cta ? `Botón: "${cta}" (BOTÓN DIBUJADO: rectángulo redondeado del color de acento, con sombra, letras grandes y una flecha o una mano señalando; va abajo, encima del margen, bien visible)` : "";
+  let textos = typeof t === "string" ? "" : t.bloque;
+  if (lineaCta) {
+    if (!textos) textos = `TEXTOS (exactos):\n${lineaCta}`;
+    else if (/\nNo escribas ningún otro texto/.test(textos)) textos = textos.replace(/\n(No escribas ningún otro texto)/, `\n${lineaCta}\n$1`);
+    else textos = `${textos.trimEnd()}\n${lineaCta}`;
+  }
   const o = ofertaDe(p?.ficha || {}, p?.pais === "EC" ? "EC" : "CO");
   const portada = { id: sec.id, tipo: tipoAd(p) };
   const oferta = ad.precio ? bloqueOferta(p, portada) : "";
@@ -1558,7 +1570,7 @@ export function cierreAd(texto, p, ad = {}, ads = []) {
   return [
     LINEA_SOLO_TEXTOS,
     bloqueEstructuraAd(ad, p) + (conFecha ? `\nFECHA DE ESTE ANUNCIO: "${FECHAS_TXT[ad.fecha] || ad.fecha}" (va en el titular).` : ""),
-    estiloAd(p, { ...ad, paleta: Number.isInteger(ad.paleta) ? ad.paleta : Math.max(0, (ads || []).findIndex(a => a.id === ad.id)) }),
+    estiloAd(p, adP),
     repartoAd(p, ad, ads),
     bloqueProductoAd(p, ad, ads),
     detalles,
@@ -1608,7 +1620,8 @@ TAREA: Propón 3 TITULARES para cada anuncio de esta tanda (2 líneas cada uno, 
 ${ads.map(a => { const r = ESTRUCTURAS_AD[a.estructura] || {}; return `- id "${a.id}" · ${r.cod || ""} ${r.nombre || a.estructura}: ${r.desc || ""}${a.estructura === "e12" && a.fecha ? ` Fecha: ${FECHAS_TXT[a.fecha] || a.fecha}.` : ""}${a.estructura === "e8" ? " Titular tipo 'Compara…'." : ""}${a.estructura === "e14" ? " Titular: una pregunta o situación cotidiana del cliente." : ""}`; }).join("\n")}
 
 REGLAS:
-- De beneficio, emoción, identidad o situación, en español de ${(PAISES[p.pais] || PAISES.CO).nombre}. Que se lea en 2 segundos.
+- Son GANCHOS QUE PARAN EL SCROLL: en 1 segundo la persona tiene que sentir "eso es conmigo" o "¿cómo así?". Usa ángulos distintos en cada uno: curiosidad ("Nadie te dice esto de…"), contraste ("Parece cartera, es morral"), situación concreta del día a día ("El bus a las 6 pm…"), identidad ("Para la que lleva todo encima"), reto o mito ("Deja de cargar…"), pregunta directa a la situación (no a la persona).
+- Palabras de la calle en español de ${(PAISES[p.pais] || PAISES.CO).nombre}, concretas y visuales; nada genérico como "tu nuevo estilo", "elegancia diaria" o "calidad premium".
 - NUNCA el nombre del producto ("${limpio(String(p.nombre || "").replace(/\d+/g, "").trim(), 80)}")${estilo ? `, NUNCA el nombre del estilo ("${estilo}")` : ""}, sin precios ni porcentajes.
 - La promo (2x1, descuentos) solo en los titulares de E9 y E11. Fechas solo en E12.
 - Ningún titular se repite ni se parece a otro de la tanda.
