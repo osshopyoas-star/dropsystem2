@@ -277,6 +277,8 @@ export function registrarRutasIAImagenes(app, { cargarRama, guardarRama, actuali
         if (!crudo) return res.status(502).json({ error: "La IA no devolvió el prompt del anuncio" });
         ad = { ...ad, prompt: crudo.slice(0, 6000) };
       }
+      // Paleta propia: distinta en cada anuncio de la tanda y en cada versión nueva (Regenerar)
+      ad.paleta = Math.max(0, tanda.findIndex(a => a.id === ad.id)) + ya * 5;
       // Estructura, persona, producto, precio y prohibidos al día (aunque el prompt sea viejo o lo hayas editado)
       ad = { ...ad, prompt: cierreAd(ad.prompt, x.vista, ad, tanda).slice(0, 9000) };
       const o = ofertaDe(x.p.ficha || {}, x.p.pais === "EC" ? "EC" : "CO");

@@ -1454,7 +1454,25 @@ export function repartoAd(p, ad = {}, ads = []) {
 }
 // Estilo para anuncios: SOLO paleta y letra. La composición la manda la estructura (el bloque de la landing
 // trae "tarjetas, íconos y recursos que se repiten en todas las imágenes" y hacía todos los anuncios iguales)
-export function estiloAd(p) {
+// Paletas de COMPRA POR IMPULSO: cada anuncio (y cada versión nueva) sale con una distinta, no con la de la landing
+export const PALETAS_AD = [
+  "fondo rojo intenso, titulares blancos y amarillo, sellos amarillos",
+  "fondo negro, titulares dorados y blancos, detalles dorados brillantes",
+  "fondo azul eléctrico, titulares blancos, acentos amarillo limón",
+  "fondo rosa fucsia, titulares blancos, acentos negros",
+  "fondo blanco limpio, titulares negros, acentos rojo fuerte",
+  "fondo naranja vibrante, titulares azul marino y blancos",
+  "fondo morado profundo, titulares blancos, acentos amarillos",
+  "fondo verde lima, titulares negros, acentos blancos",
+  "fondo crema cálido, titulares terracota y negro, acentos dorados",
+  "fondo turquesa, titulares blancos, acentos coral",
+  "fondo amarillo fuerte, titulares negros, acentos rojos",
+  "foto a sangre con degradado oscuro abajo, titulares blancos enormes y un acento neón"
+];
+export function estiloAd(p, ad = null) {
+  if (ad && Number.isInteger(ad.paleta)) {
+    return `ESTILO VISUAL DE ESTE ANUNCIO (propio, NO el de la landing): ${PALETAS_AD[((ad.paleta % PALETAS_AD.length) + PALETAS_AD.length) % PALETAS_AD.length]}. COMPRA POR IMPULSO: mucho contraste, titulares gruesos enormes con efecto (sombra, borde o brillo), se entiende en 1 segundo. FOTOGRAFÍA REAL (no dibujo ni 3D). El PRODUCTO conserva sus colores reales de las fotos (la paleta es solo fondo, letras y sellos). La composición es la de la ESTRUCTURA.`;
+  }
   const e = p?.estilo || {};
   const cf = coloresFijos(p);
   const c = (k) => limpiarFuentes(String((cf ? cf[k] : e[k]) || "")).trim();
@@ -1540,7 +1558,7 @@ export function cierreAd(texto, p, ad = {}, ads = []) {
   return [
     LINEA_SOLO_TEXTOS,
     bloqueEstructuraAd(ad, p) + (conFecha ? `\nFECHA DE ESTE ANUNCIO: "${FECHAS_TXT[ad.fecha] || ad.fecha}" (va en el titular).` : ""),
-    estiloAd(p),
+    estiloAd(p, { ...ad, paleta: Number.isInteger(ad.paleta) ? ad.paleta : Math.max(0, (ads || []).findIndex(a => a.id === ad.id)) }),
     repartoAd(p, ad, ads),
     bloqueProductoAd(p, ad, ads),
     detalles,
@@ -1557,7 +1575,7 @@ export function promptAd(p, ad, avatar, estructura, formatoInfo, ads = []) {
 
 ${bloqueAvatar(avatar, "ESTE ANUNCIO LE HABLA AL AVATAR")}
 
-${estiloAd(p)}
+${estiloAd(p, { ...ad, paleta: Number.isInteger(ad.paleta) ? ad.paleta : Math.max(0, ads.findIndex(a => a.id === ad.id)) })}
 (NO escribas el nombre del estilo en la imagen.)
 
 ANUNCIO A CREAR: imagen estática para Meta Ads, formato ${formatoInfo.nombre} (${formatoInfo.tamano}).
