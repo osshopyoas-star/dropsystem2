@@ -9,6 +9,7 @@ import { limpiarFuentes } from "./public/js/core/fuentes.js";
 import { SECCIONES, FORMATOS, varianteDe, tiposDe, claveDe, ACABADOS, ETAPAS_AIDA, etapaDe, ORDEN_BASE, llevaBarra } from "./public/js/core/plantilla.js";
 import { cifraPrueba } from "./public/js/core/finanzas.js";
 import { ofertaDe } from "./public/js/core/oferta.js";
+import { ESTRUCTURAS_AD } from "./public/js/core/anuncios.js";
 import { variantesDe, variantesTexto, colorDeSeccion, PORTADAS_V, SECCION_VARIANTES } from "./public/js/core/variantes.js";
 
 const limpio = (v, max = 3000) => String(v ?? "").slice(0, max).trim();
@@ -876,7 +877,18 @@ export function textosPermitidos(prompt) {
   const sinProhibidos = String(prompt || "").replace(/\n+TEXTOS QUE NO DEBEN SALIR[\s\S]*?(?=\n\n|$)/g, "");
   return [...new Set([...sinProhibidos.matchAll(/[“"]([^“"”\n]{1,120})[”"]/g)].map(m => m[1].trim()).filter(Boolean))].slice(0, 80);
 }
-export function promptRevisarImagen(permitidos) {
+export function promptRevisarImagen(permitidos, estructura = null) {
+  if (estructura) return `Mira esta imagen de un anuncio de ventas en español.
+1. Lee TODOS los textos que aparecen en la imagen, exactamente como están escritos (aunque estén mal escritos), uno por elemento.
+2. Marca como "raro" cualquier texto con palabras que no existen en español, letras sin sentido, errores de ortografía o que no se parezca a ninguno de los TEXTOS PERMITIDOS.
+3. Di si la imagen SÍ tiene la estructura "${estructura.nombre}": ${(estructura.bloques || []).join(" ")} Responde composicion_ok true o false y por qué en pocas palabras.
+4. Lista las marcas, logos o nombres de tiendas que se vean (que no sean parte de los TEXTOS PERMITIDOS).
+
+TEXTOS PERMITIDOS:
+${permitidos.map(t => `- "${t}"`).join("\n") || "(ninguno)"}
+
+Responde SOLO este JSON válido:
+{ "textos": [], "raros": [], "composicion_ok": true, "por_que": "", "marcas": [] }`;
   return `Mira esta imagen de una landing de ventas en español.
 1. Lee TODOS los textos que aparecen en la imagen, exactamente como están escritos (aunque estén mal escritos o no tengan sentido), uno por elemento.
 2. Compáralos con los TEXTOS PERMITIDOS de abajo. Marca como "raro" cualquier texto con palabras que no existen en español, letras sin sentido (ej. "Cazal na ari"), errores de ortografía, o que no se parezca a ninguno de los permitidos. Los nombres de marcas de transportadoras, los íconos y los números de la barra de confianza no son raros.
@@ -1019,7 +1031,7 @@ export function limpiarMontos(texto, p, seccion = {}) {
 const SIN_PERSONAS = new Set(["detalles", "moda_material", "moda_ficha", "por_que_aqui", "moda_por_que", "que_incluye", "foto_real", "resenas", "moda_chats", "resumen_resenas", "numeros_reales", "preguntas", "confianza", "tamano_variantes", "moda_guia_tallas", "galeria"]);
 const PLANOS = ["cuerpo entero en acción", "medio plano con emoción", "primer plano de las manos usando el producto", "plano general del lugar con la persona pequeña al fondo", "plano 3/4 caminando"];
 // Poses que se reparten entre las secciones con persona (ninguna se repite; nunca de espaldas)
-const POSES = [
+export const POSES = [
   "de FRENTE caminando hacia la cámara, cuerpo entero",
   "SENTADA (en un café, una banca o un escalón), relajada, de frente o 3/4",
   "primer plano de las MANOS abriendo o usando el producto (sin cara)",
@@ -1028,7 +1040,7 @@ const POSES = [
   "3/4 de frente en movimiento (subiendo una escalera, bajando de un bus, cruzando la calle)",
   "de pie en una mesa o mostrador, sacando algo del producto"
 ];
-const OUTFITS = [
+export const OUTFITS = [
   "OUTFIT 1: camiseta de color liso (no blanca) y pantalón de tela beige",
   "OUTFIT 2: chaqueta de jean o blazer de color sobre una prenda lisa, pantalón oscuro",
   "OUTFIT 3: suéter tejido de color cálido (mostaza, verde oliva o vinotinto) y pantalón negro",
@@ -1415,62 +1427,145 @@ Responde SOLO este JSON válido:
 // ---------- Anuncios: prompt de un ad estático ----------
 // El anuncio se comporta como la portada: misma oferta (2x1, paquetes, regalo), mismos precios armados por el código
 const tipoAd = (p) => (p?.tipo === "moda" ? "moda_portada" : "oferta");
-export function cierreAd(texto, p, ad = {}) {
-  const sec = { id: `ad-${ad.id || ""}`, tipo: ad.precio === false ? "ad_sin_precio" : tipoAd(p) };
-  const base = String(texto || "").replace(/\n+(VARIANTES EN ESTA SECCIÓN|OFERTA EN ESTA SECCIÓN|PRECIO \(cópialo EXACTO|PROHIBIDO EN ESTA IMAGEN|SIN BARRA DE CONFIANZA|TEXTOS QUE NO DEBEN SALIR)[\s\S]*?(?=\n\n|$)/g, "");
-  // El gancho nunca es el nombre del producto: se cambia por el titular de la portada (o se quita)
-  const nombre = { l1: String(p?.nombre || "") };
-  const portadaSec = (p?.secciones || []).find(s => PORTADAS.has(s.tipo));
-  const tit = limpiarTitular(portadaSec?.titular) || limpiarTitular((portadaSec?.titulares || [])[0]);
-  const sinNombre = base.split("\n").map(l => {
-    const m = l.match(/^(\s*-?\s*(?:Gancho|Titular)[^:]{0,30}:\s*)[“"]([^“"”]+)[”"](.*)$/i);
-    if (!m || !usaNombreProducto({ l1: m[2] }, nombre.l1)) return l;
-    return tit ? `${m[1]}"${tit.l1}${tit.l2 ? ` ${tit.l2}` : ""}"${m[3]}` : null;
-  }).filter(l => l !== null).join("\n");
-  const limpio = limpiarMontos(sinNombre, p, sec).trimEnd();
-  const portada = { id: sec.id, tipo: tipoAd(p) };
-  const o = ofertaDe(p?.ficha || {}, p?.pais === "EC" ? "EC" : "CO");
-  const oferta = bloqueOferta(p, portada), variantes = bloqueVariantes(p, portada);
-  const precio = ad.precio === false
-    ? `PROHIBIDO EN ESTA IMAGEN: precios, signos de dinero ($), "antes" tachado y cajas de precio${o.tipo !== "descuento" && o.textos.sello ? `. El único sello permitido es "${o.textos.sello}"` : ", porcentajes y sellos de descuento"}.`
-    : bloquePrecio(p, portada);
-  return `${limpio}${variantes ? `\n\n${variantes}` : ""}${oferta ? `\n\n${oferta}` : ""}\n\n${precio}\n\n${bloqueProhibidos(p)}`;
+// ---------- ANUNCIOS ESTÁTICOS: cada estructura es una receta fija (public/js/core/anuncios.js) ----------
+const LUGARES_AD = ["una calle con luz de tarde", "un café con ventanal", "la sala de una casa luminosa", "un parque con árboles", "una oficina moderna", "la terraza de un edificio", "un centro comercial al aire libre", "la entrada de una casa"];
+const TONOS_AD = { elegante: "ELEGANTE Y LIMPIO: fondo claro o liso, mucho aire, pocas cosas y letra fina o con serifa.", comercial: "COMERCIAL CON COLOR: colores fuertes, sellos, íconos y letra gruesa que se lee de lejos.", foto: "FOTO REAL O EDITORIAL: la foto manda, pocos elementos gráficos, luz natural de cine." };
+const FECHAS_TXT = { black_friday: "Black Friday", navidad: "Navidad", madres: "Día de la Madre", padres: "Día del Padre", amor_amistad: "Amor y Amistad", regreso_clases: "Regreso a clases" };
+const RE_FECHAS = /black\s*friday|navid|navideñ|diciembre|d[ií]a de la madre|d[ií]a del padre|amor y amistad|regreso a clases|temporada/i;
+const RE_PROMO = /\b2\s?x\s?1\b|\b\d\s?x\s?\d\b|paga\s+\d\s*(?:y\s*)?lleva\s+\d|lleva\s+\d\s*(?:y\s*)?paga\s+\d|compra\s+\d\s+y\s+lleva|gratis\b|descuento|oferta|\bofert/i;
+const avatarEsMujer = (av) => /\b(mujer|mam[aá]|señora|chica|ella|femenin)/i.test(String(av?.quien || "")) && !/\b(hombre|pap[aá]|señor\b)/i.test(String(av?.quien || ""));
+const avatarEsHombre = (av) => /\b(hombre|pap[aá]|señor\b|chico)/i.test(String(av?.quien || "")) && !/\b(mujer|mam[aá])/i.test(String(av?.quien || ""));
+// Persona, pose, plano, escena y ropa de este anuncio (rotan entre los anuncios con persona de la tanda)
+export function repartoAd(p, ad = {}, ads = []) {
+  const r = ESTRUCTURAS_AD[ad.estructura] || {};
+  const av = (p?.avatares || [])[0] || {};
+  const conPersona = (ads.length ? ads : [ad]).filter(a => (ESTRUCTURAS_AD[a.estructura]?.persona || "opcional") !== "no");
+  const k = Math.max(0, conPersona.findIndex(a => a.id === ad.id));
+  const quien = `${limpio(av.quien, 160) || "una persona del público del producto"}${avatarEsMujer(av) ? ". Es MUJER: NO sale ningún hombre usando el producto" : avatarEsHombre(av) ? ". Es HOMBRE: NO sale ninguna mujer usando el producto" : ""}`;
+  const lugar = LUGARES_AD[(k + (ads.findIndex(a => a.id === ad.id) || 0)) % LUGARES_AD.length];
+  if (r.persona === "no") return `PERSONA Y ESCENA: SIN PERSONAS (ni manos ni siluetas): solo el producto.`;
+  if (r.persona === "parcial") return `PERSONA Y ESCENA: solo una parte de la persona (manos, piernas o pies) usando el producto, SIN cara. ${quien}. Lugar: ${lugar}. Ropa: ${OUTFITS[k % 3]}.`;
+  const pose = ad.estructura === "e17" ? "de frente MIRANDO A LA CÁMARA, sosteniendo el producto con las dos manos cerca de la cara"
+    : ad.estructura === "e7" ? "la MISMA persona en las dos mitades: en el problema con cara de molestia y en la solución con cara de alivio"
+    : ad.estructura === "e3" ? (k % 2 ? "de perfil caminando con el producto puesto" : "de frente usando el producto, medio plano")
+    : POSES[k % POSES.length];
+  return `PERSONA Y ESCENA: ${quien}. Pose: ${pose}. Lugar: ${lugar}. Ropa: ${OUTFITS[k % 3]}. NUNCA de espaldas ni mirando por encima del hombro. NO copies la persona, la pose ni la ropa de las fotos adjuntas.`;
 }
-export function promptAd(p, ad, avatar, estructura, formatoInfo) {
-  const o = ofertaDe(p.ficha || {}, p.pais === "EC" ? "EC" : "CO");
-  const promo = ["2x1", "xy"].includes(o.tipo);
+// Bloque fijo: tipo de anuncio + su composición numerada (la IA no la puede cambiar)
+export function bloqueEstructuraAd(ad = {}) {
+  const r = ESTRUCTURAS_AD[ad.estructura];
+  if (!r) return "";
+  return `TIPO DE ANUNCIO: ${r.cod ? `${r.cod} · ` : ""}${r.nombre}. ${TONOS_AD[r.tono] || ""}
+ESTRUCTURA OBLIGATORIA, de arriba hacia abajo (respeta TODOS los bloques y su orden; no la conviertas en "persona + caja de precio + 3 íconos"):
+${(r.bloques || [r.desc]).map((b, i) => `${i + 1}) ${b}`).join("\n")}`;
+}
+function bloqueProductoAd(p, ad, ads) {
+  const f = p?.ficha || {};
+  const { colores } = variantesDe(f);
+  const i = Math.max(0, (ads || []).findIndex(a => a.id === ad.id));
+  const color = colores.length > 1 ? (ad.precio && ["e9", "e10"].includes(ad.estructura) ? ` Unidades de colores distintos: ${colores.slice(0, 2).map(c => c.nombre).join(" y ")}.` : ` En este anuncio va en color ${colores[i % colores.length].nombre.toUpperCase()}${colores.length > 1 && ["e1", "e2", "e16"].includes(ad.estructura) ? ` (si cabe, muestra también los otros colores con su nombre: ${colores.map(c => `"${c.nombre}"`).join(", ")})` : ""}.`) : "";
+  return `PRODUCTO: usa EXACTAMENTE el producto de las fotos adjuntas (solo el objeto): ${String(limpio(descripcionObjeto(p) || f.descripcion, 900) || "(ver fotos)").replace(/\.+$/, "")}.${color} Tamaño real: ${limpio(f.medidas || p?.revision?.tamano, 120) || "el de las fotos"}; nunca lo agrandes.`;
+}
+export function cierreAd(texto, p, ad = {}, ads = []) {
+  const r = ESTRUCTURAS_AD[ad.estructura] || {};
+  const sec = { id: `ad-${ad.id || ""}`, tipo: ad.precio ? tipoAd(p) : "ad_sin_precio" };
+  // Lo que pega el código se rehace siempre
+  let base = String(texto || "").split("\n").filter(l => l.trim() !== LINEA_SOLO_TEXTOS && !/^Los únicos textos/.test(l.trim())).join("\n")
+    .replace(/(^|\n+)(TIPO DE ANUNCIO|PERSONA Y ESCENA|PRODUCTO:|VARIANTES EN ESTA SECCIÓN|OFERTA EN ESTA SECCIÓN|PRECIO \(cópialo EXACTO|PROHIBIDO EN ESTA IMAGEN|PROHIBIDO:|SIN BARRA DE CONFIANZA|TEXTOS QUE NO DEBEN SALIR|MARGEN ABAJO)[\s\S]*?(?=\n\n|$)/g, "").trim();
+  // Textos: el titular elegido (nunca el nombre del producto, del estilo ni la promo salvo E9/E11)
+  const estilo = String(p?.estilo?.nombre || "").trim();
+  const conPromo = ad.precio && ["e9", "e11", "e10"].includes(ad.estructura);
+  const conFecha = ad.estructura === "e12" && ad.fecha;
+  base = base.split("\n").map(l => {
+    if (!/[“"]/.test(l)) return l;
+    let out = l.replace(/[“"]([^“"”]*)[”"](\s*\([^)]{0,60}\))?/g, (m, t) => {
+      if (estilo && normalizarTxt(t).includes(normalizarTxt(estilo))) return "";
+      if (usaNombreProducto({ l1: t }, p?.nombre) && /^\s*-?\s*(Titular|Gancho)/i.test(l)) return "";
+      if (!conPromo && !/^\s*-?\s*\[?PRECIO/i.test(t) && RE_PROMO.test(t) && !ad.precio) return "";
+      if (!ad.precio && /\$|\d\s?%|cada uno|c\/u|ahorra|antes\b|\bpor solo\b|\ba solo\b/i.test(t)) return "";
+      if (!conFecha && RE_FECHAS.test(t)) return "";
+      return m;
+    }).replace(/:\s*(?:[·/,]\s*)+/g, ": ").replace(/\s*[·/,]\s*$/, "").trimEnd();
+    return /[“"][^“"”]*[A-Za-zÁÉÍÓÚÑáéíóúñ0-9][^“"”]*[”"]/.test(out) ? out : (/^\s*-?\s*(Titular|Gancho)/i.test(l) ? null : null);
+  }).filter(l => l !== null).join("\n");
+  base = base.replace(/^(\s*-?\s*)Gancho(\s*:)/im, "$1Titular$2");
+  base = conTitular(limpiarMontos(base, p, sec), { tipo: "ad", titular: ad.titular });
+  // TEXTOS va al final del cuerpo
+  const t = textosAlFinal(base);
+  const detalles = typeof t === "string" ? t : t.cuerpo;
+  const textos = typeof t === "string" ? "" : t.bloque;
+  const o = ofertaDe(p?.ficha || {}, p?.pais === "EC" ? "EC" : "CO");
+  const portada = { id: sec.id, tipo: tipoAd(p) };
+  const oferta = ad.precio ? bloqueOferta(p, portada) : "";
+  const precio = ad.precio
+    ? bloquePrecio(p, portada)
+    : `PROHIBIDO EN ESTA IMAGEN: precios, signos de dinero ($), porcentajes (%), "2x1", "paga 1 lleva 2", "antes" tachado, cajas de precio y sellos de oferta.`;
+  const extra = [
+    estilo ? `el nombre del estilo ("${estilo}")` : "",
+    !conFecha ? "fechas o temporadas (Black Friday, Navidad, Diciembre…)" : "",
+    "marcas, logos o nombres de otras tiendas (aunque salgan en la referencia de diseño)",
+    "palabras inventadas o sin sentido"
+  ].filter(Boolean);
+  return [
+    LINEA_SOLO_TEXTOS,
+    bloqueEstructuraAd(ad) + (conFecha ? `\nFECHA DE ESTE ANUNCIO: "${FECHAS_TXT[ad.fecha] || ad.fecha}" (va en el titular).` : ""),
+    repartoAd(p, ad, ads),
+    bloqueProductoAd(p, ad, ads),
+    detalles,
+    textos,
+    oferta,
+    precio,
+    `${bloqueProhibidos(p)} PROHIBIDO: ${extra.join(", ")}.`
+  ].filter(Boolean).join("\n\n");
+}
+export function promptAd(p, ad, avatar, estructura, formatoInfo, ads = []) {
+  const r = estructura || ESTRUCTURAS_AD[ad.estructura] || {};
+  const tit = limpiarTitular(ad.titular);
   return `${contextoProducto(p)}
 
 ${bloqueAvatar(avatar, "ESTE ANUNCIO LE HABLA AL AVATAR")}
-Escena y modelo: ${avatar?.escena || ""}
 
-El gancho de la imagen usa SUS palabras o la causa real (Atención + Interés): que quien lo vea piense "eso me pasa a mí".
-
-ESTILO DE LA MARCA (usa los mismos colores y tipografía; NO repitas este bloque):
+ESTILO DE LA MARCA (va aparte; NO lo repitas ni escribas su nombre en la imagen):
 ${p.bloqueEstilo || construirBloqueEstilo(p)}
 
-ANUNCIO A CREAR: imagen estática para Meta Ads / TikTok.
-- Estructura: "${estructura.nombre}": ${estructura.desc}
-- Formato: ${formatoInfo.nombre} (${formatoInfo.tamano}, ${formatoInfo.uso}). Escríbelo al inicio del prompt.
-- OFERTA: ${o.resumen || "precio normal"}${promo ? ` Este anuncio VENDE LA PROMO: muestra las ${o.unidades} unidades juntas${variantesTexto(p.ficha || {}) ? " (de colores distintos)" : ""} y el sticker "${o.textos.sello}" bien visible.` : ""}
-- ${ad.precio ? "Lleva el precio: pon una caja de precio y escribe en TEXTOS solo \"[PRECIO]\" (los valores exactos los pega CoDropX al final; NUNCA escribas números de precio ni porcentajes tú)." : "NO muestres el precio."}
-- El gancho NUNCA es el nombre del producto ("${limpio(String(p.nombre || "").replace(/\d+/g, "").trim(), 80)}") ni frases del proveedor: es lo que GANA el cliente.
-${ad.nota ? `- Nota del dueño: ${limpio(ad.nota, 300)}` : ""}
+ANUNCIO A CREAR: imagen estática para Meta Ads, formato ${formatoInfo.nombre} (${formatoInfo.tamano}).
+${bloqueEstructuraAd(ad)}
+${repartoAd(p, ad, ads)}
+${tit ? `TITULAR YA ELEGIDO (úsalo EXACTO): "${tit.l1}"${tit.l2 ? ` / "${tit.l2}"` : ""}` : "El titular es de beneficio, emoción, identidad o situación; nunca el nombre del producto ni del estilo."}
+${ad.precio ? "Este anuncio LLEVA precio: deja su espacio según la estructura, pero NO escribas números ni porcentajes (los pega CoDropX)." : "Este anuncio NO lleva precio, ni porcentajes, ni 2x1, ni sellos de oferta."}
+${ad.nota ? `Nota del dueño: ${limpio(ad.nota, 300)}` : ""}
 
-TAREA: Escribe el prompt para Gemini con EXACTAMENTE este formato (texto plano, sin markdown, sin explicaciones):
+TAREA: describe cómo se ve CADA bloque de la estructura para ESTE producto y escribe sus textos. Formato EXACTO (texto plano, sin markdown):
 
-FOTOGRAFÍA REAL (no dibujo, no animación). Imagen ${formatoInfo.nombre} (${formatoInfo.tamano}) para un anuncio de redes sociales.
-COMPOSICIÓN: [escena, posición y tamaño del producto, personas con edad/aspecto/ropa, luz, elementos gráficos y dónde va cada uno]
-TEXTOS:
-- Gancho: "[máximo 6 palabras]" (color)
-- [resto de textos, cada uno entre comillas y con su color; máximo 20 palabras en total en la imagen]
-ESPACIO SEGURO: [en 9:16 deja libre el 14% de arriba y el 20% de abajo para los botones de la app; en 1:1 y 4:5 deja márgenes de 5%]
+ESCENA Y DETALLES:
+1) [bloque 1 concreto: qué se ve, dónde, tamaño, color]
+2) [bloque 2…] (uno por bloque de la estructura, en su orden)
+TEXTOS (exactos):
+Titular: "[LÍNEA 1]" (color) / "[LÍNEA 2]" (color)
+[cada texto de los bloques en su propia línea, entre comillas, con dónde va y su color; textos de 2 a 6 palabras; máximo 30 palabras en total]
 
-Reglas:
-- El producto grande, protagonista y sin tapar. Poco texto: Meta muestra menos los anuncios con mucho texto.
-- Sin cifras inventadas (clientes, estrellas, reseñas, "+15.000 vendidos"), sin urgencia falsa, sin antes/después corporales exagerados, sin marcas ajenas.
-- Solo promesas que dice la Ficha ("envío gratis", "garantía", "compra 100% segura" solo si son verdad). Sin promesas de salud ("sin dolor de espalda").
-- No le hables a la persona de una condición personal ("¿tienes…?"); habla de la situación.`;
+Reglas: el producto grande y sin tapar; sin cifras inventadas (clientes, estrellas, vendidos), sin urgencia falsa, sin promesas de salud ni de resultados, sin marcas ajenas; solo promesas que dice la Ficha. Español de ${(PAISES[p.pais] || PAISES.CO).nombre}.`;
+}
+// Titulares para una tanda de anuncios: 3 por anuncio, distintos entre sí
+export function promptTitularesAds(p, ads = []) {
+  const avatar = (p.avatares || [])[0];
+  const estilo = String(p?.estilo?.nombre || "").trim();
+  return `${contextoProducto(p)}
+
+${avatar ? bloqueAvatar(avatar, "AVATAR AL QUE LE HABLAN") : ""}
+
+TAREA: Propón 3 TITULARES para cada anuncio de esta tanda (2 líneas cada uno, máximo 4 palabras por línea, en MAYÚSCULAS):
+${ads.map(a => { const r = ESTRUCTURAS_AD[a.estructura] || {}; return `- id "${a.id}" · ${r.cod || ""} ${r.nombre || a.estructura}: ${r.desc || ""}${a.estructura === "e12" && a.fecha ? ` Fecha: ${FECHAS_TXT[a.fecha] || a.fecha}.` : ""}${a.estructura === "e8" ? " Titular tipo 'Compara…'." : ""}${a.estructura === "e14" ? " Titular: una pregunta o situación cotidiana del cliente." : ""}`; }).join("\n")}
+
+REGLAS:
+- De beneficio, emoción, identidad o situación, en español de ${(PAISES[p.pais] || PAISES.CO).nombre}. Que se lea en 2 segundos.
+- NUNCA el nombre del producto ("${limpio(String(p.nombre || "").replace(/\d+/g, "").trim(), 80)}")${estilo ? `, NUNCA el nombre del estilo ("${estilo}")` : ""}, sin precios ni porcentajes.
+- La promo (2x1, descuentos) solo en los titulares de E9 y E11. Fechas solo en E12.
+- Ningún titular se repite ni se parece a otro de la tanda.
+- Sin promesas de salud ni de resultados; sin preguntas sobre atributos personales ("¿Sufres de…?").
+
+Responde SOLO este JSON válido:
+{ "anuncios": [ { "id": "", "titulares": [ ["LÍNEA 1", "LÍNEA 2"] ] } ] }`;
 }
 
 // ---------- Paso 5: notas antes de publicar ----------

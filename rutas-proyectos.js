@@ -31,6 +31,7 @@ import {
   promptTitulares,
   soloObjeto,
   cierreAd,
+  promptTitularesAds,
   limpiarTitular,
   usaNombreProducto,
   sinTitular,
@@ -206,8 +207,11 @@ function limpiarAds(lista) {
     formato: FORMATOS_AD[a.formato] ? a.formato : "4:5",
     precio: a.precio !== false,
     nota: String(a.nota || "").slice(0, 300),
-    prompt: String(a.prompt || "").slice(0, 6000),
-    hecha: !!a.hecha
+    prompt: String(a.prompt || "").slice(0, 9000),
+    hecha: !!a.hecha,
+    fecha: /^[a-z_]{0,20}$/.test(String(a.fecha || "")) ? String(a.fecha || "") : "",
+    titular: limpiarTitular(a.titular),
+    titulares: (Array.isArray(a.titulares) ? a.titulares : []).map(limpiarTitular).filter(Boolean).slice(0, 9)
   }));
 }
 
@@ -1143,6 +1147,32 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
     } catch (err) { errorIA(res, err, "los copys"); }
   });
 
+  // ---------- IA: anuncios · 3 titulares por anuncio de la tanda (distintos entre sí) ----------
+  app.post("/api/proyectos/:id/rama/:av/ia/ads-titulares", iaLimiter, async (req, res) => {
+    try {
+      const x = await cargarRama(req, res); if (!x) return;
+      const ids = new Set((Array.isArray(req.body?.ids) ? req.body.ids : []).map(String));
+      const ads = (x.r.ads || []).filter(a => ids.size ? ids.has(a.id) : !(a.titulares || []).length);
+      if (!ads.length) return res.json({ rama: x.r });
+      const j = parsearJSON(await llamarIA({ system: SISTEMA_LANDING, prompt: promptTitularesAds(x.vista, ads) }));
+      const vistos = new Set((x.r.ads || []).flatMap(a => (a.titular ? [`${a.titular.l1}|${a.titular.l2}`] : [])));
+      const estilo = String(x.r.estilo?.nombre || "").toLowerCase();
+      const nuevos = {};
+      for (const it of Array.isArray(j.anuncios) ? j.anuncios : []) {
+        const ad = ads.find(a => a.id === String(it?.id)); if (!ad) continue;
+        nuevos[ad.id] = (Array.isArray(it.titulares) ? it.titulares : []).map(limpiarTitular).filter(Boolean)
+          .filter(t => !usaNombreProducto(t, x.p.nombre) && !(estilo && `${t.l1} ${t.l2}`.toLowerCase().includes(estilo)) && !vistos.has(`${t.l1}|${t.l2}`))
+          .slice(0, 3);
+        nuevos[ad.id].forEach(t => vistos.add(`${t.l1}|${t.l2}`));
+      }
+      const r = await actualizarRama(x.p, x.av, (actual) => ({
+        ...actual,
+        ads: (actual.ads || []).map(a => (nuevos[a.id]?.length ? { ...a, titulares: nuevos[a.id], titular: a.titular || nuevos[a.id][0], prompt: a.titular ? a.prompt : "" } : a))
+      }));
+      res.json({ rama: r });
+    } catch (err) { errorIA(res, err, "los titulares de los anuncios"); }
+  });
+
   // ---------- IA: anuncios · prompt de un ad estático ----------
   app.post("/api/proyectos/:id/rama/:av/ia/ad/:adId", iaLimiter, async (req, res) => {
     try {
@@ -1154,13 +1184,13 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
       const bloque = x.r.bloqueEstilo || (x.r.estilo ? construirBloqueEstilo(x.vista) : "");
       const reply = await llamarIA({
         system: SISTEMA_LANDING,
-        prompt: promptAd({ ...x.vista, bloqueEstilo: bloque }, ad, x.avatar, ESTRUCTURAS_AD[ad.estructura], FORMATOS_AD[ad.formato])
+        prompt: promptAd({ ...x.vista, bloqueEstilo: bloque }, ad, x.avatar, ESTRUCTURAS_AD[ad.estructura], FORMATOS_AD[ad.formato], ads)
       });
       const crudo = String(reply || "").replace(/^```[a-z]*\n?|```$/gim, "").trim();
       if (!crudo) return res.status(502).json({ error: "La IA no devolvió el prompt" });
-      const texto = cierreAd(crudo, x.vista, ad);
+      const texto = cierreAd(crudo, x.vista, ad, ads);
       const nuevos = [...ads];
-      nuevos[idx] = { ...ad, prompt: texto.slice(0, 6000), hecha: false };
+      nuevos[idx] = { ...ad, prompt: texto.slice(0, 9000), hecha: false };
       const r = { ...x.r, ads: nuevos };
       await guardarRama(x.p, x.av, r);
       res.json({ ad: nuevos[idx] });

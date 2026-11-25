@@ -12,6 +12,7 @@ import zlib from "zlib";
 import { referenciaDe, AVISO_REFERENCIA } from "./modelo-referencias.js";
 import { descripcionObjeto, cierreSeccion, textosPermitidos, promptRevisarImagen, problemasDeTextos, promptAd, cierreAd, construirBloqueEstilo, SISTEMA_LANDING } from "./prompts-landing.js";
 import { ESTRUCTURAS_AD, FORMATOS_AD } from "./public/js/core/anuncios.js";
+import { refAd, AVISO_REF_AD } from "./referencias-anuncios.js";
 import { ofertaDe } from "./public/js/core/oferta.js";
 import { variantesDe, colorDeSeccion, PORTADAS_V } from "./public/js/core/variantes.js";
 
@@ -170,16 +171,21 @@ export async function pedirImagen({ prompt, fotos, aspecto, resolucion = null, e
 const enProceso = new Set();
 
 // Revisión automática: la IA lee los textos de la imagen; el código revisa precios y prohibidos, y la IA marca palabras raras
-async function revisarImagen(llamarIA, { datos, tipo }, vista, sec, prompt) {
+async function revisarImagen(llamarIA, { datos, tipo }, vista, sec, prompt, estructura = null) {
   if (!llamarIA) return null;
   try {
     const permitidos = textosPermitidos(prompt);
-    const reply = await llamarIA({ system: "Lees textos de imágenes con mucho cuidado y respondes solo JSON.", prompt: promptRevisarImagen(permitidos), image: `data:${tipo || "image/jpeg"};base64,${Buffer.from(datos).toString("base64")}` });
+    const reply = await llamarIA({ system: "Lees textos de imágenes con mucho cuidado y respondes solo JSON.", prompt: promptRevisarImagen(permitidos, estructura), image: `data:${tipo || "image/jpeg"};base64,${Buffer.from(datos).toString("base64")}` });
     const limpio = String(reply || "").replace(/^```[a-z]*\n?|```$/gim, "").trim();
     const j = JSON.parse(limpio.slice(limpio.indexOf("{"), limpio.lastIndexOf("}") + 1));
     const textos = (Array.isArray(j.textos) ? j.textos : []).map(t => String(t).slice(0, 160)).slice(0, 40);
     const raros = (Array.isArray(j.raros) ? j.raros : []).map(t => String(t).slice(0, 160)).slice(0, 10);
     const problemas = [...problemasDeTextos(textos, vista, sec), ...raros.map(t => ({ tipo: "raro", texto: `Texto raro: "${t}"` }))];
+    if (estructura) {
+      if (j.composicion_ok === false) problemas.push({ tipo: "estructura", texto: `No se ve la estructura "${estructura.nombre}"${j.por_que ? `: ${String(j.por_que).slice(0, 140)}` : ""}` });
+      for (const m of (Array.isArray(j.marcas) ? j.marcas : []).slice(0, 3)) problemas.push({ tipo: "marca", texto: `Sale una marca o logo: "${String(m).slice(0, 60)}"` });
+      if (sec.sinPrecio) for (const t of textos) if (/\b2\s?x\s?1\b|paga\s+1|\d\s?%|\$/i.test(t)) problemas.push({ tipo: "precio", texto: `Sale "${t.slice(0, 60)}" en un anuncio sin precio` });
+    }
     return { ok: !problemas.length, problemas: problemas.slice(0, 12), textos, fecha: new Date() };
   } catch (e) { console.warn("No se pudo revisar la imagen:", e.message); return null; }
 }
@@ -223,6 +229,13 @@ export function registrarRutasIAImagenes(app, { cargarRama, guardarRama, actuali
   });
 
   // Generar la imagen de una sección
+  // Miniatura de la estructura (la primera referencia de su carpeta)
+  app.get("/api/anuncios/referencia/:estructura", (req, res) => {
+    const r = refAd(String(req.params.estructura || ""), Number(req.query.n) || 0);
+    if (!r) return res.status(404).end();
+    res.set("Content-Type", r.mime).set("Cache-Control", "private, max-age=86400").send(r.datos);
+  });
+
   // ---------- Ads estáticos: la imagen del anuncio de una vez (si no tiene prompt, primero lo escribe) ----------
   // Cada vez que la pides sale una versión nueva (las anteriores quedan hasta que las quites)
   const enProcesoAd = new Set();
@@ -248,22 +261,24 @@ export function registrarRutasIAImagenes(app, { cargarRama, guardarRama, actuali
 
       const clave = `${x.p._id}:${x.av}:${seccion}`;
       if (enProcesoAd.has(clave)) return res.status(409).json({ error: "Ya se está creando este anuncio" });
-      const estimado = PRECIO_IMAGEN + PRECIO_REFERENCIA * fotos.length;
+      const ref = refAd(ad.estructura, ya);
+      const estimado = PRECIO_IMAGEN + PRECIO_REFERENCIA * (fotos.length + (ref ? 1 : 0));
       const g = await estadoGasto(req.user.uid);
       if (g.usd + estimado > g.limite + 1e-9) return res.status(400).json({ error: `Llegaste al límite de gasto de este mes ($${g.usd.toFixed(2)} de $${g.limite.toFixed(2)} USD). Súbelo si quieres seguir.`, gasto: g });
       enProcesoAd.add(clave); llave = clave;
+      const tanda = x.r.ads || [];
 
       const bloque = x.r.bloqueEstilo || (x.r.estilo ? construirBloqueEstilo(x.vista) : "");
       // Sin prompt: CoDropX lo escribe primero (igual que "Escribir prompt")
       if (!ad.prompt) {
         if (!llamarIA) return res.status(400).json({ error: "Primero escribe el prompt del anuncio" });
-        const reply = await llamarIA({ system: SISTEMA_LANDING, prompt: promptAd({ ...x.vista, bloqueEstilo: bloque }, ad, x.avatar, ESTRUCTURAS_AD[ad.estructura], FORMATOS_AD[ad.formato]) });
+        const reply = await llamarIA({ system: SISTEMA_LANDING, prompt: promptAd({ ...x.vista, bloqueEstilo: bloque }, ad, x.avatar, ESTRUCTURAS_AD[ad.estructura], FORMATOS_AD[ad.formato], tanda) + (ref ? `\n\nIMAGEN ADJUNTA: un anuncio ganador de otra tienda con esta misma estructura. ${AVISO_REF_AD}` : ""), ...(ref ? { image: ref.dataUrl } : {}) });
         const crudo = String(reply || "").replace(/^```[a-z]*\n?|```$/gim, "").trim();
         if (!crudo) return res.status(502).json({ error: "La IA no devolvió el prompt del anuncio" });
         ad = { ...ad, prompt: crudo.slice(0, 6000) };
       }
-      // Precio, promo y prohibidos al día con la Ficha (aunque el prompt sea viejo o lo hayas editado)
-      ad = { ...ad, prompt: cierreAd(ad.prompt, x.vista, ad).slice(0, 7000) };
+      // Estructura, persona, producto, precio y prohibidos al día (aunque el prompt sea viejo o lo hayas editado)
+      ad = { ...ad, prompt: cierreAd(ad.prompt, x.vista, ad, tanda).slice(0, 9000) };
       const o = ofertaDe(x.p.ficha || {}, x.p.pais === "EC" ? "EC" : "CO");
       const unidades = ["2x1", "xy"].includes(o.tipo) ? o.unidades : 1;
       const r = await pedirImagen({
@@ -271,22 +286,24 @@ export function registrarRutasIAImagenes(app, { cargarRama, guardarRama, actuali
           bloqueEstilo: bloque, prompt: ad.prompt, referencias: fotos.length, fotosConTexto, fotosConPersona, unidades,
           descripcion: descripcionObjeto(x.p).slice(0, 600) + (x.p.ficha?.medidas ? ` Medidas: ${String(x.p.ficha.medidas).slice(0, 120)}.` : ""),
           noTiene: [...(Array.isArray(x.p.revision?.noTiene) ? x.p.revision.noTiene : []), x.p.ficha?.noTiene].filter(Boolean).join("; ").slice(0, 300)
-        }),
-        fotos, aspecto: aspectoDe(ad.formato)
+        }) + (ref ? `\n\nREFERENCIA DE DISEÑO: <IMAGE_${fotos.length}> es un anuncio ganador de otra tienda. ${AVISO_REF_AD}` : ""),
+        fotos, extra: ref ? [ref.dataUrl] : [], aspecto: aspectoDe(ad.formato)
       });
       await GastoIA.findOneAndUpdate(
         { owner: req.user.uid, mes: mesActual() },
         { $inc: { usd: r.rehechaPorForma ? estimado * 2 + PRECIO_REFERENCIA : estimado, imagenes: 1, ticks: r.ticks }, $set: { actualizado: new Date() }, $setOnInsert: { owner: req.user.uid, mes: mesActual() } },
         { upsert: true }
       );
+      const est = ESTRUCTURAS_AD[ad.estructura];
+      const revision = await revisarImagen(llamarIA, r, x.vista, { id: seccion, tipo: ad.precio ? (x.p.tipo === "moda" ? "moda_portada" : "oferta") : "ad_sin_precio", titular: ad.titular, sinPrecio: !ad.precio }, ad.prompt, est ? { nombre: `${est.cod || ""} ${est.nombre}`.trim(), bloques: est.bloques || [est.desc] } : null);
       const nueva = await ImagenLanding.create({
         owner: req.user.uid, proyecto: x.p._id, rama: x.av, seccion,
-        tipo: r.tipo, datos: r.datos, bytes: r.datos.length, origen: "ia", ancho: r.ancho || null, alto: r.alto || null
+        tipo: r.tipo, datos: r.datos, bytes: r.datos.length, origen: "ia", ancho: r.ancho || null, alto: r.alto || null, revision
       });
       const rama = await actualizarRama(x.p, x.av, (actual) => ({
         ...actual, ads: (actual.ads || []).map(a => (a.id === ad.id ? { ...a, prompt: ad.prompt, hecha: true } : a))
       }));
-      res.json({ imagen: metaImagen(nueva), ad: (rama?.ads || []).find(a => a.id === ad.id) || { ...ad, hecha: true }, gasto: await estadoGasto(req.user.uid) });
+      res.json({ imagen: metaImagen(nueva), ad: (rama?.ads || []).find(a => a.id === ad.id) || { ...ad, hecha: true }, revision, gasto: await estadoGasto(req.user.uid) });
     } catch (err) {
       console.error("Error creando imagen del anuncio:", err);
       res.status(err.status || 500).json({ error: err.message || "No se pudo crear la imagen" });

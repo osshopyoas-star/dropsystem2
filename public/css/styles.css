@@ -3652,6 +3652,14 @@ aside.collapsed .submenu .sidebar-item {
 .est-rev-lista { width: 100%; grid-column: 1 / -1; }
 .est-rev-lista ul { margin: 6px 0; padding-left: 18px; }
 .est-foto .uso.persona { background: #7c3aed; color: #fff; }
+.est-ad-grid-18 { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)) !important; }
+.est-ad-mini-img { display: block; width: 100%; aspect-ratio: 4 / 5; border-radius: 8px; overflow: hidden; background: rgba(255,255,255,.05); }
+.est-ad-mini-img img, .est-ad-mini-img svg { width: 100%; height: 100%; object-fit: cover; display: block; }
+.est-ad-tags { display: flex; flex-wrap: wrap; gap: 3px; justify-content: center; }
+.est-ad-tags em { font-style: normal; font-size: 10px; padding: 1px 6px; border-radius: 99px; background: rgba(148,163,184,.2); color: #cbd5e1; }
+.est-ad-tags em.precio { background: rgba(34,197,94,.25); color: #bbf7d0; }
+.est-ad-op.apagado { opacity: .45; }
+.est-ad-ops select { padding: 4px 6px; border-radius: 8px; }
 .est-ad-imgs { margin: 8px 0; }
 .est-img-bajar { position: absolute; left: 6px; bottom: 6px; background: rgba(15,23,42,.8); color: #fff; border-radius: 8px; padding: 2px 7px; font-size: 12px; text-decoration: none; }
 .est-ad-prompt { margin: 6px 0; }

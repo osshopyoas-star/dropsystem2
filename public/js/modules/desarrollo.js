@@ -7,7 +7,7 @@ import { state } from "../state.js";
 import { registrarRuta } from "./navegacion.js";
 import { escapeHTML } from "../core/utils.js";
 import { SECCIONES, FORMATOS, tiposDe, varianteDe, elegirVariante, formatoImagen, claveDe, ETAPAS_AIDA, etapaDe } from "../core/plantilla.js";
-import { ESTRUCTURAS_AD, FORMATOS_AD, ENFOQUES_COPY, MAX_ADS, largoTiktok, corchetes } from "../core/anuncios.js";
+import { ESTRUCTURAS_AD, FORMATOS_AD, ENFOQUES_COPY, MAX_ADS, largoTiktok, corchetes, RECETAS_AD, TAGS_AD, FECHAS_AD, mezclarAds, conPrecioAsignado, maxConPrecio, precioObligatorio, precioPosible } from "../core/anuncios.js";
 import { dibujar } from "./plantilla.js";
 import { construirLanding, numerarCapas } from "../core/landing-html.js";
 import { VERSION_SECCION } from "../core/seccion-shopify.js";
@@ -1987,7 +1987,6 @@ window.estGenerarTextos = () => conCarga("estBtnTextos", "Escribiendo textos..."
 let subAnuncio = (() => { try { return localStorage.getItem("est_sub_anuncio") || "copys"; } catch { return "copys"; } })();
 let adSel = new Set();
 let adFormato = "4:5";
-let adPrecio = true;
 
 function pasoAnuncios() {
   const r = R();
@@ -2097,66 +2096,98 @@ window.estEditarTiktok = async (campo, v) => {
   repintarAqui();
 };
 
-// ---------- Ads estáticos ----------
+// ---------- Ads estáticos: 18 estructuras de anuncios ganadores, mezcla automática y titulares por anuncio ----------
+let adCuantos = 5, adConPrecio = "1", adFecha = "", adPreciosMezcla = null;
 function pasoAds() {
   const r = R();
   const ads = r.ads || [];
   const acento = r.estilo?.color2 && /^#[0-9a-f]{3,8}$/i.test(r.estilo.color2) ? r.estilo.color2 : "#3b82f6";
   const libres = Math.max(0, MAX_ADS - ads.length);
-  const conPrompt = ads.filter(a => a.prompt).length;
+  const sel = [...adSel].filter(k => RECETAS_AD[k]);
+  const plan = planPrecios(sel);
+  const sinImg = ads.filter(a => !imgsAd(a.id).length);
   return `
   <div class="est-card">
     <h3>Ads estáticos ${avTag()}</h3>
-    <p class="est-muted">Marca las estructuras que quieres probar (hasta ${Math.min(5, libres)} a la vez), elige el formato y CoDropX <b>crea la imagen de cada anuncio con IA</b>, con el estilo de esta landing y tus fotos (unos $${costoIA().toFixed(2)} USD cada una). Si una no te gusta, dale "Otra versión".</p>
+    <p class="est-muted">18 estructuras sacadas de anuncios ganadores. Dale <b>Mezcla automática</b> (elige estructuras distintas: máximo 40% con precio, al menos 1 de cada 3 sin persona y una de dolor o comparación) o márcalas a mano. Después revisas el titular de cada uno y le das <b>Generar todos</b>.</p>
     ${!r.estilo ? `<div class="est-alert warn">Sin estilo elegido (paso 3) los anuncios no tendrán tus colores de marca.</div>` : ""}
-    <div class="est-ad-grid">
-      ${Object.entries(ESTRUCTURAS_AD).map(([k, e]) => `
-        <button class="est-ad-op ${adSel.has(k) ? "sel" : ""}" title="${esc(e.desc)}" onclick="estAdSel('${k}')">
-          ${dibujar(e.dibujo, acento, "est-ad-dib")}
-          <span>${esc(e.nombre)}</span>
+    <div class="est-ad-ops">
+      <span class="est-muted">¿Cuántos?</span>${[3, 5, 8, 10].map(n => `<button class="est-chip-btn ${adCuantos === n ? "activo" : ""}" onclick="estAdCuantos(${n})">${n}</button>`).join("")}
+      <span class="est-muted">Con precio:</span>${[["0", "0"], ["1", "1"], ["2", "2"], ["mitad", "La mitad"]].map(([k, t]) => `<button class="est-chip-btn ${adConPrecio === k ? "activo" : ""}" onclick="estAdConPrecio('${k}')">${t}</button>`).join("")}
+      <label class="est-muted">Fecha especial <select onchange="estAdFecha(this.value)">${Object.entries(FECHAS_AD).map(([k, t]) => `<option value="${k}" ${adFecha === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+      <button class="est-btn primary" onclick="estAdMezcla()"><i data-lucide="shuffle"></i> Mezcla automática</button>
+    </div>
+    <div class="est-ad-grid est-ad-grid-18">
+      ${Object.entries(RECETAS_AD).map(([k, e]) => `
+        <button class="est-ad-op ${adSel.has(k) ? "sel" : ""} ${e.conFecha && !adFecha ? "apagado" : ""}" title="${esc(e.desc)}" onclick="estAdSel('${k}')">
+          <span class="est-ad-mini-img"><img src="/api/anuncios/referencia/${k}" alt="" loading="lazy" onerror="this.replaceWith(document.createRange().createContextualFragment(this.dataset.dib))" data-dib="${esc(dibujar(e.dibujo, acento, "est-ad-dib"))}"></span>
+          <span><b>${e.cod}</b> ${esc(e.nombre)}</span>
+          <span class="est-ad-tags">${TAGS_AD(e).map(t => `<em>${t}</em>`).join("")}${adSel.has(k) && plan[k] ? `<em class="precio">$ en este</em>` : ""}</span>
         </button>`).join("")}
     </div>
     <div class="est-ad-ops">
       <span class="est-muted">Formato:</span>
       ${Object.entries(FORMATOS_AD).map(([k, f]) => `<button class="est-chip-btn ${adFormato === k ? "activo" : ""}" onclick="estAdFormato('${k}')"><b>${k}</b> ${f.uso}</button>`).join("")}
-      <label class="est-check"><input type="checkbox" ${adPrecio ? "checked" : ""} onchange="estAdPrecio(this.checked)"> Mostrar precio</label>
-      <button id="estBtnAds" class="est-btn primary" onclick="estCrearAds()" ${adSel.size && libres && !creandoAds ? "" : "disabled"}><i data-lucide="wand-sparkles"></i> Crear ${adSel.size || ""} anuncio${adSel.size === 1 ? "" : "s"} con imagen</button>
+      <span class="est-muted">${sel.length} marcadas · ${Object.values(plan).filter(Boolean).length} con precio</span>
+      <button id="estBtnAds" class="est-btn primary" onclick="estCrearAds()" ${sel.length && libres && !creandoAds ? "" : "disabled"}><i data-lucide="list-checks"></i> Preparar ${sel.length || ""} anuncio${sel.length === 1 ? "" : "s"}</button>
     </div>
     ${!libres ? `<p class="est-hint">Llegaste a ${MAX_ADS} anuncios: quita alguno para crear más.</p>` : ""}
   </div>
 
   ${ads.length ? `
     <div class="est-card-row" style="margin:4px 0">
-      <p class="est-muted">${conPrompt}/${ads.length} prompts · ${ads.filter(a => imgsAd(a.id).length).length} con imagen</p>
-      ${ads.some(a => !imgsAd(a.id).length) ? `<button id="estBtnAdsFaltan" class="est-btn" onclick="estImagenesAdsFaltantes()" ${creandoAds ? "disabled" : ""}><i data-lucide="wand-sparkles"></i> Crear las imágenes que faltan</button>` : ""}
+      <p class="est-muted">${ads.length} anuncios · ${ads.filter(a => imgsAd(a.id).length).length} con imagen</p>
+      ${sinImg.length ? `<button id="estBtnAdsFaltan" class="est-btn primary" onclick="estImagenesAdsFaltantes()" ${creandoAds ? "disabled" : ""}><i data-lucide="wand-sparkles"></i> Generar todos (${sinImg.length}, ~$${(sinImg.length * (costoIA() + 0.01)).toFixed(2)} USD)</button>` : ""}
     </div>
     <div class="est-ads">
       ${ads.map((a, i) => tarjetaAd(a, i, acento)).join("")}
     </div>` : ""}
   <div class="est-next"><button class="est-btn primary" onclick="estSubAnuncio('guiones')">Seguir con los guiones de video <i data-lucide="arrow-right"></i></button></div>`;
 }
-
+// Qué anuncios de la selección llevan precio
+function planPrecios(sel) {
+  if (adPreciosMezcla && sel.every(k => k in adPreciosMezcla)) return Object.fromEntries(sel.map(k => [k, adPreciosMezcla[k]]));
+  return Object.fromEntries(conPrecioAsignado(sel, maxConPrecio(sel.length, adConPrecio), () => 0.5).map(x => [x.estructura, x.precio]));
+}
 function tarjetaAd(a, i, acento) {
   const e = ESTRUCTURAS_AD[a.estructura];
+  const imgs = imgsAd(a.id);
+  const mala = [...imgs].reverse().find(im => im.revision && !im.revision.ok);
+  const t = a.titular;
   return `
-  <article class="est-sec est-ad ${a.hecha ? "hecha" : ""}" id="ad-${esc(a.id)}">
+  <article class="est-sec est-ad ${imgs.length ? "hecha" : ""}" id="ad-${esc(a.id)}">
     <div class="est-sec-head">
       ${dibujar(e?.dibujo, acento, "est-ad-mini")}
       <div class="est-sec-info">
-        <strong>${esc(e?.nombre || a.estructura)}</strong>
-        <div class="est-sec-tags"><span class="est-chip">${esc(a.formato)} · ${esc(FORMATOS_AD[a.formato]?.uso || "")}</span><span class="est-chip">${a.precio ? "Con precio" : "Sin precio"}</span></div>
+        <select class="est-variante" title="Cambiar estructura" onchange="estAdEstructura(${i}, this.value)">
+          ${e?.vieja ? `<option value="${esc(a.estructura)}" selected>${esc(e.nombre)} (de antes)</option>` : ""}
+          ${Object.entries(RECETAS_AD).map(([k, r]) => `<option value="${k}" ${k === a.estructura ? "selected" : ""}>${r.cod} · ${esc(r.nombre)}</option>`).join("")}
+        </select>
+        <div class="est-sec-tags">
+          <span class="est-chip">${esc(a.formato)} · ${esc(FORMATOS_AD[a.formato]?.uso || "")}</span>
+          ${e ? `<span class="est-chip">${e.persona === "no" ? "Sin persona" : e.persona === "parcial" ? "Solo manos" : "Con persona"}</span>` : ""}
+          <label class="est-check"><input type="checkbox" ${a.precio ? "checked" : ""} ${precioObligatorio(e) || !precioPosible(e) ? "disabled" : ""} onchange="estAdPrecioUno(${i}, this.checked)"> Con precio</label>
+          ${a.estructura === "e12" ? `<span class="est-chip">${esc(FECHAS_AD[a.fecha] || "Sin fecha")}</span>` : ""}
+        </div>
         <input class="est-input chico" value="${esc(a.nota)}" placeholder="Nota opcional (ej: usar la foto en la cocina)" onchange="estEditarAd(${i}, 'nota', this.value)">
       </div>
     </div>
+    <div class="est-titulares">
+      <div class="est-card-row"><b>Titular</b>${t ? `<span class="est-tit-elegido">"${esc(t.l1)}" / <span>"${esc(t.l2 || "")}"</span></span>` : `<span class="est-hint">sin titular todavía</span>`}</div>
+      ${(a.titulares || []).length ? `<div class="est-tit-opciones">${a.titulares.map((o, k) => `<button class="est-tit ${t && o.l1 === t.l1 && o.l2 === t.l2 ? "on" : ""}" onclick="estAdTitular(${i}, ${k})"><span>${esc(o.l1)}</span><span class="l2">${esc(o.l2 || "")}</span></button>`).join("")}</div>` : ""}
+      <button class="est-btn chico" id="adTit-${esc(a.id)}" onclick="estAdOtrosTitulares('${esc(a.id)}')"><i data-lucide="sparkles"></i> ${(a.titulares || []).length ? "Otros titulares" : "Proponer titulares"}</button>
+    </div>
     <div class="est-imgs est-ad-imgs">
-      ${[...imgsAd(a.id)].reverse().map(im => `<div class="est-img">
+      ${[...imgs].reverse().map(im => `<div class="est-img ${im.revision && !im.revision.ok ? "mala" : ""}">
         <a href="/api/imagenes/${esc(im._id)}" target="_blank" rel="noopener" title="Ver en grande"><img src="/api/imagenes/${esc(im._id)}" alt="Anuncio" loading="lazy"></a>
         <a class="est-img-bajar" href="/api/imagenes/${esc(im._id)}" download="anuncio-${esc(a.estructura)}.jpg" title="Descargar">⬇</a>
         <button title="Quitar imagen" onclick="estQuitarImagen('${esc(im._id)}')">✕</button>
+        ${im.revision ? (im.revision.ok ? `<span class="est-img-rev ok">✓ OK</span>` : `<span class="est-img-rev mal" title="${esc(im.revision.problemas.map(p => p.texto).join("\n"))}">⚠ Revisar</span>`) : ""}
       </div>`).join("")}
       ${adsCreando.has(a.id) ? `<div class="est-img add ia ocupado"><span class="est-spin"></span><span>Creando con IA... (hasta 1 min)</span></div>`
-        : `<button class="est-img add ia" id="adIA-${esc(a.id)}" onclick="estImagenAd('${esc(a.id)}')"><i data-lucide="${imgsAd(a.id).length ? "refresh-cw" : "wand-sparkles"}"></i><span>${imgsAd(a.id).length ? "Otra versión" : "Crear imagen"}</span><small>~$${costoIA().toFixed(2)} USD</small></button>`}
+        : `<button class="est-img add ia" id="adIA-${esc(a.id)}" onclick="estImagenAd('${esc(a.id)}')"><i data-lucide="${imgs.length ? "refresh-cw" : "wand-sparkles"}"></i><span>${imgs.length ? "Regenerar" : "Crear imagen"}</span><small>~$${(costoIA() + 0.01).toFixed(2)} USD</small></button>`}
     </div>
+    ${mala ? `<div class="est-alert warn est-rev-lista"><b>⚠ La revisión encontró:</b><ul>${mala.revision.problemas.map(p => `<li>${esc(p.texto)}</li>`).join("")}</ul></div>` : ""}
     ${a.prompt ? `<details class="est-ad-prompt"><summary class="est-hint">Ver o editar el prompt</summary><textarea class="est-code" rows="9" onchange="estEditarAd(${i}, 'prompt', this.value)">${esc(a.prompt)}</textarea></details>` : ""}
     <div class="est-sec-actions">
       <button class="est-btn" id="btnAd-${esc(a.id)}" onclick="estGenerarAd('${esc(a.id)}')"><i data-lucide="sparkles"></i> ${a.prompt ? "Reescribir prompt" : "Solo escribir prompt"}</button>
@@ -2167,13 +2198,24 @@ function tarjetaAd(a, i, acento) {
 }
 
 window.estAdSel = (k) => {
+  const e = RECETAS_AD[k];
+  if (e?.conFecha && !adFecha && !adSel.has(k)) return avisar("Elige primero una fecha especial (Black Friday, Navidad…)", "error");
   if (adSel.has(k)) adSel.delete(k);
-  else if (adSel.size < 5) adSel.add(k);
-  else avisar("Máximo 5 estructuras a la vez", "error");
+  else if (adSel.size < 10) adSel.add(k);
+  else avisar("Máximo 10 a la vez", "error");
+  adPreciosMezcla = null;
   renderPaso();
 };
+window.estAdCuantos = (n) => { adCuantos = n; renderPaso(); };
+window.estAdConPrecio = (k) => { adConPrecio = k; adPreciosMezcla = null; renderPaso(); };
+window.estAdFecha = (v) => { adFecha = FECHAS_AD[v] !== undefined ? v : ""; if (!adFecha) adSel.delete("e12"); renderPaso(); };
 window.estAdFormato = (f) => { adFormato = FORMATOS_AD[f] ? f : "4:5"; renderPaso(); };
-window.estAdPrecio = (v) => { adPrecio = !!v; };
+window.estAdMezcla = () => {
+  const mezcla = mezclarAds({ n: adCuantos, conPrecio: adConPrecio, fecha: adFecha, hayDolor: !!(avatarActual()?.problema || avatarActual()?.palabras) });
+  adSel = new Set(mezcla.map(x => x.estructura));
+  adPreciosMezcla = Object.fromEntries(mezcla.map(x => [x.estructura, x.precio]));
+  renderPaso();
+};
 
 async function generarAd(id) {
   const avDeLaPeticion = av;
@@ -2182,18 +2224,10 @@ async function generarAd(id) {
   const r = R();
   ponerRama({ ...r, ads: (r.ads || []).map(a => a.id === id ? ad : a) });
 }
-
-async function generarVarios(ids, botonId) {
-  let hechos = 0;
-  for (const id of ids) {
-    const b = $(botonId);
-    if (b) { b.disabled = true; b.innerHTML = `<span class="est-spin"></span> Escribiendo ${hechos + 1} de ${ids.length}...`; }
-    try { await generarAd(id); hechos++; }
-    catch (err) { avisar(err.message, "error"); if (/límite/i.test(err.message)) break; }
-    if (tab === 5 && subAnuncio === "ads") renderPaso();
-  }
-  avisar(`${hechos} anuncio(s) listos ✓`);
-  if (tab === 5) renderPaso();
+async function titularesAds(ids, botonId) {
+  const b = $(botonId); if (b) { b.disabled = true; b.innerHTML = `<span class="est-spin"></span> Pensando titulares...`; }
+  try { const { rama } = await api("POST", urlRama("ia/ads-titulares"), { ids }); ponerRama(rama); }
+  catch (e) { avisar(e.message, "error"); }
 }
 
 // ---------- Imagen del anuncio con IA (cada vez sale una versión nueva) ----------
@@ -2205,9 +2239,10 @@ async function imagenAd(id) {
   adsCreando.add(id);
   if (tab === 5 && subAnuncio === "ads") renderPaso();
   try {
-    const { imagen, ad, gasto } = await api("POST", urlRama(`ia/ad/${id}/imagen`));
+    const { imagen, ad, gasto, revision } = await api("POST", urlRama(`ia/ad/${id}/imagen`));
     imagenes.push(imagen); gastoIA = gasto || gastoIA;
     if (av === avInicio) { const r = R(); ponerRama({ ...r, ads: (r.ads || []).map(a => (a.id === id ? ad : a)) }); }
+    return revision;
   } finally {
     adsCreando.delete(id);
     if (tab === 5 && subAnuncio === "ads") renderPaso();
@@ -2216,38 +2251,61 @@ async function imagenAd(id) {
 async function imagenesAds(ids) {
   if (!ids.length) return;
   try { gastoIA = await api("GET", "/api/ia/gasto"); } catch {}
-  const costo = ids.length * costoIA();
+  const costo = ids.length * (costoIA() + 0.01);
   if (gastoIA?.queda !== undefined && costo > gastoIA.queda + 1e-9) return avisar(`No alcanza el límite del mes: ${ids.length} imágenes cuestan unos $${costo.toFixed(2)} USD y te quedan $${Number(gastoIA.queda).toFixed(2)}.`, "error");
   if (!confirm(`Se van a crear ${ids.length} imagen${ids.length === 1 ? "" : "es"} de anuncio, unos $${costo.toFixed(2)} USD. ¿Seguir?`)) return;
   creandoAds = true;
-  let ok = 0;
+  let ok = 0, malas = 0;
   for (const id of ids) {
-    try { await imagenAd(id); ok++; }
+    try { const rev = await imagenAd(id); ok++; if (rev && !rev.ok) malas++; }
     catch (e) { avisar(e.message, "error"); if (/límite/i.test(e.message)) break; }
   }
   creandoAds = false;
-  if (ok) avisar(`${ok} anuncio${ok === 1 ? "" : "s"} con imagen ✓`);
+  if (ok) avisar(`${ok} anuncio${ok === 1 ? "" : "s"} con imagen ✓${malas ? ` · ${malas} con ⚠ para revisar` : ""}`, malas ? "error" : "ok");
   if (tab === 5) renderPaso();
 }
 window.estImagenAd = async (id) => {
   if (adsCreando.has(id)) return;
-  if (!confirm(`¿Crear ${imgsAd(id).length ? "otra versión de este anuncio" : "la imagen de este anuncio"}? Unos $${costoIA().toFixed(2)} USD.`)) return;
-  try { await imagenAd(id); } catch (e) { avisar(e.message, "error"); }
+  if (!confirm(`¿Crear ${imgsAd(id).length ? "otra versión de este anuncio" : "la imagen de este anuncio"}? Unos $${(costoIA() + 0.01).toFixed(2)} USD.`)) return;
+  try { const rev = await imagenAd(id); if (rev && !rev.ok) avisar("La imagen salió con ⚠: mira lo que encontró la revisión", "error"); } catch (e) { avisar(e.message, "error"); }
 };
 window.estImagenesAdsFaltantes = () => imagenesAds((R().ads || []).filter(a => !imgsAd(a.id).length).map(a => a.id));
+// Preparar: crea los anuncios y pide 3 titulares para cada uno (sin gastar en imágenes todavía)
 window.estCrearAds = async () => {
   const r = R();
   const libres = MAX_ADS - (r.ads || []).length;
-  const nuevos = [...adSel].slice(0, libres).map(estructura => ({
-    id: Math.random().toString(36).slice(2, 10), estructura, formato: adFormato, precio: adPrecio, nota: "", prompt: "", hecha: false
+  const sel = [...adSel].filter(k => RECETAS_AD[k]).slice(0, libres);
+  const plan = planPrecios(sel);
+  const nuevos = sel.map(estructura => ({
+    id: Math.random().toString(36).slice(2, 10), estructura, formato: adFormato, precio: !!plan[estructura],
+    fecha: estructura === "e12" ? adFecha : "", nota: "", prompt: "", hecha: false, titular: null, titulares: []
   }));
   if (!nuevos.length) return;
   await guardarRama({ ads: [...(r.ads || []), ...nuevos] });
-  adSel = new Set();
+  adSel = new Set(); adPreciosMezcla = null;
   renderPaso();
-  await imagenesAds(nuevos.map(a => a.id));
+  await titularesAds(nuevos.map(a => a.id), "estBtnAds");
+  renderPaso();
+  avisar("Revisa el titular de cada anuncio y dale «Generar todos»");
 };
-window.estGenerarAdsFaltantes = () => generarVarios((R().ads || []).filter(a => !a.prompt).map(a => a.id), "estBtnAdsFaltan");
+window.estAdTitular = async (i, k) => {
+  const a = R().ads[i];
+  await guardarRama({ ads: R().ads.map((x, j) => (j === i ? { ...x, titular: a.titulares[k], prompt: "" } : x)) });
+  renderPaso();
+};
+window.estAdOtrosTitulares = async (id) => { await titularesAds([id], `adTit-${id}`); renderPaso(); };
+window.estAdPrecioUno = async (i, v) => {
+  await guardarRama({ ads: R().ads.map((x, j) => (j === i ? { ...x, precio: !!v, prompt: "" } : x)) });
+  renderPaso();
+};
+window.estAdEstructura = async (i, k) => {
+  const e = RECETAS_AD[k]; if (!e) return;
+  const a = R().ads[i];
+  await guardarRama({ ads: R().ads.map((x, j) => (j === i ? { ...x, estructura: k, precio: precioObligatorio(e) ? true : precioPosible(e) ? x.precio : false, fecha: k === "e12" ? (x.fecha || adFecha) : "", prompt: "", titular: null, titulares: [] } : x)) });
+  renderPaso();
+  await titularesAds([a.id], `adTit-${a.id}`);
+  renderPaso();
+};
 window.estGenerarAd = (id) => conCarga(`btnAd-${id}`, "Escribiendo...", async () => { await generarAd(id); renderPaso(); });
 window.estCopiarAd = (i) => { const r = R(); copiar(limpiarFuentes(`${r.bloqueEstilo || ""}\n\n${r.ads[i].prompt}`.trim())); };
 window.estEditarAd = async (i, campo, v, repintar) => {
