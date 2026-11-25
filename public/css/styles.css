@@ -6200,6 +6200,10 @@ main .cal-page input:focus, main .cal-page select:focus, main .pl-page input:foc
 .ct-cot.est-entregado { opacity: .7; }
 /* Anuncios rápidos */
 .ar-subir { align-self: flex-start; cursor: pointer; }
+.ar-mas { margin-top: 6px; }
+.ar-mas summary { cursor: pointer; color: #93c5fd; font-weight: 600; margin-bottom: 8px; }
+.ar-mas > label, .ar-mas .est-row { margin-top: 8px; }
+.ar-mas input, .ar-mas select { width: 100%; box-sizing: border-box; }
 #arCrear { margin-top: 12px; }
 .ar-fotos { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 10px; }
 .ar-foto { position: relative; width: 78px; height: 78px; border-radius: 10px; overflow: hidden; }

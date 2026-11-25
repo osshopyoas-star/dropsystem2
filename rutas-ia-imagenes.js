@@ -171,7 +171,7 @@ export async function pedirImagen({ prompt, fotos, aspecto, resolucion = null, e
 const enProceso = new Set();
 
 // Revisión automática: la IA lee los textos de la imagen; el código revisa precios y prohibidos, y la IA marca palabras raras
-async function revisarImagen(llamarIA, { datos, tipo }, vista, sec, prompt, estructura = null) {
+export async function revisarImagen(llamarIA, { datos, tipo }, vista, sec, prompt, estructura = null) {
   if (!llamarIA) return null;
   try {
     const permitidos = textosPermitidos(prompt);

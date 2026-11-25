@@ -31,6 +31,7 @@ import { registrarRutasShopify } from "./rutas-shopify.js";
 import { registrarRutasPublicar } from "./rutas-publicar.js";
 import { registrarRutasIAImagenes } from "./rutas-ia-imagenes.js";
 import { registrarRutasEjemplos } from "./rutas-ejemplos.js";
+import { registrarRutasAnunciosRapidos } from "./rutas-anuncios-rapidos.js";
 import { Proyecto } from "./rutas-proyectos.js";
 
 // =============================================
@@ -494,6 +495,7 @@ registrarRutasIAImagenes(app, { ...ayudasProyectos, limiter: iaLimiter });
 registrarRutasCosteos(app, { idValido, Producto, llamarIA, iaLimiter, parsearJSON });
 registrarRutasPlantilla(app);
 registrarRutasEjemplos(app, { llamarIA, limiter: iaLimiter, Proyecto });
+registrarRutasAnunciosRapidos(app, { llamarIA, limiter: iaLimiter });
 registrarRutasMeta(app);
 registrarRutasFinanzas(app, { llamarIA, iaLimiter });
 registrarRutasAvisos(app, { Producto });
