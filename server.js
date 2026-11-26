@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import express from "express";
+import compression from "compression";
 import fetch from "node-fetch";
 import path from "path";
 import mongoose from "mongoose";
@@ -193,6 +194,8 @@ app.use((req, res, next) => {
   next();
 });
 
+// Comprimir lo que sale (JSON, JS, CSS, HTML): Render cobra el ancho de banda de salida
+app.use(compression({ threshold: 1024 }));
 app.use(express.json({ limit: "10mb" }));
 
 // =============================================
@@ -208,7 +211,13 @@ app.get("/login.html", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "login.html"));
 });
 
-app.use(express.static(path.join(__dirname, "public"), { index: false }));
+// Imágenes y fuentes fijas: caché larga (el navegador y Cloudflare no las vuelven a pedir); JS/CSS se revalidan con ETag
+app.use(express.static(path.join(__dirname, "public"), {
+  index: false,
+  setHeaders: (res, file) => {
+    if (/\.(webp|png|jpe?g|gif|svg|ico|woff2?)$/i.test(file)) res.setHeader("Cache-Control", "public, max-age=2592000");
+  }
+}));
 
 // =============================================
 // 🔐 AUTH
