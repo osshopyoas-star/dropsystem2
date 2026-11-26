@@ -1426,8 +1426,14 @@ function bloqueFotoReal(x) {
       : `<div class="est-alert warn">No tienes fotos marcadas "Producto solo" en la Ficha.</div>`}
   </div>`;
 }
+// Las fotos del proyecto llegan como URL (para ahorrar ancho de banda): para reenviarlas se vuelven data URL
+async function aDataUrl(src) {
+  if (!src || String(src).startsWith("data:")) return src;
+  const blob = await (await fetch(src)).blob();
+  return await new Promise((ok, mal) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = mal; r.readAsDataURL(blob); });
+}
 window.estUsarFotoReal = async (idSeccion, i) => {
-  const dataUrl = (proyecto.fotos || [])[i];
+  const dataUrl = await aDataUrl((proyecto.fotos || [])[i]).catch(() => null);
   if (!dataUrl) return;
   try {
     const { imagen, rama } = await api("POST", `/api/proyectos/${proyecto._id}/rama/${av}/imagenes`, { seccion: idSeccion, dataUrl });
@@ -2536,7 +2542,7 @@ window.estUsarFotoFicha = async (i) => {
   const src = (proyecto.fotos || [])[i];
   if (!src) return;
   try {
-    await guardarFotoProducto(src);
+    await guardarFotoProducto(await aDataUrl(src));
     avisar("Foto agregada ✓ Se sube al publicar");
     renderPaso();
   } catch (err) { avisar(err.message, "error"); }

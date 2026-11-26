@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 // =============================================
 // 🧪 ESTUDIO DE LANDING (Desarrollo por pasos)
 // Un "proyecto" por producto:
@@ -105,6 +106,51 @@ const fotoValida = (f) =>
 const nuevoId = () => Math.random().toString(36).slice(2, 10);
 
 // Saca el JSON de una respuesta de IA aunque venga con texto alrededor
+// ---------- Fotos por URL (no en el JSON): ahorra ancho de banda; el navegador las guarda en caché ----------
+// claves: f.N (fotos de la Ficha), v.N (foto de un color), r.N (foto de una reseña), g.N (foto de un regalo)
+const huella = (s) => createHash("md5").update(s).digest("hex").slice(0, 10);
+const esData = (v) => typeof v === "string" && v.startsWith("data:image/");
+function fotoEn(p, clave) {
+  const [k, n] = String(clave || "").split("."); const i = Number(n);
+  if (!Number.isInteger(i) || i < 0) return null;
+  const f = p.ficha || {};
+  if (k === "f") return (p.fotos || [])[i];
+  if (k === "v") return (f.variantesLista || [])[i]?.foto;
+  if (k === "r") return (f.resenas || [])[i]?.foto;
+  if (k === "g") return (f.oferta?.regalos || [])[i]?.foto;
+  return null;
+}
+export function fotosAUrls(o) {
+  if (!o || !o._id) return o;
+  const url = (clave, d) => (esData(d) ? `/api/proyectos/${o._id}/foto/${clave}?v=${huella(d)}` : d);
+  const out = { ...o };
+  if (Array.isArray(o.fotos)) out.fotos = o.fotos.map((d, i) => url(`f.${i}`, d));
+  if (o.ficha && typeof o.ficha === "object") {
+    const f = { ...o.ficha };
+    if (Array.isArray(f.variantesLista)) f.variantesLista = f.variantesLista.map((v, i) => (v && esData(v.foto) ? { ...v, foto: url(`v.${i}`, v.foto) } : v));
+    if (Array.isArray(f.resenas)) f.resenas = f.resenas.map((r, i) => (r && esData(r.foto) ? { ...r, foto: url(`r.${i}`, r.foto) } : r));
+    if (Array.isArray(f.oferta?.regalos)) f.oferta = { ...f.oferta, regalos: f.oferta.regalos.map((g, i) => (g && esData(g.foto) ? { ...g, foto: url(`g.${i}`, g.foto) } : g)) };
+    out.ficha = f;
+  }
+  return out;
+}
+// Lo que el navegador manda de vuelta con URLs de foto → la foto guardada (por su clave original)
+export function urlsAFotos(body, actual) {
+  if (!body || typeof body !== "object") return body;
+  const re = /^\/api\/proyectos\/[a-f0-9]{24}\/foto\/([fvrg]\.\d+)(\?.*)?$/;
+  const volver = (v) => { const m = typeof v === "string" && v.match(re); return m ? (fotoEn(actual, m[1]) || "") : v; };
+  const out = { ...body };
+  if (Array.isArray(out.fotos)) out.fotos = out.fotos.map(volver).filter(Boolean);
+  if (out.ficha && typeof out.ficha === "object") {
+    const f = { ...out.ficha };
+    if (Array.isArray(f.variantesLista)) f.variantesLista = f.variantesLista.map(v => (v ? { ...v, foto: volver(v.foto) } : v));
+    if (Array.isArray(f.resenas)) f.resenas = f.resenas.map(r => (r ? { ...r, foto: volver(r.foto) } : r));
+    if (f.oferta && Array.isArray(f.oferta.regalos)) f.oferta = { ...f.oferta, regalos: f.oferta.regalos.map(g => (g ? { ...g, foto: volver(g.foto) } : g)) };
+    out.ficha = f;
+  }
+  return out;
+}
+
 export function parsearJSON(texto = "") {
   const t = String(texto);
   const ini = t.indexOf("{");
@@ -447,9 +493,21 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
         const vista = { ...o, ...r, secciones: secs, plantilla };
         o.ramas[av] = { ...r, ads: Array.isArray(r.ads) ? limpiarAds(r.ads) : r.ads, secciones: secs.map(s => (s?.prompt ? { ...s, prompt: cierreSeccion(s.prompt, vista, s) } : s)) };
       }
-      return o;
-    } catch (e) { console.warn("Proyecto: no se pudieron rehacer los bloques de los prompts:", e.message); return p; }
+      return fotosAUrls(o);
+    } catch (e) { console.warn("Proyecto: no se pudieron rehacer los bloques de los prompts:", e.message); return fotosAUrls(plano(p)); }
   };
+  // Una foto del proyecto (de la Ficha, de un color, de una reseña o de un regalo): el navegador la guarda en caché
+  app.get("/api/proyectos/:id/foto/:clave", async (req, res) => {
+    try {
+      if (!idValido(req.params.id)) return res.status(400).end();
+      const p = await Proyecto.findOne({ _id: req.params.id, owner: req.user.uid }).select("fotos ficha").lean();
+      const d = p ? fotoEn(p, req.params.clave) : null;
+      const m = typeof d === "string" && d.match(/^data:(image\/[a-z+]+);base64,(.+)$/);
+      if (!m) return res.status(404).end();
+      res.set({ "Content-Type": m[1], "Cache-Control": "private, max-age=2592000, immutable", "X-Content-Type-Options": "nosniff" });
+      res.send(Buffer.from(m[2], "base64"));
+    } catch (err) { console.error("Error leyendo foto del proyecto:", err); res.status(500).end(); }
+  });
   app.get("/api/proyectos/:id", async (req, res) => {
     const p = await cargar(req, res); if (!p) return;
     res.json(await conBloques(p, req.user.uid));
@@ -787,7 +845,7 @@ export function registrarRutasProyectos(app, { llamarIA, iaLimiter, idValido, Pr
   app.put("/api/proyectos/:id", async (req, res) => {
     try {
       const p = await cargar(req, res); if (!p) return;
-      const cambios = limpiarCambios(req.body);
+      const cambios = limpiarCambios(urlsAFotos(req.body, plano(p)));
       Object.assign(p, cambios, { actualizado: new Date() });
       if (cambios.revision || cambios.ficha || cambios.formato || cambios.tipo) {
         const plantilla = await obtenerPlantilla(req.user.uid, p.formato, p.tipo);
