@@ -33,6 +33,7 @@ import { registrarRutasPublicar } from "./rutas-publicar.js";
 import { registrarRutasIAImagenes } from "./rutas-ia-imagenes.js";
 import { registrarRutasEjemplos } from "./rutas-ejemplos.js";
 import { registrarRutasAnunciosRapidos } from "./rutas-anuncios-rapidos.js";
+import { authPorClave, registrarRutasClavesMCP, registrarMCP } from "./rutas-mcp.js";
 import { Proyecto } from "./rutas-proyectos.js";
 
 // =============================================
@@ -324,7 +325,11 @@ registrarCronAvisos(app, { Producto });   // cron externo con su propia clave (a
 registrarPaginaCotizador(app, { dirname: __dirname });   // página pública del cotizador de letreros
 registrarRutasCotizadorPublico(app);                      // sus rutas públicas (sin sesión, con límites)
 
-app.use("/api", requireAuth);
+// Conector MCP para Claude (usa su propia clave; va antes del login)
+registrarMCP(app, { puerto: process.env.PORT || 3000 });
+// "Authorization: Bearer cdx_…" (clave del conector) vale como la sesión de su dueño
+app.use("/api", authPorClave());
+app.use("/api", (req, res, next) => (req.porClave ? next() : requireAuth(req, res, next)));
 
 const iaLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -505,6 +510,7 @@ registrarRutasCosteos(app, { idValido, Producto, llamarIA, iaLimiter, parsearJSO
 registrarRutasPlantilla(app);
 registrarRutasEjemplos(app, { llamarIA, limiter: iaLimiter, Proyecto });
 registrarRutasAnunciosRapidos(app, { llamarIA, limiter: iaLimiter });
+registrarRutasClavesMCP(app);
 registrarRutasMeta(app);
 registrarRutasFinanzas(app, { llamarIA, iaLimiter });
 registrarRutasAvisos(app, { Producto });

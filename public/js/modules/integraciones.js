@@ -83,6 +83,7 @@ function render() {
       <h1>Integraciones</h1>
       <p>Conecta tus herramientas a CoDropX. Meta es de <b>solo lectura</b> (nunca cambia tus campañas). En Shopify, CoDropX solo crea productos en <b>borrador</b>: nada sale a tu tienda hasta que tú lo actives.</p>
     </header>
+    ${tarjetaClaude()}
     ${tarjetaMeta()}
     ${tarjetaShopify()}
     <section class="in-card in-pronto">
@@ -96,6 +97,45 @@ function render() {
   </div>`;
   iconos();
 }
+
+// ---------- Conector para Claude (MCP) ----------
+let clavesMCP = [];
+let claveNueva = null;   // se muestra una sola vez
+function tarjetaClaude() {
+  const url = claveNueva ? `${location.origin}/mcp/${claveNueva.clave}` : "";
+  return `<section class="in-card">
+    <div class="in-card-head">
+      <span class="in-logo claude">C</span>
+      <div><small>CLAUDE · CONECTOR MCP</small><p>Conecta CoDropX a Claude para pedirle en el chat: crear landings, titulares, imágenes, textos de Shopify y anuncios (también anuncios rápidos), y publicar en Shopify como borrador.</p></div>
+    </div>
+    ${claveNueva ? `<div class="in-mcp-nueva">
+      <b>Tu dirección del conector</b> (cópiala ya: por seguridad no se vuelve a mostrar):
+      <div class="in-mcp-url"><code id="mcpUrl">${esc(url)}</code><button class="in-btn" onclick="inCopiarMCP()"><i data-lucide="copy"></i> Copiar</button></div>
+      <ol>
+        <li>En <b>claude.ai</b>: Configuración → <b>Conectores</b> → <b>Agregar conector personalizado</b>.</li>
+        <li>Nombre: <b>CoDropX</b>. URL: pega la dirección de arriba. Dale <b>Agregar</b>.</li>
+        <li>En un chat nuevo, activa CoDropX en el botón de herramientas y pídele, por ejemplo: <i>"Hazme 5 anuncios del proyecto morral"</i>.</li>
+      </ol>
+      <p class="in-hint">En Claude Code: <code>claude mcp add --transport http codropx ${esc(url)}</code></p>
+    </div>` : ""}
+    ${clavesMCP.length ? `<div class="in-mcp-lista">${clavesMCP.map(k => `<div class="in-mcp-clave"><span><b>${esc(k.nombre)}</b> · termina en …${esc(k.final)} · creada ${fechaCorta(k.creado)}${k.ultimoUso ? ` · usada ${fechaCorta(k.ultimoUso)}` : " · sin usar"}</span><button class="in-link" onclick="inBorrarMCP('${esc(k._id)}')">Borrar</button></div>`).join("")}</div>` : ""}
+    <div class="in-mcp-acc"><button id="inBtnMCP" class="in-btn primary" onclick="inCrearMCP()"><i data-lucide="key-round"></i> ${clavesMCP.length ? "Crear otra dirección" : "Crear mi dirección del conector"}</button>
+    <span class="in-hint">Quien tenga la dirección puede usar tu CoDropX y gastar tu saldo de IA: no la compartas. Si se filtra, bórrala aquí.</span></div>
+  </section>`;
+}
+window.inCrearMCP = () => conCarga("inBtnMCP", "Creando...", async () => {
+  claveNueva = await api("POST", "/api/mcp/claves", { nombre: "Claude" });
+  clavesMCP = await api("GET", "/api/mcp/claves");
+  render();
+});
+window.inBorrarMCP = async (id) => {
+  if (!confirm("¿Borrar esta dirección? Claude dejará de poder usar CoDropX con ella.")) return;
+  try { await api("DELETE", `/api/mcp/claves/${id}`); clavesMCP = clavesMCP.filter(k => k._id !== id); if (claveNueva?._id === id) claveNueva = null; render(); }
+  catch (e) { avisar(e.message, "error"); }
+};
+window.inCopiarMCP = async () => {
+  try { await navigator.clipboard.writeText($("mcpUrl").textContent); avisar("Dirección copiada ✓"); } catch { avisar("Selecciónala y cópiala a mano", "error"); }
+};
 
 function tarjetaMeta() {
   const m = meta || {};
@@ -303,6 +343,7 @@ async function cargar() {
   ]);
   meta = m;
   shopify = sh;
+  try { clavesMCP = await api("GET", "/api/mcp/claves"); } catch { clavesMCP = []; }
   shFormAbierto = false;
   elegidas = new Set(meta.elegidas || []);
 }

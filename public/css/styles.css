@@ -6213,3 +6213,16 @@ main .cal-page input:focus, main .cal-page select:focus, main .pl-page input:foc
 .ar-item { display: flex; align-items: center; gap: 10px; justify-content: space-between; text-align: left; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.04); color: inherit; font: inherit; cursor: pointer; }
 .ar-item:hover { border-color: #3b82f6; }
 .ar-item b { flex: 1; }
+
+/* Conector MCP */
+.in-logo.claude { background: #d97757; color: #fff; }
+.in-mcp-nueva { margin: 10px 0; padding: 12px; border-radius: 12px; background: rgba(59,130,246,.08); border: 1px solid rgba(59,130,246,.3); font-size: 14px; }
+.in-mcp-nueva ol { margin: 8px 0 4px 18px; padding: 0; }
+.in-mcp-url { display: flex; gap: 8px; align-items: center; margin: 6px 0; flex-wrap: wrap; }
+.in-mcp-url code { flex: 1; min-width: 0; word-break: break-all; background: rgba(15,23,42,.08); padding: 6px 8px; border-radius: 8px; font-size: 12px; }
+.in-mcp-lista { display: grid; gap: 6px; margin: 8px 0; }
+.in-mcp-clave { display: flex; justify-content: space-between; gap: 8px; align-items: center; font-size: 13px; padding: 6px 0; border-bottom: 1px solid rgba(148,163,184,.2); }
+.in-mcp-acc { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+.in-btn.primary { background: #2563eb; border-color: #2563eb; color: #fff; }
+.in-link { background: none; border: 0; color: #2563eb; cursor: pointer; font: inherit; font-size: 13px; }
+.in-hint { font-size: 12px; color: #64748b; }
