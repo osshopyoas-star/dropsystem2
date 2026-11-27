@@ -1250,7 +1250,7 @@ ${bloqueAvatar(avatar, "AVATAR AL QUE LE HABLA ESTA LANDING")}
 
 ${METODO_AIDA}
 
-TAREA: Escribe los TEXTOS de la página de producto de Shopify (landing normal) para este avatar:
+TAREA: Escribe los TEXTOS de la página de producto de Shopify para este avatar (el título es el nombre del producto en la tienda; en Ban page la descripción va debajo de las imágenes):
 - titulo: título del producto, gancho corto con 1 emoji al inicio (máximo 12 palabras). Si hay regalo, agrégalo ("+ ¡... GRATIS! 🎁").
 - frase_oferta: frase corta en mayúsculas sobre el precio (por ejemplo "RECIBE UN DESCUENTO EXCLUSIVO 👇"). Nada de urgencia falsa.
 - beneficios: 4 o 5 beneficios cortos en MAYÚSCULAS (máximo 5 palabras cada uno), que irán con un ✔ verde.

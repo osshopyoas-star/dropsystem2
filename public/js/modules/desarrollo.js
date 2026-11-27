@@ -1397,7 +1397,7 @@ function pasoLanding() {
 
   ${fueraDeFormato ? `<div class="est-alert warn">Hay ${fueraDeFormato} sección(es) del otro formato. Dale a "Volver a proponer" para armar la landing en ${esc(FORMATOS[formatoDe(proyecto)].nombre)}.</div>` : ""}
 
-  ${normal ? tarjetaTextos(r) : ""}
+  ${tarjetaTextos(r)}
 
   <div class="est-secciones">
     ${secs.map((x, i) => tarjetaSeccion(x, i, i + 1)).join("")}
@@ -1954,7 +1954,7 @@ function tarjetaTextos(r) {
     <div class="est-card-row">
       <div>
         <h3>Textos para Shopify ${avTag()}</h3>
-        <p class="est-muted">Lo que va en el bloque de compra y en las pestañas del producto: título, frase de oferta, beneficios con ✔, descripción, envío y preguntas frecuentes.</p>
+        <p class="est-muted">El nombre del producto en Shopify y lo que va en el bloque de compra y en las pestañas: título, frase de oferta, beneficios con ✔, descripción, envío y preguntas frecuentes.</p>
       </div>
       <button id="estBtnTextos" class="est-btn ${t ? "" : "primary"}" onclick="estGenerarTextos()"><i data-lucide="type"></i> ${t ? "Volver a escribir" : "Escribir textos"}</button>
     </div>
